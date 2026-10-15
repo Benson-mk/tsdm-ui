@@ -1,0 +1,14 @@
+{
+  "writingHistoryAfter": {
+    "composerVisible": true,
+    "overview": "發表主題",
+    "threadVisible": false,
+    "title": "Title-only overview recovery"
+  },
+  "narrowReturnAfter": {
+    "documentWidth": 390,
+    "title": "Title-only overview recovery",
+    "viewportWidth": 390,
+    "visibleReturnActions": 1
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "checks": [
+    {
+      "name": "Return to writing restores original thread and input",
+      "result": {
+        "composerVisible": true,
+        "target": "示範使用者 · 撰寫目標: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏",
+        "text": "Overview navigation must retain this writing.",
+        "threadVisible": true
+      },
+      "stage": "initial overview, before recovery repairs"
+    },
+    {
+      "name": "Selecting a search result opens the thread",
+      "result": {
+        "overviewVisible": false,
+        "threadVisible": true,
+        "title": "把一個鏡頭多看一次：聊聊手繪背景裡的光"
+      },
+      "stage": "initial overview, before recovery repairs"
+    },
+    {
+      "name": "Back restores Search overview and query",
+      "result": {
+        "heading": "搜尋",
+        "overviewVisible": true,
+        "search": "光",
+        "threadVisible": false
+      },
+      "stage": "initial overview, before recovery repairs"
+    },
+    {
+      "name": "Language change preserves overview and hidden writing",
+      "result": {
+        "composerVisible": false,
+        "description": "Narrow the scope, then open a full discussion from the results.",
+        "heading": "Search",
+        "overviewVisible": true,
+        "text": "Overview navigation must retain this writing."
+      },
+      "stage": "initial overview, before recovery repairs"
+    },
+    {
+      "name": "Narrow return to title-only new writing",
+      "result": {
+        "composerVisible": true,
+        "target": "示範使用者 · 撰寫目標: 音樂交流",
+        "threadVisible": false,
+        "title": "Title-only overview recovery"
+      },
+      "stage": "after recovery repairs, before visual selection refinements"
+    },
+    {
+      "name": "Accepted narrow Back exposes active section context",
+      "result": {
+        "context": "搜尋",
+        "destination": "search",
+        "returnWritingVisible": true,
+        "screen": "boards"
+      },
+      "stage": "after recovery repairs, before visual selection refinements"
+    },
+    {
+      "name": "Narrow context choice returns to results",
+      "result": {
+        "resultCount": 2,
+        "screen": "list"
+      },
+      "stage": "after recovery repairs, before visual selection refinements"
+    },
+    {
+      "name": "Narrow result opens the thread",
+      "result": {
+        "documentWidth": 390,
+        "overviewVisible": false,
+        "screen": "reader",
+        "threadVisible": true,
+        "viewportWidth": 390
+      },
+      "stage": "after recovery repairs, before visual selection refinements"
+    },
+    {
+      "name": "Accepted medium picker updates overview scope",
+      "result": {
+        "composerVisible": false,
+        "documentWidth": 1100,
+        "heading": "收藏",
+        "overviewVisible": true,
+        "scope": "版塊收藏",
+        "viewportWidth": 1100
+      },
+      "stage": "after recovery repairs, before visual selection refinements"
+    },
+    {
+      "name": "B shows section overview after closing picker",
+      "result": {
+        "heading": "收藏",
+        "overviewVisible": true,
+        "threadVisible": false,
+        "variant": "B"
+      },
+      "stage": "after recovery repairs, before visual selection refinements"
+    },
+    {
+      "name": "C overview has no stale side composer or tabs",
+      "result": {
+        "composerColumn": false,
+        "composerVisible": false,
+        "overviewVisible": true,
+        "tabsVisible": false,
+        "variant": "C"
+      },
+      "stage": "after recovery repairs, before visual selection refinements"
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "runs": [
+    {
+      "pass": false,
+      "observations": [
+        {
+          "destination": "search",
+          "pass": false,
+          "actual": {
+            "boardNavigationCount": 4,
+            "heading": "逛逛版塊",
+            "mainLabel": "搜尋",
+            "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談COMMUNITY, AT YOUR PACE一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+            "selected": "search"
+          }
+        },
+        {
+          "destination": "favorites",
+          "pass": false,
+          "actual": {
+            "boardNavigationCount": 4,
+            "heading": "逛逛版塊",
+            "mainLabel": "收藏",
+            "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談COMMUNITY, AT YOUR PACE一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+            "selected": "favorites"
+          }
+        },
+        {
+          "destination": "notifications",
+          "pass": false,
+          "actual": {
+            "boardNavigationCount": 4,
+            "heading": "逛逛版塊",
+            "mainLabel": "通知",
+            "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談COMMUNITY, AT YOUR PACE一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+            "selected": "notifications"
+          }
+        },
+        {
+          "destination": "drafts",
+          "pass": false,
+          "actual": {
+            "boardNavigationCount": 4,
+            "heading": "逛逛版塊",
+            "mainLabel": "草稿",
+            "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談COMMUNITY, AT YOUR PACE一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+            "selected": "drafts"
+          }
+        },
+        {
+          "destination": "boards",
+          "pass": true,
+          "actual": {
+            "boardNavigationCount": 4,
+            "heading": "逛逛版塊",
+            "mainLabel": "版塊",
+            "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談COMMUNITY, AT YOUR PACE一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+            "selected": "boards"
+          }
+        }
+      ]
+    },
+    {
+      "pass": false,
+      "observations": [
+        {
+          "destination": "search",
+          "pass": false,
+          "actual": {
+            "boardNavigationCount": 4,
+            "heading": "逛逛版塊",
+            "mainLabel": "搜尋",
+            "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談COMMUNITY, AT YOUR PACE一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+            "selected": "search"
+          }
+        },
+        {
+          "destination": "favorites",
+          "pass": false,
+          "actual": {
+            "boardNavigationCount": 4,
+            "heading": "逛逛版塊",
+            "mainLabel": "收藏",
+            "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談COMMUNITY, AT YOUR PACE一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+            "selected": "favorites"
+          }
+        },
+        {
+          "destination": "notifications",
+          "pass": false,
+          "actual": {
+            "boardNavigationCount": 4,
+            "heading": "逛逛版塊",
+            "mainLabel": "通知",
+            "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談COMMUNITY, AT YOUR PACE一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+            "selected": "notifications"
+          }
+        },
+        {
+          "destination": "drafts",
+          "pass": false,
+          "actual": {
+            "boardNavigationCount": 4,
+            "heading": "逛逛版塊",
+            "mainLabel": "草稿",
+            "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談COMMUNITY, AT YOUR PACE一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+            "selected": "drafts"
+          }
+        },
+        {
+          "destination": "boards",
+          "pass": true,
+          "actual": {
+            "boardNavigationCount": 4,
+            "heading": "逛逛版塊",
+            "mainLabel": "版塊",
+            "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談COMMUNITY, AT YOUR PACE一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+            "selected": "boards"
+          }
+        }
+      ]
+    }
+  ]
+}

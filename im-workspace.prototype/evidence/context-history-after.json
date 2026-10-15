@@ -1,0 +1,19 @@
+{
+  "searchReturn": {
+    "pass": true,
+    "actual": {
+      "destination": "search",
+      "resultCount": 1,
+      "scope": "anime",
+      "search": "光"
+    }
+  },
+  "pickerReturn": {
+    "pass": true,
+    "actual": {
+      "boardCount": 0,
+      "selected": "threads",
+      "threadCount": 1
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "pass": true,
+  "observations": [
+    {
+      "destination": "search",
+      "pass": true,
+      "actual": {
+        "composerVisible": false,
+        "mainLabel": "搜尋",
+        "overviewHeading": "搜尋",
+        "overviewVisible": true,
+        "returnWritingVisible": true,
+        "target": "示範使用者 · 撰寫目標: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏",
+        "text": "Overview navigation must retain this writing.",
+        "threadVisible": false
+      }
+    },
+    {
+      "destination": "favorites",
+      "pass": true,
+      "actual": {
+        "composerVisible": false,
+        "mainLabel": "收藏",
+        "overviewHeading": "收藏",
+        "overviewVisible": true,
+        "returnWritingVisible": true,
+        "target": "示範使用者 · 撰寫目標: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏",
+        "text": "Overview navigation must retain this writing.",
+        "threadVisible": false
+      }
+    },
+    {
+      "destination": "notifications",
+      "pass": true,
+      "actual": {
+        "composerVisible": false,
+        "mainLabel": "通知",
+        "overviewHeading": "通知",
+        "overviewVisible": true,
+        "returnWritingVisible": true,
+        "target": "示範使用者 · 撰寫目標: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏",
+        "text": "Overview navigation must retain this writing.",
+        "threadVisible": false
+      }
+    },
+    {
+      "destination": "drafts",
+      "pass": true,
+      "actual": {
+        "composerVisible": false,
+        "mainLabel": "草稿",
+        "overviewHeading": "草稿",
+        "overviewVisible": true,
+        "returnWritingVisible": true,
+        "target": "示範使用者 · 撰寫目標: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏",
+        "text": "Overview navigation must retain this writing.",
+        "threadVisible": false
+      }
+    },
+    {
+      "destination": "boards",
+      "pass": true,
+      "actual": {
+        "composerVisible": false,
+        "mainLabel": "版塊",
+        "overviewHeading": "版塊",
+        "overviewVisible": true,
+        "returnWritingVisible": true,
+        "target": "示範使用者 · 撰寫目標: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏",
+        "text": "Overview navigation must retain this writing.",
+        "threadVisible": false
+      }
+    }
+  ]
+}

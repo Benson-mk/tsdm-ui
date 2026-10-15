@@ -1,0 +1,323 @@
+{
+  "stages": {
+    "initial": "First 7 observations precede bounded corrections to title-only guards, B picker action, and reading-position retention. No initial source hash captured.",
+    "final": "Remaining observations use the initial comparison source identified by initial-source-hashes.json, before the later contextual-navigation correction."
+  },
+  "observations": [
+    {
+      "name": "quote target and composing",
+      "result": {
+        "quote": "澄月 · #1 — 有些配樂，第一次聽見時只是故事的背景。隔了一段時間再聽，才發現它已經替那個下午留了一個位置。這次想把「值得重聽」的原因寫得更具體一點：是低音進場的時機、呼吸一樣的停頓，還是某個不急著解決的和弦？歡迎帶著自己的例子慢慢回覆。A QUIET AFTERNOON合成封面插圖 · A quiet afternoon先從三個片段開始下面的曲名與時間都為示例。我把自己的",
+        "spoiler": true,
+        "target": "示範使用者 · 撰寫目標: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏 · #1",
+        "text": "驗證文字 / retained composition — autumn #1"
+      },
+      "stage": "initial"
+    },
+    {
+      "name": "preferences retain writing and expanded spoiler",
+      "result": {
+        "density": "Compact",
+        "language": "en",
+        "listFont": "18px",
+        "postFont": "16px",
+        "spoiler": true,
+        "target": "Demo member · Writing target: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏 · #1",
+        "text": "驗證文字 / retained composition — autumn #1",
+        "theme": "Dark"
+      },
+      "stage": "initial"
+    },
+    {
+      "name": "editor arrow key does not change layout",
+      "result": {
+        "selection": 38,
+        "variant": "A"
+      },
+      "stage": "initial"
+    },
+    {
+      "name": "browsing does not retarget quote",
+      "result": {
+        "reading": "雨天的鋼琴，與一張還沒寫完的歌單",
+        "target": "Demo member · Writing target: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏 · #1",
+        "text": "驗證文字 / retained composition — autumn #1"
+      },
+      "stage": "initial"
+    },
+    {
+      "name": "different quote target prompts before replacing input",
+      "result": {
+        "openAttribute": "",
+        "interpretation": "HTML boolean open attribute is present on the dialog; an absent attribute would be null."
+      },
+      "stage": "initial"
+    },
+    {
+      "name": "unknown result preserves input and blocks resend",
+      "result": {
+        "disabled": true,
+        "message": "Unknown outcome (simulation). Check the result before sending again. Your writing is retained.Simulate result check",
+        "text": "驗證文字 / retained composition — autumn #1"
+      },
+      "stage": "initial"
+    },
+    {
+      "name": "challenge keeps recovery target and writing",
+      "result": {
+        "recovery": "Synthetic contentSite verification requiredRetain thread identity, page and recovery target. Your writing stays here.秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏forum.php?mod=viewthread&tid=DEMO-autumn&page=1Restore normal reading exampleOriginal-site recovery (illustration)Back to thread list",
+        "text": "驗證文字 / retained composition — autumn #1"
+      },
+      "stage": "initial"
+    },
+    {
+      "name": "width A 1440",
+      "result": {
+        "documentWidth": 1440,
+        "readerWidth": 836,
+        "width": 1440
+      },
+      "stage": "final"
+    },
+    {
+      "name": "B picker search and new-thread access",
+      "result": {
+        "matches": "雨天的鋼琴，與一張還沒寫完的歌單\n紙飛機\n· 2 篇回覆\n09:18\n這個結局之後，我們還想知道什麼？\n紙飛機\n· 2 篇回覆\n08:32",
+        "newThread": true
+      },
+      "stage": "final"
+    },
+    {
+      "name": "title-only unsent work is protected",
+      "result": {
+        "openAttribute": "",
+        "interpretation": "HTML boolean open attribute is present on the dialog; an absent attribute would be null."
+      },
+      "stage": "final"
+    },
+    {
+      "name": "C composing width 1280",
+      "result": {
+        "composerHeight": 778.8125,
+        "composerWidth": 320,
+        "documentWidth": 1280,
+        "postWidth": 520,
+        "readerWidth": 584,
+        "viewport": 1280
+      },
+      "stage": "final"
+    },
+    {
+      "name": "C composing width 1279",
+      "result": {
+        "composerHeight": 366.6953125,
+        "composerWidth": 923,
+        "documentWidth": 1279,
+        "postWidth": 859,
+        "readerWidth": 923,
+        "viewport": 1279
+      },
+      "stage": "final"
+    },
+    {
+      "name": "C composing width 960",
+      "result": {
+        "composerHeight": 366.6953125,
+        "composerWidth": 604,
+        "documentWidth": 960,
+        "postWidth": 540,
+        "readerWidth": 604,
+        "viewport": 960
+      },
+      "stage": "final"
+    },
+    {
+      "name": "C composing width 959",
+      "result": {
+        "composerHeight": 347.796875,
+        "composerWidth": 959,
+        "documentWidth": 959,
+        "postWidth": 864,
+        "readerWidth": 959,
+        "viewport": 959
+      },
+      "stage": "final"
+    },
+    {
+      "name": "C composing width 390",
+      "result": {
+        "composerHeight": 365.1953125,
+        "composerWidth": 390,
+        "documentWidth": 390,
+        "postWidth": 342,
+        "readerWidth": 390,
+        "viewport": 390
+      },
+      "stage": "final"
+    },
+    {
+      "name": "A reading width 1280",
+      "result": {
+        "documentWidth": 1280,
+        "postWidth": 612,
+        "readerWidth": 676,
+        "viewport": 1280
+      },
+      "stage": "final"
+    },
+    {
+      "name": "A reading width 1279",
+      "result": {
+        "documentWidth": 1279,
+        "postWidth": 859,
+        "readerWidth": 923,
+        "viewport": 1279
+      },
+      "stage": "final"
+    },
+    {
+      "name": "A reading width 960",
+      "result": {
+        "documentWidth": 960,
+        "postWidth": 540,
+        "readerWidth": 604,
+        "viewport": 960
+      },
+      "stage": "final"
+    },
+    {
+      "name": "A reading width 959",
+      "result": {
+        "documentWidth": 959,
+        "postWidth": 864,
+        "readerWidth": 959,
+        "viewport": 959
+      },
+      "stage": "final"
+    },
+    {
+      "name": "A reading width 390",
+      "result": {
+        "documentWidth": 390,
+        "postWidth": 342,
+        "readerWidth": 390,
+        "viewport": 390
+      },
+      "stage": "final"
+    },
+    {
+      "name": "narrow back reaches thread list",
+      "result": true,
+      "stage": "final"
+    },
+    {
+      "name": "narrow exact post navigation",
+      "result": "http://127.0.0.1:4176/im-workspace.prototype.html?variant=A&thread=autumn&page=2&screen=reader&post=5#post-5",
+      "stage": "final"
+    },
+    {
+      "name": "browser back returns to page 1",
+      "result": "頁 1 / 2\n1\n2\n最後回覆 ↗",
+      "stage": "final"
+    },
+    {
+      "name": "B reading width 960",
+      "result": {
+        "documentWidth": 960,
+        "postWidth": 864,
+        "readerWidth": 960,
+        "viewport": 960
+      },
+      "stage": "final"
+    },
+    {
+      "name": "B reading width 959",
+      "result": {
+        "documentWidth": 959,
+        "postWidth": 864,
+        "readerWidth": 959,
+        "viewport": 959
+      },
+      "stage": "final"
+    },
+    {
+      "name": "B reading width 390",
+      "result": {
+        "documentWidth": 390,
+        "postWidth": 342,
+        "readerWidth": 390,
+        "viewport": 390
+      },
+      "stage": "final"
+    },
+    {
+      "name": "all four palettes preserve post-media colors",
+      "result": [
+        {
+          "background": "rgb(255, 255, 255)",
+          "ink": "rgb(0, 0, 0)",
+          "mediaFill": "#a29bba",
+          "postSize": "18px",
+          "theme": "Light"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "ink": "rgb(0, 0, 0)",
+          "mediaFill": "#a29bba",
+          "postSize": "18px",
+          "theme": "Alias"
+        },
+        {
+          "background": "rgb(255, 255, 255)",
+          "ink": "rgb(0, 0, 0)",
+          "mediaFill": "#a29bba",
+          "postSize": "18px",
+          "theme": "Mono"
+        },
+        {
+          "background": "rgb(0, 0, 0)",
+          "ink": "rgb(255, 255, 255)",
+          "mediaFill": "#a29bba",
+          "postSize": "18px",
+          "theme": "Dark"
+        }
+      ],
+      "stage": "final"
+    },
+    {
+      "name": "simplified Chinese and compact controls",
+      "result": {
+        "density": "Compact",
+        "language": "zh-CN",
+        "postSize": "16px",
+        "settings": "外观与语言"
+      },
+      "stage": "final"
+    },
+    {
+      "name": "runtime console errors",
+      "result": [],
+      "stage": "final"
+    },
+    {
+      "name": "final source preference continuity",
+      "result": {
+        "density": "Compact",
+        "language": "en",
+        "target": "Demo member · Writing target: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏",
+        "text": "Final artifact continuity check / 最終示例",
+        "theme": "Dark"
+      },
+      "stage": "final"
+    },
+    {
+      "name": "final source unknown result",
+      "result": {
+        "message": "Unknown outcome (simulation). Check the result before sending again. Your writing is retained.Simulate result check",
+        "resendDisabled": true,
+        "text": "Final artifact continuity check / 最終示例"
+      },
+      "stage": "final"
+    }
+  ]
+}

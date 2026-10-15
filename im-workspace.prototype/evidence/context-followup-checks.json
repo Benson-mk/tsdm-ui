@@ -1,0 +1,110 @@
+{
+  "stage": "Contextual-pane correction, before final history repair",
+  "checks": [
+    {
+      "name": "search scope stays within Search",
+      "result": {
+        "context": "◇動畫討論",
+        "destination": "search",
+        "list": "置頂把一個鏡頭多看一次：聊聊手繪背景裡的光雲岫· 2 篇回覆11:02這個結局之後，我們還想知道什麼？紙飛機· 2 篇回覆08:32",
+        "target": "示範使用者 · 撰寫目標: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏",
+        "text": "Keep this reply while switching navigation."
+      }
+    },
+    {
+      "name": "browser Back restores section and scope",
+      "result": {
+        "context": "◇動畫討論",
+        "destination": "search",
+        "heading": "搜尋"
+      }
+    },
+    {
+      "name": "locale keeps context and composition",
+      "result": {
+        "context": "◇動畫討論",
+        "heading": "Search",
+        "text": "Keep this reply while switching navigation."
+      }
+    },
+    {
+      "name": "A intermediate contextual picker stays in Search",
+      "result": {
+        "boardNavigationCount": 0,
+        "destination": "search",
+        "heading": "Search",
+        "results": "Pinned秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏澄月· 5 replies10:24雨天的鋼琴，與一張還沒寫完的歌單紙飛機· 2 replies09:18分享你的入門耳機：先談感受，再談規格山雀· 2 replies昨天Soundtrack notes / 從片尾的一小段旋律，重新看見整個故事橘燈· 2 replies昨天",
+        "selected": "♫音樂交流",
+        "text": "Keep this reply while switching navigation."
+      }
+    },
+    {
+      "name": "A narrow Back exposes active Search context",
+      "result": {
+        "boardNavigationCount": 0,
+        "context": "♫音樂交流",
+        "documentWidth": 390,
+        "heading": "Search",
+        "screen": "boards",
+        "viewportWidth": 390
+      }
+    },
+    {
+      "name": "A narrow context selection returns to Search results",
+      "result": {
+        "heading": "Search",
+        "resultCount": 2,
+        "screen": "list",
+        "target": "Demo member · Writing target: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏",
+        "text": "Keep this reply while switching navigation."
+      }
+    },
+    {
+      "name": "Saved boards uses board results",
+      "result": {
+        "boardCount": 1,
+        "context": "▦Saved boards",
+        "heading": "Saved",
+        "threadCount": 0
+      }
+    },
+    {
+      "name": "Opening a saved board returns to Boards",
+      "result": {
+        "boardCount": 4,
+        "destination": "boards",
+        "heading": "Explore boards",
+        "list": "音樂交流",
+        "target": "Demo member · Writing target: 秋日聆聽筆記：從一段配樂開始，把值得重聽的旋律慢慢收藏",
+        "text": "Keep this reply while switching navigation."
+      }
+    },
+    {
+      "name": "B shared picker follows Saved",
+      "result": {
+        "boardNavigationCount": 0,
+        "boardResultCount": 1,
+        "context": "▦Saved boards",
+        "heading": "Saved",
+        "variant": "B"
+      }
+    },
+    {
+      "name": "B picker switches saved result type",
+      "result": {
+        "boardCount": 0,
+        "threadCount": 1
+      }
+    },
+    {
+      "name": "C shared picker follows Notices",
+      "result": {
+        "boardNavigationCount": 0,
+        "context": "♧Notification inbox",
+        "heading": "Notices",
+        "refresh": "Refresh manually",
+        "variant": "C"
+      }
+    }
+  ]
+}

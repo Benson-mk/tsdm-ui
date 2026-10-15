@@ -1,0 +1,60 @@
+{
+  "pass": true,
+  "observations": [
+    {
+      "destination": "search",
+      "pass": true,
+      "actual": {
+        "boardNavigationCount": 0,
+        "heading": "搜尋",
+        "mainLabel": "搜尋",
+        "pane": "搜尋⌕所有版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談WORKSPACE / CONTEXT在選定的示例版塊中搜尋標題或作者。實際搜尋條件另行決定。虛構內容",
+        "selected": "search"
+      }
+    },
+    {
+      "destination": "favorites",
+      "pass": true,
+      "actual": {
+        "boardNavigationCount": 0,
+        "heading": "收藏",
+        "mainLabel": "收藏",
+        "pane": "收藏▤主題收藏▦版塊收藏WORKSPACE / CONTEXT選擇主題或版塊收藏，再從旁邊的列表繼續閱讀。虛構內容",
+        "selected": "favorites"
+      }
+    },
+    {
+      "destination": "notifications",
+      "pass": true,
+      "actual": {
+        "boardNavigationCount": 0,
+        "heading": "通知",
+        "mainLabel": "通知",
+        "pane": "通知♧通知收件匣WORKSPACE / CONTEXT目前帳號的合成通知。手動更新，不模擬已讀分類或背景同步。虛構內容",
+        "selected": "notifications"
+      }
+    },
+    {
+      "destination": "drafts",
+      "pass": true,
+      "actual": {
+        "boardNavigationCount": 0,
+        "heading": "草稿",
+        "mainLabel": "草稿",
+        "pane": "草稿✎未發佈主題WORKSPACE / CONTEXT論壇草稿的入口示意，只包括未發佈主題。虛構內容",
+        "selected": "drafts"
+      }
+    },
+    {
+      "destination": "boards",
+      "pass": true,
+      "actual": {
+        "boardNavigationCount": 4,
+        "heading": "逛逛版塊",
+        "mainLabel": "版塊",
+        "pane": "逛逛版塊♫音樂交流◇動畫討論✎創作工坊☷生活閒談WORKSPACE / CONTEXT一個主題，一段完整的討論。慢慢讀，也慢慢回覆。虛構內容",
+        "selected": "boards"
+      }
+    }
+  ]
+}

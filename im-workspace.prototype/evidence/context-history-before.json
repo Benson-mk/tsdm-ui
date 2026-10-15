@@ -1,0 +1,19 @@
+{
+  "searchReturn": {
+    "pass": false,
+    "actual": {
+      "destination": "search",
+      "resultCount": 2,
+      "scope": "anime",
+      "search": ""
+    }
+  },
+  "pickerReturn": {
+    "pass": false,
+    "actual": {
+      "boardCount": 1,
+      "selected": "boards",
+      "threadCount": 0
+    }
+  }
+}
