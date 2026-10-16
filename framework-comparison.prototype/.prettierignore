@@ -1,0 +1,5 @@
+src/shared/editor-snapshot/
+node_modules/
+dist/
+evidence/
+test-results/

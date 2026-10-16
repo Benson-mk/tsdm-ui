@@ -1,0 +1,262 @@
+{
+  "stage": "dev",
+  "evidenceLevel": "Vite development server, synthetic browser fixture",
+  "startedAt": "2026-10-16T08:08:21.325Z",
+  "node": "26.0.0",
+  "npm": "11.12.1",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+  "dependencies": {
+    "@playwright/test": "1.64.1",
+    "@radix-ui/react-dialog": "1.3.1",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "@vitejs/plugin-vue": "6.0.10",
+    "prettier": "3.9.10",
+    "prosemirror-commands": "1.7.1",
+    "prosemirror-keymap": "1.2.3",
+    "prosemirror-model": "1.25.11",
+    "prosemirror-schema-list": "1.5.1",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-tables": "1.8.5",
+    "prosemirror-transform": "1.10.5",
+    "prosemirror-view": "1.42.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "reka-ui": "2.11.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.4",
+    "vite-plugin-monkey": "8.1.1",
+    "vue": "3.5.44",
+    "vue-tsc": "3.3.13"
+  },
+  "sourceManifest": [
+    {
+      "file": "src/entry-react.tsx",
+      "sha256": "fc261e8f7c9b88fdb235f487de5cc843109ddd4bd4ee6fee41cececa01c8837c"
+    },
+    {
+      "file": "src/entry-vue.ts",
+      "sha256": "e66b05c99419121a04a2852e22a816af26b0429de7a7aaf42ce3f987810aa5ce"
+    },
+    {
+      "file": "src/env.d.ts",
+      "sha256": "44f5bea39efc55f4660395b36543bb04137e9a5158da9e8b755b40d3f84dce07"
+    },
+    {
+      "file": "src/main.ts",
+      "sha256": "cab5c1b9540c49bc7a5e3a60d33f1eb4dda3e92c52382f3f98ca36c422df8f6c"
+    },
+    {
+      "file": "src/react/App.tsx",
+      "sha256": "e4b63e168502321914972242c21575db4383ca0f19e843bb6b35b887c7ea5cb1"
+    },
+    {
+      "file": "src/react/EditorSurface.tsx",
+      "sha256": "3fb1c8612b6424e065f2bb3a6510be8afd0d7a513a5ec2cf8cb1b4c5a9fc3f69"
+    },
+    {
+      "file": "src/shared/editor-snapshot/bbcode.js",
+      "sha256": "48fbd102dc711d05b4c7dee084a905e8c6247059d68d5e91695688e9c9e5c9c8"
+    },
+    {
+      "file": "src/shared/editor-snapshot/commands.js",
+      "sha256": "30eaa189f3cdedf8c117f14201595a78e7e06f82e3b80d979f5406a92def12ef"
+    },
+    {
+      "file": "src/shared/editor-snapshot/model.js",
+      "sha256": "82fb4f37b472570f9d653333acd780592493de422682be16fde9c3a081ee7ff9"
+    },
+    {
+      "file": "src/shared/editor-snapshot/preservation.js",
+      "sha256": "1f8586935321e8349749d8c354bd697f51a620da85ed6ee5f14ca61619f12be6"
+    },
+    {
+      "file": "src/shared/editor-snapshot/session.js",
+      "sha256": "dd683926aa112e818c9650384d200943f148596802636aca65cad685316768ae"
+    },
+    {
+      "file": "src/shared/editor-surface.ts",
+      "sha256": "12095cfd01d2c7cceb21b90c34a7c03427bcbebcbb86b63575012766687fe3b6"
+    },
+    {
+      "file": "src/shared/fixture.ts",
+      "sha256": "bb52f06761a5986aba602a1e05e4360da960a1ce233c46516140f38975b19fb4"
+    },
+    {
+      "file": "src/shared/harness.ts",
+      "sha256": "9d70a8e0b44abdd0454bb145e763c833f69e96534de4e18d0b707a2569524cf3"
+    },
+    {
+      "file": "src/shared/host.ts",
+      "sha256": "3892e05f05ddd686aef9826fa4adb65310f5871b75783ff691ad5bc7e19c5d23"
+    },
+    {
+      "file": "src/shared/style.css",
+      "sha256": "b30798caf9fe60899fc3a2f5fe59d14672496b6019a99708d15027e2a4eca000"
+    },
+    {
+      "file": "src/vue/App.vue",
+      "sha256": "5c6ce454755248cdd1b7ab7c8971dc16b60de283917a342f18e8cd9a89e874b0"
+    },
+    {
+      "file": "src/vue/EditorSurface.vue",
+      "sha256": "59e27b6d76cfe4614e98653529d57ef1507edfb2fb8dfb7eb508177ebc19c5d7"
+    },
+    {
+      "file": "probes/radix-stock.spec.ts",
+      "sha256": "d2056ddfbe6d9ba0fe0620632142cc22c168b3e4293c670f6b492587361aac3c"
+    },
+    {
+      "file": "probes/workspace.spec.ts",
+      "sha256": "78ee6951c58cc481e9d9e92b339fcecafab8ab69eb927220c4bf05824ecfa614"
+    },
+    {
+      "file": "package.json",
+      "sha256": "89eded3ac8d214af8be61b41fe149be8423b15f8563fbf85e1351b4e36b47b0d"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "56b14c07ae54db6a4a038a42c3ad4d889b1e52ec0c827e4d3460a7212c644409"
+    },
+    {
+      "file": "vite.config.ts",
+      "sha256": "8a2b1ea46560b34a5d249d101733f7b3145b9078b591c2bc94535fbe677a3229"
+    },
+    {
+      "file": "tsconfig.json",
+      "sha256": "aeeaadb922b437ab3e63915b463bfcd6b5431e50bc18dc04649f3411a69908c1"
+    },
+    {
+      "file": "playwright.config.ts",
+      "sha256": "b9a9661d0ac5a307d4c0eab0b7928010941c6adc0c4687a558d90062c9c94c90"
+    }
+  ],
+  "payloads": [
+    {
+      "file": "dist/vue/comparison-vue.user.js",
+      "bytes": 420458,
+      "sha256": "ad4aa723cc35174d23c5443565897b1e6f6c64d2a0beca83733071132e755617",
+      "matches": [
+        "http://127.0.0.1:4177/*",
+        "http://localhost:4177/*"
+      ],
+      "externalRuntimeMetadata": false
+    },
+    {
+      "file": "dist/react/comparison-react.user.js",
+      "bytes": 535642,
+      "sha256": "0aeeb09e836d0aaba32aea5023bb1c54d166132b6e01b46635f85ed76f6e1af7",
+      "matches": [
+        "http://127.0.0.1:4177/*",
+        "http://localhost:4177/*"
+      ],
+      "externalRuntimeMetadata": false
+    }
+  ],
+  "actualPassed": 12,
+  "expectedFailures": 1,
+  "unexpected": 0,
+  "tests": [
+    {
+      "journey": "radix-stock.spec.ts / document the stock Radix ShadowRoot keyboard limitation",
+      "expectedStatus": "failed",
+      "observedStatus": "failed",
+      "durationMs": 539,
+      "sourceSha256": null,
+      "note": "Intentional stock Radix focus failure; not a successful user journey."
+    },
+    {
+      "journey": "workspace.spec.ts / vue / no-op mode switches preserve the complete source",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 737,
+      "sourceSha256": "338ded7c2f97947da6eed60445eb567d8e14cd6a0b9e56de328a94cf1a1796ee"
+    },
+    {
+      "journey": "workspace.spec.ts / vue / typing, appearance and overview retain source and the same editor node",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 589,
+      "sourceSha256": "2f7050c314696cf1cf3eb86963241b73162f8f7f64cecd039d8067fc4322b4de"
+    },
+    {
+      "journey": "workspace.spec.ts / vue / detaching the view retains the session and undo history",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 521,
+      "sourceSha256": "338ded7c2f97947da6eed60445eb567d8e14cd6a0b9e56de328a94cf1a1796ee"
+    },
+    {
+      "journey": "workspace.spec.ts / vue / table merge and split preserve unrelated opaque source",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 433,
+      "sourceSha256": "9709ffb37b81a507f19078b4da45dd3a316e93bd4dc36d4000e1767cf8ee7634"
+    },
+    {
+      "journey": "workspace.spec.ts / vue / dialog stays in the shadow host, contains focus and returns it",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 520,
+      "sourceSha256": "338ded7c2f97947da6eed60445eb567d8e14cd6a0b9e56de328a94cf1a1796ee"
+    },
+    {
+      "journey": "workspace.spec.ts / vue / narrow view remains usable and yields a review image",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 503,
+      "sourceSha256": "338ded7c2f97947da6eed60445eb567d8e14cd6a0b9e56de328a94cf1a1796ee"
+    },
+    {
+      "journey": "workspace.spec.ts / react / no-op mode switches preserve the complete source",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 449,
+      "sourceSha256": "338ded7c2f97947da6eed60445eb567d8e14cd6a0b9e56de328a94cf1a1796ee"
+    },
+    {
+      "journey": "workspace.spec.ts / react / typing, appearance and overview retain source and the same editor node",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 553,
+      "sourceSha256": "2f7050c314696cf1cf3eb86963241b73162f8f7f64cecd039d8067fc4322b4de"
+    },
+    {
+      "journey": "workspace.spec.ts / react / detaching the view retains the session and undo history",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 438,
+      "sourceSha256": "338ded7c2f97947da6eed60445eb567d8e14cd6a0b9e56de328a94cf1a1796ee"
+    },
+    {
+      "journey": "workspace.spec.ts / react / table merge and split preserve unrelated opaque source",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 429,
+      "sourceSha256": "9709ffb37b81a507f19078b4da45dd3a316e93bd4dc36d4000e1767cf8ee7634"
+    },
+    {
+      "journey": "workspace.spec.ts / react / dialog stays in the shadow host, contains focus and returns it",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 385,
+      "sourceSha256": "338ded7c2f97947da6eed60445eb567d8e14cd6a0b9e56de328a94cf1a1796ee"
+    },
+    {
+      "journey": "workspace.spec.ts / react / narrow view remains usable and yields a review image",
+      "expectedStatus": "passed",
+      "observedStatus": "passed",
+      "durationMs": 409,
+      "sourceSha256": "338ded7c2f97947da6eed60445eb567d8e14cd6a0b9e56de328a94cf1a1796ee"
+    }
+  ],
+  "limits": [
+    "No live forum or installed Tampermonkey test",
+    "No Tauri/mobile test",
+    "No native Chinese IME or screen-reader qualification",
+    "No full BBCode corpus or source/visual caret-mapping qualification",
+    "No whole-project speed or framework performance ranking"
+  ]
+}

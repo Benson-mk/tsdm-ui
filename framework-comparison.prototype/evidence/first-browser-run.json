@@ -1,0 +1,12 @@
+{
+  "stage": "first full browser run",
+  "stats": {
+    "startTime": "2026-10-16T08:00:11.904Z",
+    "duration": 8151.976999999999,
+    "expected": 11,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  },
+  "outcome": "11 passed; React/Radix modal focus containment failed in open ShadowRoot. Reka emitted title/description lookup warnings although browser role/name lookup succeeded. Shared ProseMirror white-space CSS warning needs correction."
+}

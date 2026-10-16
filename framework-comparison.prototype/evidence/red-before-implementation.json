@@ -1,0 +1,12 @@
+{
+  "stage": "prewritten probes against empty comparison page, before implementation",
+  "stats": {
+    "startTime": "2026-10-16T07:53:25.460Z",
+    "duration": 22555.497,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  },
+  "expectedFailure": "Both candidates lack the source-readback element; timeout. Browser setup failure recorded separately."
+}

@@ -1,0 +1,33 @@
+{
+  "sourceRepository": "tsdm-ui-experiment",
+  "sourceHead": "c8348e6c4c4aaf0011f174394733be3d580f59e5",
+  "sourceState": "inspected working files, including local modifications; not a pristine commit",
+  "purpose": "Frozen identical core for both throwaway wrappers. No production adoption.",
+  "files": [
+    {
+      "file": "src/shared/editor-snapshot/bbcode.js",
+      "original": "src/editor/bbcode.js",
+      "sha256": "48fbd102dc711d05b4c7dee084a905e8c6247059d68d5e91695688e9c9e5c9c8"
+    },
+    {
+      "file": "src/shared/editor-snapshot/commands.js",
+      "original": "src/editor/commands.js",
+      "sha256": "30eaa189f3cdedf8c117f14201595a78e7e06f82e3b80d979f5406a92def12ef"
+    },
+    {
+      "file": "src/shared/editor-snapshot/model.js",
+      "original": "src/editor/model.js",
+      "sha256": "82fb4f37b472570f9d653333acd780592493de422682be16fde9c3a081ee7ff9"
+    },
+    {
+      "file": "src/shared/editor-snapshot/preservation.js",
+      "original": "src/editor/preservation.js",
+      "sha256": "1f8586935321e8349749d8c354bd697f51a620da85ed6ee5f14ca61619f12be6"
+    },
+    {
+      "file": "src/shared/editor-snapshot/session.js",
+      "original": "src/editor/session.js",
+      "sha256": "dd683926aa112e818c9650384d200943f148596802636aca65cad685316768ae"
+    }
+  ]
+}
