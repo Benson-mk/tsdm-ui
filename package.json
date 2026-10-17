@@ -1,0 +1,45 @@
+{
+  "name": "tsdm-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": "24.22.0",
+    "npm": "11.21.1"
+  },
+  "packageManager": "npm@11.21.1",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "vue-tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "format:check": "prettier --check \"src/**/*.{ts,vue,css}\" \"tests/**/*.ts\" \"scripts/*.mjs\" \"*.{json,ts,js,html}\" README.md docs/implementation \"evidence/*.schema.json\"",
+    "format": "prettier --write \"src/**/*.{ts,vue,css}\" \"tests/**/*.ts\" \"scripts/*.mjs\" \"*.{json,ts,js,html}\" README.md docs/implementation \"evidence/*.schema.json\"",
+    "build": "vite build && vite build --config vite.library.config.ts && tsc -p tsconfig.library.json && node scripts/package-library.mjs",
+    "test:e2e": "playwright test",
+    "test:consumer": "node scripts/check-consumer.mjs",
+    "evidence:verify": "node scripts/verify-evidence.mjs"
+  },
+  "dependencies": {
+    "parse5": "8.0.1",
+    "reka-ui": "2.11.0",
+    "vue": "3.5.44"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.10.1",
+    "@types/web-bluetooth": "0.0.21",
+    "@vitejs/plugin-vue": "6.0.10",
+    "eslint": "10.13.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-vue": "10.11.1",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2",
+    "vite": "8.3.4",
+    "vite-plugin-monkey": "8.1.1",
+    "vue-component-type-helpers": "3.3.13",
+    "vue-eslint-parser": "10.3.0",
+    "vue-tsc": "3.3.13"
+  }
+}

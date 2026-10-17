@@ -1,0 +1,59 @@
+import type { ForumTransport } from "../forum-client";
+export function createBrowserTransport(): ForumTransport {
+  return {
+    async request(url) {
+      const response = await fetch(url, {
+        credentials: "same-origin",
+        redirect: "follow",
+        headers: { Accept: "application/json, text/html;q=0.9" },
+      });
+      return {
+        status: response.status,
+        url: response.url,
+        contentType: response.headers.get("content-type") ?? "",
+        body: await response.text(),
+      };
+    },
+  };
+}
+export function nativeDestination(destination: string): string {
+  const url = new URL(destination);
+  url.searchParams.set("tsdm-native", "1");
+  url.searchParams.delete("tsdmapp");
+  return url.href;
+}
+
+/** Keep the native document available for recovery without exposing a second UI. */
+export function suspendNativeBackground(root: HTMLElement): () => void {
+  const previous = new Map<
+    HTMLElement,
+    { inert: boolean; ariaHidden: string | null }
+  >();
+  const suspend = () => {
+    for (const sibling of document.body.children) {
+      if (
+        sibling instanceof HTMLElement &&
+        sibling !== root &&
+        !previous.has(sibling)
+      ) {
+        previous.set(sibling, {
+          inert: sibling.inert,
+          ariaHidden: sibling.getAttribute("aria-hidden"),
+        });
+        sibling.inert = true;
+        sibling.setAttribute("aria-hidden", "true");
+      }
+    }
+  };
+  const observer = new MutationObserver(suspend);
+  suspend();
+  observer.observe(document.body, { childList: true });
+  return () => {
+    observer.disconnect();
+    for (const [element, state] of previous) {
+      element.inert = state.inert;
+      if (state.ariaHidden === null) element.removeAttribute("aria-hidden");
+      else element.setAttribute("aria-hidden", state.ariaHidden);
+    }
+  };
+}

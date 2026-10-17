@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Benson-mk/tsdm-ui/evidence/receipt.schema.json",
+  "title": "TSDM foundation execution receipt",
+  "type": "object",
+  "required": ["schema", "runId", "timezone", "mode", "status", "runtime"],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "runId": {
+      "type": "string"
+    },
+    "timezone": {
+      "const": "Asia/Hong_Kong"
+    },
+    "mode": {
+      "enum": ["application-synthetic", "clean-public-node-consumer"]
+    },
+    "status": {
+      "enum": ["passed", "failed", "timedout", "interrupted"]
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["node"]
+    },
+    "candidate": {
+      "type": "object",
+      "required": ["userscriptSha256", "installedSha256"]
+    },
+    "sourceManifest": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": ["bytes", "sha256"],
+            "additionalProperties": false,
+            "properties": {
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "expected",
+          "observed",
+          "status",
+          "mode",
+          "independentReadback"
+        ],
+        "properties": {
+          "status": {
+            "enum": ["passed", "failed", "timedOut", "skipped", "interrupted"]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Benson-mk/tsdm-ui/evidence/manifest.schema.json",
+  "title": "TSDM exact evidence package manifest",
+  "description": "Every relative package file except the root manifest.json has its byte size and SHA-256. evidence:verify additionally checks exact filesystem coverage and rejects unsafe paths.",
+  "type": "object",
+  "additionalProperties": {
+    "type": "object",
+    "required": ["bytes", "sha256"],
+    "additionalProperties": false,
+    "properties": {
+      "bytes": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "sha256": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    }
+  }
+}

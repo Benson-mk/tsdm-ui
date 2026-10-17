@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist/forum-client",
+    "rootDir": "src/forum-client",
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  "include": ["src/forum-client/**/*.ts"]
+}
