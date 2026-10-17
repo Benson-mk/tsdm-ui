@@ -1,35 +1,35 @@
-# Issue #12：現有作者＋現有會員讀者的一次草稿存取驗證
+# Issue #12: A one-time draft-access check with the existing author and an existing member reader
 
-日期：2026-10-16（香港時間）。狀態：**已獲明確批准並完成單次草稿建立及有界讀取個案。使用者其後澄清：協助會員能閱讀「若闲小阁」，未能讀取本帖的原因是未公開草稿；「使者」只記錄組別。** 這是人手回報；列表結果、確切檢查時間及獨立畫面仍缺少，但不構成重做這個正常導覽分支的要求。
+Date: 2026-10-16 (Hong Kong time). Status: **Explicit approval was obtained, and the one-time draft creation and bounded reading case are complete. The user subsequently clarified that the assisting member can read “若闲小阁”; this thread was inaccessible because it was an unpublished draft. “使者” records only the member group.** This is a human report. The list result, exact check time, and independent screenshot are still missing, but these gaps do not require repeating this normal navigation branch.
 
-下方設定與程序保留當時獲批方案；授權已用完，不是新的執行清單。最新驗收見[主筆記驗收表](funded-hongbao-lifecycle.md#acceptance-against-the-original-issue)；後續 N11–N16 結果及 A4 人手規則記錄於本文件末段。
+The settings and procedure below preserve the plan approved at the time. That authorization has been used up; this is not a new execution checklist. See the [main notes’ acceptance table](funded-hongbao-lifecycle.md#acceptance-against-the-original-issue) for the latest acceptance status. Subsequent N11–N16 results and the human-supplied A4 rule are recorded at the end of this document.
 
-使用者已確認讀者是另一個**現有會員帳戶**。沿用目前作者帳戶建立一個新目標，由協助者在自己的登入環境讀取；不需要註冊帳戶、交換憑證或登出作者。使用者或協助者自行協調；本提案不授權代理聯絡對方。
+The user confirmed that the reader is another **existing member account**. The current author account creates one new target, and the assisting member reads it in their own signed-in environment. No account registration, credential exchange, or author logout is needed. The user or assisting member coordinates this themselves; this proposal does not authorize the agent to contact the other person.
 
-## 要回答的問題與結論邊界
+## Question to answer and limits of the conclusion
 
-[Issue #12](https://github.com/Benson-mk/tsdm-ui/issues/12) 的 A1 尚欠非作者在發佈前的存取證據。這次只回答：在指定版塊、讀者組別和以下紅包設定下，該會員能否在普通列表找到仍未發佈的主題、直接閱讀它，以及打開正常提供的紅包狀態入口。
+A1 in [Issue #12](https://github.com/Benson-mk/tsdm-ui/issues/12) still lacked evidence of non-author access before publication. This case answers only whether, in the specified board, member group, and red packet settings below, that member can find the still-unpublished thread in the ordinary list, read it directly, and open the red packet status entry normally provided.
 
-每個結果分開記錄「容許／拒絕／入口不存在／未能確定」。看得到領取按鈕不代表成功領取；列表沒有顯示也不證明所有發現途徑都不可行。這次不完成訪客、成功領取、條件起算、隱藏設定保留或後端失敗退款規則；A1、A2、A4 繼續未完成。五個已確認作者操作及原有檢查結果後容許明確警告下人手重送的產品決定保持不變。
+Record each result separately as “allowed / denied / entry absent / undetermined.” Seeing a claim button does not establish a successful claim; absence from the list does not prove that every discovery route is unavailable. This case does not complete guest access, successful claiming, when conditions start to apply, preservation of hidden settings, or backend failure/refund rules. A1, A2, and A4 remain incomplete. The five confirmed author operations and the existing product decision to allow a deliberate manual resend after checking the outcome and receiving an explicit warning remain unchanged.
 
-## 明確設定
+## Explicit settings
 
-以下是使用者批准的個案設定。執行時已核對原生表單仍提供所選設定；設定本身不構成伺服器持久化或權限保證。
+These are the case settings approved by the user. During execution, the native form was checked to ensure it still offered the selected settings. The settings themselves do not guarantee server persistence or permissions.
 
-| 項目 | 提案值 |
+| Item | Proposed value |
 | --- | --- |
-| 作者／讀者 | 目前作者帳戶／另一個自願協助的現有非作者會員，各用自己的登入環境 |
-| 版塊／分類 | 沿用既有測試的「若闲小阁」／「其他」，開始時核對目標 |
-| 主題標題 | `Issue 12 draft access check 2026-10-16 A1` |
-| 正文 | 下方完整合成文字；沒有附件、提及會員或其他私人內容 |
-| 紅包金額／份數 | **10 天使币／1 份，均分**；單次建立，不加額或補建 |
-| 領取條件 | 需要回覆；口令留空；指定會員留空 |
-| 有效期 | **1 小時**；只在協助者已準備好且實際狀態仍開放時觀察，不假設精確到期／退款時間 |
-| 祝福語 | `Issue12 read-only access check` |
-| 其他設定 | 關閉簽名及三個原生廣播／動態選項；零附件；不增加帖子售價或閱讀權限；其餘普通選項沿用原生提供值並記錄。若出現非預期門檻、附加扣款或必填設定，先停 |
-| 唯一寫入 | 點一次明確的「保存草稿」；保持未發佈，不追加第二次保存 |
+| Author / reader | Current author account / another existing non-author member volunteering to help, each using their own signed-in environment |
+| Board / category | Reuse “若闲小阁” / “其他” (Other) from the existing tests; verify the destination at the start |
+| Thread title | `Issue 12 draft access check 2026-10-16 A1` |
+| Body | Complete synthetic text below; no attachments, member mentions, or other private content |
+| Red packet amount / shares | **10 天使币 (forum credits) / 1 share, equal distribution**; create once, with no top-up or replacement creation |
+| Claim conditions | Reply required; passphrase blank; designated members blank |
+| Validity | **1 hour**; observe only when the assisting member is ready and the actual status is still open; do not assume an exact expiry or refund time |
+| Greeting | `Issue12 read-only access check` |
+| Other settings | Disable the signature and all three native broadcast/activity options; zero attachments; do not add a thread price or read permission requirement; retain and record the native values of the remaining ordinary options. Stop first if an unexpected restriction, additional charge, or required setting appears |
+| Only write | Click the explicit “保存草稿” (Save draft) control once; keep the thread unpublished, with no second save |
 
-完整正文：
+Complete body:
 
 ```text
 Issue #12 synthetic access check.
@@ -38,86 +38,86 @@ Please do not reply to this thread or claim its packet.
 Marker: ISSUE12-A1-READER-20261016.
 ```
 
-沒有口令或指定會員，避免這兩個額外條件混入存取結果；仍保留回覆條件並如實記錄。這不保證其他會員不能自行回覆／領取。若草稿實際可被其他人發現，最多本次投入的 10 天使币可能被領取，不能承諾最後淨成本為零。
+Leaving the passphrase and designated members blank prevents these two extra conditions from confounding the access result. The reply condition is retained and recorded accurately. This does not guarantee that other members cannot reply or claim on their own. If others can actually discover the draft, up to the 10 天使币 funded in this case could be claimed; a final net cost of zero cannot be promised.
 
-## 執行前提與單次程序
+## Preconditions and one-time procedure
 
-1. **批准與讀者就緒。** 取得這份提案的明確批准，並由使用者確認協助會員已準備好。協助者記錄自己的會員組別及時間，確認能正常閱讀「若闲小阁」的一個普通、免費公開主題。這只是基本對照；若存在管理權限或特殊板塊權限，要記錄，不能當作普通會員的代表。若未就緒或連普通公開主題也不能讀，不先花積分建立目標。
-2. **作者準備。** 核對作者身份和目前積分紀錄，另開原生發帖表單，核對版塊、分類、表單提供的控制及以上設定。只在這個新表單輸入合成內容；不讀取、覆寫、關閉或還原其他寫作分頁。若新表單自動帶入其他寫作，先停止該路徑，不提交它。原生編輯器可能共用本機自動保存／恢復資料；這次輸入可能改變那份恢復副本，不承諾隔離，亦不使用新控制方式繞過問題。
-3. **建立一次。** 提交前核對完整合成標題／正文、設定及零附件，點一次「保存草稿」。無論原始回應正常、靜默或逾時，都不再點擊提交。透過獨立原生讀取核對一個新目標、相同內容、草稿分類、紅包開放且零領取，以及相應的新增 `塞入紅包` 積分紀錄。若結果未能確定或不相符，保留未知結果並停止；不建立另一個紅包。
-4. **交付讀者檢查。** 只把新目標的標題與直接主題網址交給使用者，由使用者轉交協助會員。協助者先看該版塊當時普通主題列表首頁，再用精確主題網址檢查閱讀權限；每項記錄時間及原生提示。能讀到主題且有正常紅包入口，才打開狀態。主題拒絕存取或沒有入口時，停止該分支；不猜測外掛網址、不注入控制、不領取、不回覆。
-5. **保存最低所需結果。** 作者在讀者檢查前後，透過必要的原生讀取記錄同一目標仍為草稿、紅包狀態／已領取數和相關積分紀錄。以各方時間連結觀察；如果讀者觀察時的未發佈／開放前提不能成立，結果維持未確定。只保留能區分許可、拒絕及無入口的最小去識別化文字或截圖，不索取完整帳戶頁、私訊或憑證。
+1. **Approval and reader readiness.** Obtain explicit approval for this proposal and the user’s confirmation that the assisting member is ready. The assisting member records their member group and the time, and confirms that they can normally read an ordinary, free, public thread in “若闲小阁”. This is only a basic control. Record any administrative or special board permissions; such an account cannot represent an ordinary member. If the member is not ready or cannot even read an ordinary public thread, do not spend credits to create the target first.
+2. **Author preparation.** Verify the author’s identity and current credit records. Open a separate native thread-creation form and check the board, category, available controls, and settings above. Enter the synthetic content only in this new form; do not read, overwrite, close, or restore other writing tabs. If the new form automatically loads other writing, stop that path without submitting it. The native editor may share local autosave/recovery data; this input may change that recovery copy. Do not promise isolation or use a different control method to work around the problem.
+3. **Create once.** Before submission, verify the complete synthetic title/body, settings, and zero attachments, then click “保存草稿” (Save draft) once. Whether the original response is normal, silent, or times out, do not submit again. Use independent native reads to verify one new target, matching content, draft classification, an open red packet with zero claims, and the corresponding new `塞入紅包` (fund red packet) credit record. If the outcome is uncertain or does not match, preserve the unknown outcome and stop; do not create another red packet.
+4. **Hand off the reader check.** Give only the new target’s title and direct thread URL to the user, for the user to pass to the assisting member. The member first checks the board’s current first page of the ordinary thread list, then checks read access using the exact thread URL, recording the time and native message for each. Open the status only if the thread is readable and provides a normal red packet entry. If thread access is denied or no entry exists, stop that branch; do not guess plugin URLs, inject controls, claim, or reply.
+5. **Save only the necessary results.** Before and after the reader check, the author uses necessary native reads to record that the same target is still a draft, its red packet status/claim count, and relevant credit records. Correlate observations using each party’s times. If the unpublished/open preconditions cannot be established for the reader’s observation time, leave the result undetermined. Retain only the minimum de-identified text or screenshots needed to distinguish permission, denial, and an absent entry. Do not request full account pages, private messages, or credentials.
 
-代理如獲批准操作作者端，只使用現有允許的 CUA 原生介面流程。協助者在自己的環境人手讀取；代理不切換到對方帳戶。沒有現成普通列表／紅包控制的結果會保留為缺口，不改用直接驗證端點或另一控制方式。
+If approved to operate the author side, the agent uses only the existing permitted CUA native-interface flow. The assisting member reads manually in their own environment; the agent does not switch to that account. Where no existing ordinary list or red packet control is available, retain the gap rather than switching to direct verification endpoints or another control method.
 
-## 積分、停止條件與結束方式
+## Credits, stop conditions, and completion
 
-- **預期新增扣款：10 天使币，一次。** 此預期來自已確認的相同金額／份數建立路徑，實際結果仍須核對。閱讀不預期造成新注資；既有紅包的到期／退款可能另行發生，任意餘額變化不能直接歸因於本次個案。
-- 1 小時是提案中的表單選項，不是退款承諾。歷史個案曾全額退回；這不保證本次退款時間或金額。結束後保留草稿並讓所選有效期自行運作，不安排自動監察，不自行撤回、刪除或發佈作清理。
-- 若協助者未就緒、身份／版塊／設定不符、原生控制不可用、出現驗證挑戰、需額外操作、新表單帶入其他寫作、建立結果未知、主題已發佈、紅包終止或已被領取、額外或無法解釋的積分變化，停止受影響的流程並回報已有結果。
-- 正常的「沒有權限」是讀取結果；只停止該分支，不將它當作工具故障或繞過理由。工具失敗同樣不證明論壇拒絕、沒有送出請求或沒有扣款。
-- 本次不含領取、回覆、發佈、重複保存、重送、再次注資、撤回、刪除、註冊帳戶或切換帳戶。實驗遇到未知便停止，並不改寫產品容許檢查後明確警告下人手重送的決定。
+- **Expected new debit: 10 天使币, once.** This expectation comes from the confirmed creation path with the same amount/share count; the actual outcome still needs verification. Reading is not expected to add funding. Existing red packets may separately expire or refund, so an arbitrary balance change cannot be attributed directly to this case.
+- One hour is the proposed form option, not a refund promise. Historical cases received full refunds, but this does not guarantee this case’s refund timing or amount. Leave the draft in place afterward and let the selected validity period run its course. Do not schedule automatic monitoring or withdraw, delete, or publish as cleanup.
+- Stop the affected flow and report the results already obtained if the assisting member is not ready; identity, board, or settings do not match; native controls are unavailable; a verification challenge or additional action is required; the new form loads other writing; creation has an unknown outcome; the thread is published; the red packet has ended or been claimed; or additional or unexplained credit changes occur.
+- A normal “no permission” message is a reading result. Stop only that branch; do not treat it as a tool failure or a reason to bypass access controls. Likewise, a tool failure does not prove that the forum denied access, that no request was sent, or that no debit occurred.
+- This case excludes claiming, replying, publishing, repeated saving, resending, additional funding, withdrawal, deletion, account registration, and account switching. Stopping the experiment on an unknown result does not change the product decision to allow a deliberate manual resend after checking the outcome and receiving an explicit warning.
 
-## 交付與取捨
+## Deliverable and trade-offs
 
-交付一張去識別化存取表，包含角色／組別、版塊與紅包條件、各讀取面的結果與時間、作者前後狀態及相關積分證據。只把實際觀察加入研究筆記；協助者提供的結果註明為人手回報，未取得佐證的部分維持該證據等級。
+Deliver one de-identified access table containing the role/member group, board and red packet conditions, result and time for each reading surface, author state before and after, and relevant credit evidence. Add only actual observations to the research notes. Label results supplied by the assisting member as human reports, and retain that evidence level where corroboration is unavailable.
 
-新增取捨完整記錄於[主研究筆記](funded-hongbao-lifecycle.md)的第 81–89 項：一筆新投入換取缺少的草稿目標；單一現有讀者及公開帖對照的有限代表性；回覆條件配合空口令／收件人的利弊；一小時窗口；有限列表範圍；分開登入與人手協調；只讀取而不領取／清理；原生恢復資料限制；重用既有證據而不重做作者生命週期。
+All new trade-offs are recorded as items 81–89 in the [main research notes](funded-hongbao-lifecycle.md): one new funding debit to obtain the missing draft target; the limited representativeness of one existing reader and a public-thread control; the advantages and disadvantages of a reply condition with blank passphrase/recipients; the one-hour window; limited list coverage; separate sign-ins and manual coordination; reading without claiming or cleanup; limitations of native recovery data; and reusing existing evidence without repeating the author lifecycle.
 
-本文件本身不授權論壇操作。使用者其後的明確批准與單次執行記錄見下；沒有修改 issue 驗收條件、tracker、commit 或 PR 狀態。
+This document itself does not authorize forum operations. The user’s subsequent explicit approval and one-time execution record appear below. No issue acceptance criteria, tracker, commit, or PR status were changed.
 
-完成結果覆核：指定 BDFL 使用 `validate-gpt-code-review` 完成一次針對這份具體方案的覆核，認為範圍合適且在前提成立時可行，沒有需要修正的重大問題。12 項針對新文件的內容／連結／空白檢查通過；這些是提案檢查，不是論壇行為驗證。審查另外完整記錄 10 項取捨，沒有重做舊證據檢查或提出額外必需實驗。
+Completed-result review: the designated BDFL used `validate-gpt-code-review` for one review of this concrete proposal and found its scope appropriate and its procedure feasible when the preconditions hold, with no material issue requiring correction. Twelve content/link/whitespace checks for the new document passed; these are proposal checks, not verification of forum behavior. The review separately recorded all 10 review trade-offs, without repeating checks of old evidence or proposing additional required experiments.
 
-## 已批准個案的執行記錄
+## Execution record of the approved case
 
-使用者明確回覆「批准，會員已準備好」，並確認協助者「能閱讀『若闲小阁』」。其後補充會員組別為「使者」；沒有由組別名稱推斷額外管理權限或所有其他會員的結果。
+The user explicitly replied “批准，會員已準備好” (“Approved; the member is ready”) and confirmed that the assisting member “能閱讀『若闲小阁』” (“can read ‘若闲小阁’”). The member group was subsequently supplied as “使者”. No additional administrative permissions or outcomes for all other members were inferred from the group name.
 
-- **21:46–21:50 作者準備與建立：** 新開的原生表單沒有帶入其他寫作；核對上述完整內容和設定後，於 21:50:04 呼叫一次「保存草稿」。按鈕呼叫返回，原始表單未跳轉；沒有重按。獨立作者帖子列表與主題頁確認一個新目標、完整合成正文和草稿標記。
-- **扣款：** `塞入紅包` 在 **21:50:05 扣 10 天使币**。另有一筆 **21:50:00 的到期退款 +10**，早於新建立五秒；因此總餘額由準備前至建立後維持 914，不表示新草稿沒有扣款，也不是本次新紅包已退款。該退款行沒有目標識別碼，本輪沒有重新檢查舊紅包，故不把它升格為舊撤回成功或某一舊目標退款的確認。
-- **作者觀察：** 頁面顯示的論壇時間為 21:53 與協助者回報後的 21:55；保存的 DOM 資料時間則為 21:54:21.827 與 21:55:19.540。兩次均顯示同一目標仍是草稿，合成正文相同，紅包卡顯示均分、剩餘 1/1 份。回報在兩次作者觀察之間收到，但協助者的實際檢查時間未提供，不能視作同步觀察。作者只打開狀態卡，沒有按「開」或撤回。這次沒有另取領取紀錄或原始狀態 JSON；不把畫面上的可領取控制當作成功領取證據。
-- **協助者回報：** 使用者轉述「目前處於草稿狀態，沒有公開，另一個帳戶未能閱讀」，其後補充組別為「使者」，提示原文是「抱歉，指定的主题不存在或已被删除或正在被审核」。後續再明確澄清：不能讀的原因是未公開草稿，並非不能閱讀「若闲小阁」。此原因沿用人手回報的證據等級，不是由通用提示推斷的後端規則。列表首頁結果、確切檢查時間及獨立畫面佐證沒有提供；這些限制不要求補測。此非作者不能讀草稿，因而到不了正常帖內紅包入口，該導覽分支已獲有界答案；不推廣至所有角色或外掛獨立端點。
-- **結束狀態：** 21:55 作者積分頁仍為 914 天使币／186 威望，最後新增扣款仍是 21:50:05 的那一筆。保留草稿與一小時有效期，沒有領取、回覆、發佈、重存、撤回、刪除、重送或再次注資。只追問已有觀察的缺少資料，沒有要求重新測試或安排自動監察。
+- **21:46–21:50, author preparation and creation:** The newly opened native form did not load other writing. After verifying the complete content and settings above, “保存草稿” (Save draft) was invoked once at 21:50:04. The button call returned, but the original form did not navigate away; it was not pressed again. The independent author thread list and thread page confirmed one new target, the complete synthetic body, and a draft marker.
+- **Debit:** `塞入紅包` (fund red packet) **debited 10 天使币 at 21:50:05**. A separate **expiry refund of +10 at 21:50:00** occurred five seconds before the new creation. The total balance therefore remained 914 from before preparation to after creation. This does not mean the new draft incurred no debit or that this new red packet had already been refunded. The refund row had no target identifier, and old red packets were not rechecked in this round, so it is not elevated to confirmation of a successful earlier withdrawal or a refund for a particular old target.
+- **Author observations:** The pages displayed forum times of 21:53 and, after the assisting member’s report, 21:55; the saved DOM data timestamps were 21:54:21.827 and 21:55:19.540. Both showed the same target still in draft, the same synthetic body, and a red packet card showing equal distribution with 1/1 shares remaining. The report arrived between the two author observations, but the member’s actual check time was not supplied, so these cannot be treated as synchronized observations. The author opened only the status card and did not press “開” (Open) or withdraw. No separate claim records or raw status JSON were obtained in this case; visible claim controls are not treated as evidence of a successful claim.
+- **Assisting member’s report:** The user relayed “目前處於草稿狀態，沒有公開，另一個帳戶未能閱讀” (“It is currently a draft and has not been made public; the other account could not read it”), then supplied the group “使者” and the exact message “抱歉，指定的主题不存在或已被删除或正在被审核” (“Sorry, the specified thread does not exist, has been deleted, or is under review”). The user later explicitly clarified that the reason was the unpublished draft, not an inability to read “若闲小阁”. This explanation retains the evidence level of a human report; it is not a backend rule inferred from the generic message. No first-page list result, exact check time, or independent screenshot was supplied. These limitations do not require another test. This non-author could not read the draft and therefore could not reach the normal in-thread red packet entry. That navigation branch has a bounded answer, which is not generalized to all roles or standalone plugin endpoints.
+- **Final state:** At 21:55, the author’s credit page still showed 914 天使币 / 186 威望 (reputation), with the latest new debit still the one at 21:50:05. The draft and one-hour validity period were left in place. There was no claim, reply, publication, repeat save, withdrawal, deletion, resend, or additional funding. Follow-up questions sought only missing details of existing observations; no retest or automatic monitoring was requested.
 
-使用者另提出可切換當前帳戶到協助帳戶。這次沒有採用：既有會員回報已足以記錄這個有界個案，切換再讀不會補足隱藏設定或後端退款規則，且作者登入可保留。這項選擇保留「協助者回報」而非「代理直接觀察」的證據限制。
+The user also offered to switch the current account to the assisting account. That option was not used: the existing member report was sufficient to record this bounded case, switching and reading again would not fill the gaps concerning hidden settings or backend refund rules, and the author could remain signed in. This choice retains the evidence limitation of an “assisting member’s report” rather than an “agent’s direct observation.”
 
-這次建立是為了取得原本不存在的非作者草稿存取目標，沒有重做五個已確認的作者轉換。新觀察及取捨見主筆記 N10／第 90–99 項。後續 C2 澄清及取捨為第 100–110 項：A1 的正常草稿導覽已有人手回報答案；剩餘條件／有效期起算及保存問題分開處理。A2 可用具體條件仍受驗證且接受原值的行為作有限保存證據；A4 的撤回中斷是工具問題、送達／接受未確認，並非伺服器已證實沒有回傳。A1、A2、A4 仍未全部完成，但取得伺服器原始碼不是唯一途徑。
+This creation supplied a non-author draft-access target that did not previously exist; it did not repeat the five confirmed author transitions. See N10 / items 90–99 in the main notes for the new observations and trade-offs. Subsequent C2 clarifications and trade-offs are items 100–110: A1’s normal draft navigation has a human-reported answer; remaining questions about when conditions/validity start and how settings are preserved are handled separately. A2 can use behavior in which specific conditions remain enforced and accept the original values as limited preservation evidence. For A4, the interrupted withdrawal was a tool problem with unconfirmed delivery/acceptance, not a confirmed failure by the server to return a response. A1, A2, and A4 remain incomplete, but obtaining server source code is not the only way forward.
 
-執行結果已完成一次指定 BDFL 覆核：新增扣款、獨立到期退款、人手回報的證據等級及驗收限制均獲支持。主筆記兩處仍描述 N10 前「尚無目標／未獲批准」的舊摘要已改為歷史語境，沒有重做實驗或追加覆核。22 項新證據／文件一致性檢查通過；最後文件修改另作針對性檢查，並非應用程式測試。執行／收尾的 10 項取捨見主筆記第 90–99 項；覆核的 10 項取捨另有完整紀錄。沒有 commit、PR 或 tracker 修改。
+The execution results received one designated BDFL review. The new debit, independent expiry refund, evidence level of the human report, and acceptance limitations were all supported. Two old summaries in the main notes that still described the pre-N10 “no target / no approval” state were placed in historical context, without repeating the experiment or adding another review. Twenty-two new-evidence/document-consistency checks passed; the final document edits received additional targeted checks, not application tests. The 10 execution/completion trade-offs are recorded in main-note items 90–99, and all 10 review trade-offs have a separate record. No commit, PR, or tracker change was made.
 
-上述是 N10 當時的執行覆核。其後 C2 文件澄清另完成一次指定 BDFL 完成結果覆核，沒有需要實質修正的問題；16 項可重做的文件／固定來源檢查通過，審查另有 6 項獨立對照。沒有重做 N10 實驗、舊圖片／雜湊檢查或應用程式測試。C2 的 11 項取捨及審查的 10 項取捨均已記錄；該 C2 覆核當時只讀提案尚未批准。使用者其後回覆「approve」，N11 已完成該次只讀觀察：N7 已過期，領取紀錄讀取結果未確認；本文件的 N10 草稿沒有重讀或更改。N11 授權已用完，issue #12 仍未完成及未提交。
+The above describes the execution review at the time of N10. The later C2 documentation clarification received another designated BDFL review of the completed result, with no issue requiring a substantive correction. Sixteen repeatable document/fixed-source checks passed, and the review added six independent cross-checks. The N10 experiment, old image/hash checks, and application tests were not repeated. C2’s 11 trade-offs and the review’s 10 trade-offs were all recorded. At the time of that C2 review, the read-only proposal had not yet been approved. The user subsequently replied “approve”, and N11 completed that read-only observation: N7 had expired, and the claim-record read result was unconfirmed. This document’s N10 draft was not reread or changed. N11’s authorization was used up; issue #12 remained incomplete and uncommitted.
 
-N11 亦已完成一次指定 BDFL 結果覆核，沒有需要實質修正的問題；23 項可重做的證據／文件檢查通過，審查另完成 8 項獨立對照。主筆記第 111–119 項記錄全部 9 項執行／收尾取捨，獨立審查記錄全部 10 項審查取捨。這不是應用程式／E2E 測試，也沒有因此再執行論壇操作。
+N11 also received one designated BDFL result review, with no issue requiring substantive correction. Twenty-three repeatable evidence/document checks passed, and the review completed eight additional independent cross-checks. Main-note items 111–119 record all nine execution/completion trade-offs, and the independent review records all 10 review trade-offs. These were not application/E2E tests and did not lead to further forum operations.
 
-## 新 goal 後續：N12–N15（2026-10-16–17）
+## Follow-up under a new goal: N12–N15 (2026-10-16–17)
 
-上文保留 N10 當時批准及完成嘅個案；後來新 goal 另行授權最低額專用測試，並唔係重用 N10 已用完嘅批准。正常草稿導覽嘅人手回報保持有效。其後代理直接觀察到：非作者喺 N12B 未公開時可以讀取原生獨立紅包狀態；N14 作者更喺零回覆草稿成功領回10幣，即使指定咗另一會員。呢兩項唔會反過來證明非作者可閱讀草稿，亦唔會變成所有會員嘅領取權限保證。
+The preceding sections preserve the case approved and completed at the time of N10. A later, new goal separately authorized dedicated tests at the minimum amount; it did not reuse N10’s exhausted approval. The human report about normal draft navigation remains valid. The agent subsequently observed directly that a non-author could read the native standalone red packet status while N12B was unpublished. In N14, the author also successfully claimed back 10 credits from a draft with zero replies, even though another member was designated. Neither result retroactively proves that non-authors can read drafts or guarantees claim permissions for all members.
 
-N13 經修改草稿、發佈及發佈後修改，原口令同回覆條件仍實際受驗證；指定會員領取10幣後，使用者依照明確警告人手撤回餘下10幣。獨立狀態、領取紀錄及00:01:39退款紀錄確認結果；較早自動接受確認框嘅送達狀態仍未知。N12A 留下冇紅包、冇觀察到扣款嘅草稿，唔等於審核回滾證據。
+In N13, the original passphrase and reply condition remained enforced through draft editing, publication, and editing after publication. After the designated member claimed 10 credits, the user manually withdrew the remaining 10 credits following an explicit warning. Independent status, claim records, and the 00:01:39 refund record confirmed the result. Delivery of the earlier automatically accepted confirmation dialog remained unknown. N12A left a draft without a red packet and with no observed debit; this is not evidence of a moderation rollback.
 
-N15 嘗試指定作者自己，完成作者流程後卻回傳 `appoint=0`；因為缺少最初狀態，未能分辨建立時處理定後續改變，已停止非指定會員領取分支。作者其後首次領回該10幣，有狀態／紀錄／入帳佐證。N12B 已完成期限判別：00:34:11仍開放，00:38:18退款10幣，00:40:30確認過期／零領取，早於最早可能重設期限00:56:15；支持原注資起一小時安排經修改／發佈後冇重新起計一整個鐘。有效指定名單嘅非指定會員拒絕，以及適用審核／退回嘅紅包交易結果仍待補足。新增本金50幣已核對為作者收回40、另一測試會員收到10，冇餘下未回收本金。詳細時序、證據等級、逐筆帳目同全部取捨見[主筆記 N12–N15](funded-hongbao-lifecycle.md#n12-a-below-minimum-partial-result-and-a-timed-preservation-case)。原五項 N7 操作、A3／A5 同「檢查 → 警告 → 人手決定重送」政策均保持不變。呢個更新唔係應用程式驗收，亦未 commit／發佈 PR／修改 tracker。
+N15 attempted to designate the author themselves, but returned `appoint=0` after the author flow. Because the initial state was missing, it was impossible to distinguish handling at creation from a subsequent change, so the non-designated-member claim branch was stopped. The author later claimed back those 10 credits for the first time, supported by status, records, and credited funds. N12B completed the expiry distinction: it was still open at 00:34:11, refunded 10 credits at 00:38:18, and was confirmed expired with zero claims at 00:40:30, before the earliest possible reset expiry of 00:56:15. This supports a one-hour schedule from the original funding that did not restart for a full hour after editing/publication. Denial of a non-designated member with a valid designated-member list, and red packet transaction outcomes for applicable moderation/return cases, still needed evidence. The 50 credits of new principal were reconciled: 40 recovered by the author, 10 received by the other test member, and no unrecovered principal remaining. See [main notes N12–N15](funded-hongbao-lifecycle.md#n12-a-below-minimum-partial-result-and-a-timed-preservation-case) for the detailed timeline, evidence levels, itemized accounting, and all trade-offs. The original five N7 operations, A3/A5, and the “check → warn → manually decide whether to resend” policy remain unchanged. This update was not application acceptance; no commit, PR publication, or tracker change had occurred.
 
-新增結果嘅35項聚焦證據／文件核對全部通過；可重做驗證程式同結果保留喺私人證據目錄。最終 BDFL 覆核仍待指定會員及審核資料補齊後一次完成，唔會將呢輪一致性檢查當作完整驗收。
+All 35 focused evidence/document checks for the new results passed. The repeatable validation program and results are retained in the private evidence directory. The final BDFL review remained pending, to be performed once after the designated-member and moderation evidence was complete. This round of consistency checks is not treated as full acceptance.
 
-## N16 跟進（2026-10-17 下午；指定會員條件完成）
+## N16 follow-up (afternoon of 2026-10-17; designated-member condition complete)
 
-使用者提供嘅第三個會員名稱經原生精確搜尋確認，與作者不同。N16 以最低10幣／一份均分、私人口令、無回覆要求、指定該會員、六小時期限建立。14:44:57扣10幣；修改前先確認 `appoint=1`，再完成草稿V1儲存、發佈及已發佈V2儲存。獨立回查仍係 `appoint=1`、1/1份、零回覆、原口令存在。第一次修改後讀到舊版本，其後只回查，確認V1先發佈，冇重送。
+The third member name supplied by the user was confirmed through a native exact search to differ from the author. N16 was created with the minimum 10 credits / one equally distributed share, a private passphrase, no reply requirement, that designated member, and a six-hour validity period. Ten credits were debited at 14:44:57. Before editing, `appoint=1` was confirmed; the draft V1 save, publication, and published V2 save were then completed. Independent readback still showed `appoint=1`, 1/1 shares, zero replies, and the original passphrase present. The first read after editing returned the old version. Subsequent actions only reread the state, confirming V1 before publication; there was no resend.
 
-使用者人手切換並確認另一原有測試會員，代理再核對身份。該會員不在指定名單內，14:52:36以原正確口令按一次「開」，實際回覆係 `{"ok":false,"error":"這個紅包只限指定的人領取"}`，原生提示相同；JSON冇 `state` 欄位。之後狀態仍未領取、紅包1/1、會員積分維持178。多出嘅2幣係領取測試前嘅每日登入獎勵。該會員讀領取紀錄被拒絕，唔當作零紀錄。
+The user manually switched to and confirmed the other existing test member, and the agent verified the identity again. That member was not on the designated list. At 14:52:36, they pressed “開” (Open) once with the original correct passphrase. The actual response was `{"ok":false,"error":"這個紅包只限指定的人領取"}` (“This red packet may only be claimed by designated people”), matching the native message; the JSON had no `state` field. Subsequent status remained unclaimed, with 1/1 shares and the member’s balance unchanged at 178. The extra two credits were a daily login reward from before the claim test. That member was denied access to claim records; this is not treated as zero records.
 
-使用者切返作者後，作者紀錄先確認0/1已領取；14:57:30首次領回10幣，實際成功回覆、1/1領取紀錄及HBG+10一致。最後保留V2正文、零回覆及已領完卡。今次係作者領取，唔係退款；N16本金淨成本0。新增個案累計本金60幣：作者收回50、另一會員收到10、未回收0。作者928幣／198威望；另一會員178幣／41威望；正常發帖／登入／回覆獎勵分開計。
+After the user switched back to the author, the author’s records first confirmed 0/1 claimed. At 14:57:30, the author claimed back the 10 credits for the first time; the actual success response, 1/1 claim record, and HBG +10 agreed. The final state retained the V2 body, zero replies, and a fully claimed card. This was an author claim, not a refund; N16’s net principal cost was zero. Cumulative principal for the new cases was 60 credits: 50 recovered by the author, 10 received by the other member, and zero unrecovered. The author had 928 credits / 198 reputation; the other member had 178 credits / 41 reputation. Ordinary posting/login/reply rewards were accounted for separately.
 
-N16補上A2所欠嘅普通非指定會員拒絕行為；N15缺少初始狀態嘅限制照樣保留。N16完成時，使用者對審核／退回嘅現成資料回覆係「未知」，當時A4未完成；下節記錄其後明確補充，取代嗰個當時結論。主筆記第164–175項記錄該輪全部12項取捨。上文35項核對屬前一輪N12–N15快照；N16更新後46/46項證據／文件核對通過，唔等於完整ticket驗收。
+N16 supplied the ordinary non-designated-member denial behavior missing from A2. N15’s missing-initial-state limitation remains. When N16 was completed, the user’s answer about available moderation/return evidence was “未知” (“unknown”), so A4 was incomplete at that point. The next section records the subsequent explicit supplement that supersedes that conclusion at the time. Main-note items 164–175 record all 12 trade-offs from this round. The 35 checks above belong to the preceding N12–N15 snapshot. After the N16 update, 46/46 evidence/document checks passed; this does not amount to full ticket acceptance.
 
-## A4 人手補充及最終驗收（2026-10-17）
+## Human-supplied A4 supplement and final acceptance (2026-10-17)
 
-使用者其後明確回答審核／退回情況：**“It should be refunded. If it isn't, please contact the moderator for assistance.”** 呢個係使用者提供嘅預期退款處理同求助規則，取代先前「未知」作為目前答案。主筆記[C3](funded-hongbao-lifecycle.md#c3-human-supplied-moderation-refund-rule)及A4驗收列已記錄原文、日期及證據等級。
+The user subsequently explicitly answered the moderation/return question: **“It should be refunded. If it isn't, please contact the moderator for assistance.”** This is the user-supplied expected refund handling and escalation rule, replacing the earlier “unknown” as the current answer. [C3](funded-hongbao-lifecycle.md#c3-human-supplied-moderation-refund-rule) and the A4 acceptance row in the main notes record the exact wording, date, and evidence level.
 
-目前有界答案係應有退款；如果應有退款未收到，向版主求助。未有實際審核個案或退款紀錄，所以唔會寫成已觀察到自動退款、即時退款、特定帖子／紅包狀態，亦唔會推斷已領部分如何計算退款。帖子、紅包、領取及積分仍要分開回查；預期退款唔等於已入帳。今次冇發現審核相關欠款，N12–N16亦冇未回收金額，因此毋須聯絡版主或再做論壇測試。
+The current bounded answer is that a refund is expected; if the expected refund is not received, seek help from a moderator. There is no actual moderation case or refund record, so this is not described as an observed automatic refund, immediate refund, or specific thread/red packet state, and no inference is made about how already-claimed amounts affect refund calculations. Thread, red packet, claim, and credit state still require separate readback; an expected refund is not a credited refund. No moderation-related missing refund was found in this work, and N12–N16 had no unrecovered amount, so no moderator contact or further forum test was needed.
 
-A1／A2及A4已觀察部分已整理，保留A3／A5、N1–N11同既定人手重送政策。指定BDFL已完成一次N12–N16及C3聚焦覆核：支持新增實測結果，但指出「應退款」嘅人手期望未證明原A4所問嘅實際審核狀態／退款條件。已接受呢項修正；規則保留，A4實際審核部分維持未驗證。下方另行記錄其後使用者對研究充分性嘅明確驗收，唔會將驗收決定當作新實測。
+The observed portions of A1/A2 and A4 have been consolidated, preserving A3/A5, N1–N11, and the established manual-resend policy. The designated BDFL completed one focused review of N12–N16 and C3. It supported the new empirical results but pointed out that the human expectation of a refund did not establish the actual moderation state/refund conditions asked about in the original A4. That correction was accepted. The rule is retained, and A4’s actual moderation portion remains unverified. The user’s subsequent explicit acceptance of the research as sufficient is recorded separately below; the acceptance decision is not treated as new empirical evidence.
 
-更新後50/50項證據／文件一致性核對通過；審查另讀實際回應、時間窗、帳目同4張新結果圖片。呢啲唔係應用程式或審核退款實測。主筆記第176–183項記錄今次全部8項取捨，私人審查文件另列全部13項覆核取捨。舊個案授權及歷史未完成描述維持其當時語境。
+After the update, 50/50 evidence/document-consistency checks passed. The review also read the actual responses, time windows, accounting, and four new result images. These are not application tests or empirical moderation-refund tests. Main-note items 176–183 record all eight trade-offs from this round; the private review document separately lists all 13 review trade-offs. Old case authorizations and historical descriptions of incomplete work retain their context at the time.
 
-上述係最後覆核完成、等待驗收決定時嘅狀態。2026-10-17，使用者喺已明確獲告知實際帖子／紅包狀態、領取權限及退款條件／時點未驗證之後，回覆 **「接受有界結論作研究驗收，批准提交」**。因此以呢份有界規則完成A4研究，並授權單一ticket commit；原本未實測部分繼續清楚保留，提交訊息會同時記錄驗收同事實限制。
+The above describes the state after the final review, while awaiting an acceptance decision. On 2026-10-17, after being explicitly informed that actual thread/red packet state, claim permissions, and refund conditions/timing were unverified, the user replied **“接受有界結論作研究驗收，批准提交” (“Accept the bounded conclusions as research acceptance; approve committing”)**. A4 research was therefore completed on the basis of this bounded rule, and a single ticket commit was authorized. The portions not empirically tested remain clearly identified, and the commit message would record both acceptance and factual limitations.
 
-接受決定及其適用範圍已加入主筆記C3同私人證據索引，更新後52/52項聚焦核對通過。呢次新增4項取捨為主筆記第184–187項：依明確人手驗收完成研究、分開驗收與實測、沿用已完成覆核，以及只為#12準備關閉行。沒有新增論壇測試或版主聯絡；完整PR草稿仍要另獲批准先發佈。
+The acceptance decision and its scope were added to main-note C3 and the private evidence index. After the update, 52/52 focused checks passed. The four new trade-offs are main-note items 184–187: completing the research on explicit human acceptance, separating acceptance from empirical testing, reusing the completed review, and preparing a closing line only for #12. No new forum test or moderator contact occurred. The full PR draft still requires separate approval before publication.
