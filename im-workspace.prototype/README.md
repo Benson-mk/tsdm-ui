@@ -1,5 +1,7 @@
 # IM workspace interaction study
 
+**2026-10-18 update:** the confirmed [Text size follow-up](TEXT-SIZE.md) replaces the density selector with global 70%–150% text scaling and automatic workspace-wide Compact spacing below 100%. That record contains the current acceptance checks, replay instructions and complete new trade-off ledger. The original comparison and its 2026-10-16 evidence remain available below.
+
 Disposable prototype for [Define the modern IM forum workspace](https://github.com/Benson-mk/tsdm-ui/issues/6). The human selected **A — Workspace** as the desktop base on 2026-10-16 and requested that the secondary pane follow main navigation. The human then chose section overviews in place of the previous reader/composer when changing main sections, and accepted the medium-width picker plus narrow-screen drill-down structure. Both choices are implemented. Precise workflow semantics remain with the separate behavior decision.
 
 Run `python3 serve.py`, then open `http://127.0.0.1:4176/im-workspace.prototype.html?variant=A`. Use the bottom arrows (or left/right outside an editor) to compare A, B and C. The variants use identical synthetic forum content. The page also opens directly as a local HTML file with its adjacent CSS and JavaScript.
@@ -14,16 +16,16 @@ The accepted responsive structure collapses A’s secondary pane into a picker a
 
 The secondary pane now follows the main destination: Boards shows its directory, Search shows synthetic board scopes, Saved shows thread/board views, Notices shows the current-account inbox and Drafts shows unpublished threads. The same choices appear in the picker. Choosing a Search scope keeps Search active; opening a saved board enters Boards. These fixture categories demonstrate placement and do not settle real search capabilities or notification categories. Changing a main section replaces the reader with that section’s overview and hides the previous posts and composer. Selecting a result opens its content. The editor remains mounted in memory, with a labeled Return to writing action; a compact header shortcut keeps that action reachable when the overview pane is offscreen. New-thread writing has its own contextual heading without unrelated old posts. These retention helpers make the geometry demonstrable without settling production unsaved-transition or draft persistence semantics.
 
-Use Appearance to try Light, Alias, Mono and Dark; Default and Compact; Traditional Chinese, Simplified Chinese and English. Interface language does not translate forum fixture content. Density affects post text and padding, not list text or hit targets.
+Use Appearance to try Light, Alias, Mono and Dark; Text size from 70% to 150%; Traditional Chinese, Simplified Chinese and English. Interface language does not translate forum fixture content. Text size affects the whole workspace. Compact spacing is automatic at 70%–90%; Default spacing applies at 100%–150%, with control target minima preserved.
 
-The study controls expose permission, challenge and missing-content scenarios plus an unknown submission outcome. All results, attachment controls and drafts are illustrative. No forum requests, uploads, downloads, account operations or permanent storage occur. Reload discards the demo state. The text field and disabled toolbar illustrate composition placement; they are not a rich-text or BBCode editor implementation. Detailed workflow behavior remains with [Specify the first release's detailed workflow behavior](https://github.com/Benson-mk/tsdm-ui/issues/10).
+The study controls expose permission, challenge and missing-content scenarios plus an unknown submission outcome. All results, attachment controls and drafts are illustrative. No forum requests, uploads, downloads or account operations occur. Only text size persists in a dedicated prototype browser key; reload discards other demo state, including writing. The text field and disabled toolbar illustrate composition placement; they are not a rich-text or BBCode editor implementation. Detailed workflow behavior remains with [Specify the first release's detailed workflow behavior](https://github.com/Benson-mk/tsdm-ui/issues/10).
 
 ## Repeatable browser walkthrough
 
 Start each independent case by reloading. Use the local browser console/error view only to observe errors; no application internals are needed.
 
 1. At 1440 × 1000, compare all three structures. Keep Boards, Search, Saved, Notices, Drafts, Appearance and account access available. In B, open the picker and verify its New thread action and synthetic search.
-2. On the initial thread, expand the spoiler and quote post 1. Type a distinctive line. Change all preferences and close the dialog. Confirm the text and quote target remain, the spoiler stays open, the list title stays 18px and Compact posts become 16px. Arrow keys inside the editor move its caret without changing layouts.
+2. On the initial thread, expand the spoiler and quote post 1. Type a distinctive line. Change all preferences and close the dialog. Confirm text and quote target remain and the spoiler stays open. At 90%, list titles and post text become 16.2px with Compact spacing; at 100%, both return to their 18px baselines and Default spacing. Arrow keys inside the editor or size slider do not change layouts.
 3. Browse the piano thread while composing the original quote. The writing target must remain the original thread/post. Quoting a different post prompts before replacing input; Keep current writing returns to its target.
 4. In Study notes, set the submission outcome to unknown. Simulate submit: retain text and disable resubmission until the explicit simulated result check. Set a challenge: keep the recovery destination and unsent text.
 5. Open New thread and enter only a title. Browse another thread and try to reply. Confirm the unsent-input prompt protects title-only work.
@@ -40,7 +42,7 @@ Start each independent case by reloading. Use the local browser console/error vi
 
 For the machine-replayable portion, load `evidence/context-navigation.replay.mjs` in a CUA session and pass a prototype tab at 1440px. Run `contextNavigationProbe(tab)` and `searchReturnProbe(tab)` on A; run `pickerReturnProbe(tab)` on B. Each returns an explicit pass result and observed DOM values. The exported functions drive browser controls; they do not access application state. Also load `evidence/section-overview.replay.mjs` and run `sectionOverviewProbe(tab)` on a fresh A tab at 1440px. It types a reply and verifies all five section switches hide old posts/composition, show the matching overview and retain a return path. The remaining checks above are repeatable manual browser steps.
 
-## Verification record
+## Original verification record — 2026-10-16
 
 The initial walkthrough used the Codex in-app browser on 2026-10-16 (Asia/Hong_Kong). `evidence/browser-checks.json` records observations against `evidence/initial-source-hashes.json`; its first seven observations predate that initial capture. The original desktop/narrow PNGs belong to that comparison stage. They are preserved as historical evidence rather than relabeled as observations of the correction.
 
@@ -52,7 +54,7 @@ The final overview refinement has its own evidence stage. The prewritten five-se
 
 The walkthrough caught a title-only unsent-input omission; the guard now includes the title. The initial B picker lacked a New thread action; it now includes one. Preference restyling retains a visible reading element, and does not recreate posts or the editor. One offscreen browser automation click required ordinary scrolling before the target could be clicked; the subsequent anchor/back journey passed.
 
-## Decision completion
+## Original decision completion — 2026-10-16
 
 The issue is a design question rather than a numbered implementation checklist. Its current completion record is:
 
@@ -65,7 +67,7 @@ The issue is a design question rather than a numbered implementation checklist. 
 
 The human geometry choices are complete, and the artifact meets this decision’s acceptance checks. Capture this artifact on the throwaway branch and publish the authored decision record through the repository’s review process. Detailed search, read-state, editor and draft semantics belong to the existing workflow decision.
 
-## Decisions and every trade-off
+## Original decisions and trade-offs — 2026-10-16
 
 1. Plain HTML/CSS/JavaScript avoids selecting a production framework, but the code is disposable and supplies no application architecture.
 2. Synthetic fixtures and simulated outcomes make the comparison safe and repeatable, but establish no backend or installed-runtime evidence.

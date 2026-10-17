@@ -1,0 +1,2126 @@
+{
+  "date": "2026-10-17T20:32:48.724Z",
+  "browser": "151.0.7922.34",
+  "sourceHashes": {
+    "im-workspace.prototype.html": "f1ba1154596126a0b7cdecb25d80373005ee869aae015c9edc5690082e2094e3",
+    "prototype.css": "f3815f237f629979abda07a99b637d57a3e43576d1acfe690bfac958a892ba19",
+    "prototype.js": "75bb425f2fa369f13ac10e303bc98c106f65f4cd132c391f365c7fcc2ac14acb"
+  },
+  "cases": [
+    {
+      "name": "Labelled slider replaces density; exact range, baseline and reset",
+      "pass": true,
+      "observed": {
+        "type": "range",
+        "min": "70",
+        "max": "150",
+        "step": "10",
+        "value": "100",
+        "labels": [
+          "文字大小"
+        ]
+      }
+    },
+    {
+      "name": "Global role scaling, automatic Compact threshold and unchanged panes/icons",
+      "pass": true,
+      "observed": [
+        {
+          "percentage": 70,
+          "density": "Compact",
+          "grid": "76px 208px 320px 836px",
+          "icon": "22px",
+          "rowY": "12px",
+          "rowX": "16px",
+          "rowMin": "44px",
+          "post": "16px",
+          "composer": "16px",
+          "output": "70%",
+          "focus": "text-size",
+          "variant": "A"
+        },
+        {
+          "percentage": 80,
+          "density": "Compact",
+          "grid": "76px 208px 320px 836px",
+          "icon": "22px",
+          "rowY": "12px",
+          "rowX": "16px",
+          "rowMin": "44px",
+          "post": "16px",
+          "composer": "16px",
+          "output": "80%",
+          "focus": "text-size",
+          "variant": "A"
+        },
+        {
+          "percentage": 90,
+          "density": "Compact",
+          "grid": "76px 208px 320px 836px",
+          "icon": "22px",
+          "rowY": "12px",
+          "rowX": "16px",
+          "rowMin": "44px",
+          "post": "16px",
+          "composer": "16px",
+          "output": "90%",
+          "focus": "text-size",
+          "variant": "A"
+        },
+        {
+          "percentage": 100,
+          "density": "Default",
+          "grid": "76px 208px 320px 836px",
+          "icon": "22px",
+          "rowY": "16px",
+          "rowX": "24px",
+          "rowMin": "118px",
+          "post": "32px",
+          "composer": "24px",
+          "output": "100%",
+          "focus": "text-size",
+          "variant": "A"
+        },
+        {
+          "percentage": 110,
+          "density": "Default",
+          "grid": "76px 208px 320px 836px",
+          "icon": "22px",
+          "rowY": "16px",
+          "rowX": "24px",
+          "rowMin": "118px",
+          "post": "32px",
+          "composer": "24px",
+          "output": "110%",
+          "focus": "text-size",
+          "variant": "A"
+        },
+        {
+          "percentage": 120,
+          "density": "Default",
+          "grid": "76px 208px 320px 836px",
+          "icon": "22px",
+          "rowY": "16px",
+          "rowX": "24px",
+          "rowMin": "118px",
+          "post": "32px",
+          "composer": "24px",
+          "output": "120%",
+          "focus": "text-size",
+          "variant": "A"
+        },
+        {
+          "percentage": 130,
+          "density": "Default",
+          "grid": "76px 208px 320px 836px",
+          "icon": "22px",
+          "rowY": "16px",
+          "rowX": "24px",
+          "rowMin": "118px",
+          "post": "32px",
+          "composer": "24px",
+          "output": "130%",
+          "focus": "text-size",
+          "variant": "A"
+        },
+        {
+          "percentage": 140,
+          "density": "Default",
+          "grid": "76px 208px 320px 836px",
+          "icon": "22px",
+          "rowY": "16px",
+          "rowX": "24px",
+          "rowMin": "118px",
+          "post": "32px",
+          "composer": "24px",
+          "output": "140%",
+          "focus": "text-size",
+          "variant": "A"
+        },
+        {
+          "percentage": 150,
+          "density": "Default",
+          "grid": "76px 208px 320px 836px",
+          "icon": "22px",
+          "rowY": "16px",
+          "rowX": "24px",
+          "rowMin": "118px",
+          "post": "32px",
+          "composer": "24px",
+          "output": "150%",
+          "focus": "text-size",
+          "variant": "A"
+        }
+      ]
+    },
+    {
+      "name": "Writing, caret, nodes, disclosure, reading anchor and navigation survive resize",
+      "pass": false,
+      "error": "Modal did not restore editor focus"
+    },
+    {
+      "name": "Immediate save, reload, reset persistence and history independence",
+      "pass": true,
+      "observed": {
+        "reload": 90,
+        "afterBack": 150,
+        "resetReload": 100
+      }
+    },
+    {
+      "name": "Malformed storage and unavailable storage keep the UI usable",
+      "pass": true,
+      "observed": {
+        "invalidValues": "fallback to 100",
+        "blockedStorage": "session value works; reload defaults"
+      }
+    },
+    {
+      "name": "All palettes and structural breakpoints retain readable controls and local overflow",
+      "pass": true,
+      "observed": [
+        {
+          "width": 375,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 375,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 726
+        },
+        {
+          "width": 375,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 705
+        },
+        {
+          "width": 375,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 662
+        },
+        {
+          "width": 375,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 375,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 726
+        },
+        {
+          "width": 375,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 705
+        },
+        {
+          "width": 375,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 662
+        },
+        {
+          "width": 375,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 375,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 726
+        },
+        {
+          "width": 375,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 705
+        },
+        {
+          "width": 375,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 662
+        },
+        {
+          "width": 375,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 375,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 726
+        },
+        {
+          "width": 375,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 705
+        },
+        {
+          "width": 375,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 662
+        },
+        {
+          "width": 559,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 559,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 559,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 559,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 559,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 559,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 559,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 559,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 559,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 559,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 559,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 559,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 559,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 559,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 559,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 559,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 560,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 560,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 560,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 560,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 560,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 560,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 560,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 560,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 560,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 560,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 560,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 560,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 560,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 560,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 560,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 560,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 767,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 767,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 767,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 767,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 767,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 767,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 767,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 767,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 767,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 767,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 767,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 767,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 767,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 767,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 767,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 767,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 768,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 768,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 768,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 768,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 768,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 768,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 768,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 768,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 768,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 768,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 768,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 768,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 768,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 768,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 768,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 768,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 959,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 959,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 959,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 959,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 959,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 959,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 959,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 959,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 959,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 959,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 959,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 959,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 959,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 744
+        },
+        {
+          "width": 959,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 741
+        },
+        {
+          "width": 959,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 722
+        },
+        {
+          "width": 959,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 712
+        },
+        {
+          "width": 960,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 960,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 960,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 960,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 960,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 960,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 960,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 960,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 960,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 960,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 960,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 960,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 960,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 960,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 960,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 960,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1100,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1100,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1100,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1100,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1100,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1100,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1100,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1100,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1100,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1100,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1100,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1100,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1100,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1100,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1100,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1100,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1279,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1279,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1279,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1279,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1279,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1279,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1279,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1279,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1279,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1279,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1279,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1279,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1279,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1279,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1279,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1279,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1280,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1280,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1280,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1280,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1280,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1280,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1280,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1280,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1280,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1280,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1280,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1280,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1280,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1280,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1280,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1280,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1440,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1440,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1440,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1440,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1440,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1440,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1440,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1440,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1440,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1440,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1440,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1440,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1440,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1440,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1440,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1440,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1920,
+          "theme": "Light",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1920,
+          "theme": "Light",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1920,
+          "theme": "Light",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1920,
+          "theme": "Light",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1920,
+          "theme": "Alias",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1920,
+          "theme": "Alias",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1920,
+          "theme": "Alias",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1920,
+          "theme": "Alias",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1920,
+          "theme": "Mono",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1920,
+          "theme": "Mono",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1920,
+          "theme": "Mono",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1920,
+          "theme": "Mono",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        },
+        {
+          "width": 1920,
+          "theme": "Dark",
+          "percentage": 70,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 12.6,
+          "readerHeight": 802
+        },
+        {
+          "width": 1920,
+          "theme": "Dark",
+          "percentage": 90,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 16.2,
+          "readerHeight": 802
+        },
+        {
+          "width": 1920,
+          "theme": "Dark",
+          "percentage": 100,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 18,
+          "readerHeight": 786
+        },
+        {
+          "width": 1920,
+          "theme": "Dark",
+          "percentage": 150,
+          "overflow": false,
+          "shortControls": [],
+          "clippedControls": [],
+          "post": 27,
+          "readerHeight": 785
+        }
+      ]
+    },
+    {
+      "name": "Languages, medium picker and narrow list use the same size and Compact spacing",
+      "pass": false,
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-action=browse]').first()\u001b[22m\n\u001b[2m    - locator resolved to <button data-action=\"browse\" data-i=\"viewResults\" class=\"compact primary\">查看列表</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+    },
+    {
+      "name": "User font baseline composes with the slider",
+      "pass": false,
+      "error": "Cannot access 'size' before initialization"
+    },
+    {
+      "name": "Final screenshots and error-free local operation",
+      "pass": true,
+      "observed": {
+        "errors": [],
+        "externalRequests": []
+      }
+    }
+  ],
+  "pass": false,
+  "errors": [],
+  "externalRequests": []
+}

@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-17T20:29:55.124Z",
+  "browser": "151.0.7922.34",
+  "sourceHashes": {
+    "im-workspace.prototype.html": "41022031d2bb6fd7664e7b943528e5fe164c5539621ab5c611588eece16544bb",
+    "prototype.css": "7d00e039c033c12df20158d7cbdb36ab14b7851e208fb12693cf114553117f97",
+    "prototype.js": "27bdb42a8c80bebaa2b2aa17e29ab6b17d53125de6516ac54a57f2c2eb09177b"
+  },
+  "cases": [
+    {
+      "name": "Labelled slider replaces density; exact range, baseline and reset",
+      "pass": false,
+      "error": "Missing text-size range input (legacy density selector still present)"
+    }
+  ],
+  "pass": false,
+  "errors": [],
+  "externalRequests": []
+}

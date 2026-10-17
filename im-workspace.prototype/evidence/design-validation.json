@@ -1,0 +1,43 @@
+{
+  "tool": "@google/design.md@0.4.0",
+  "designSha256": "b033007b61ef457e48c21408975a86c2d5d260352e608ad0996ae66e0e523c26",
+  "lint": {
+    "findings": [
+      {
+        "severity": "info",
+        "message": "Design system defines 80 colors, 15 typography scales, 7 rounding levels, 9 spacing tokens, 192 components.",
+        "rule": "token-summary"
+      }
+    ],
+    "summary": {
+      "errors": 0,
+      "warnings": 0,
+      "infos": 1
+    }
+  },
+  "exports": {
+    "json-tailwind": {
+      "colors": 80,
+      "typography": 15,
+      "radii": 7,
+      "spacing": 9
+    },
+    "dtcg": {
+      "allTypographyLineMultipliersMatch": true,
+      "bodyLineHeight": 1.45,
+      "codeLineHeight": 1.7
+    }
+  },
+  "compactRecipeTypography": {
+    "reader-post-compact": "typography.body",
+    "reader-post-compact-alias": "typography.body",
+    "reader-post-compact-mono": "typography.body",
+    "reader-post-compact-dark": "typography.body"
+  },
+  "primaryDesignCopyMatches": true,
+  "syntaxChecks": [
+    "node --check prototype.js",
+    "node --check evidence/text-size.e2e.mjs"
+  ],
+  "whitespaceCheck": "git diff --check"
+}

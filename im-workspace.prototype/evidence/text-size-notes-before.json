@@ -1,0 +1,9 @@
+{
+  "scenario": "Study notes code text scales with global text size",
+  "before": 12,
+  "percentage": 150,
+  "after": 12,
+  "expected": 18,
+  "pass": false,
+  "cssSha256": "f20c4124d07c6d75dcfa7513cfa6bc0bb85088aeed3e9667dcf128bb672bea58"
+}
