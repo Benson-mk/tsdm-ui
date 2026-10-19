@@ -7,7 +7,27 @@ function render(node: ContentNode): VNode | string {
       h("p", { class: "content-notice" }, node.description),
       ...node.children.map(render),
     ]);
-  return h(node.tag, node.attributes, node.children.map(render));
+  if (node.tag === "table")
+    return h(
+      "div",
+      {
+        class: "table-overflow",
+        role: "region",
+        "aria-label": "Scrollable table",
+        tabindex: "0",
+      },
+      [h(node.tag, node.attributes, node.children.map(render))],
+    );
+  const attributes =
+    node.tag === "pre" || node.attributes.class === "code-block"
+      ? {
+          ...node.attributes,
+          role: "region",
+          "aria-label": "Scrollable code",
+          tabindex: "0",
+        }
+      : node.attributes;
+  return h(node.tag, attributes, node.children.map(render));
 }
 export default defineComponent({
   name: "ContentView",

@@ -5,6 +5,7 @@ import type {
   FullResult,
 } from "@playwright/test/reporter";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   readFileSync,
@@ -77,6 +78,7 @@ export default class EvidenceReporter implements Reporter {
     collect("tests");
     collect("scripts");
     collect("docs/implementation");
+    collect("docs/adr");
     for (const file of [
       "package.json",
       "package-lock.json",
@@ -99,6 +101,9 @@ export default class EvidenceReporter implements Reporter {
       ],
       runtime: {
         node: process.version,
+        openssl: execFileSync("openssl", ["version"], {
+          encoding: "utf8",
+        }).trim(),
         npmUserAgent: process.env.npm_config_user_agent ?? null,
         platform: process.platform,
         architecture: process.arch,
@@ -125,11 +130,22 @@ export default class EvidenceReporter implements Reporter {
     );
     writeFileSync(
       `${this.directory}/report.md`,
-      `# Foundation synthetic replay\n\nResult: **${result.status}**. Node ${process.version}.\n\n${this.cases.map((c) => `- ${c.name}: ${c.status}`).join("\n")}\n\nThe authored fixture and scenario snapshot is synthetic/foundation.spec.ts. Replay with npm run test:e2e from the source checkout identified by this run's receipt. Installed identity, lifecycle, live semantics and full release qualification remain separate. Failures and retries are preserved in receipt.json.\n`,
+      `# Workspace synthetic replay\n\nResult: **${result.status}**. Node ${process.version}.\n\n${this.cases.map((c) => `- ${c.name}: ${c.status}`).join("\n")}\n\nAuthored fixture and scenario snapshots are retained in synthetic/*.spec.ts. Replay with npm run test:e2e from the source checkout identified by this run's receipt. Installed identity, lifecycle, live semantics and full release qualification remain separate. Failures and retries are preserved in receipt.json.\n`,
     );
     writeFileSync(
       `${this.directory}/synthetic/foundation.spec.ts`,
       readFileSync("tests/e2e/foundation.spec.ts"),
+    );
+    for (const file of readdirSync("tests/e2e")) {
+      if (file.endsWith(".spec.ts"))
+        writeFileSync(
+          `${this.directory}/synthetic/${file}`,
+          readFileSync(`tests/e2e/${file}`),
+        );
+    }
+    writeFileSync(
+      `${this.directory}/synthetic/http-redirect-fixture.ts`,
+      readFileSync("tests/http-redirect-fixture.ts"),
     );
     const manifest: Record<string, FileIdentity> = {};
     for (const file of [

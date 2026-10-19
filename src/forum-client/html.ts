@@ -81,6 +81,47 @@ export function content(node: Node, base: string): ContentNode[] {
           children: [],
         },
       ];
+    const spoilerBody =
+      (hasClass(child, "spoiler") || hasClass(child, "spoiler_wrap")) &&
+      descendants(
+        child,
+        (n) => hasClass(n, "spoilerbody") || hasClass(n, "spoiler_content"),
+      )[0];
+    if (spoilerBody) {
+      const control = descendants(
+        child,
+        (n) =>
+          hasClass(n, "spoilerbutton") ||
+          hasClass(n, "spoiler_btn") ||
+          hasClass(n, "spoilerheader") ||
+          hasClass(n, "spoiler_control"),
+      )[0];
+      return [
+        {
+          kind: "element",
+          tag: "details",
+          attributes: {},
+          children: [
+            {
+              kind: "element",
+              tag: "summary",
+              attributes: {},
+              children: [
+                {
+                  kind: "text",
+                  text: control
+                    ? attr(control, "value") ||
+                      label(control) ||
+                      "Show hidden content"
+                    : "Show hidden content",
+                },
+              ],
+            },
+            ...content(spoilerBody, base),
+          ],
+        },
+      ];
+    }
     const explicitlyHidden =
       child.attrs.some((attribute) => attribute.name === "hidden") ||
       /(?:^|;)\s*display\s*:\s*none(?:\s*!important)?\s*(?:;|$)/i.test(
@@ -115,6 +156,21 @@ export function content(node: Node, base: string): ContentNode[] {
         },
       ];
     const attributes: Record<string, string> = {};
+    if (
+      ["locked", "showhide", "attach_nopermission"].some((name) =>
+        hasClass(child, name),
+      )
+    )
+      attributes.class = "permission-notice";
+    if (hasClass(child, "quote")) attributes.class = "quote";
+    if (hasClass(child, "blockcode")) attributes.class = "code-block";
+    const align =
+      attr(child, "align") ||
+      /(?:^|;)\s*text-align\s*:\s*(left|right|center|justify)\s*(?:;|$)/.exec(
+        attr(child, "style"),
+      )?.[1];
+    if (align && ["left", "right", "center", "justify"].includes(align))
+      attributes.style = `text-align:${align}`;
     if (child.tagName === "a") {
       const url = safeURL(attr(child, "href"), base);
       if (url) {

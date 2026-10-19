@@ -409,7 +409,9 @@ test("J1.current-anchor-recovery: same-document post selection survives native c
 }) => {
   const requests = await openThread(page);
   await page.getByRole("link", { name: "Post 102", exact: true }).click();
-  await expect(page).toHaveURL(`${target}#pid102`);
+  await expect(page).toHaveURL(
+    /^https:\/\/www\.tsdm39\.com\/forum\.php#workspace=/,
+  );
   await expect(
     page.getByRole("link", { name: "Continue in native forum" }),
   ).toHaveAttribute("href", `${target}&tsdm-native=1#pid102`);
@@ -455,11 +457,16 @@ test("J1.anchor-during-read: a late read cannot reset a newly selected recovery 
   });
   await page.getByRole("button", { name: "Refresh thread" }).click();
   await expect.poll(() => refreshStarted).toBe(true);
-  await page.goto(`${target}#pid102`);
+  await page.getByRole("link", { name: "Post 102", exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Continue in native forum" }),
   ).toHaveAttribute("href", `${target}&tsdm-native=1#pid102`);
+  await expect(page.getByText("Loading…", { exact: true })).toBeVisible();
   release?.();
+  await expect(page.getByText("Loading…", { exact: true })).not.toBeVisible();
+  await expect(
+    page.getByRole("article", { name: "Post 102", exact: true }),
+  ).toHaveAttribute("data-targeted", "true");
   await expect(
     page.getByRole("heading", { name: "Autumn listening 秋日聆聽" }),
   ).toBeVisible();

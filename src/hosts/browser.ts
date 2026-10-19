@@ -4,11 +4,20 @@ export function createBrowserTransport(): ForumTransport {
     async request(url) {
       const response = await fetch(url, {
         credentials: "same-origin",
-        redirect: "follow",
+        redirect:
+          new URL(url).searchParams.get("mod") === "redirect"
+            ? "manual"
+            : "follow",
         headers: { Accept: "application/json, text/html;q=0.9" },
       });
       return {
         status: response.status,
+        redirect:
+          response.type === "opaqueredirect"
+            ? "opaque"
+            : response.redirected
+              ? "followed"
+              : "none",
         url: response.url,
         contentType: response.headers.get("content-type") ?? "",
         body: await response.text(),

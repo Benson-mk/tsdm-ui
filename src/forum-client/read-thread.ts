@@ -1,3 +1,7 @@
+import { pagination, link } from "./read-board.js";
+import { routeFor, cleanURL } from "./routes.js";
+import { threadURL } from "./routes.js";
+export { threadURL } from "./routes.js";
 import {
   attr,
   byId,
@@ -18,39 +22,6 @@ import type {
 } from "./types.js";
 const positive = (value: string | null): value is string =>
   value !== null && /^[1-9]\d*$/.test(value);
-export function threadURL(value: string): URL | null {
-  try {
-    const url = new URL(value);
-    if (
-      url.protocol !== "https:" ||
-      url.pathname !== "/forum.php" ||
-      url.searchParams.get("mod") !== "viewthread" ||
-      !positive(url.searchParams.get("tid"))
-    )
-      return null;
-    const allowed = new Set([
-      "mod",
-      "tid",
-      "page",
-      "authorid",
-      "ordertype",
-      "extra",
-      "mobile",
-      "tsdmapp",
-      "viewpid",
-    ]);
-    for (const key of url.searchParams.keys())
-      if (!allowed.has(key) || url.searchParams.getAll(key).length !== 1)
-        return null;
-    if (url.username || url.password) return null;
-    for (const key of ["page", "authorid", "viewpid"])
-      if (url.searchParams.has(key) && !positive(url.searchParams.get(key)))
-        return null;
-    return url;
-  } catch {
-    return null;
-  }
-}
 function outsidePosts(node: Node): boolean {
   let current: Node | null = node;
   while (current) {
@@ -76,7 +47,7 @@ function readable(nodes: readonly ContentNode[]): boolean {
         readable(node.children),
   );
 }
-function accountFrom(doc: Node, base: string): Account {
+export function accountFrom(doc: Node, base: string): Account {
   const headers = descendants(
     doc,
     (n) => ["um", "inner_stat"].includes(attr(n, "id")) && outsidePosts(n),
@@ -108,9 +79,11 @@ function accountFrom(doc: Node, base: string): Account {
     return { kind: "guest" };
   return { kind: "unknown" };
 }
-type DecodedResult =
-  | Omit<Extract<ReadResult, { kind: "thread" }>, "generation">
-  | Omit<Exclude<ReadResult, { kind: "thread" }>, "generation">;
+type DecodedResult = ReadResult extends infer R
+  ? R extends ReadResult
+    ? Omit<R, "generation">
+    : never
+  : never;
 export function decodeThread(
   response: HostResponse,
   requestedURL: string,
@@ -198,7 +171,8 @@ export function decodeThread(
       : (envelopeAccount ?? headerAccount);
   const result = { account, sourceURL: response.url };
   const fail = (
-    kind: "login" | "permission" | "missing" | "challenge" | "invalid",
+    kind:
+      "limited" | "login" | "permission" | "missing" | "challenge" | "invalid",
     message: string,
   ) => ({ ...result, kind, message });
   const title = label(descendants(doc, (n) => n.tagName === "title")[0]);
@@ -235,6 +209,11 @@ export function decodeThread(
       "permission",
       "The current account does not have permission to read this thread.",
     );
+  if (response.status === 429)
+    return fail(
+      "limited",
+      "The forum is limiting requests. Retry explicitly later.",
+    );
   if (response.status < 200 || response.status >= 300 || message)
     return fail(
       "invalid",
@@ -257,7 +236,10 @@ export function decodeThread(
     envelopeThreadId !== requested.searchParams.get("tid")
   )
     return fail("invalid", "The returned thread identity did not match.");
-  const containers = descendants(doc, (n) => attr(n, "id") === "postlist");
+  const touch = descendants(doc, (n) => hasClass(n, "viewthread")).length > 0;
+  const containers = descendants(doc, (n) =>
+    touch ? hasClass(n, "viewthread") : attr(n, "id") === "postlist",
+  );
   const container = containers[0];
   if (!container || containers.length !== 1)
     return fail(
@@ -278,24 +260,29 @@ export function decodeThread(
     )
       return fail("invalid", "The returned thread identity did not match.");
   }
-  const heading = byId(container, "thread_subject");
+  const heading = touch
+    ? descendants(container, (n) => hasClass(n, "view_tit"))[0]
+    : byId(container, "thread_subject");
   const wrappers = descendants(container, (n) =>
-    /^post_[1-9]\d*$/.test(attr(n, "id")),
+    touch
+      ? /^pid[1-9]\d*$/.test(attr(n, "id")) && hasClass(n, "plc")
+      : /^post_[1-9]\d*$/.test(attr(n, "id")),
   );
   if (!label(heading) || !wrappers.length)
     return fail(
       "invalid",
       "This thread has unrecognized or incomplete content.",
     );
-  const ids = wrappers.map((n) => attr(n, "id").slice(5));
+  const ids = wrappers.map((n) => attr(n, "id").slice(touch ? 3 : 5));
   if (new Set(ids).size !== ids.length)
     return fail("invalid", "The returned post identities are ambiguous.");
   const posts = wrappers.map((wrapper) => {
-    const id = attr(wrapper, "id").slice(5);
+    const id = attr(wrapper, "id").slice(touch ? 3 : 5);
     const body =
-      descendants(
-        wrapper,
-        (n) => hasClass(n, "pcb") || hasClass(n, "pcbs"),
+      descendants(wrapper, (n) =>
+        touch
+          ? hasClass(n, "message")
+          : hasClass(n, "pcb") || hasClass(n, "pcbs"),
       )[0] ??
       descendants(wrapper, (n) => /^postmessage_/.test(attr(n, "id")))[0];
     if (!body || !children(body).length) return null;
@@ -315,10 +302,45 @@ export function decodeThread(
       id,
       author: label(author) || "Anonymous",
       authorId: authorURL ? new URL(authorURL).searchParams.get("uid") : null,
-      floor: label(byId(wrapper, `postnum${id}`)),
-      date: label(byId(wrapper, `authorposton${id}`)),
-      url: `${requested.origin}/forum.php?mod=viewthread&tid=${requested.searchParams.get("tid")}#pid${id}`,
-      content: bodyContent,
+      floor: label(
+        touch
+          ? descendants(wrapper, (n) => hasClass(n, "y"))[0]
+          : byId(wrapper, `postnum${id}`),
+      ),
+      date: label(
+        touch
+          ? descendants(wrapper, (n) => hasClass(n, "mtime"))[0]
+          : byId(wrapper, `authorposton${id}`),
+      ),
+      url:
+        link(byId(wrapper, `postnum${id}`), response.url)?.url ??
+        `${cleanURL(response.url).split("#")[0]}#pid${id}`,
+      content: [
+        ...bodyContent,
+        ...descendants(
+          wrapper,
+          (n) =>
+            hasClass(n, "locked") ||
+            hasClass(n, "attach_nopermission") ||
+            hasClass(n, "modact"),
+        )
+          .filter((n) => {
+            let p: Node | null = n;
+            while (p) {
+              if (p === body) return false;
+              p = "parentNode" in p ? p.parentNode : null;
+            }
+            return true;
+          })
+          .flatMap((n) => [
+            {
+              kind: "element" as const,
+              tag: "p",
+              attributes: { class: "permission-notice" },
+              children: [{ kind: "text" as const, text: label(n) }],
+            },
+          ]),
+      ],
     };
   });
   if (posts.some((post) => post === null))
@@ -326,14 +348,82 @@ export function decodeThread(
       "invalid",
       "A post could not be interpreted. Continue in the native forum for complete content.",
     );
+  const pages = pagination(doc, response.url);
+  let target =
+    /^#pid([1-9]\d*)$/.exec(requested.hash)?.[1] ??
+    requested.searchParams.get("viewpid");
+  if (requested.hash === "#lastpost") {
+    const ordered = posts.filter((post) => post !== null);
+    const floors = ordered
+      .map((post) => /^\s*([1-9]\d*)/.exec(post.floor)?.[1])
+      .map((value) => (value ? Number(value) : NaN));
+    const descending = actual.searchParams.get("ordertype") === "1";
+    const page = Number(pages.current);
+    const links = pages.links.map((item) =>
+      Number(new URL(item.url).searchParams.get("page") ?? "1"),
+    );
+    const boundary =
+      Number.isSafeInteger(page) &&
+      page > 0 &&
+      (descending
+        ? page === 1 && !links.some((value) => value < page)
+        : !links.some((value) => value > page));
+    const orderedFloors = floors.every(
+      (value, index) =>
+        Number.isSafeInteger(value) &&
+        (index === 0 ||
+          (descending
+            ? value < floors[index - 1]!
+            : value > floors[index - 1]!)),
+    );
+    if (boundary && orderedFloors && !actual.searchParams.has("authorid"))
+      target = (descending ? ordered[0] : ordered.at(-1))!.id;
+    else
+      return {
+        ...result,
+        kind: "document-navigation",
+        message: "The last reply requires canonical forum resolution.",
+        destination: `${requested.origin}/forum.php?mod=redirect&goto=lastpost&tid=${requested.searchParams.get("tid")}#lastpost`,
+      };
+  }
   return {
     ...result,
     kind: "thread",
     thread: {
       id: requested.searchParams.get("tid")!,
       title: label(heading),
-      url: requestedURL,
+      url: cleanURL(response.url),
       posts: posts.filter((post) => post !== null),
+      pages,
+      filters: [
+        ...new Map(
+          descendants(
+            doc,
+            (n) =>
+              n.tagName === "a" &&
+              /[?&](authorid|ordertype)=/.test(attr(n, "href")),
+          )
+            .map((n) => link(n, response.url))
+            .filter((n) => n !== null && routeFor(n.url)?.kind === "thread")
+            .map((n) => [n!.url, n!]),
+        ).values(),
+      ],
+      parent:
+        (byId(doc, "pt")
+          ? descendants(byId(doc, "pt")!, (n) => n.tagName === "a")
+              .map((n) => link(n, response.url))
+              .filter(
+                (n) =>
+                  n !== null &&
+                  ["board", "directory"].includes(routeFor(n.url)?.kind ?? ""),
+              )
+          : []
+        ).at(-1) ?? null,
+      target,
+      notices: descendants(
+        doc,
+        (n) => hasClass(n, "locked") && outsidePosts(n),
+      ).map(label),
     },
   };
 }

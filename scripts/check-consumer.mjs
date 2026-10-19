@@ -44,7 +44,7 @@ try {
   );
   const source = `import assert from 'node:assert/strict';
 import { createForumClient, FORUM_CLIENT_VERSION } from '@tsdm/forum-client';
-assert.equal(FORUM_CLIENT_VERSION, '0.1.0');
+assert.equal(FORUM_CLIENT_VERSION, '0.2.0');
 const requests = [];
 const client = createForumClient({ origin: 'https://fixture.example', transport: { async request(url) {
   requests.push(url);

@@ -1,22 +1,20 @@
-import { decodeThread, threadURL } from "./read-thread.js";
+import { decodeThread } from "./read-thread.js";
+import { decodeBoard } from "./read-board.js";
+import { routeFor } from "./routes.js";
+export function describeDestination(
+  value: string,
+): { kind: "directory" | "board" | "thread" | "redirect"; url: string } | null {
+  const route = routeFor(value);
+  return route ? { kind: route.kind, url: route.url.href } : null;
+}
 import type {
   Account,
   ForumClient,
   ForumTransport,
   ReadResult,
 } from "./types.js";
-export type {
-  Account,
-  ContentNode,
-  FailureKind,
-  ForumClient,
-  ForumTransport,
-  HostResponse,
-  Post,
-  ReadResult,
-  Thread,
-} from "./types.js";
-export const FORUM_CLIENT_VERSION = "0.1.0";
+export type * from "./types.js";
+export const FORUM_CLIENT_VERSION = "0.2.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -31,9 +29,13 @@ export function createForumClient(options: {
     get generation() {
       return generation;
     },
-    async readThread(destination: string): Promise<ReadResult> {
+    readThread(destination: string): Promise<ReadResult> {
+      return this.readPage(destination);
+    },
+    async readPage(destination: string): Promise<ReadResult> {
       const current = ++sequence;
-      const url = threadURL(destination);
+      const route = routeFor(destination);
+      const url = route?.url;
       if (!url || url.origin !== options.origin)
         return {
           kind: "invalid",
@@ -53,7 +55,19 @@ export function createForumClient(options: {
             generation,
             sourceURL: destination,
           };
-        const decoded = decodeThread(response, destination);
+        if (route?.kind === "redirect" && response.redirect === "opaque")
+          return {
+            kind: "document-navigation",
+            message: "The forum redirect requires a document navigation.",
+            destination,
+            account,
+            generation,
+            sourceURL: destination,
+          };
+        const decoded =
+          route?.kind === "thread"
+            ? decodeThread(response, destination)
+            : decodeBoard(response, destination);
         if (JSON.stringify(decoded.account) !== JSON.stringify(account)) {
           account = decoded.account;
           generation++;
