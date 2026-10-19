@@ -1,3 +1,4 @@
+import type { WritingContext } from "./writing";
 import type { ReadResult } from "../forum-client";
 export type Section = "boards" | "search" | "saved" | "notices" | "drafts";
 export interface ViewPosition {
@@ -17,12 +18,18 @@ export interface NavigationEntry {
   documentNavigations: number;
 }
 export interface NavigationRecord {
-  schema: 1;
+  schema: 2;
+  writing: WritingContext | null;
   entries: Record<string, NavigationEntry>;
   pending: { entryKey: string; destination: string } | null;
 }
 export interface NavigationHost {
   entryKey(): string | null;
+  recoveryProblem(): {
+    kind: "incompatible" | "refused";
+    raw: string | null;
+  } | null;
+  resetRecovery(): void;
   load(): Promise<NavigationRecord | null>;
   save(record: NavigationRecord): Promise<boolean>;
   push(key: string): void;

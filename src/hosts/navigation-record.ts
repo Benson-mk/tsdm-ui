@@ -1,3 +1,4 @@
+import { isWritingContext } from "../workspace/writing";
 import { describeDestination } from "../forum-client";
 import type { NavigationRecord } from "../workspace/navigation";
 
@@ -279,7 +280,9 @@ function result(value: unknown): boolean {
 
 /** Recognize this application's inert navigation record, not arbitrary JSON. */
 export function isNavigationRecord(value: unknown): value is NavigationRecord {
-  if (!object(value) || value.schema !== 1 || !object(value.entries))
+  if (!object(value) || value.schema !== 2 || !object(value.entries))
+    return false;
+  if (!(value.writing === null || isWritingContext(value.writing)))
     return false;
   const entries = value.entries;
   for (const [entryKey, entry] of Object.entries(entries)) {

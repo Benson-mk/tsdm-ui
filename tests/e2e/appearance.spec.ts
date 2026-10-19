@@ -151,6 +151,31 @@ test("J2.section-overviews: each destination replaces the reader, supports mediu
     page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
   ).toBeVisible();
   expect(requests).toHaveLength(3);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  const geometry = await page.locator("#tsdm-workspace").evaluate((host) => {
+    const root = host.shadowRoot!;
+    const workspace = root.querySelector<HTMLElement>(".workspace")!;
+    return {
+      roots: document.querySelectorAll("#tsdm-workspace").length,
+      headers: root.querySelectorAll(".workspace > header").length,
+      height: workspace.getBoundingClientRect().height,
+      viewport: innerHeight,
+      pageOverflow: document.documentElement.scrollHeight > innerHeight,
+    };
+  });
+  expect(geometry.roots).toBe(1);
+  expect(geometry.headers).toBe(1);
+  expect(geometry.height).toBe(geometry.viewport);
+  expect(geometry.pageOverflow).toBe(false);
+  info.annotations.push({
+    type: "settled-geometry",
+    description: JSON.stringify(geometry),
+  });
   await info.attach("narrow-search-overview.png", {
     body: await page.screenshot(),
     contentType: "image/png",
@@ -863,6 +888,41 @@ test("J5.appearance-context: reflow retains mounted content, disclosures, visibl
   ).toBeFocused();
   expect(requests).toHaveLength(1);
   await info.attach("preserved-reading-block.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("J5.appearance-new-anchor: scrolling after an appearance change establishes a new reading block", async ({
+  page,
+}, info) => {
+  const requests = await open(page);
+  const first = page.locator("#pid106 .post-content > p").nth(2);
+  await first.evaluate((node) => node.scrollIntoView({ block: "start" }));
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("slider", { name: "Text size", exact: true }).fill("70");
+  await page.keyboard.press("Escape");
+  const next = page.locator("#pid108 .post-content > p").nth(1);
+  await next.evaluate((node) => node.scrollIntoView({ block: "start" }));
+  const offset = await next.evaluate(
+    (node) => node.getBoundingClientRect().top,
+  );
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const slider = page.getByRole("slider", { name: "Text size", exact: true });
+  for (const size of [90, 100, 150, 70]) {
+    await slider.fill(String(size));
+    await expect
+      .poll(async () =>
+        Math.abs(
+          (await next.evaluate((node) => node.getBoundingClientRect().top)) -
+            offset,
+        ),
+      )
+      .toBeLessThanOrEqual(1);
+  }
+  await page.keyboard.press("Escape");
+  expect(requests).toHaveLength(1);
+  await info.attach("new-reading-block-after-scroll.png", {
     body: await page.screenshot(),
     contentType: "image/png",
   });

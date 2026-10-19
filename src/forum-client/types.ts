@@ -237,8 +237,45 @@ export interface ForumClient {
     form: SearchForm,
     expectedAccount: Account,
   ): Promise<ReadResult>;
+  prepareNewThread(boardId: string): Promise<PrepareWritingResult>;
   readThread(url: string): Promise<ReadResult>;
   readPage(url: string, options?: { fresh?: boolean }): Promise<ReadResult>;
   readonly account: Account;
   readonly generation: number;
 }
+
+export interface WritingOption {
+  name: string;
+  label: string;
+  kind: "checkbox" | "select" | "text";
+  value: string;
+  checked: boolean;
+  disabled: boolean;
+  choices: { value: string; label: string; disabled: boolean }[];
+  maxLength: number | null;
+}
+export interface PreparedWriting {
+  action: "new-thread";
+  board: { id: string; label: string; url: string };
+  account: Extract<Account, { kind: "member" }>;
+  title: string;
+  source: string;
+  category: WritingOption | null;
+  options: WritingOption[];
+  uploadedReferences: string[];
+}
+export type PrepareWritingResult =
+  | {
+      kind: "prepared";
+      prepared: PreparedWriting;
+      account: Account;
+      generation: number;
+      sourceURL: string;
+    }
+  | {
+      kind: FailureKind;
+      message: string;
+      account: Account;
+      generation: number;
+      sourceURL: string;
+    };

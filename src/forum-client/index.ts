@@ -4,6 +4,8 @@ import {
   prepareSearchRequest,
   decodeSearchResults,
 } from "./search.js";
+import { decodeWriting } from "./prepare-writing.js";
+export { unresolvedWritingAttachments } from "./prepare-writing.js";
 import { decodeThread } from "./read-thread.js";
 import { decodeBoard } from "./read-board.js";
 import { routeFor } from "./routes.js";
@@ -38,6 +40,47 @@ export function createForumClient(options: {
   let sequence = 0;
   let downloadSequence = 0;
   return {
+    async prepareNewThread(boardId) {
+      const current = ++sequence;
+      const url = new URL("/forum.php", options.origin);
+      url.searchParams.set("mod", "post");
+      url.searchParams.set("action", "newthread");
+      url.searchParams.set("fid", boardId);
+      url.searchParams.set("tsdmapp", "json");
+      if (!/^[1-9]\d*$/.test(boardId))
+        return {
+          kind: "invalid",
+          message: "A valid board is required.",
+          account,
+          generation,
+          sourceURL: url.href,
+        };
+      try {
+        const response = await options.transport.request(url.href);
+        if (current !== sequence)
+          return {
+            kind: "stale",
+            message: "A newer account request replaced this preparation.",
+            account,
+            generation,
+            sourceURL: url.href,
+          };
+        const result = decodeWriting(response, url.href, boardId);
+        if (JSON.stringify(result.account) !== JSON.stringify(account)) {
+          account = result.account;
+          generation++;
+        }
+        return { ...result, generation };
+      } catch {
+        return {
+          kind: current !== sequence ? "stale" : "network",
+          message: "The form could not be reached. Your writing is retained.",
+          account,
+          generation,
+          sourceURL: url.href,
+        };
+      }
+    },
     get account() {
       return account;
     },

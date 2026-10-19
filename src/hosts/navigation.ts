@@ -3,23 +3,47 @@ import { isNavigationRecord } from "./navigation-record";
 const storageKey = "tsdm.workspace.recovery";
 export function createBrowserNavigation(): NavigationHost {
   let saveQueue = Promise.resolve(true);
+  let problem: { kind: "incompatible" | "refused"; raw: string | null } | null =
+    null;
   const entryKey = () =>
     /^#workspace=([a-zA-Z0-9-]+)$/.exec(location.hash)?.[1] ?? null;
   const address = (key: string) =>
     `${location.origin}/forum.php#workspace=${key}`;
   return {
     entryKey,
+    recoveryProblem: () => problem,
+    resetRecovery: () => {
+      problem = null;
+    },
     async load() {
+      let raw: string | null = null;
       try {
-        const raw = sessionStorage.getItem(storageKey);
+        raw = sessionStorage.getItem(storageKey);
         if (raw === null) return null;
-        const value: unknown = JSON.parse(raw);
-        return isNavigationRecord(value) ? value : null;
+        let value: unknown;
+        try {
+          value = JSON.parse(raw);
+        } catch {
+          problem = { kind: "incompatible", raw };
+          return null;
+        }
+        if (
+          value &&
+          typeof value === "object" &&
+          "schema" in value &&
+          value.schema === 1
+        )
+          value = { ...value, schema: 2, writing: null };
+        if (isNavigationRecord(value)) return value;
+        problem = { kind: "incompatible", raw };
+        return null;
       } catch {
+        problem = { kind: "refused", raw };
         return null;
       }
     },
     save(record) {
+      if (problem?.kind === "incompatible") return Promise.resolve(false);
       let snapshot: string;
       try {
         snapshot = JSON.stringify(record);

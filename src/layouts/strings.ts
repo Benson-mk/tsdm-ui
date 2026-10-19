@@ -112,6 +112,54 @@ const english = {
   searchScope: "Thread and author criteria",
   noticesScope: "Reply, mention, system and activity notices",
   draftsScope: "Saved forum drafts",
+  newThread: "New thread",
+  returnWriting: "Return to writing",
+  preparingForm: "Preparing current form…",
+  replaceWritingWarning:
+    "Another writing context is already retained. Replacing it discards local changes; existing forum content and uploads are unchanged.",
+  returnOriginal: "Return",
+  discardPrepare: "Discard local changes and prepare",
+  writingContext: "Writing context",
+  finishComposition: "Finish the current input composition to change views.",
+  newThreadIn: "New thread in {value}",
+  writingAs: "Writing as {value}",
+  writingBoard: "Board {value}",
+  writingPaused:
+    "Sending paused — the current account is expired, changed or not yet rechecked. Original writing remains bound to {value}.",
+  unresolvedAttachments:
+    "Attachment references need reattachment or explicit removal: {value}. Source is preserved; uploads are not transferred.",
+  checkWriting: "Check current account and form",
+  prepareTextCopy: "Prepare text copy for current account",
+  copyWritingPrompt:
+    "Replace writing from {value} with a text copy for {account}?",
+  copyWritingLimits:
+    "Only title and complete source are copied. Category, permissions and credit settings come from the fresh form; uploads and ownership are not transferred.",
+  keepWriting: "Keep original writing",
+  replaceTextCopy: "Replace with text copy",
+  localWriting:
+    "Local writing only. Nothing has been submitted or saved as a forum draft.",
+  writingRecoveryUnavailable:
+    "Refresh recovery unavailable. Live writing remains here; unacknowledged changes may be lost on reload.",
+  writingAcknowledged:
+    "Recovery acknowledged for revision {value} in this browser page session. Restoration depends on the browser.",
+  writingPending:
+    "Recovery pending for revision {value}; acknowledged revision {acknowledged}.",
+  writingTitle: "Title",
+  writingCategory: "Category",
+  completeSource: "Complete source",
+  currentFormOptions: "Current form options",
+  returnReading: "Return to reading",
+  incompatibleRecovery:
+    "Stored recovery data is incompatible or malformed. It is retained without overwriting; new changes cannot be recovered until you resolve it.",
+  inspectRecovery: "Inspect retained recovery data",
+  retainedRecovery: "Retained recovery data",
+  resetRecovery: "Reset incompatible recovery",
+  discardRecoveryWarning:
+    "Copy any needed source before discarding this local recovery record. This cannot restore its old writing afterward.",
+  keepRecovery: "Keep recovery record",
+  discardRecovery: "Discard incompatible recovery record",
+  readRecoveryRefused:
+    "Browser page-session storage could not be read. Live work remains available; refresh recovery is unavailable.",
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
@@ -220,6 +268,51 @@ const simplified: Strings = {
   searchScope: "主题与作者条件",
   noticesScope: "回复、提及、系统与动态通知",
   draftsScope: "已保存的论坛草稿",
+  newThread: "新主题",
+  returnWriting: "返回写作",
+  preparingForm: "正在准备当前表单…",
+  replaceWritingWarning:
+    "已保留另一份写作内容。替换将丢弃本地更改；现有论坛内容和上传文件保持不变。",
+  returnOriginal: "返回原内容",
+  discardPrepare: "丢弃本地更改并准备",
+  writingContext: "写作内容",
+  finishComposition: "请完成当前输入组合后再切换视图。",
+  newThreadIn: "在 {value} 中发表新主题",
+  writingAs: "写作账号：{value}",
+  writingBoard: "版块 {value}",
+  writingPaused:
+    "发送已暂停 — 当前账号已过期、已变更或尚未重新检查。原写作内容仍属于 {value}。",
+  unresolvedAttachments:
+    "附件引用需要重新附加或明确移除：{value}。源码已保留；上传文件不会转移。",
+  checkWriting: "检查当前账号和表单",
+  prepareTextCopy: "为当前账号准备文字副本",
+  copyWritingPrompt: "将 {value} 的写作内容替换为 {account} 的文字副本？",
+  copyWritingLimits:
+    "仅复制标题和完整源码。分类、权限和积分设置来自新表单；上传文件和所有权不会转移。",
+  keepWriting: "保留原写作内容",
+  replaceTextCopy: "替换为文字副本",
+  localWriting: "仅在本地写作。尚未提交内容或保存论坛草稿。",
+  writingRecoveryUnavailable:
+    "刷新恢复不可用。当前写作内容仍在此处；未经确认的更改可能在重新加载时丢失。",
+  writingAcknowledged:
+    "已确认此浏览器页面会话中版本 {value} 的恢复记录。能否恢复取决于浏览器。",
+  writingPending: "版本 {value} 的恢复记录待确认；已确认版本 {acknowledged}。",
+  writingTitle: "标题",
+  writingCategory: "分类",
+  completeSource: "完整源码",
+  currentFormOptions: "当前表单选项",
+  returnReading: "返回阅读",
+  incompatibleRecovery:
+    "存储的恢复数据不兼容或格式错误。数据将保留而不被覆盖；解决前无法恢复新的更改。",
+  inspectRecovery: "查看保留的恢复数据",
+  retainedRecovery: "保留的恢复数据",
+  resetRecovery: "重置不兼容的恢复记录",
+  discardRecoveryWarning:
+    "丢弃此本地恢复记录前，请复制需要的源码。之后将无法恢复原写作内容。",
+  keepRecovery: "保留恢复记录",
+  discardRecovery: "丢弃不兼容的恢复记录",
+  readRecoveryRefused:
+    "无法读取浏览器页面会话存储。当前内容仍可使用；刷新恢复不可用。",
 };
 const traditional: Strings = {
   searchOverviewLabel: "搜尋總覽",
@@ -328,6 +421,51 @@ const traditional: Strings = {
   searchScope: "主題與作者條件",
   noticesScope: "回覆、提及、系統與動態通知",
   draftsScope: "已儲存的論壇草稿",
+  newThread: "新主題",
+  returnWriting: "返回寫作",
+  preparingForm: "正在準備目前表單…",
+  replaceWritingWarning:
+    "已保留另一份寫作內容。替換將捨棄本機變更；現有論壇內容和上傳檔案保持不變。",
+  returnOriginal: "返回原內容",
+  discardPrepare: "捨棄本機變更並準備",
+  writingContext: "寫作內容",
+  finishComposition: "請完成目前輸入組合後再切換檢視。",
+  newThreadIn: "在 {value} 中發表新主題",
+  writingAs: "寫作帳號：{value}",
+  writingBoard: "版塊 {value}",
+  writingPaused:
+    "傳送已暫停 — 目前帳號已過期、已變更或尚未重新檢查。原寫作內容仍屬於 {value}。",
+  unresolvedAttachments:
+    "附件引用需要重新附加或明確移除：{value}。原始碼已保留；上傳檔案不會轉移。",
+  checkWriting: "檢查目前帳號和表單",
+  prepareTextCopy: "為目前帳號準備文字副本",
+  copyWritingPrompt: "將 {value} 的寫作內容替換為 {account} 的文字副本？",
+  copyWritingLimits:
+    "僅複製標題和完整原始碼。分類、權限和積分設定來自新表單；上傳檔案和所有權不會轉移。",
+  keepWriting: "保留原寫作內容",
+  replaceTextCopy: "替換為文字副本",
+  localWriting: "僅在本機寫作。尚未提交內容或儲存論壇草稿。",
+  writingRecoveryUnavailable:
+    "重新載入復原無法使用。目前寫作內容仍在此處；未經確認的變更可能在重新載入時遺失。",
+  writingAcknowledged:
+    "已確認此瀏覽器頁面工作階段中版本 {value} 的復原記錄。能否復原取決於瀏覽器。",
+  writingPending: "版本 {value} 的復原記錄待確認；已確認版本 {acknowledged}。",
+  writingTitle: "標題",
+  writingCategory: "分類",
+  completeSource: "完整原始碼",
+  currentFormOptions: "目前表單選項",
+  returnReading: "返回閱讀",
+  incompatibleRecovery:
+    "儲存的復原資料不相容或格式錯誤。資料將保留而不被覆寫；解決前無法復原新的變更。",
+  inspectRecovery: "檢視保留的復原資料",
+  retainedRecovery: "保留的復原資料",
+  resetRecovery: "重設不相容的復原記錄",
+  discardRecoveryWarning:
+    "捨棄此本機復原記錄前，請複製需要的原始碼。之後將無法復原原寫作內容。",
+  keepRecovery: "保留復原記錄",
+  discardRecovery: "捨棄不相容的復原記錄",
+  readRecoveryRefused:
+    "無法讀取瀏覽器頁面工作階段儲存空間。目前內容仍可使用；重新載入復原無法使用。",
 };
 export function strings(language: Preferences["language"]): Strings {
   return language === "zh-CN"
@@ -698,6 +836,65 @@ const descriptions: Record<string, readonly [string, string]> = {
   "Additional native content is hidden; view it in the native forum.": [
     "其他原版内容处于隐藏状态；请在原版论坛中查看。",
     "其他原版內容處於隱藏狀態；請在原版論壇中查看。",
+  ],
+  "A valid board is required.": ["需要有效的版块。", "需要有效的版塊。"],
+  "A newer account request replaced this preparation.": [
+    "较新的账号请求已替代此次准备。",
+    "較新的帳號請求已取代此次準備。",
+  ],
+  "The form could not be reached. Your writing is retained.": [
+    "无法获取表单。写作内容已保留。",
+    "無法取得表單。寫作內容已保留。",
+  ],
+  "The forum returned an unsupported preparation response.": [
+    "论坛返回了不支持的准备响应。",
+    "論壇傳回了不支援的準備回應。",
+  ],
+  "The forum returned invalid preparation data.": [
+    "论坛返回了无效的准备数据。",
+    "論壇傳回了無效的準備資料。",
+  ],
+  "Complete native verification, then prepare again.": [
+    "请在原版论坛完成验证，然后重新准备。",
+    "請在原版論壇完成驗證，然後重新準備。",
+  ],
+  "Sign in through the native forum, then prepare again. A form token does not establish an account.":
+    [
+      "请通过原版论坛登录，然后重新准备。表单令牌不能确认账号身份。",
+      "請透過原版論壇登入，然後重新準備。表單權杖不能確認帳號身分。",
+    ],
+  "The current account cannot prepare this new thread.": [
+    "当前账号无法准备此新主题。",
+    "目前帳號無法準備此新主題。",
+  ],
+  "The forum is limiting requests. Try again explicitly later.": [
+    "论坛正在限制请求。请稍后主动重试。",
+    "論壇正在限制請求。請稍後主動重試。",
+  ],
+  "A current member account and complete native form are required.": [
+    "需要当前会员账号和完整的原版表单。",
+    "需要目前會員帳號和完整的原版表單。",
+  ],
+  "The current native new-thread form is unavailable.": [
+    "当前原版新主题表单不可用。",
+    "目前原版新主題表單無法使用。",
+  ],
+  "The returned form targets a different action or board.": [
+    "返回的表单指向不同的操作或版块。",
+    "傳回的表單指向不同的操作或版塊。",
+  ],
+  "The native form does not provide unambiguous complete source and options.": [
+    "原版表单未提供明确完整的源码和选项。",
+    "原版表單未提供明確完整的原始碼和選項。",
+  ],
+  "Writing changed while the new form was loading. Return to it or deliberately prepare replacement again.":
+    [
+      "加载新表单时写作内容已更改。请返回原内容，或主动重新准备替换。",
+      "載入新表單時寫作內容已變更。請返回原內容，或主動重新準備替換。",
+    ],
+  "The account changed again. Prepare the text copy again.": [
+    "账号再次变更。请重新准备文字副本。",
+    "帳號再次變更。請重新準備文字副本。",
   ],
 };
 

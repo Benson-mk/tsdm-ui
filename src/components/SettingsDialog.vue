@@ -16,6 +16,12 @@ const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
 const preferences = props.workspace.preferences;
 const state = preferences.state;
 const open = ref(false);
+function changeOpen(value: boolean) {
+  const change = () => {
+    open.value = value;
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
 const text = computed(() => strings(state.value.language));
 const themes = ["light", "alias", "mono", "dark"] as const;
 function language(event: Event) {
@@ -35,7 +41,7 @@ function escape(event: KeyboardEvent) {
 }
 </script>
 <template>
-  <DialogRoot v-model:open="open">
+  <DialogRoot :open="open" @update:open="changeOpen">
     <DialogTrigger>{{ text.settings }}</DialogTrigger>
     <DialogPortal :to="portal">
       <DialogOverlay class="dialog-overlay" />

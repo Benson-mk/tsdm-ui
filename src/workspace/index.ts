@@ -1,5 +1,6 @@
 import type { DownloadHost, PreparedFile } from "../hosts/download";
-import { shallowRef, readonly, nextTick } from "vue";
+import { createWriting } from "./writing";
+import { shallowRef, readonly, nextTick, watch } from "vue";
 import { createPreferences, type PreferenceHost } from "./preferences";
 import {
   describeDestination,
@@ -29,6 +30,10 @@ export interface WorkspaceState {
   canBack: boolean;
   origin: ReadResult | null;
   documentNavigation: string | null;
+  recoveryProblem: {
+    kind: "incompatible" | "refused";
+    raw: string | null;
+  } | null;
 }
 const routeFor = (value: string) => {
   const route = describeDestination(value);
@@ -50,6 +55,16 @@ export function createWorkspace(
   downloads?: DownloadHost,
 ) {
   const preferences = createPreferences(preferenceHost);
+  const writing = createWriting(
+    client,
+    () => {
+      record.writing = writing.snapshot();
+      void persist();
+    },
+    (account) => {
+      if (observeAccount(account)) void persist();
+    },
+  );
   const state = shallowRef<WorkspaceState>({
     section: "boards",
     loading: false,
@@ -65,6 +80,7 @@ export function createWorkspace(
     canBack: false,
     origin: null,
     documentNavigation: null,
+    recoveryProblem: null,
   });
   const download = shallowRef<{
     status: "checking" | "ready" | "requested" | "failure";
@@ -82,6 +98,13 @@ export function createWorkspace(
     prepared = null;
     download.value = null;
   }
+  watch(
+    () => writing.state.value.visible,
+    (visible) => {
+      if (visible) clearDownload();
+    },
+    { flush: "sync" },
+  );
   async function prepareDownload(postId: string, attachmentId: string) {
     if (download.value?.status === "checking") return;
     const result = state.value.result;
@@ -99,12 +122,18 @@ export function createWorkspace(
       name: attachment.name,
       message: "Checking current attachment access and receiving file…",
     };
+    const accountGeneration = client.generation;
     const received = await client.downloadAttachment({
       threadURL: result.thread.url,
       postId,
       attachmentId,
       account: result.account,
     });
+    if (client.generation !== accountGeneration) {
+      observeAccount(client.account);
+      writing.observe(client.account);
+      void persist();
+    }
     if (ticket !== downloadSequence) return;
     if (received.kind !== "file") {
       download.value = {
@@ -156,7 +185,13 @@ export function createWorkspace(
     }
   }
   let sequence = 0;
-  let record: NavigationRecord = { schema: 1, entries: {}, pending: null };
+  let record: NavigationRecord = {
+    schema: 2,
+    entries: {},
+    pending: null,
+    writing: null,
+  };
+  let saveSequence = 0;
   const entryFor = (key: string) =>
     Object.hasOwn(record.entries, key) ? record.entries[key] : undefined;
   let view: ViewAdapter | null = null;
@@ -166,8 +201,13 @@ export function createWorkspace(
     if (entry && view) entry.position = view.capture();
   }
   async function persist() {
+    const current = ++saveSequence;
+    const context = record.writing;
     const saved = await host.save(record);
-    state.value = { ...state.value, recoveryAvailable: saved };
+    if (current === saveSequence) {
+      state.value = { ...state.value, recoveryAvailable: saved };
+      writing.acknowledge(context?.id ?? null, context?.revision ?? 0, saved);
+    }
     return saved;
   }
   function originContext(entry: NavigationEntry): ReadResult | null {
@@ -239,6 +279,34 @@ export function createWorkspace(
     record.entries[entry.key] = entry;
     return entry;
   }
+  function observeAccount(account: Account) {
+    let invalidated = false;
+    const observed = accountKey(account);
+    if (observed) {
+      knownAccount = observed;
+      if (
+        state.value.result &&
+        accountKey(state.value.result.account) !== observed
+      )
+        state.value = {
+          ...state.value,
+          result: null,
+          restored: false,
+          missing: true,
+        };
+      if (
+        state.value.origin &&
+        accountKey(state.value.origin.account) !== observed
+      )
+        state.value = { ...state.value, origin: null };
+      for (const other of Object.values(record.entries))
+        if (other.result && other.account && other.account !== observed) {
+          other.result = null;
+          invalidated = true;
+        }
+    }
+    return invalidated;
+  }
   async function read(entry: NavigationEntry, submitted?: Promise<ReadResult>) {
     const current = ++sequence;
     state.value = {
@@ -283,21 +351,8 @@ export function createWorkspace(
     const previousSearch =
       state.value.result?.kind === "search" ? state.value.result : null;
     const observed = accountKey(result.account);
-    if (observed) {
-      knownAccount = observed;
-      if (
-        state.value.result &&
-        accountKey(state.value.result.account) !== observed
-      )
-        state.value = { ...state.value, result: null, restored: false };
-      if (
-        state.value.origin &&
-        accountKey(state.value.origin.account) !== observed
-      )
-        state.value = { ...state.value, origin: null };
-      for (const other of Object.values(record.entries))
-        if (other.account && other.account !== observed) other.result = null;
-    }
+    writing.observe(result.account, result.kind !== "network");
+    observeAccount(result.account);
     if (
       previousSearch &&
       observed &&
@@ -312,7 +367,12 @@ export function createWorkspace(
       };
       entry.result = retained;
       entry.account = observed;
-      state.value = { ...state.value, result: retained, restored: false };
+      state.value = {
+        ...state.value,
+        result: retained,
+        restored: false,
+        missing: false,
+      };
     }
     if (success(result)) {
       if (result.kind === "thread")
@@ -335,6 +395,7 @@ export function createWorkspace(
         ...state.value,
         result,
         loading: false,
+        missing: false,
         failure: null,
         stale: false,
         restored: false,
@@ -359,6 +420,12 @@ export function createWorkspace(
     void persist();
   }
   async function openThread(url: string, selection: string | null = null) {
+    if (
+      writing.deferViewChange(() => {
+        void openThread(url, selection);
+      })
+    )
+      return;
     clearDownload();
     const current = state.value.result;
     const requested = routeFor(url);
@@ -374,6 +441,7 @@ export function createWorkspace(
       updateAnchor(requested.url.hash);
       return;
     }
+    writing.hide();
     capture();
     const previous = entryFor(state.value.key);
     if (previous && selection) previous.selection = selection;
@@ -424,6 +492,7 @@ export function createWorkspace(
     void persist();
   }
   function restoreHistory(key: string | null) {
+    if (writing.deferViewChange(() => restoreHistory(key))) return;
     clearDownload();
     ++sequence;
     capture();
@@ -447,7 +516,11 @@ export function createWorkspace(
   }
   async function start() {
     const recovered = await host.load();
-    if (recovered) record = recovered;
+    state.value = { ...state.value, recoveryProblem: host.recoveryProblem() };
+    if (recovered) {
+      record = recovered;
+      writing.restore(recovered.writing);
+    }
     // Initial document traversal must not save an empty provisional record.
     // Read the current key after loading; earlier history events need no replay.
     host.onPop(restoreHistory);
@@ -539,32 +612,46 @@ export function createWorkspace(
     capture();
     await read(entry);
   }
+  function openSection(section: Section): void | Promise<void> {
+    if (
+      writing.deferViewChange(() => {
+        void openSection(section);
+      })
+    )
+      return;
+    writing.hide();
+    if (section === "boards")
+      return openThread(`${new URL(destination).origin}/forum.php`);
+    if (
+      state.value.section === section &&
+      (section !== "search" ||
+        state.value.result?.kind === "search" ||
+        state.value.result?.kind === "thread")
+    )
+      return;
+    if (section === "search")
+      return openThread(
+        `${new URL(destination).origin}/search.php?mod=forum&adv=yes`,
+      );
+    clearDownload();
+    ++sequence;
+    capture();
+    const entry = newEntry(
+      `${new URL(destination).origin}/forum.php`,
+      state.value.key || null,
+    );
+    entry.section = section;
+    host.push(entry.key);
+    show(entry);
+    void persist();
+  }
   return {
     preferences,
-    openSection: (section: Section) => {
-      if (section === "boards")
-        return openThread(`${new URL(destination).origin}/forum.php`);
-      if (
-        state.value.section === section &&
-        (section !== "search" ||
-          state.value.result?.kind === "search" ||
-          state.value.result?.kind === "thread")
-      )
-        return;
-      if (section === "search")
-        return openThread(
-          `${new URL(destination).origin}/search.php?mod=forum&adv=yes`,
-        );
-      clearDownload();
-      ++sequence;
-      capture();
-      const entry = newEntry(
-        `${new URL(destination).origin}/forum.php`,
-        state.value.key || null,
-      );
-      entry.section = section;
-      host.push(entry.key);
-      show(entry);
+    openSection,
+    writing,
+    resetRecovery: () => {
+      host.resetRecovery();
+      state.value = { ...state.value, recoveryProblem: null };
       void persist();
     },
     state: readonly(state),
@@ -579,7 +666,9 @@ export function createWorkspace(
     openThread,
     refresh,
     updateAnchor,
-    back: () => host.back(),
+    back: () => {
+      if (!writing.deferViewChange(() => host.back())) host.back();
+    },
     setViewAdapter: (adapter: ViewAdapter) => {
       view = adapter;
     },

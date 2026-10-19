@@ -6,7 +6,13 @@ const metadata = {
   type: "module",
   engines: { node: ">=24" },
   exports: { ".": { types: "./index.d.ts", import: "./index.js" } },
-  files: ["index.js", "index.d.ts", "types.d.ts", "README.md"],
+  files: [
+    "index.js",
+    "index.d.ts",
+    "types.d.ts",
+    "prepare-writing.d.ts",
+    "README.md",
+  ],
   private: true,
 };
 writeFileSync(
@@ -15,7 +21,7 @@ writeFileSync(
 );
 writeFileSync(
   "dist/forum-client/README.md",
-  "# TSDM forum client 0.3.0\n\nPortable directory, board and thread reads plus explicit account-bound search. Import createForumClient and supply a transport with optional POST/body support; no browser globals or UI dependencies. Search submission may consume forum credits or quota and must be deliberate. Breaking changes require a version update. This package is an unpublished local artifact.\n",
+  "# TSDM forum client 0.3.0\n\nPortable directory, board and thread reads plus current-form writing preparation, accessible attachment downloads and explicit account-bound search. Import createForumClient and supply a transport with optional POST/body support; no browser globals or UI dependencies. Search submission may consume forum credits or quota and must be deliberate. Breaking changes require a version update. This package is an unpublished local artifact.\n",
 );
 const script = readFileSync("dist/tsdm-workspace.user.js", "utf8");
 if (/^\/\/\s+@(?:require|resource|updateURL|downloadURL)\b/m.test(script))

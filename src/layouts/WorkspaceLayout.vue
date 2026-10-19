@@ -11,6 +11,7 @@ import {
   DialogClose,
 } from "reka-ui";
 import SearchView from "../components/SearchView.vue";
+import SourceWriting from "../components/SourceWriting.vue";
 import ContentView from "../components/ContentView";
 import SettingsDialog from "../components/SettingsDialog.vue";
 import type { Workspace } from "../workspace";
@@ -57,26 +58,38 @@ type PanePosition = {
   paneTop: number;
 };
 let viewportPositions: PanePosition[] = [];
+type RestoredAnchor = Pick<PanePosition, "pane" | "anchor"> & {
+  scrollTop: number;
+};
+let appearanceAnchors: RestoredAnchor[] = [];
 let viewportWidth = window.innerWidth;
 let viewportHeight = window.innerHeight;
 const workspaceHost = () =>
   (props.portal.getRootNode() as ShadowRoot).host as HTMLElement;
-function capturePositions(): PanePosition[] {
+function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
   return [
     ...(workspaceHost().shadowRoot?.querySelectorAll<HTMLElement>(".pane") ??
       []),
   ].flatMap((pane) => {
     if (!pane.getClientRects().length) return [];
     const bounds = pane.getBoundingClientRect();
-    const anchor = [
-      ...pane.querySelectorAll<HTMLElement>(
-        ".post-content p, .post-content pre, .post-content .table-overflow, .post-content summary, .thread-row, .board-card, .board-group > h2, .thread-heading",
-      ),
-    ].find(
-      (node) =>
-        node.getBoundingClientRect().bottom > bounds.top + 1 &&
-        node.getBoundingClientRect().top < bounds.bottom,
+    const previous = retained.find(
+      (position) =>
+        position.pane === pane &&
+        position.anchor.isConnected &&
+        position.scrollTop === pane.scrollTop,
     );
+    const anchor =
+      previous?.anchor ??
+      [
+        ...pane.querySelectorAll<HTMLElement>(
+          ".post-content p, .post-content pre, .post-content .table-overflow, .post-content summary, .thread-row, .board-card, .board-group > h2, .thread-heading",
+        ),
+      ].find(
+        (node) =>
+          node.getBoundingClientRect().bottom > bounds.top + 1 &&
+          node.getBoundingClientRect().top < bounds.bottom,
+      );
     return anchor
       ? [
           {
@@ -142,7 +155,9 @@ watch(
   props.workspace.preferences.state,
   () => {
     const host = workspaceHost();
-    const positions = capturePositions();
+    // Keep the same block across repeated reflows until the reader scrolls.
+    // A shorter toolbar can expose the preceding block without user movement.
+    const positions = capturePositions(appearanceAnchors);
     host.style.setProperty(
       "--text-scale",
       String(props.workspace.preferences.state.value.textSize / 100),
@@ -155,6 +170,11 @@ watch(
     host.lang = props.workspace.preferences.state.value.language;
     void nextTick().then(() => {
       restorePositions(positions);
+      appearanceAnchors = positions.map(({ pane, anchor }) => ({
+        pane,
+        anchor,
+        scrollTop: pane.scrollTop,
+      }));
       rememberPositions();
     });
   },
@@ -170,6 +190,12 @@ watch(download, async (value) => {
       .querySelector("[data-download-status]")
       ?.scrollIntoView({ block: "nearest" });
 });
+const writing = props.workspace.writing.state;
+function prepareWriting() {
+  const url = pickerBoard.value?.url;
+  const id = url && new URL(url).searchParams.get("fid");
+  if (id) void props.workspace.writing.prepare(id);
+}
 const boardContext = computed(() =>
   state.value.section !== "boards"
     ? null
@@ -218,6 +244,14 @@ function chooseBoard(event: Event) {
     void props.workspace.openThread(target.value);
 }
 const aboutOpen = ref(false);
+function changeAboutOpen(value: boolean) {
+  const change = () => {
+    aboutOpen.value = value;
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
+const inspectRecovery = ref(false),
+  confirmReset = ref(false);
 const missingTarget = computed(() => {
   const result = state.value.result;
   return (
@@ -293,6 +327,7 @@ onMounted(() => {
       };
     },
     restore(position, target, selection) {
+      if (writing.value.visible) return;
       const container = pane();
       if (container) container.scrollTop = position?.scrollTop ?? 0;
       const node = target
@@ -336,7 +371,7 @@ const accountLabel = computed(() => {
       <a class="brand" href="https://www.tsdm39.com/">TSDM</a
       ><span>{{ accountLabel }}</span>
       <SettingsDialog :workspace="workspace" :portal="portal" />
-      <DialogRoot v-model:open="aboutOpen"
+      <DialogRoot :open="aboutOpen" @update:open="changeAboutOpen"
         ><DialogTrigger>{{ text.about }}</DialogTrigger
         ><DialogPortal :to="portal"
           ><DialogOverlay class="dialog-overlay" /><DialogContent
@@ -436,12 +471,87 @@ const accountLabel = computed(() => {
         </select></label
       >
     </div>
+    <div class="writing-actions">
+      <button
+        v-if="pickerBoard"
+        :disabled="writing.preparing"
+        @click="prepareWriting()"
+      >
+        {{ text.newThread }}
+      </button>
+      <button v-if="writing.context" @click="workspace.writing.show()">
+        {{ text.returnWriting }}
+      </button>
+      <p v-if="writing.preparing" role="status">{{ text.preparingForm }}</p>
+      <p v-if="writing.message" role="alert">
+        {{
+          description(
+            writing.message,
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </p>
+      <section v-if="writing.replacement" role="alert">
+        <p>{{ text.replaceWritingWarning }}</p>
+        <button @click="workspace.writing.show()">
+          {{ text.returnOriginal }}</button
+        ><button
+          :disabled="writing.preparing"
+          @click="workspace.writing.discardAndPrepare()"
+        >
+          {{ text.discardPrepare }}
+        </button>
+      </section>
+    </div>
+    <SourceWriting v-if="writing.visible" :workspace="workspace" />
     <div class="workspace-status">
+      <section
+        v-if="state.recoveryProblem?.kind === 'incompatible'"
+        role="alert"
+      >
+        <p>{{ text.incompatibleRecovery }}</p>
+        <button @click="inspectRecovery = !inspectRecovery">
+          {{ text.inspectRecovery }}
+        </button>
+        <label v-if="inspectRecovery"
+          >{{ text.retainedRecovery
+          }}<textarea
+            :aria-label="text.retainedRecovery"
+            readonly
+            :value="state.recoveryProblem.raw ?? ''"
+          />
+        </label>
+        <button @click="confirmReset = true">{{ text.resetRecovery }}</button>
+        <section v-if="confirmReset">
+          <p>{{ text.discardRecoveryWarning }}</p>
+          <button @click="confirmReset = false">{{ text.keepRecovery }}</button
+          ><button
+            @click="
+              workspace.resetRecovery();
+              confirmReset = false;
+              inspectRecovery = false;
+            "
+          >
+            {{ text.discardRecovery }}
+          </button>
+        </section>
+      </section>
+      <p v-if="state.recoveryProblem?.kind === 'refused'" role="alert">
+        {{ text.readRecoveryRefused }}
+      </p>
       <p v-if="state.recoveryAvailable === false" class="recovery-note">
         {{ text.recoveryUnavailable }}
       </p>
       <section v-if="state.missing" role="alert">
         <p>{{ text.snapshotUnavailable }}</p>
+        <p v-if="download?.status === 'failure'">
+          {{
+            description(
+              download.message,
+              workspace.preferences.state.value.language,
+            )
+          }}
+        </p>
         <p>
           {{ text.snapshotReload }}
         </p>
@@ -480,6 +590,7 @@ const accountLabel = computed(() => {
       </p>
     </div>
     <main
+      v-show="!writing.visible"
       class="workspace-body"
       :data-view="state.result?.kind ?? 'unavailable'"
     >

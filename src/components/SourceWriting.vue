@@ -1,0 +1,208 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from "vue";
+import type { Workspace } from "../workspace";
+import { strings, insert } from "../layouts/strings";
+import type { WritingOption } from "../forum-client";
+const props = defineProps<{ workspace: Workspace }>();
+const state = props.workspace.writing.state;
+const text = computed(() =>
+  strings(props.workspace.preferences.state.value.language),
+);
+const unresolved = props.workspace.writing.unresolvedAttachments;
+const editor = ref<HTMLTextAreaElement | null>(null);
+function selection() {
+  const element = editor.value;
+  if (element)
+    props.workspace.writing.edit({
+      selection: {
+        start: element.selectionStart,
+        end: element.selectionEnd,
+        direction: element.selectionDirection,
+      },
+    });
+}
+function editSource(event: Event) {
+  const element = event.target as HTMLTextAreaElement;
+  props.workspace.writing.edit({
+    source: element.value,
+    selection: {
+      start: element.selectionStart,
+      end: element.selectionEnd,
+      direction: element.selectionDirection,
+    },
+  });
+}
+onMounted(() => {
+  const range = state.value.context?.selection;
+  if (editor.value && range) {
+    editor.value.focus();
+    editor.value.setSelectionRange(range.start, range.end, range.direction);
+  }
+});
+function value(event: Event) {
+  return (event.target as HTMLInputElement).value;
+}
+function updateOption(option: WritingOption, event: Event) {
+  const context = state.value.context;
+  if (!context || option.disabled) return;
+  const next = {
+    ...option,
+    value: value(event),
+    checked: (event.target as HTMLInputElement).checked ?? option.checked,
+  };
+  if (option.name === "typeid")
+    props.workspace.writing.edit({ category: next });
+  else
+    props.workspace.writing.edit({
+      options: context.options.map((item) =>
+        item.name === option.name
+          ? next
+          : { ...item, choices: [...item.choices] },
+      ),
+    });
+}
+</script>
+<template>
+  <section
+    v-if="state.context"
+    class="source-writing"
+    :aria-label="text.writingContext"
+    @compositionstart="workspace.writing.startComposition()"
+    @compositionend="workspace.writing.endComposition()"
+  >
+    <p v-if="state.compositionDeferred" role="status">
+      {{ text.finishComposition }}
+    </p>
+    <h1>{{ insert(text.newThreadIn, state.context.board.label) }}</h1>
+    <p>
+      {{ insert(text.writingAs, state.context.account.name) }} ·
+      {{ insert(text.writingBoard, state.context.board.id) }}
+    </p>
+    <p v-if="!state.accountVerified" role="alert">
+      {{ insert(text.writingPaused, state.context.account.name) }}
+    </p>
+    <p v-if="unresolved.length" role="alert">
+      {{ insert(text.unresolvedAttachments, unresolved.join(", ")) }}
+    </p>
+    <div class="writing-actions">
+      <button :disabled="state.preparing" @click="workspace.writing.check()">
+        {{ text.checkWriting }}
+      </button>
+      <button
+        :disabled="state.preparing"
+        @click="workspace.writing.check(true)"
+      >
+        {{ text.prepareTextCopy }}
+      </button>
+    </div>
+    <section v-if="state.copy" role="alert">
+      <p>
+        {{
+          insert(text.copyWritingPrompt, state.context.account.name).replace(
+            "{account}",
+            state.copy.prepared.account.name,
+          )
+        }}
+      </p>
+      <p>{{ text.copyWritingLimits }}</p>
+      <button @click="workspace.writing.cancelCopy()">
+        {{ text.keepWriting }}
+      </button>
+      <button @click="workspace.writing.confirmCopy()">
+        {{ text.replaceTextCopy }}
+      </button>
+    </section>
+    <p>{{ text.localWriting }}</p>
+    <p v-if="state.recoveryAvailable === false" role="alert">
+      {{ text.writingRecoveryUnavailable }}
+    </p>
+    <p v-else-if="state.acknowledged === state.context.revision" role="status">
+      {{ insert(text.writingAcknowledged, state.acknowledged) }}
+    </p>
+    <p v-else role="status">
+      {{
+        insert(text.writingPending, state.context.revision).replace(
+          "{acknowledged}",
+          String(state.acknowledged),
+        )
+      }}
+    </p>
+    <label
+      >{{ text.writingTitle
+      }}<input
+        :value="state.context.title"
+        @input="workspace.writing.edit({ title: value($event) })"
+    /></label>
+    <label v-if="state.context.category"
+      >{{ text.writingCategory
+      }}<select
+        :aria-label="text.writingCategory"
+        :value="state.context.category.value"
+        :disabled="state.context.category.disabled"
+        @change="updateOption(state.context.category as WritingOption, $event)"
+      >
+        <option
+          v-for="choice in state.context.category.choices"
+          :key="choice.value"
+          :value="choice.value"
+          :disabled="choice.disabled"
+        >
+          {{ choice.label }}
+        </option>
+      </select></label
+    >
+    <label
+      >{{ text.completeSource
+      }}<textarea
+        ref="editor"
+        :value="state.context.source"
+        rows="14"
+        spellcheck="false"
+        @select="selection"
+        @keyup="selection"
+        @click="selection"
+        @blur="selection"
+        @input="editSource"
+      />
+    </label>
+    <fieldset>
+      <legend>{{ text.currentFormOptions }}</legend>
+      <label v-for="option in state.context.options" :key="option.name">
+        <template v-if="option.kind === 'checkbox'"
+          ><input
+            type="checkbox"
+            :checked="option.checked"
+            :value="option.value"
+            :disabled="option.disabled"
+            @change="updateOption(option as WritingOption, $event)"
+          />{{ option.label }}</template
+        >
+        <template v-else
+          >{{ option.label
+          }}<select
+            v-if="option.kind === 'select'"
+            :aria-label="option.label"
+            :value="option.value"
+            :disabled="option.disabled"
+            @change="updateOption(option as WritingOption, $event)"
+          >
+            <option
+              v-for="choice in option.choices"
+              :key="choice.value"
+              :value="choice.value"
+              :disabled="choice.disabled"
+            >
+              {{ choice.label }}
+            </option></select
+          ><input
+            v-else
+            :value="option.value"
+            :disabled="option.disabled"
+            :maxlength="option.maxLength ?? undefined"
+            @input="updateOption(option as WritingOption, $event)"
+        /></template>
+      </label>
+    </fieldset>
+    <button @click="workspace.writing.hide()">{{ text.returnReading }}</button>
+  </section>
+</template>

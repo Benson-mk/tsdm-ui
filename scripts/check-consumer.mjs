@@ -43,7 +43,7 @@ try {
     consumer,
   );
   const source = `import assert from 'node:assert/strict';
-import { createForumClient, FORUM_CLIENT_VERSION } from '@tsdm/forum-client';
+import { createForumClient, FORUM_CLIENT_VERSION, unresolvedWritingAttachments } from '@tsdm/forum-client';
 assert.equal(FORUM_CLIENT_VERSION, '0.3.0');
 const origin = 'https://fixture.example';
 const threadURL = origin + '/forum.php?mod=viewthread&tid=42';
@@ -94,15 +94,40 @@ assert.equal(requests.filter((r) => r.options?.method === 'POST').length, 1);
 assert.deepEqual(requests.at(-1).options, { fresh: true });
 assert.equal(typeof globalThis.document, 'undefined');
 assert.equal(typeof globalThis.GM, 'undefined');
-console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests }));
+const preparationRequests=[];
+const writer=createForumClient({origin:'https://fixture.example',transport:{async request(url){
+ preparationRequests.push(url);
+ return {status:200,url,contentType:'text/html',body:'<div id="um"><strong><a href="home.php?mod=space&uid=7">Writer Seven</a></strong></div><form id="postform" method="post" action="forum.php?mod=post&action=newthread&fid=5&topicsubmit=yes"><input name="formhash" value="NEVER-EXPORT"><input name="subject" value="Portable writing"><textarea name="message">[unknown]complete source[/unknown]</textarea><label><input type="checkbox" name="usesig" checked value="1">Signature</label></form>'};
+}}});
+const prepared=await writer.prepareNewThread('5');
+assert.equal(prepared.kind,'prepared');
+assert.equal(prepared.prepared.board.id,'5');
+assert.equal(prepared.prepared.account.id,'7');
+assert.equal(prepared.prepared.source,'[unknown]complete source[/unknown]');
+assert.equal(prepared.prepared.options[0].checked,true);
+assert.deepEqual(JSON.parse(JSON.stringify(prepared)),prepared);
+assert.equal(JSON.stringify(prepared).includes('NEVER-EXPORT'),false);
+assert.equal(preparationRequests.length,1);
+const referenceSource = '[unknown]literal[/unknown][attach]51[/attach][ATTACHIMG] 52 [/ATTACHIMG][attach]51[/attach][attach]0[/attach][attach]external[/attach]';
+const referenceWriting = { ...prepared.prepared, source: referenceSource, uploadedReferences: ['52'] };
+const beforeReferences = JSON.stringify(referenceWriting);
+assert.deepEqual(unresolvedWritingAttachments(referenceWriting), ['51']);
+assert.equal(JSON.stringify(referenceWriting), beforeReferences);
+assert.deepEqual(unresolvedWritingAttachments({ ...referenceWriting, uploadedReferences: [] }), ['51', '52']);
+assert.deepEqual(unresolvedWritingAttachments({ source: '[unknown]literal[/unknown]', uploadedReferences: [] }), []);
+
+console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests }));
 `;
   writeFileSync(join(consumer, "consume.mjs"), source);
   writeFileSync(
     join(consumer, "consume.ts"),
-    `import { createForumClient, type ForumClient, type ReadResult, type SearchForm, type SearchCriteria, type AttachmentRequest, type Account } from '@tsdm/forum-client';
+    `import { createForumClient, unresolvedWritingAttachments, type ForumClient, type ReadResult, type SearchForm, type SearchCriteria, type AttachmentRequest, type PrepareWritingResult, type Account } from '@tsdm/forum-client';
 const client: ForumClient = createForumClient({ origin: 'https://fixture.example', transport: { async request(url) { return { status: 200, url, contentType: 'text/html', body: '' }; } } });
 const result: ReadResult = await client.readThread('https://fixture.example/forum.php?mod=viewthread&tid=42');
 const serialized: string = JSON.stringify(result);
+const prepared: PrepareWritingResult = await client.prepareNewThread("5");
+const references: string[] = unresolvedWritingAttachments({ source: "[attach]51[/attach]", uploadedReferences: [] });
+void [prepared, references];
 void serialized;
 const search: (criteria: SearchCriteria, form: SearchForm, account: Account) => Promise<ReadResult> = client.search;
 const returnedPage: (url: string, prior: Extract<ReadResult, { kind: 'search' }>['search'], account: Account) => Promise<ReadResult> = client.readSearchPage;
@@ -174,11 +199,13 @@ void [search, returnedPage, attachment];
       serializablePopulatedResult: "passed",
       searchAndReturnedPageContract: "passed",
       freshAttachmentAndBinaryContract: "passed",
+      portablePreparedWriting: "passed",
+      portableWritingReferences: "passed",
       noRuntimeDependencies: "passed",
     },
     observed,
     limitations: [
-      "This consumer qualifies public imports, declarations and read/search/download contracts without browser globals; browser behavior is qualified by complete application E2Es.",
+      "This consumer qualifies public imports, declarations and read/search/download/current-form preparation contracts without browser globals; browser behavior is qualified by complete application E2Es.",
       "Synthetic transport is not live forum evidence.",
     ],
   };
