@@ -1,5 +1,16 @@
-export type RouteKind = "directory" | "board" | "thread" | "redirect";
+export type RouteKind =
+  "directory" | "board" | "thread" | "redirect" | "search";
 const keys: Record<RouteKind, readonly string[]> = {
+  search: [
+    "mod",
+    "adv",
+    "searchid",
+    "page",
+    "orderby",
+    "ascdesc",
+    "searchsubmit",
+    "kw",
+  ],
   directory: ["mod", "gid"],
   board: [
     "mod",
@@ -23,6 +34,7 @@ const keys: Record<RouteKind, readonly string[]> = {
     "viewpid",
     "from",
     "_dsign",
+    "highlight",
   ],
   redirect: ["mod", "goto", "tid", "ptid", "pid", "fromuid"],
 };
@@ -57,6 +69,15 @@ export function routeFor(value: string): { kind: RouteKind; url: URL } | null {
       )
         kind = "redirect";
     }
+    if (
+      url.pathname === "/search.php" &&
+      q.get("mod") === "forum" &&
+      (!q.has("adv") || q.get("adv") === "yes") &&
+      (!q.has("searchsubmit") ||
+        (q.has("searchid") && q.get("searchsubmit") === "yes")) &&
+      (!q.has("searchid") || /^[1-9]\d*$/.test(q.get("searchid") ?? ""))
+    )
+      kind = "search";
     if (!kind) return null;
     const allowed = [...keys[kind], "extra", "mobile", "tsdmapp"];
     for (const key of q.keys())

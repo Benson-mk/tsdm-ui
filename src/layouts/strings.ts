@@ -1,5 +1,22 @@
 import type { Preferences } from "../workspace/preferences";
 const english = {
+  searchOverviewLabel: "Search overview",
+  searchExplanation:
+    "Search threads or authors. Editing criteria does not run a search.",
+  searchEffects:
+    "Each deliberate search may use forum credits or quota. No search is repeated automatically.",
+  forumDefault: "Forum default",
+  editedSearch: "Edited criteria have not been searched.",
+  searchResults: "Search results",
+  noSearchMatches: "No matching threads.",
+  effectiveSearch: "Effective search criteria",
+  searchPages: "Search pages",
+  searchNavigation: "Search navigation",
+  newSearch: "New search",
+  deliberateSearch: "Only deliberate submissions run a search.",
+  rerunSearch: "Rerun effective search (may use credits)",
+  missingSearch:
+    "Searches are never rerun automatically. Open Search to submit again deliberately; a new search may use credits or quota.",
   attachments: "Attachments",
   download: "Download",
   saveFile: "Save file",
@@ -18,7 +35,7 @@ const english = {
     "Preferences are available for this page only. Storage is unavailable; changes may not survive reload.",
   about: "About this workspace",
   aboutDescription:
-    "TSDM Workspace 0.2.0. Reading uses your current forum account.",
+    "TSDM Workspace 0.3.0. Reading uses your current forum account.",
   nativeHelp:
     "For unsupported content or verification, continue at the same destination in the native forum.",
   snapshotMember: "Snapshot from {value}",
@@ -98,6 +115,21 @@ const english = {
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
+  searchOverviewLabel: "搜索总览",
+  searchExplanation: "搜索主题或作者。编辑条件不会执行搜索。",
+  searchEffects: "每次主动搜索都可能消耗论坛积分或额度。系统不会自动重复搜索。",
+  forumDefault: "论坛默认值",
+  editedSearch: "尚未使用编辑后的条件搜索。",
+  searchResults: "搜索结果",
+  noSearchMatches: "没有匹配的主题。",
+  effectiveSearch: "当前有效搜索条件",
+  searchPages: "搜索结果分页",
+  searchNavigation: "搜索导航",
+  newSearch: "新搜索",
+  deliberateSearch: "只有主动提交才会执行搜索。",
+  rerunSearch: "重新执行有效搜索（可能消耗积分）",
+  missingSearch:
+    "系统绝不会自动重新搜索。请打开搜索并主动再次提交；新搜索可能消耗积分或额度。",
   attachments: "附件",
   download: "下载",
   saveFile: "保存文件",
@@ -115,7 +147,7 @@ const simplified: Strings = {
   storageUnavailable:
     "偏好设置仅在当前页面有效。存储不可用；重新加载后可能无法保留更改。",
   about: "关于此工作区",
-  aboutDescription: "TSDM 工作区 0.2.0。阅读使用当前论坛账号。",
+  aboutDescription: "TSDM 工作区 0.3.0。阅读使用当前论坛账号。",
   nativeHelp:
     "如需查看不支持的内容或完成验证，请在原版论坛中继续访问同一目标。",
   snapshotMember: "来自 {value} 的快照",
@@ -190,6 +222,21 @@ const simplified: Strings = {
   draftsScope: "已保存的论坛草稿",
 };
 const traditional: Strings = {
+  searchOverviewLabel: "搜尋總覽",
+  searchExplanation: "搜尋主題或作者。編輯條件不會執行搜尋。",
+  searchEffects: "每次主動搜尋都可能消耗論壇積分或額度。系統不會自動重複搜尋。",
+  forumDefault: "論壇預設值",
+  editedSearch: "尚未使用編輯後的條件搜尋。",
+  searchResults: "搜尋結果",
+  noSearchMatches: "沒有相符的主題。",
+  effectiveSearch: "目前有效搜尋條件",
+  searchPages: "搜尋結果分頁",
+  searchNavigation: "搜尋導覽",
+  newSearch: "新搜尋",
+  deliberateSearch: "只有主動提交才會執行搜尋。",
+  rerunSearch: "重新執行有效搜尋（可能消耗積分）",
+  missingSearch:
+    "系統絕不會自動重新搜尋。請開啟搜尋並主動再次提交；新搜尋可能消耗積分或額度。",
   attachments: "附件",
   download: "下載",
   saveFile: "儲存檔案",
@@ -207,7 +254,7 @@ const traditional: Strings = {
   storageUnavailable:
     "偏好設定僅在目前頁面有效。儲存空間無法使用；重新載入後可能無法保留變更。",
   about: "關於此工作區",
-  aboutDescription: "TSDM 工作區 0.2.0。閱讀使用目前論壇帳號。",
+  aboutDescription: "TSDM 工作區 0.3.0。閱讀使用目前論壇帳號。",
   nativeHelp:
     "如需查看不支援的內容或完成驗證，請在原版論壇中繼續存取同一目標。",
   snapshotMember: "來自 {value} 的快照",
@@ -294,6 +341,148 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  Cost: ["积分限制", "積分限制"],
+  Throttle: ["搜索频率受限", "搜尋頻率受限"],
+  Expired: ["搜索结果已过期", "搜尋結果已過期"],
+  "This page was not offered by the current search results.": [
+    "当前搜索结果未提供此分页。",
+    "目前搜尋結果未提供此分頁。",
+  ],
+  "A newer request replaced this search page.": [
+    "此搜索分页已被较新的请求替代。",
+    "此搜尋分頁已被較新的請求取代。",
+  ],
+  "The current account could not be established from this search page. Review the current account before searching again deliberately.":
+    [
+      "无法从此搜索分页确认当前账号。再次主动搜索前，请检查当前账号。",
+      "無法從此搜尋分頁確認目前帳號。再次主動搜尋前，請檢查目前帳號。",
+    ],
+  "The account changed while reading search results. Review the current account before searching again deliberately.":
+    [
+      "阅读搜索结果时账号发生了变化。再次主动搜索前，请检查当前账号。",
+      "閱讀搜尋結果時帳號發生了變更。再次主動搜尋前，請檢查目前帳號。",
+    ],
+  "The returned page belongs to a different search.": [
+    "返回的分页属于另一次搜索。",
+    "傳回的分頁屬於另一次搜尋。",
+  ],
+  "The search page could not be loaded. It has not been requested again automatically.":
+    [
+      "无法加载搜索分页。系统未自动再次请求此页。",
+      "無法載入搜尋分頁。系統未自動再次請求此頁。",
+    ],
+  "The search form is not from this forum.": [
+    "此搜索表单不属于当前论坛。",
+    "此搜尋表單不屬於目前論壇。",
+  ],
+  "A newer action replaced this search.": [
+    "此搜索已被较新的操作替代。",
+    "此搜尋已被較新的操作取代。",
+  ],
+  "The current account could not be established. Search has not been submitted.":
+    ["无法确认当前账号。尚未提交搜索。", "無法確認目前帳號。尚未提交搜尋。"],
+  "The account changed while preparing search. Review the current form and submit again deliberately.":
+    [
+      "准备搜索时账号发生了变化。请检查当前表单，再主动提交。",
+      "準備搜尋時帳號發生了變更。請檢查目前表單，再主動提交。",
+    ],
+  "A newer action replaced this search. The earlier request may still have had effects.":
+    [
+      "此搜索已被较新的操作替代。先前的请求仍可能已经产生影响。",
+      "此搜尋已被較新的操作取代。先前的請求仍可能已經產生影響。",
+    ],
+  "The current account could not be established from the search response. The request may still have used credits or quota.":
+    [
+      "无法从搜索响应确认当前账号。该请求仍可能已经消耗积分或额度。",
+      "無法從搜尋回應確認目前帳號。該請求仍可能已經消耗積分或額度。",
+    ],
+  "The account changed during search. Its effects are not isolated; review the current account before another deliberate search.":
+    [
+      "搜索期间账号发生了变化，其影响无法隔离。再次主动搜索前，请检查当前账号。",
+      "搜尋期間帳號發生了變更，其影響無法隔離。再次主動搜尋前，請檢查目前帳號。",
+    ],
+  "Search could not be completed. It may have used credits or quota. Submit again only deliberately.":
+    [
+      "无法完成搜索。此次搜索可能已经消耗积分或额度。仅在主动选择后再次提交。",
+      "無法完成搜尋。此次搜尋可能已經消耗積分或額度。僅在主動選擇後再次提交。",
+    ],
+  "An existing search page must be opened deliberately from its returned results. Open Search to prepare a new search.":
+    [
+      "已有搜索分页必须从返回的结果中主动打开。请打开搜索以准备新搜索。",
+      "既有搜尋分頁必須從傳回的結果中主動開啟。請開啟搜尋以準備新搜尋。",
+    ],
+  "Native verification is required before another deliberate search.": [
+    "再次主动搜索前，需要在原版论坛完成验证。",
+    "再次主動搜尋前，需要在原版論壇完成驗證。",
+  ],
+  "Sign in through the native forum before another deliberate search.": [
+    "再次主动搜索前，请先在原版论坛登录。",
+    "再次主動搜尋前，請先在原版論壇登入。",
+  ],
+  "Search results expired. Your criteria are retained; rerun explicitly if you accept possible credits or quota use.":
+    [
+      "搜索结果已过期。条件已保留；若接受可能消耗积分或额度，请主动重新搜索。",
+      "搜尋結果已過期。條件已保留；若接受可能消耗積分或額度，請主動重新搜尋。",
+    ],
+  "The search form response could not be displayed reliably.": [
+    "无法可靠地显示搜索表单响应。",
+    "無法可靠地顯示搜尋表單回應。",
+  ],
+  "The current advanced search form is unavailable. Continue in the native forum.":
+    [
+      "当前高级搜索表单不可用。请在原版论坛中继续。",
+      "目前進階搜尋表單無法使用。請在原版論壇中繼續。",
+    ],
+  "Enter keywords or an author before searching.": [
+    "搜索前，请输入关键词或作者。",
+    "搜尋前，請輸入關鍵字或作者。",
+  ],
+  "Search controls changed. Refresh the form and review your criteria.": [
+    "搜索控件已更改。请刷新表单并检查条件。",
+    "搜尋控制項已變更。請重新整理表單並檢查條件。",
+  ],
+  "The search result could not be displayed reliably. The request may still have used credits or quota.":
+    [
+      "无法可靠地显示搜索结果。该请求仍可能已经消耗积分或额度。",
+      "無法可靠地顯示搜尋結果。該請求仍可能已經消耗積分或額度。",
+    ],
+  "The forum did not return a usable search identity. It will not be searched again automatically.":
+    [
+      "论坛未返回可用的搜索标识。系统不会自动再次搜索。",
+      "論壇未傳回可用的搜尋識別。系統不會自動再次搜尋。",
+    ],
+  "The search contains unrecognized or incomplete results. It has not been treated as zero matches.":
+    [
+      "搜索结果无法识别或不完整，未将其视为零条匹配结果。",
+      "搜尋結果無法辨識或不完整，未將其視為零筆相符結果。",
+    ],
+  "The search contains an unsupported result-page link.": [
+    "搜索结果包含不支持的分页链接。",
+    "搜尋結果包含不支援的分頁連結。",
+  ],
+  "This native search request may have used credits or quota before the workspace started. No search has been repeated. Open Search to prepare a deliberate new search.":
+    [
+      "此原版搜索请求可能在工作区启动前就已消耗积分或额度。系统未重复搜索。请打开搜索，准备主动执行新搜索。",
+      "此原版搜尋請求可能在工作區啟動前就已消耗積分或額度。系統未重複搜尋。請開啟搜尋，準備主動執行新搜尋。",
+    ],
+  "The current account cannot search.": [
+    "当前账号无法搜索。",
+    "目前帳號無法搜尋。",
+  ],
+  "Unexpected HTTP response.": [
+    "收到非预期的 HTTP 响应。",
+    "收到非預期的 HTTP 回應。",
+  ],
+  Keywords: ["关键词", "關鍵字"],
+  Author: ["作者", "作者"],
+  "Time range": ["时间范围", "時間範圍"],
+  "Time relation": ["时间关系", "時間關係"],
+  Order: ["排序依据", "排序依據"],
+  Direction: ["排序方向", "排序方向"],
+  Boards: ["版块", "版塊"],
+  "Search scope": ["搜索范围", "搜尋範圍"],
+  "Thread types": ["主题类型", "主題類型"],
+  "Search index": ["搜索索引", "搜尋索引"],
   "This download attempt was replaced or cancelled.": [
     "本次下载已被替代或取消。",
     "本次下載已被取代或取消。",
@@ -512,14 +701,46 @@ const descriptions: Record<string, readonly [string, string]> = {
   ],
 };
 
+const searchPrefixes: Record<string, readonly [string, string]> = {
+  "Search cost restriction: ": ["搜索积分限制：", "搜尋積分限制："],
+  "Search frequency restriction: ": ["搜索频率限制：", "搜尋頻率限制："],
+  "Search permission denied: ": ["搜索权限不足：", "搜尋權限不足："],
+  "The search response could not be interpreted: ": [
+    "无法解析搜索响应：",
+    "無法解析搜尋回應：",
+  ],
+};
+
 /** Translate only application-authored explanations; returned forum content is untouched. */
 export function description(
   value: string,
   language: Preferences["language"],
+  nativeText?: string | null,
 ): string {
   if (language === "en") return value;
   const localized = descriptions[value];
   if (localized) return localized[language === "zh-CN" ? 0 : 1];
+  for (const [prefix, translated] of Object.entries(searchPrefixes)) {
+    if (!value.startsWith(prefix)) continue;
+    const suffix = value.slice(prefix.length);
+    return (
+      translated[language === "zh-CN" ? 0 : 1] +
+      (nativeText === null ? description(suffix, language) : suffix)
+    );
+  }
+  const restriction =
+    /^The current (.+) restriction does not allow this value\. Review your criteria\.$/.exec(
+      value,
+    );
+  if (restriction) {
+    const field =
+      nativeText === null
+        ? description(restriction[1]!, language)
+        : restriction[1]!;
+    return language === "zh-CN"
+      ? `当前的「${field}」限制不允许此值。请检查条件。`
+      : `目前的「${field}」限制不允許此值。請檢查條件。`;
+  }
   const formatting = /^Unsupported formatting \((.+)\)$/.exec(value);
   if (formatting)
     return `${language === "zh-CN" ? "不支持的格式" : "不支援的格式"} (${formatting[1]})`;

@@ -38,7 +38,13 @@ export interface AttachmentRequest {
 }
 export interface ForumTransport {
   requestFile?(url: string): Promise<FileResponse>;
-  request(url: string, options?: { fresh?: boolean }): Promise<HostResponse>;
+  request(
+    url: string,
+    request?: { fresh?: boolean } & (
+      | { method: "POST"; body: string }
+      | { method?: undefined; body?: undefined }
+    ),
+  ): Promise<HostResponse>;
 }
 export type Account =
   | { kind: "member"; id: string; name: string }
@@ -120,6 +126,9 @@ export interface Thread {
   notices: string[];
 }
 export type FailureKind =
+  | "cost"
+  | "throttle"
+  | "expired"
   | "limited"
   | "login"
   | "permission"
@@ -129,6 +138,13 @@ export type FailureKind =
   | "network"
   | "stale";
 export type ReadResult =
+  | {
+      kind: "search";
+      search: Search;
+      account: Account;
+      generation: number;
+      sourceURL: string;
+    }
   | {
       kind: "document-navigation";
       message: string;
@@ -161,13 +177,66 @@ export type ReadResult =
   | {
       kind: FailureKind;
       message: string;
+      /** Native fragment in an authored wrapper; null means an authored fallback. Absent on older snapshots. */
+      nativeText?: string | null;
       account: Account;
       generation: number;
       sourceURL: string;
     };
+export type SearchCriteria = Record<string, string[]>;
+export interface SearchField {
+  name: string;
+  label: string;
+  /** Absent on older snapshots; only explicit false permits fallback translation. */
+  labelFromForum?: boolean;
+  kind: "text" | "select" | "choices";
+  multiple: boolean;
+  disabled: boolean;
+  readOnly: boolean;
+  maxLength: number | null;
+  options: { value: string; label: string; disabled: boolean }[];
+  values: string[];
+}
+export interface SearchForm {
+  url: string;
+  fields: SearchField[];
+  restrictions: string[];
+}
+export interface SearchRow extends ForumLink {
+  id: string;
+  author: ForumLink;
+  board: ForumLink;
+  date: string;
+  snippet: string;
+  stats: string;
+}
+export interface SearchResults {
+  id: string;
+  url: string;
+  summary: string;
+  rows: SearchRow[];
+  pages: Pagination;
+}
+export interface Search {
+  form: SearchForm;
+  edited: SearchCriteria;
+  effective: SearchCriteria | null;
+  submitted: SearchCriteria | null;
+  results: SearchResults | null;
+}
 export interface ForumClient {
   cancelDownload(): void;
   downloadAttachment(request: AttachmentRequest): Promise<AttachmentResult>;
+  readSearchPage(
+    url: string,
+    prior: Search,
+    expectedAccount: Account,
+  ): Promise<ReadResult>;
+  search(
+    criteria: SearchCriteria,
+    form: SearchForm,
+    expectedAccount: Account,
+  ): Promise<ReadResult>;
   readThread(url: string): Promise<ReadResult>;
   readPage(url: string, options?: { fresh?: boolean }): Promise<ReadResult>;
   readonly account: Account;

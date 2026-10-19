@@ -23,6 +23,7 @@ const threadRow = (id: number, title: string, pinned = false) =>
 function board(page = 1) {
   return `${account}<div id="ct"><h1><a href="${boardURL}">Music discussion</a></h1></div><div id="subforum_5"><table class="fl_tb"><tr>${boardLink(7, "Live recordings")}</tr></table></div><div id="thread_types"><a href="${filteredURL}">Listening notes</a></div><div id="filter_orderby_menu"><a href="${boardURL}&orderby=dateline">Newest threads</a></div><table id="threadlisttableid">${page === 1 ? threadRow(41, "Board guide", true) : ""}${threadRow(42, `Autumn listening — page ${page}`)}</table><div class="pg"><strong>${page}</strong><a href="${page === 1 ? secondURL : filteredURL}">${page === 1 ? "2" : "1"}</a></div>`;
 }
+const searchForm = `${account}<form method="post" action="search.php?mod=forum"><input type="hidden" name="formhash" value="private-token"><input type="hidden" name="searchsubmit" value="yes"><input name="srchtxt" type="text"><input name="srchuname" type="text"></form>`;
 const thread = `${account}<div id="pt"><a href="${directoryURL}">Boards</a><a href="${boardURL}">Music discussion</a></div><div id="postlist"><h1 id="thread_subject">Autumn listening</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=9">Composer Nine</a></div><a id="postnum101" href="${threadURL}#pid101">1</a><div class="pcb"><p>Complete autumn opening.</p></div></div></div>`;
 async function open(
   page: Page,
@@ -52,11 +53,13 @@ async function open(
     const url = new URL(request.url());
     const body = supplied
       ? supplied(url)
-      : url.searchParams.get("mod") === "forumdisplay"
-        ? board(Number(url.searchParams.get("page") ?? 1))
-        : url.searchParams.get("mod") === "viewthread"
-          ? thread
-          : directory;
+      : url.pathname === "/search.php"
+        ? searchForm
+        : url.searchParams.get("mod") === "forumdisplay"
+          ? board(Number(url.searchParams.get("page") ?? 1))
+          : url.searchParams.get("mod") === "viewthread"
+            ? thread
+            : directory;
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ document: body }),
@@ -1159,12 +1162,12 @@ test("J2.section-unavailable-back: returning from Search to a missing snapshot k
   await expect(
     page.getByRole("button", { name: "Reload", exact: true }),
   ).toBeVisible();
-  expect(requests).toHaveLength(0);
+  expect(requests).toHaveLength(1);
   await page.getByRole("button", { name: "Reload", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Boards", exact: true }),
   ).toBeVisible();
-  expect(requests).toHaveLength(1);
+  expect(requests).toHaveLength(2);
   await info.attach("missing-entry-reloaded.png", {
     body: await page.screenshot(),
     contentType: "image/png",

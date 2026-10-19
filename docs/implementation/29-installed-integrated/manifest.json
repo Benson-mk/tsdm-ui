@@ -1,0 +1,14 @@
+{
+  "procedure.md": {
+    "bytes": 4562,
+    "sha256": "e016177a4fdfe1b773b9d6fa5d66f7ecad946e3f3d2c6a0e2d5800f2496e12bb"
+  },
+  "receipt.json": {
+    "bytes": 11361,
+    "sha256": "a45cf9766e2a6a461269f89a2570f330479d1fded4f3dacb9a19382b5758f4de"
+  },
+  "report.md": {
+    "bytes": 9205,
+    "sha256": "958e7e0797c7e6388e29a0e2edcfe49f285f1631eb3a1c2a52fc72b30db832a5"
+  }
+}

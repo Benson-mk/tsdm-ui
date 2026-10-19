@@ -25,6 +25,11 @@ export async function withRedirectFixture(
     redirect: string;
     document: (url: URL) => string;
     readHeaders?: Record<string, string>;
+    search?: {
+      resultURL: string;
+      formUID?: number;
+      requests: { url: string; method: string; body: string }[];
+    };
   },
   run: (page: Page, reads: string[], redirects: string[]) => Promise<void>,
 ) {
@@ -61,12 +66,20 @@ export async function withRedirectFixture(
   };
   const server = createHTTPS(
     { key: readFileSync(key), cert: readFileSync(cert) },
-    (request, response) => {
+    async (request, response) => {
       const url = new URL(
         request.url ?? "/",
         `https://${request.headers.host}`,
       );
-      if (request.method !== "GET" || url.origin !== fixture.origin) {
+      if (
+        url.origin !== fixture.origin ||
+        (request.method !== "GET" &&
+          !(
+            request.method === "POST" &&
+            fixture.search &&
+            url.pathname === "/search.php"
+          ))
+      ) {
         response.writeHead(404);
         response.end();
         return;
@@ -77,6 +90,30 @@ export async function withRedirectFixture(
         });
         response.end(built);
         return;
+      }
+      if (fixture.search && url.pathname === "/search.php") {
+        let body = "";
+        for await (const chunk of request) body += chunk.toString();
+        fixture.search.requests.push({
+          url: url.href,
+          method: request.method ?? "GET",
+          body,
+        });
+        if (request.method === "POST") {
+          response.writeHead(302, { location: fixture.search.resultURL });
+          response.end();
+          return;
+        }
+        if (
+          url.searchParams.has("searchid") &&
+          request.headers["sec-fetch-dest"] !== "document"
+        ) {
+          response.writeHead(200, {
+            "content-type": "text/html; charset=utf-8",
+          });
+          response.end(fixture.document(url));
+          return;
+        }
       }
       if (url.searchParams.get("mod") === "redirect") {
         redirects.push(url.searchParams.has("tsdmapp") ? "fetch" : "document");
@@ -90,7 +127,15 @@ export async function withRedirectFixture(
           "content-type": "application/json",
           ...fixture.readHeaders,
         });
-        response.end(JSON.stringify({ document: fixture.document(url) }));
+        response.end(
+          JSON.stringify({
+            ...(url.pathname === "/search.php" &&
+            fixture.search?.formUID !== undefined
+              ? { uid: fixture.search.formUID }
+              : {}),
+            document: fixture.document(url),
+          }),
+        );
         return;
       }
       response.writeHead(200, { "content-type": "text/html; charset=utf-8" });

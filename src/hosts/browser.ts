@@ -18,15 +18,23 @@ export function createBrowserTransport(): ForumTransport {
         bytes: new Uint8Array(await response.arrayBuffer()),
       };
     },
-    async request(url, options) {
+    async request(url, request) {
       const response = await fetch(url, {
         credentials: "same-origin",
-        cache: options?.fresh ? "no-store" : "default",
+        cache: request?.fresh ? "no-store" : "default",
+        ...(request?.method
+          ? { method: request.method, body: request.body }
+          : {}),
         redirect:
           new URL(url).searchParams.get("mod") === "redirect"
             ? "manual"
             : "follow",
-        headers: { Accept: "application/json, text/html;q=0.9" },
+        headers: {
+          Accept: "application/json, text/html;q=0.9",
+          ...(request?.method
+            ? { "Content-Type": "application/x-www-form-urlencoded" }
+            : {}),
+        },
       });
       return {
         status: response.status,

@@ -10,6 +10,7 @@ import {
   DialogDescription,
   DialogClose,
 } from "reka-ui";
+import SearchView from "../components/SearchView.vue";
 import ContentView from "../components/ContentView";
 import SettingsDialog from "../components/SettingsDialog.vue";
 import type { Workspace } from "../workspace";
@@ -25,7 +26,7 @@ const text = computed(() =>
 const sections: Section[] = ["boards", "search", "saved", "notices", "drafts"];
 const sectionInfo = computed(() => {
   const section = state.value.section;
-  if (section === "boards") return null;
+  if (section === "boards" || section === "search") return null;
   return {
     title: text.value[section],
     heading: text.value[`${section}Heading`],
@@ -35,13 +36,11 @@ const sectionInfo = computed(() => {
         ? [text.value.savedBoards, text.value.savedThreads]
         : [text.value[`${section}Scope`]],
     nativeURL:
-      section === "search"
-        ? "https://www.tsdm39.com/search.php?mod=forum"
-        : section === "saved"
-          ? "https://www.tsdm39.com/home.php?mod=space&do=favorite&type=thread"
-          : section === "notices"
-            ? "https://www.tsdm39.com/home.php?mod=space&do=notice"
-            : "https://www.tsdm39.com/home.php?mod=space&do=thread&view=me&type=thread&filter=save",
+      section === "saved"
+        ? "https://www.tsdm39.com/home.php?mod=space&do=favorite&type=thread"
+        : section === "notices"
+          ? "https://www.tsdm39.com/home.php?mod=space&do=notice"
+          : "https://www.tsdm39.com/home.php?mod=space&do=thread&view=me&type=thread&filter=save",
   };
 });
 function chooseSection(event: Event) {
@@ -181,6 +180,17 @@ const boardContext = computed(() =>
         ? state.value.origin.board
         : null,
 );
+const searchContext = computed(() =>
+  state.value.section !== "search"
+    ? null
+    : state.value.result?.kind === "search"
+      ? state.value.result.search
+      : state.value.result?.kind === "thread" &&
+          state.value.origin?.kind === "search"
+        ? state.value.origin.search
+        : null,
+);
+
 const selectedThread = computed(() =>
   state.value.result?.kind === "thread" ? state.value.result.thread.id : null,
 );
@@ -289,6 +299,15 @@ onMounted(() => {
         ? root.shadowRoot?.getElementById(`pid${target}`)
         : null;
       if (node && !position) node.scrollIntoView({ block: "start" });
+      if (
+        !position &&
+        !state.value.loading &&
+        state.value.result?.kind === "search" &&
+        state.value.result.search.results
+      )
+        container
+          ?.querySelector<HTMLElement>(".search-results h2")
+          ?.scrollIntoView({ block: "start" });
       const selected = selection
         ? root.shadowRoot
             ?.getElementById(`row-${selection}`)
@@ -341,9 +360,22 @@ const accountLabel = computed(() => {
           href="https://www.tsdm39.com/forum.php"
           >{{ text.allBoards }}</a
         >
+        <a
+          v-if="state.section === 'search'"
+          class="narrow-overview-link search-new-link"
+          href="https://www.tsdm39.com/search.php?mod=forum&adv=yes"
+          >{{ text.newSearch }}</a
+        >
         <button v-if="state.canBack" @click="workspace.back()">
           {{ text.back }}</button
-        ><button @click="workspace.refresh()">
+        ><button
+          v-if="
+            state.result?.kind === 'search' && state.result.search.effective
+          "
+          @click="workspace.submitSearch(true)"
+        >
+          {{ text.rerunSearch }}</button
+        ><button v-else @click="workspace.refresh()">
           {{
             state.destination.includes("mod=viewthread")
               ? text.refreshThread
@@ -379,7 +411,7 @@ const accountLabel = computed(() => {
           </option>
         </select></label
       >
-      <label v-if="sectionInfo" class="board-picker"
+      <label v-if="state.section !== 'boards'" class="board-picker"
         >{{ text.sectionNavigation
         }}<select
           :aria-label="text.sectionNavigation"
@@ -413,6 +445,7 @@ const accountLabel = computed(() => {
         <p>
           {{ text.snapshotReload }}
         </p>
+        <p>{{ text.missingSearch }}</p>
         <button @click="workspace.refresh()">{{ text.reload }}</button>
       </section>
       <section v-if="state.documentNavigation" role="alert">
@@ -439,6 +472,9 @@ const accountLabel = computed(() => {
           description(
             state.failure.message,
             workspace.preferences.state.value.language,
+            "nativeText" in state.failure
+              ? state.failure.nativeText
+              : undefined,
           )
         }}
       </p>
@@ -497,6 +533,27 @@ const accountLabel = computed(() => {
           text.native
         }}</a>
       </section>
+      <nav
+        v-if="state.section === 'search'"
+        class="boards-navigation pane"
+        :aria-label="text.searchNavigation"
+      >
+        <h2>{{ text.search }}</h2>
+        <a href="https://www.tsdm39.com/search.php?mod=forum&adv=yes">{{
+          text.newSearch
+        }}</a>
+        <p>{{ text.deliberateSearch }}</p>
+      </nav>
+      <SearchView
+        v-if="searchContext"
+        :search="searchContext"
+        :language="workspace.preferences.state.value.language"
+        :secondary="state.result?.kind === 'thread'"
+        :selection="state.selection ?? selectedThread"
+        :loading="state.loading"
+        @submit="workspace.submitSearch"
+        @edit="workspace.editSearch"
+      />
       <section
         v-if="state.section === 'boards' && state.result?.kind === 'directory'"
         class="overview pane"
@@ -607,7 +664,10 @@ const accountLabel = computed(() => {
         </nav>
       </section>
       <section
-        v-if="state.section === 'boards' && state.result?.kind === 'thread'"
+        v-if="
+          ['boards', 'search'].includes(state.section) &&
+          state.result?.kind === 'thread'
+        "
         class="reading-pane pane"
         data-scroll-pane="reading"
         :aria-label="text.threadReading"
@@ -707,9 +767,11 @@ const accountLabel = computed(() => {
       </section>
       <section
         v-if="
-          state.section === 'boards' &&
+          ['boards', 'search'].includes(state.section) &&
           state.result &&
-          !['directory', 'board', 'thread'].includes(state.result.kind)
+          !['directory', 'board', 'thread', 'search'].includes(
+            state.result.kind,
+          )
         "
         class="notice pane"
         role="alert"
@@ -731,6 +793,9 @@ const accountLabel = computed(() => {
               ? description(
                   state.result.message,
                   workspace.preferences.state.value.language,
+                  "nativeText" in state.result
+                    ? state.result.nativeText
+                    : undefined,
                 )
               : ""
           }}

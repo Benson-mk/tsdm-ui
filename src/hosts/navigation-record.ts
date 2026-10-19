@@ -137,6 +137,68 @@ function result(value: unknown): boolean {
     !url(value.sourceURL, true)
   )
     return false;
+  if (value.kind === "search") {
+    const search = value.search;
+    return (
+      object(search) &&
+      object(search.form) &&
+      destination(search.form.url) &&
+      list(search.form.restrictions, string) &&
+      list(
+        search.form.fields,
+        (field) =>
+          object(field) &&
+          string(field.name) &&
+          string(field.label) &&
+          (field.labelFromForum === undefined ||
+            typeof field.labelFromForum === "boolean") &&
+          ["text", "select", "choices"].includes(String(field.kind)) &&
+          typeof field.multiple === "boolean" &&
+          typeof field.disabled === "boolean" &&
+          typeof field.readOnly === "boolean" &&
+          (field.maxLength === null || finite(field.maxLength)) &&
+          list(field.values, string) &&
+          list(
+            field.options,
+            (option) =>
+              object(option) &&
+              string(option.value) &&
+              string(option.label) &&
+              typeof option.disabled === "boolean",
+          ),
+      ) &&
+      (search.submitted === null ||
+        (object(search.submitted) &&
+          Object.values(search.submitted).every((value) =>
+            list(value, string),
+          ))) &&
+      (search.effective === null ||
+        (object(search.effective) &&
+          Object.values(search.effective).every((value) =>
+            list(value, string),
+          ))) &&
+      (search.results === null ||
+        (object(search.results) &&
+          id(search.results.id) &&
+          destination(search.results.url) &&
+          string(search.results.summary) &&
+          pages(search.results.pages) &&
+          list(
+            search.results.rows,
+            (row) =>
+              object(row) &&
+              id(row.id) &&
+              link(row) &&
+              link(row.author) &&
+              link(row.board) &&
+              string(row.date) &&
+              string(row.snippet) &&
+              string(row.stats),
+          ))) &&
+      object(search.edited) &&
+      Object.values(search.edited).every((value) => list(value, string))
+    );
+  }
   if (value.kind === "thread") {
     const t = value.thread;
     return (
@@ -198,6 +260,9 @@ function result(value: unknown): boolean {
   return (
     string(value.kind) &&
     [
+      "cost",
+      "throttle",
+      "expired",
       "limited",
       "login",
       "permission",
@@ -207,7 +272,8 @@ function result(value: unknown): boolean {
       "network",
       "stale",
     ].includes(value.kind) &&
-    string(value.message)
+    string(value.message) &&
+    (value.nativeText === undefined || nullableString(value.nativeText))
   );
 }
 

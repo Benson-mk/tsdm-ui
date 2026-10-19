@@ -1,10 +1,16 @@
 import { fileFailure } from "./download.js";
+import {
+  decodeSearchForm,
+  prepareSearchRequest,
+  decodeSearchResults,
+} from "./search.js";
 import { decodeThread } from "./read-thread.js";
 import { decodeBoard } from "./read-board.js";
 import { routeFor } from "./routes.js";
-export function describeDestination(
-  value: string,
-): { kind: "directory" | "board" | "thread" | "redirect"; url: string } | null {
+export function describeDestination(value: string): {
+  kind: "directory" | "board" | "thread" | "redirect" | "search";
+  url: string;
+} | null {
   const route = routeFor(value);
   return route ? { kind: route.kind, url: route.url.href } : null;
 }
@@ -15,9 +21,14 @@ import type {
   ForumClient,
   ForumTransport,
   ReadResult,
+  SearchCriteria,
+  SearchForm,
+  Search,
 } from "./types.js";
 export type * from "./types.js";
-export const FORUM_CLIENT_VERSION = "0.2.0";
+const actor = (account: Account): string =>
+  account.kind === "member" ? `member:${account.id}` : account.kind;
+export const FORUM_CLIENT_VERSION = "0.3.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -111,6 +122,159 @@ export function createForumClient(options: {
         };
       }
     },
+    async readSearchPage(
+      destination: string,
+      prior: Search,
+      expectedAccount: Account,
+    ): Promise<ReadResult> {
+      const current = ++sequence;
+      const fail = (
+        kind: "invalid" | "stale" | "network",
+        message: string,
+      ): ReadResult => ({
+        kind,
+        message,
+        account,
+        generation,
+        sourceURL: destination,
+      });
+      if (
+        !prior.results ||
+        !prior.effective ||
+        !prior.results.pages.links.some((link) => link.url === destination)
+      )
+        return fail(
+          "invalid",
+          "This page was not offered by the current search results.",
+        );
+      const url = new URL(destination);
+      url.searchParams.set("tsdmapp", "json");
+      try {
+        const response = await options.transport.request(url.href);
+        if (current !== sequence)
+          return fail("stale", "A newer request replaced this search page.");
+        const decoded = decodeSearchResults(
+          response,
+          destination,
+          prior.form,
+          prior.effective,
+        );
+        if (actor(decoded.account) !== actor(account)) {
+          account = decoded.account;
+          generation++;
+        }
+        if (decoded.kind === "search") {
+          if (decoded.account.kind === "unknown")
+            return fail(
+              "invalid",
+              "The current account could not be established from this search page. Review the current account before searching again deliberately.",
+            );
+          if (actor(decoded.account) !== actor(expectedAccount))
+            return fail(
+              "invalid",
+              "The account changed while reading search results. Review the current account before searching again deliberately.",
+            );
+          if (decoded.search.results?.id !== prior.results.id)
+            return fail(
+              "invalid",
+              "The returned page belongs to a different search.",
+            );
+          decoded.search.edited = prior.edited;
+          decoded.search.submitted = prior.submitted;
+        }
+        return { ...decoded, generation };
+      } catch {
+        return fail(
+          current !== sequence ? "stale" : "network",
+          "The search page could not be loaded. It has not been requested again automatically.",
+        );
+      }
+    },
+    async search(
+      criteria: SearchCriteria,
+      form: SearchForm,
+      expectedAccount: Account,
+    ): Promise<ReadResult> {
+      const current = ++sequence;
+      const fail = (
+        kind: "invalid" | "stale" | "network",
+        message: string,
+      ): ReadResult => ({
+        kind,
+        message,
+        account,
+        generation,
+        sourceURL: form.url,
+      });
+      const formURL = new URL(form.url);
+      if (
+        formURL.origin !== options.origin ||
+        formURL.pathname !== "/search.php"
+      )
+        return fail("invalid", "The search form is not from this forum.");
+      formURL.searchParams.set("tsdmapp", "json");
+      try {
+        const fresh = await options.transport.request(formURL.href);
+        if (current !== sequence)
+          return fail("stale", "A newer action replaced this search.");
+        const prepared = prepareSearchRequest(fresh, form.url, criteria);
+        if (prepared.kind !== "prepared") return { ...prepared, generation };
+        if (
+          prepared.account.kind === "unknown" ||
+          expectedAccount.kind === "unknown"
+        )
+          return fail(
+            "invalid",
+            "The current account could not be established. Search has not been submitted.",
+          );
+        if (actor(prepared.account) !== actor(expectedAccount)) {
+          account = prepared.account;
+          generation++;
+          return fail(
+            "invalid",
+            "The account changed while preparing search. Review the current form and submit again deliberately.",
+          );
+        }
+        const response = await options.transport.request(prepared.url, {
+          method: "POST",
+          body: prepared.body,
+        });
+        if (current !== sequence)
+          return fail(
+            "stale",
+            "A newer action replaced this search. The earlier request may still have had effects.",
+          );
+        const decoded = decodeSearchResults(
+          response,
+          form.url,
+          prepared.form,
+          criteria,
+        );
+        if (actor(decoded.account) !== actor(account)) {
+          account = decoded.account;
+          generation++;
+        }
+        if (decoded.kind === "search" && decoded.account.kind === "unknown")
+          return fail(
+            "invalid",
+            "The current account could not be established from the search response. The request may still have used credits or quota.",
+          );
+        if (
+          decoded.kind === "search" &&
+          actor(decoded.account) !== actor(expectedAccount)
+        )
+          return fail(
+            "invalid",
+            "The account changed during search. Its effects are not isolated; review the current account before another deliberate search.",
+          );
+        return { ...decoded, generation };
+      } catch {
+        return fail(
+          current !== sequence ? "stale" : "network",
+          "Search could not be completed. It may have used credits or quota. Submit again only deliberately.",
+        );
+      }
+    },
     readThread(destination: string): Promise<ReadResult> {
       return this.readPage(destination);
     },
@@ -121,6 +285,15 @@ export function createForumClient(options: {
       const current = ++sequence;
       const route = routeFor(destination);
       const url = route?.url;
+      if (route?.kind === "search" && url?.searchParams.has("searchid"))
+        return {
+          kind: "invalid",
+          message:
+            "An existing search page must be opened deliberately from its returned results. Open Search to prepare a new search.",
+          account,
+          generation,
+          sourceURL: destination,
+        };
       if (!url || url.origin !== options.origin)
         return {
           kind: "invalid",
@@ -150,10 +323,12 @@ export function createForumClient(options: {
             sourceURL: destination,
           };
         const decoded =
-          route?.kind === "thread"
-            ? decodeThread(response, destination)
-            : decodeBoard(response, destination);
-        if (JSON.stringify(decoded.account) !== JSON.stringify(account)) {
+          route?.kind === "search"
+            ? decodeSearchForm(response, destination)
+            : route?.kind === "thread"
+              ? decodeThread(response, destination)
+              : decodeBoard(response, destination);
+        if (actor(decoded.account) !== actor(account)) {
           account = decoded.account;
           generation++;
         }

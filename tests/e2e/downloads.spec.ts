@@ -49,6 +49,13 @@ async function open(page: Page, options: FixtureOptions = {}) {
       });
     requests.push(request.url());
     const url = new URL(request.url());
+    if (url.pathname === "/search.php")
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          document: `${member}<form method="post" action="search.php?mod=forum"><input type="hidden" name="formhash" value="private-token"><input type="hidden" name="searchsubmit" value="yes"><label for="keywords">Keywords</label><input id="keywords" name="srchtxt" type="text"><label for="author">Author</label><input id="author" name="srchuname" type="text"></form>`,
+        }),
+      });
     if (url.searchParams.get("mod") === "attachment") {
       await options.beforeFile?.();
       if (options.file?.abort) return route.abort("failed");
@@ -823,7 +830,7 @@ for (const [width, section] of [
     await expect(
       page.getByRole("button", { name: "Save file", exact: true }),
     ).toHaveCount(0);
-    expect(requests).toHaveLength(2);
+    expect(requests).toHaveLength(section === "Search" ? 3 : 2);
     await info.attach("section-cancel-requests.json", {
       body: Buffer.from(
         JSON.stringify({ width, section, requests, downloads }),

@@ -41,7 +41,7 @@ const accountKey = (account: Account) =>
       ? "guest"
       : null;
 const success = (result: ReadResult) =>
-  ["thread", "board", "directory"].includes(result.kind);
+  ["thread", "board", "directory", "search"].includes(result.kind);
 export function createWorkspace(
   client: ForumClient,
   destination: string,
@@ -170,6 +170,18 @@ export function createWorkspace(
     state.value = { ...state.value, recoveryAvailable: saved };
     return saved;
   }
+  function originContext(entry: NavigationEntry): ReadResult | null {
+    const visited = new Set<string>();
+    let key = entry.originKey;
+    while (key && !visited.has(key)) {
+      visited.add(key);
+      const origin = entryFor(key);
+      if (!origin) return null;
+      if (origin.result?.kind !== "thread") return origin.result;
+      key = origin.originKey;
+    }
+    return null;
+  }
   function show(entry: NavigationEntry, restored = false) {
     const mismatch =
       knownAccount !== null &&
@@ -177,7 +189,13 @@ export function createWorkspace(
       entry.account !== knownAccount;
     state.value = {
       ...state.value,
-      section: entry.section ?? "boards",
+      section:
+        entry.section ??
+        (routeFor(entry.destination)?.kind === "search" ||
+        entry.result?.kind === "search" ||
+        originContext(entry)?.kind === "search"
+          ? "search"
+          : "boards"),
       key: entry.key,
       destination: entry.destination,
       result: mismatch ? null : entry.result,
@@ -191,9 +209,7 @@ export function createWorkspace(
       restored,
       canBack: entry.originKey !== null,
       documentNavigation: null,
-      origin: entry.originKey
-        ? (entryFor(entry.originKey)?.result ?? null)
-        : null,
+      origin: originContext(entry),
     };
     void nextTick().then(() =>
       view?.restore(
@@ -206,7 +222,12 @@ export function createWorkspace(
   function newEntry(url: string, originKey: string | null): NavigationEntry {
     const entry: NavigationEntry = {
       key: crypto.randomUUID(),
-      section: "boards",
+      section:
+        routeFor(url)?.kind === "search" ||
+        (state.value.section === "search" &&
+          ["thread", "redirect"].includes(routeFor(url)?.kind ?? ""))
+          ? "search"
+          : "boards",
       destination: url,
       originKey,
       selection: null,
@@ -218,7 +239,7 @@ export function createWorkspace(
     record.entries[entry.key] = entry;
     return entry;
   }
-  async function read(entry: NavigationEntry) {
+  async function read(entry: NavigationEntry, submitted?: Promise<ReadResult>) {
     const current = ++sequence;
     state.value = {
       ...state.value,
@@ -227,7 +248,7 @@ export function createWorkspace(
       failure: null,
       missing: false,
     };
-    const result = await client.readPage(entry.destination);
+    const result = await (submitted ?? client.readPage(entry.destination));
     if (current !== sequence || result.kind === "stale") return;
     if (result.kind === "document-navigation") {
       if (entry.documentNavigations >= 1) {
@@ -259,6 +280,8 @@ export function createWorkspace(
         state.value = { ...state.value, documentNavigation: entry.destination };
       return;
     }
+    const previousSearch =
+      state.value.result?.kind === "search" ? state.value.result : null;
     const observed = accountKey(result.account);
     if (observed) {
       knownAccount = observed;
@@ -275,6 +298,22 @@ export function createWorkspace(
       for (const other of Object.values(record.entries))
         if (other.account && other.account !== observed) other.result = null;
     }
+    if (
+      previousSearch &&
+      observed &&
+      accountKey(previousSearch.account) !== observed &&
+      !success(result)
+    ) {
+      const retained: ReadResult = {
+        ...previousSearch,
+        account: result.account,
+        generation: result.generation,
+        search: { ...previousSearch.search, effective: null, results: null },
+      };
+      entry.result = retained;
+      entry.account = observed;
+      state.value = { ...state.value, result: retained, restored: false };
+    }
     if (success(result)) {
       if (result.kind === "thread")
         result.thread.target =
@@ -282,6 +321,8 @@ export function createWorkspace(
           result.thread.target;
       entry.result = result;
       entry.account = observed;
+      if (result.kind === "search" && result.search.results)
+        entry.destination = result.search.results.url;
       if (result.kind === "thread") {
         const actual = new URL(result.thread.url);
         const requested = new URL(entry.destination);
@@ -338,9 +379,26 @@ export function createWorkspace(
     if (previous && selection) previous.selection = selection;
     const entry = newEntry(url, previous?.key ?? null);
     host.push(entry.key);
+    const searchContext =
+      current?.kind === "search" ? current : state.value.origin;
+    const searchPage =
+      requested?.kind === "search" &&
+      requested.url.searchParams.has("searchid") &&
+      searchContext?.kind === "search"
+        ? searchContext
+        : null;
+    if (searchPage) {
+      entry.result = searchPage;
+      entry.account = accountKey(searchPage.account);
+    }
     show(entry);
     void persist();
-    await read(entry);
+    await read(
+      entry,
+      searchPage
+        ? client.readSearchPage(url, searchPage.search, searchPage.account)
+        : undefined,
+    );
   }
   function updateAnchor(hash: string) {
     if (!/^#pid[1-9]\d*$/.test(hash)) return;
@@ -436,13 +494,39 @@ export function createWorkspace(
       void persist();
       return;
     }
+    const initial = new URL(destination);
+    if (
+      initial.pathname === "/search.php" &&
+      (initial.searchParams.has("searchid") ||
+        initial.searchParams.has("searchsubmit") ||
+        initial.searchParams.has("srchtxt") ||
+        initial.searchParams.has("srchuname"))
+    ) {
+      const entry = newEntry(
+        routeFor(destination)?.url.href ??
+          `${initial.origin}/search.php?mod=forum&adv=yes`,
+        null,
+      );
+      entry.result = {
+        kind: "invalid",
+        account: { kind: "unknown" },
+        generation: client.generation,
+        sourceURL: entry.destination,
+        message:
+          "This native search request may have used credits or quota before the workspace started. No search has been repeated. Open Search to prepare a deliberate new search.",
+      };
+      host.replace(entry.key);
+      show(entry);
+      void persist();
+      return;
+    }
     const entry = newEntry(destination, null);
     host.replace(entry.key);
     show(entry);
     await read(entry);
   }
   async function refresh() {
-    if (state.value.section !== "boards") return;
+    if (!["boards", "search"].includes(state.value.section)) return;
     clearDownload();
     let entry = entryFor(state.value.key);
     if (!entry) {
@@ -450,6 +534,8 @@ export function createWorkspace(
       host.replace(entry.key);
       show(entry);
     }
+    if (routeFor(entry.destination)?.kind === "search")
+      entry.destination = `${new URL(destination).origin}/search.php?mod=forum&adv=yes`;
     capture();
     await read(entry);
   }
@@ -458,7 +544,17 @@ export function createWorkspace(
     openSection: (section: Section) => {
       if (section === "boards")
         return openThread(`${new URL(destination).origin}/forum.php`);
-      if (state.value.section === section) return;
+      if (
+        state.value.section === section &&
+        (section !== "search" ||
+          state.value.result?.kind === "search" ||
+          state.value.result?.kind === "thread")
+      )
+        return;
+      if (section === "search")
+        return openThread(
+          `${new URL(destination).origin}/search.php?mod=forum&adv=yes`,
+        );
       clearDownload();
       ++sequence;
       capture();
@@ -486,6 +582,32 @@ export function createWorkspace(
     back: () => host.back(),
     setViewAdapter: (adapter: ViewAdapter) => {
       view = adapter;
+    },
+    submitSearch: async (effective = false) => {
+      const entry = entryFor(state.value.key);
+      if (state.value.loading || entry?.result?.kind !== "search") return;
+      const { search, account } = entry.result;
+      const criteria = structuredClone(
+        effective && search.effective ? search.effective : search.edited,
+      );
+      capture();
+      const next = newEntry(search.form.url, entry.key);
+      next.result = entry.result;
+      next.account = entry.account;
+      host.push(next.key);
+      show(next);
+      await read(next, client.search(criteria, search.form, account));
+    },
+    editSearch: (name: string, values: string[]) => {
+      const entry = entryFor(state.value.key);
+      if (entry?.result?.kind !== "search") return;
+      const search = entry.result.search;
+      entry.result = {
+        ...entry.result,
+        search: { ...search, edited: { ...search.edited, [name]: values } },
+      };
+      state.value = { ...state.value, result: entry.result };
+      void persist();
     },
     supports: (url: string) => routeFor(url) !== null,
   };

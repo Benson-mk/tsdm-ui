@@ -6,6 +6,7 @@ const target = `${origin}/forum.php?mod=viewthread&tid=42`;
 const preferencesKey = "tsdm.workspace.preferences";
 const account =
   '<div id="um"><strong><a href="home.php?mod=space&uid=7">Reader Seven</a></strong></div>';
+const searchForm = `${account}<form method="post" action="search.php?mod=forum"><input type="hidden" name="formhash" value="private-token"><input type="hidden" name="searchsubmit" value="yes"><label for="keywords">Keywords</label><input id="keywords" name="srchtxt" type="text"><label for="author">Author</label><input id="author" name="srchuname" type="text"></form>`;
 const thread = `${account}<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music discussion</a></div><div id="postlist"><h1 id="thread_subject">Long Latin listening notes 與繁體中文閱讀記錄</h1>${Array.from({ length: 12 }, (_, i) => `<div id="post_${101 + i}"><div class="authi"><a href="home.php?mod=space&uid=9">Composer Nine</a></div><a id="postnum${101 + i}">${i + 1}</a><div class="pcb">${Array.from({ length: 4 }, (_, p) => `<p>Reading block ${i + 1}.${p + 1}: ${"Complete Latin and 中文內容，保留討論的意思。 ".repeat(12)}</p>`).join("")}<blockquote><p>Nested quotation preserves its type role.</p></blockquote><pre><code>const listening = "音樂";</code></pre><details><summary>Listening details</summary><p>Expanded content stays open.</p></details></div></div>`).join("")}</div>`;
 
 const boardTarget = `${origin}/forum.php?mod=forumdisplay&fid=5`;
@@ -31,9 +32,12 @@ async function open(page: Page, nativeScript = "", destination = target) {
         contentType: "application/json; charset=utf-8",
         body: JSON.stringify({
           document:
-            new URL(request.url()).searchParams.get("mod") === "forumdisplay"
-              ? boardFixture
-              : thread,
+            new URL(request.url()).pathname === "/search.php"
+              ? searchForm
+              : new URL(request.url()).searchParams.get("mod") ===
+                  "forumdisplay"
+                ? boardFixture
+                : thread,
         }),
       });
     }
@@ -112,11 +116,14 @@ test("J2.section-overviews: each destination replaces the reader, supports mediu
     await expect(
       page.getByRole("heading", { name: label, exact: true, level: 1 }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: description, exact: true }),
-    ).toBeVisible();
+    if (label === "Search")
+      await expect(page.getByLabel("Keywords", { exact: true })).toBeVisible();
+    else
+      await expect(
+        page.getByRole("heading", { name: description, exact: true }),
+      ).toBeVisible();
     await expect(page.getByRole("article")).toHaveCount(0);
-    expect(requests).toHaveLength(1);
+    expect(requests).toHaveLength(2);
   }
   await page.reload();
   await expect(
@@ -143,7 +150,7 @@ test("J2.section-overviews: each destination replaces the reader, supports mediu
   await expect(
     page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
   ).toBeVisible();
-  expect(requests).toHaveLength(1);
+  expect(requests).toHaveLength(3);
   await info.attach("narrow-search-overview.png", {
     body: await page.screenshot(),
     contentType: "image/png",

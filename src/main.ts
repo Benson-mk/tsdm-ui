@@ -26,6 +26,8 @@ if (typeof GM_registerMenuCommand === "function")
 if (
   destination.origin === "https://www.tsdm39.com" &&
   (describeDestination(destination.href) ||
+    (destination.pathname === "/search.php" &&
+      destination.searchParams.get("mod") === "forum") ||
     (destination.pathname === "/forum.php" &&
       ["viewthread", "forumdisplay", "redirect"].includes(
         destination.searchParams.get("mod") ?? "",
