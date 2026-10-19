@@ -114,6 +114,16 @@ function post(value: unknown): boolean {
     string(value.floor) &&
     string(value.date) &&
     url(value.url, true) &&
+    (value.attachments === undefined ||
+      list(
+        value.attachments,
+        (attachment) =>
+          object(attachment) &&
+          id(attachment.id) &&
+          string(attachment.name) &&
+          url(attachment.url, true) &&
+          string(attachment.details),
+      )) &&
     list(value.content, content)
   );
 }

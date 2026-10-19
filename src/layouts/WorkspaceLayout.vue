@@ -161,6 +161,16 @@ watch(
   },
   { immediate: true, flush: "sync" },
 );
+const download = props.workspace.download;
+watch(download, async (value) => {
+  if (value?.status !== "ready" && value?.status !== "failure") return;
+  await nextTick();
+  const root = props.portal.getRootNode();
+  if (root instanceof ShadowRoot)
+    root
+      .querySelector("[data-download-status]")
+      ?.scrollIntoView({ block: "nearest" });
+});
 const boardContext = computed(() =>
   state.value.section !== "boards"
     ? null
@@ -226,6 +236,20 @@ function navigate(event: MouseEvent) {
     link.href.includes("tsdm-native")
   )
     return;
+  const current = state.value.result;
+  if (current?.kind === "thread") {
+    const post = current.thread.posts.find(
+      (item) => `pid${item.id}` === link.closest("article")?.id,
+    );
+    const attachment = post?.attachments?.find(
+      (item) => item.url === link.href,
+    );
+    if (post && attachment) {
+      event.preventDefault();
+      void props.workspace.prepareDownload(post.id, attachment.id);
+      return;
+    }
+  }
   const route = describeDestination(link.href);
   if (!route || new URL(route.url).origin !== location.origin) return;
   event.preventDefault();
@@ -634,6 +658,43 @@ const accountLabel = computed(() => {
             :nodes="post.content"
             :language="workspace.preferences.state.value.language"
           />
+          <ul v-if="post.attachments?.length" :aria-label="text.attachments">
+            <li v-for="attachment in post.attachments" :key="attachment.id">
+              <button
+                :disabled="download?.status === 'checking'"
+                @click="workspace.prepareDownload(post.id, attachment.id)"
+              >
+                {{ text.download }} {{ attachment.name }}
+              </button>
+              <section
+                v-if="
+                  download?.postId === post.id &&
+                  download?.attachmentId === attachment.id
+                "
+                data-download-status
+                :aria-label="text.fileDownload"
+              >
+                <strong>{{ download.name }}</strong>
+                <p :role="download.status === 'failure' ? 'alert' : 'status'">
+                  {{
+                    description(
+                      download.message,
+                      workspace.preferences.state.value.language,
+                    )
+                  }}
+                </p>
+                <button
+                  v-if="
+                    download.status === 'ready' ||
+                    download.status === 'requested'
+                  "
+                  @click="workspace.saveDownload()"
+                >
+                  {{ text.saveFile }}
+                </button>
+              </section>
+            </li>
+          </ul>
         </article>
         <nav :aria-label="text.pages">
           <a

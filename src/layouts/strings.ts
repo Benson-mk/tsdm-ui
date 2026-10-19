@@ -1,5 +1,9 @@
 import type { Preferences } from "../workspace/preferences";
 const english = {
+  attachments: "Attachments",
+  download: "Download",
+  saveFile: "Save file",
+  fileDownload: "File download",
   settings: "Settings",
   settingsDescription: "Changes preview and save immediately.",
   textSize: "Text size",
@@ -94,6 +98,10 @@ const english = {
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
+  attachments: "附件",
+  download: "下载",
+  saveFile: "保存文件",
+  fileDownload: "文件下载",
   settings: "设置",
   settingsDescription: "更改会立即预览并保存。",
   textSize: "文字大小",
@@ -182,6 +190,10 @@ const simplified: Strings = {
   draftsScope: "已保存的论坛草稿",
 };
 const traditional: Strings = {
+  attachments: "附件",
+  download: "下載",
+  saveFile: "儲存檔案",
+  fileDownload: "檔案下載",
   settings: "設定",
   settingsDescription: "變更會立即預覽並儲存。",
   textSize: "文字大小",
@@ -282,6 +294,102 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "This download attempt was replaced or cancelled.": [
+    "本次下载已被替代或取消。",
+    "本次下載已被取代或取消。",
+  ],
+  "File downloads are unavailable in this host.": [
+    "当前运行环境不支持文件下载。",
+    "目前執行環境不支援檔案下載。",
+  ],
+  "Current attachment access could not be confirmed. Refresh the thread or continue in the native forum.":
+    [
+      "无法确认当前附件权限。请刷新主题或在原版论坛中继续。",
+      "無法確認目前附件權限。請重新整理主題或在原版論壇中繼續。",
+    ],
+  "The forum account changed or could not be confirmed. Refresh the thread before downloading.":
+    [
+      "论坛账号已改变或无法确认。请刷新主题后再下载。",
+      "論壇帳號已變更或無法確認。請重新整理主題後再下載。",
+    ],
+  "The forum no longer offers this attachment for direct download. No purchase was attempted.":
+    [
+      "论坛已不再提供此附件的直接下载。未尝试购买。",
+      "論壇已不再提供此附件的直接下載。未嘗試購買。",
+    ],
+  "The forum account changed while receiving the file. Refresh the thread before downloading.":
+    [
+      "接收文件时论坛账号发生了改变。请刷新主题后再下载。",
+      "接收檔案時論壇帳號發生了變更。請重新整理主題後再下載。",
+    ],
+  "The forum returned a different file destination. Nothing is ready to save.":
+    [
+      "论坛返回了不同的文件目标。没有可保存的文件。",
+      "論壇傳回了不同的檔案目標。沒有可儲存的檔案。",
+    ],
+  "The file transfer failed or was interrupted. Nothing is ready to save.": [
+    "文件传输失败或已中断。没有可保存的文件。",
+    "檔案傳輸失敗或已中斷。沒有可儲存的檔案。",
+  ],
+  "The forum returned a login page instead of a file. Sign in through the native forum, then try again.":
+    [
+      "论坛返回了登录页面，未返回文件。请在原版论坛登录后重试。",
+      "論壇傳回了登入頁面，未傳回檔案。請在原版論壇登入後重試。",
+    ],
+  "The forum returned a verification challenge instead of a file. Complete it in the native forum.":
+    [
+      "论坛返回了验证页面，未返回文件。请在原版论坛完成验证。",
+      "論壇傳回了驗證頁面，未傳回檔案。請在原版論壇完成驗證。",
+    ],
+  "The forum requires payment before download. No purchase was attempted and no file is ready to save.":
+    [
+      "论坛要求付费后才能下载。未尝试购买，也没有可保存的文件。",
+      "論壇要求付費後才能下載。未嘗試購買，也沒有可儲存的檔案。",
+    ],
+  "The forum refused download permission. No file is ready to save.": [
+    "论坛拒绝了下载权限。没有可保存的文件。",
+    "論壇拒絕了下載權限。沒有可儲存的檔案。",
+  ],
+  "The attachment file is missing. No file is ready to save.": [
+    "附件文件不存在。没有可保存的文件。",
+    "附件檔案不存在。沒有可儲存的檔案。",
+  ],
+  "The forum returned an HTML page instead of a confirmed file. Nothing is ready to save.":
+    [
+      "论坛返回了 HTML 页面，无法确认是文件。没有可保存的文件。",
+      "論壇傳回了 HTML 頁面，無法確認是檔案。沒有可儲存的檔案。",
+    ],
+  "The forum returned a response document instead of a confirmed file. Nothing is ready to save.":
+    [
+      "论坛返回了响应文档，无法确认是文件。没有可保存的文件。",
+      "論壇傳回了回應文件，無法確認是檔案。沒有可儲存的檔案。",
+    ],
+  "The forum did not return a complete file. Nothing is ready to save.": [
+    "论坛未返回完整文件。没有可保存的文件。",
+    "論壇未傳回完整檔案。沒有可儲存的檔案。",
+  ],
+  "The file response was empty or incomplete. Nothing is ready to save.": [
+    "文件响应为空或不完整。没有可保存的文件。",
+    "檔案回應為空或不完整。沒有可儲存的檔案。",
+  ],
+  "Browser file preparation failed. No save was requested.": [
+    "浏览器准备文件失败。尚未请求保存。",
+    "瀏覽器準備檔案失敗。尚未要求儲存。",
+  ],
+  "Browser save could not start. File delivery is unconfirmed.": [
+    "无法启动浏览器保存。文件是否送达尚未确认。",
+    "無法啟動瀏覽器儲存。檔案是否送達尚未確認。",
+  ],
+  "Checking current attachment access and receiving file…": [
+    "正在检查当前附件权限并接收文件…",
+    "正在檢查目前附件權限並接收檔案…",
+  ],
+  "File ready to save": ["文件已准备好，可以保存", "檔案已準備好，可以儲存"],
+  "Browser save requested. Check your browser Downloads for completion; this workspace cannot confirm whether the file was saved or cancelled.":
+    [
+      "已请求浏览器保存。请在浏览器的下载记录中检查是否完成；本工作区无法确认文件是否已保存或已取消。",
+      "已要求瀏覽器儲存。請在瀏覽器的下載紀錄中檢查是否完成；本工作區無法確認檔案是否已儲存或已取消。",
+    ],
   "Scrollable code": ["可滚动的代码", "可捲動的程式碼"],
   "Scrollable table": ["可滚动的表格", "可捲動的表格"],
   Login: ["需要登录", "需要登入"],

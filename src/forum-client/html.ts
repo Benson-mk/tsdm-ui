@@ -139,6 +139,7 @@ export function content(node: Node, base: string): ContentNode[] {
           children: [],
         },
       ];
+    if (child.tagName === "ignore_js_op") return content(child, base);
     if (interactive.has(child.tagName))
       return [
         {

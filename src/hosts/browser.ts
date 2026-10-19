@@ -1,9 +1,27 @@
 import type { ForumTransport } from "../forum-client";
 export function createBrowserTransport(): ForumTransport {
   return {
-    async request(url) {
+    async requestFile(url) {
       const response = await fetch(url, {
         credentials: "same-origin",
+        redirect: "error",
+        cache: "no-store",
+      });
+      return {
+        status: response.status,
+        url: response.url,
+        redirected: response.redirected,
+        contentType: response.headers.get("content-type") ?? "",
+        contentLength: response.headers.get("content-length"),
+        contentEncoding: response.headers.get("content-encoding") ?? "",
+        disposition: response.headers.get("content-disposition") ?? "",
+        bytes: new Uint8Array(await response.arrayBuffer()),
+      };
+    },
+    async request(url, options) {
+      const response = await fetch(url, {
+        credentials: "same-origin",
+        cache: options?.fresh ? "no-store" : "default",
         redirect:
           new URL(url).searchParams.get("mod") === "redirect"
             ? "manual"

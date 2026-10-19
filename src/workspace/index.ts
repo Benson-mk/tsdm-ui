@@ -1,3 +1,4 @@
+import type { DownloadHost, PreparedFile } from "../hosts/download";
 import { shallowRef, readonly, nextTick } from "vue";
 import { createPreferences, type PreferenceHost } from "./preferences";
 import {
@@ -46,6 +47,7 @@ export function createWorkspace(
   destination: string,
   host: NavigationHost,
   preferenceHost: PreferenceHost,
+  downloads?: DownloadHost,
 ) {
   const preferences = createPreferences(preferenceHost);
   const state = shallowRef<WorkspaceState>({
@@ -64,6 +66,95 @@ export function createWorkspace(
     origin: null,
     documentNavigation: null,
   });
+  const download = shallowRef<{
+    status: "checking" | "ready" | "requested" | "failure";
+    name: string;
+    message: string;
+    postId: string;
+    attachmentId: string;
+  } | null>(null);
+  let prepared: PreparedFile | null = null;
+  let downloadSequence = 0;
+  function clearDownload() {
+    downloadSequence++;
+    client.cancelDownload();
+    prepared?.dispose();
+    prepared = null;
+    download.value = null;
+  }
+  async function prepareDownload(postId: string, attachmentId: string) {
+    if (download.value?.status === "checking") return;
+    const result = state.value.result;
+    if (result?.kind !== "thread") return;
+    const attachment = result.thread.posts
+      .find((post) => post.id === postId)
+      ?.attachments?.find((item) => item.id === attachmentId);
+    if (!attachment) return;
+    clearDownload();
+    const ticket = downloadSequence;
+    const identity = { postId, attachmentId };
+    download.value = {
+      ...identity,
+      status: "checking",
+      name: attachment.name,
+      message: "Checking current attachment access and receiving file…",
+    };
+    const received = await client.downloadAttachment({
+      threadURL: result.thread.url,
+      postId,
+      attachmentId,
+      account: result.account,
+    });
+    if (ticket !== downloadSequence) return;
+    if (received.kind !== "file") {
+      download.value = {
+        ...identity,
+        status: "failure",
+        name: attachment.name,
+        message: received.message,
+      };
+      return;
+    }
+    try {
+      if (!downloads) throw new Error("No download host");
+      prepared = downloads.prepare(
+        received.bytes,
+        received.name,
+        received.contentType,
+      );
+      download.value = {
+        ...identity,
+        status: "ready",
+        name: received.name,
+        message: "File ready to save",
+      };
+    } catch {
+      download.value = {
+        ...identity,
+        status: "failure",
+        name: attachment.name,
+        message: "Browser file preparation failed. No save was requested.",
+      };
+    }
+  }
+  function saveDownload() {
+    if (!prepared || !download.value) return;
+    try {
+      prepared.save();
+      download.value = {
+        ...download.value,
+        status: "requested",
+        message:
+          "Browser save requested. Check your browser Downloads for completion; this workspace cannot confirm whether the file was saved or cancelled.",
+      };
+    } catch {
+      download.value = {
+        ...download.value,
+        status: "failure",
+        message: "Browser save could not start. File delivery is unconfirmed.",
+      };
+    }
+  }
   let sequence = 0;
   let record: NavigationRecord = { schema: 1, entries: {}, pending: null };
   const entryFor = (key: string) =>
@@ -227,6 +318,7 @@ export function createWorkspace(
     void persist();
   }
   async function openThread(url: string, selection: string | null = null) {
+    clearDownload();
     const current = state.value.result;
     const requested = routeFor(url);
     if (
@@ -274,6 +366,7 @@ export function createWorkspace(
     void persist();
   }
   function restoreHistory(key: string | null) {
+    clearDownload();
     ++sequence;
     capture();
     const entry = key ? entryFor(key) : null;
@@ -350,6 +443,7 @@ export function createWorkspace(
   }
   async function refresh() {
     if (state.value.section !== "boards") return;
+    clearDownload();
     let entry = entryFor(state.value.key);
     if (!entry) {
       entry = newEntry(`${new URL(destination).origin}/forum.php`, null);
@@ -365,6 +459,7 @@ export function createWorkspace(
       if (section === "boards")
         return openThread(`${new URL(destination).origin}/forum.php`);
       if (state.value.section === section) return;
+      clearDownload();
       ++sequence;
       capture();
       const entry = newEntry(
@@ -377,6 +472,9 @@ export function createWorkspace(
       void persist();
     },
     state: readonly(state),
+    download: readonly(download),
+    prepareDownload,
+    saveDownload,
     continueWithoutRecovery: () => {
       if (state.value.documentNavigation)
         host.navigateDocument(state.value.documentNavigation);

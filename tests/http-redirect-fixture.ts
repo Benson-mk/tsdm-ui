@@ -20,7 +20,12 @@ async function listen(server: Server): Promise<number> {
  */
 export async function withRedirectFixture(
   browser: Browser,
-  fixture: { origin: string; redirect: string; document: (url: URL) => string },
+  fixture: {
+    origin: string;
+    redirect: string;
+    document: (url: URL) => string;
+    readHeaders?: Record<string, string>;
+  },
   run: (page: Page, reads: string[], redirects: string[]) => Promise<void>,
 ) {
   const directory = mkdtempSync(join(tmpdir(), "tsdm-http-fixture-"));
@@ -81,7 +86,10 @@ export async function withRedirectFixture(
       }
       if (url.searchParams.get("tsdmapp") === "json") {
         reads.push(url.href);
-        response.writeHead(200, { "content-type": "application/json" });
+        response.writeHead(200, {
+          "content-type": "application/json",
+          ...fixture.readHeaders,
+        });
         response.end(JSON.stringify({ document: fixture.document(url) }));
         return;
       }

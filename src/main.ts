@@ -1,3 +1,4 @@
+import { createBrowserDownloads } from "./hosts/download";
 import { createApp } from "vue";
 import { createForumClient, describeDestination } from "./forum-client";
 import {
@@ -53,6 +54,7 @@ if (
       destination.href,
       createBrowserNavigation(),
       createBrowserPreferences(),
+      createBrowserDownloads(),
     );
     recover = async () =>
       location.assign(nativeDestination(workspace.state.value.destination));

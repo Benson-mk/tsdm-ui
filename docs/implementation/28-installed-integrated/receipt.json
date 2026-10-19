@@ -1,0 +1,196 @@
+{
+  "schema": 1,
+  "runId": "issue-28-integrated-installed-development-2026-10-19",
+  "timezone": "Asia/Hong_Kong",
+  "mode": "installed-development-authored-summary",
+  "status": "passed",
+  "candidate": {
+    "version": "0.2.0",
+    "bytes": 711942,
+    "userscriptSHA256": "ff571bd9e5516db0142c6d07c6ed683418b8719c122d4599cffe88b1cba54fe9",
+    "edgeStoredSourceSHA256": "ff571bd9e5516db0142c6d07c6ed683418b8719c122d4599cffe88b1cba54fe9",
+    "chromeStoredSourceSHA256": "ff571bd9e5516db0142c6d07c6ed683418b8719c122d4599cffe88b1cba54fe9"
+  },
+  "runtime": {
+    "os": "macOS 15.6.0",
+    "architecture": "arm",
+    "browserVersions": {
+      "edge": "155.0.4283.62",
+      "chrome": "155.0.8059.84"
+    },
+    "browserVersionSource": "current high-entropy userAgentData fullVersionList",
+    "managerVersion": "BETA 5.6.6242",
+    "editorsVersion": "1.0.7",
+    "managerVersionSource": "user-reported"
+  },
+  "executionOrder": ["edge", "chrome"],
+  "sourceIdentity": {
+    "officialMCPBackupAndExactReadback": true,
+    "listedSourcesPerBrowser": 1,
+    "executingShadowRootHostsPerBrowser": 1
+  },
+  "cases": [
+    {
+      "name": "J8.edge-ordinary-integrated-installed",
+      "status": "passed",
+      "fileAlias": "ordinary-A.txt",
+      "expectedBytes": 47,
+      "savedBytes": 47,
+      "savedName": {
+        "nativeFilenameMatchedBeforeCollisionSuffix": true,
+        "collisionSuffix": 9
+      },
+      "independentReadback": {
+        "fileSystemStatBytesAndHash": "matched independently supplied original",
+        "repeatFileSystemRecheck": "matched",
+        "nativeDownloadsPageCompletion": "not observed; internal page navigation blocked",
+        "exactPrivateIdentityRetained": true
+      },
+      "byteNormalization": "none",
+      "network": {
+        "freshContainingThreadGET": 1,
+        "attachmentGET": 1,
+        "postRequests": 0,
+        "purchaseRequests": 0,
+        "retries": 0,
+        "binaryHasTsdmapp": false,
+        "binaryStatus": 200,
+        "binaryContentType": "application/octet-stream",
+        "binaryContentLength": 47
+      },
+      "appearance": {
+        "language": "en",
+        "preparedFilePreservedAcrossLanguageChange": false,
+        "nativeFilenamePreserved": true
+      },
+      "productStatus": "Browser save requested; saved/cancelled outcome unconfirmed by the application"
+    },
+    {
+      "name": "J8.edge-paid-integrated-installed",
+      "status": "passed",
+      "fileAlias": "paid-A.txt",
+      "expectedBytes": 169,
+      "savedBytes": 169,
+      "savedName": {
+        "nativeFilenameMatchedBeforeCollisionSuffix": true,
+        "collisionSuffix": 2
+      },
+      "independentReadback": {
+        "fileSystemStatBytesAndHash": "matched independently supplied original",
+        "repeatFileSystemRecheck": "matched",
+        "nativeDownloadsPageCompletion": "not observed; internal page navigation blocked",
+        "exactPrivateIdentityRetained": true
+      },
+      "byteNormalization": "none",
+      "network": {
+        "freshContainingThreadGET": 1,
+        "attachmentGET": 1,
+        "postRequests": 0,
+        "purchaseRequests": 0,
+        "retries": 0,
+        "binaryHasTsdmapp": false,
+        "binaryStatus": 200,
+        "binaryContentType": "application/octet-stream",
+        "binaryContentLength": 169
+      },
+      "appearance": {
+        "language": "zh-TW",
+        "preparedFilePreservedAcrossLanguageChange": true,
+        "nativeFilenamePreserved": true
+      },
+      "productStatus": "Browser save requested; saved/cancelled outcome unconfirmed by the application"
+    },
+    {
+      "name": "J8.chrome-ordinary-integrated-installed",
+      "status": "passed",
+      "fileAlias": "ordinary-A.txt",
+      "expectedBytes": 47,
+      "savedBytes": 47,
+      "savedName": {
+        "nativeFilenameMatchedBeforeCollisionSuffix": true,
+        "collisionSuffix": 10
+      },
+      "independentReadback": {
+        "fileSystemStatBytesAndHash": "matched independently supplied original",
+        "repeatFileSystemRecheck": "matched",
+        "nativeDownloadsPageCompletion": "not observed; internal page navigation blocked",
+        "exactPrivateIdentityRetained": true
+      },
+      "byteNormalization": "none",
+      "network": {
+        "freshContainingThreadGET": 1,
+        "attachmentGET": 1,
+        "postRequests": 0,
+        "purchaseRequests": 0,
+        "retries": 0,
+        "binaryHasTsdmapp": false,
+        "binaryStatus": 200,
+        "binaryContentType": "application/octet-stream",
+        "binaryContentLength": 47
+      },
+      "appearance": {
+        "language": "en",
+        "preparedFilePreservedAcrossLanguageChange": false,
+        "nativeFilenamePreserved": true
+      },
+      "productStatus": "Browser save requested; saved/cancelled outcome unconfirmed by the application"
+    },
+    {
+      "name": "J8.chrome-paid-integrated-installed",
+      "status": "passed",
+      "fileAlias": "paid-A.txt",
+      "expectedBytes": 169,
+      "savedBytes": 169,
+      "savedName": {
+        "nativeFilenameMatchedBeforeCollisionSuffix": true,
+        "collisionSuffix": 3
+      },
+      "independentReadback": {
+        "fileSystemStatBytesAndHash": "matched independently supplied original",
+        "repeatFileSystemRecheck": "matched",
+        "nativeDownloadsPageCompletion": "not observed; internal page navigation blocked",
+        "exactPrivateIdentityRetained": true
+      },
+      "byteNormalization": "none",
+      "network": {
+        "freshContainingThreadGET": 1,
+        "attachmentGET": 1,
+        "postRequests": 0,
+        "purchaseRequests": 0,
+        "retries": 0,
+        "binaryHasTsdmapp": false,
+        "binaryStatus": 200,
+        "binaryContentType": "application/octet-stream",
+        "binaryContentLength": 169
+      },
+      "appearance": {
+        "language": "zh-CN",
+        "preparedFilePreservedAcrossLanguageChange": true,
+        "nativeFilenamePreserved": true
+      },
+      "productStatus": "Browser save requested; saved/cancelled outcome unconfirmed by the application"
+    }
+  ],
+  "synthetic": {
+    "run": "2026-10-19T10-14-34.443Z",
+    "casesPassed": 138,
+    "downloadCases": 39,
+    "newIntegrationCases": 7,
+    "consumerRun": "consumer-2026-10-19T10-14-39.833Z",
+    "consumer": "passed"
+  },
+  "review": {
+    "completedSourceBDFLDelta": "accepted; no confirmed integration defect",
+    "finalInstalledBDFLReconciliation": "accepted; all four criteria verified in declared development scope",
+    "additionalProductionTradeoffs": 0
+  },
+  "limits": [
+    "Selected macOS BETA development environment; stable/Windows/full-spec release qualification remains later.",
+    "Product reports save requested without a disk-completion callback; direct filesystem bytes establish actual delivery.",
+    "Internal Downloads-page navigation was blocked. No successful native Downloads-page completion observation is claimed.",
+    "Files were identified by new specific fixture names/timestamps after one Save, then independently reread and hashed; no repeat save was needed.",
+    "Markup-leading, HTML/JSON/XML and empty payloads remain conservatively withheld.",
+    "Private member captures, paths, paid filenames/contents/identifiers/hash remain private.",
+    "One paid fixture was established beforehand by a separately authorized native 9-credit purchase; no application purchase occurred."
+  ]
+}

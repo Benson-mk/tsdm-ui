@@ -5,8 +5,40 @@ export interface HostResponse {
   body: string;
   redirect?: "opaque" | "followed" | "none";
 }
+export interface FileResponse {
+  status: number;
+  url: string;
+  contentType: string;
+  contentLength: string | null;
+  contentEncoding: string;
+  disposition: string;
+  redirected: boolean;
+  bytes: Uint8Array;
+}
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  details: string;
+}
+export type AttachmentResult =
+  | {
+      kind: "file";
+      name: string;
+      contentType: string;
+      bytes: Uint8Array;
+      generation: number;
+    }
+  | { kind: FailureKind; message: string };
+export interface AttachmentRequest {
+  threadURL: string;
+  postId: string;
+  attachmentId: string;
+  account: Account;
+}
 export interface ForumTransport {
-  request(url: string): Promise<HostResponse>;
+  requestFile?(url: string): Promise<FileResponse>;
+  request(url: string, options?: { fresh?: boolean }): Promise<HostResponse>;
 }
 export type Account =
   | { kind: "member"; id: string; name: string }
@@ -33,6 +65,7 @@ export interface Post {
   date: string;
   url: string;
   content: ContentNode[];
+  attachments?: Attachment[];
 }
 export interface ForumLink {
   label: string;
@@ -133,8 +166,10 @@ export type ReadResult =
       sourceURL: string;
     };
 export interface ForumClient {
+  cancelDownload(): void;
+  downloadAttachment(request: AttachmentRequest): Promise<AttachmentResult>;
   readThread(url: string): Promise<ReadResult>;
-  readPage(url: string): Promise<ReadResult>;
+  readPage(url: string, options?: { fresh?: boolean }): Promise<ReadResult>;
   readonly account: Account;
   readonly generation: number;
 }

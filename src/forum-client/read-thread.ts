@@ -1,3 +1,4 @@
+import { attachments } from "./attachments.js";
 import { pagination, link } from "./read-board.js";
 import { routeFor, cleanURL } from "./routes.js";
 import { threadURL } from "./routes.js";
@@ -300,6 +301,7 @@ export function decodeThread(
       : null;
     return {
       id,
+      attachments: attachments(wrapper, response.url),
       author: label(author) || "Anonymous",
       authorId: authorURL ? new URL(authorURL).searchParams.get("uid") : null,
       floor: label(

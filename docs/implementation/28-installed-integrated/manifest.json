@@ -1,0 +1,10 @@
+{
+  "receipt.json": {
+    "bytes": 7361,
+    "sha256": "2d5806bf00a3de65cd3d824fdf5266e2b36f113cf402399318de66618d38d63e"
+  },
+  "report.md": {
+    "bytes": 4210,
+    "sha256": "6ee58c78001f6000534336975d069ea97c8691512a9c0bb5689e4a64464e31c9"
+  }
+}

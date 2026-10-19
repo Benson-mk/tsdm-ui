@@ -39,8 +39,15 @@ export default class EvidenceReporter implements Reporter {
   onTestEnd(test: TestCase, result: TestResult) {
     const attachments: string[] = [];
     for (const [index, attachment] of result.attachments.entries()) {
-      if (attachment.contentType !== "image/png" || !attachment.body) continue;
-      const name = `synthetic/${test.id.replace(/[^a-zA-Z0-9-]/g, "_")}-${index}.png`;
+      const extensions: Record<string, string> = {
+        "image/png": "png",
+        "text/plain": "txt",
+        "application/json": "json",
+        "application/octet-stream": "bin",
+      };
+      const extension = extensions[attachment.contentType];
+      if (!extension || !attachment.body) continue;
+      const name = `synthetic/${test.id.replace(/[^a-zA-Z0-9-]/g, "_")}-${index}.${extension}`;
       writeFileSync(join(this.directory, name), attachment.body);
       attachments.push(name);
     }
