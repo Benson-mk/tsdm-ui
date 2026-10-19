@@ -1,4 +1,5 @@
 import { shallowRef, readonly, nextTick } from "vue";
+import { createPreferences, type PreferenceHost } from "./preferences";
 import {
   describeDestination,
   type Account,
@@ -10,8 +11,10 @@ import type {
   NavigationHost,
   NavigationRecord,
   ViewAdapter,
+  Section,
 } from "./navigation";
 export interface WorkspaceState {
+  section: Section;
   loading: boolean;
   result: ReadResult | null;
   failure: ReadResult | null;
@@ -42,8 +45,11 @@ export function createWorkspace(
   client: ForumClient,
   destination: string,
   host: NavigationHost,
+  preferenceHost: PreferenceHost,
 ) {
+  const preferences = createPreferences(preferenceHost);
   const state = shallowRef<WorkspaceState>({
+    section: "boards",
     loading: false,
     result: null,
     failure: null,
@@ -80,14 +86,17 @@ export function createWorkspace(
       entry.account !== knownAccount;
     state.value = {
       ...state.value,
+      section: entry.section ?? "boards",
       key: entry.key,
       destination: entry.destination,
       result: mismatch ? null : entry.result,
       failure: null,
       loading: false,
       selection: entry.selection,
-      missing: mismatch || !entry.result,
-      stale: restored,
+      missing:
+        mismatch ||
+        (!entry.result && (!entry.section || entry.section === "boards")),
+      stale: restored && entry.result !== null,
       restored,
       canBack: entry.originKey !== null,
       documentNavigation: null,
@@ -106,6 +115,7 @@ export function createWorkspace(
   function newEntry(url: string, originKey: string | null): NavigationEntry {
     const entry: NavigationEntry = {
       key: crypto.randomUUID(),
+      section: "boards",
       destination: url,
       originKey,
       selection: null,
@@ -271,6 +281,7 @@ export function createWorkspace(
     else
       state.value = {
         ...state.value,
+        section: "boards",
         key: key ?? "",
         loading: false,
         result: null,
@@ -338,6 +349,7 @@ export function createWorkspace(
     await read(entry);
   }
   async function refresh() {
+    if (state.value.section !== "boards") return;
     let entry = entryFor(state.value.key);
     if (!entry) {
       entry = newEntry(`${new URL(destination).origin}/forum.php`, null);
@@ -348,6 +360,22 @@ export function createWorkspace(
     await read(entry);
   }
   return {
+    preferences,
+    openSection: (section: Section) => {
+      if (section === "boards")
+        return openThread(`${new URL(destination).origin}/forum.php`);
+      if (state.value.section === section) return;
+      ++sequence;
+      capture();
+      const entry = newEntry(
+        `${new URL(destination).origin}/forum.php`,
+        state.value.key || null,
+      );
+      entry.section = section;
+      host.push(entry.key);
+      show(entry);
+      void persist();
+    },
     state: readonly(state),
     continueWithoutRecovery: () => {
       if (state.value.documentNavigation)

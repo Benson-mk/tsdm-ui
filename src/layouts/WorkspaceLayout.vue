@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import {
   DialogRoot,
   DialogTrigger,
@@ -11,18 +11,165 @@ import {
   DialogClose,
 } from "reka-ui";
 import ContentView from "../components/ContentView";
+import SettingsDialog from "../components/SettingsDialog.vue";
 import type { Workspace } from "../workspace";
 import { describeDestination } from "../forum-client";
 import { nativeDestination } from "../hosts/browser";
+import { strings, insert, description } from "./strings";
+import type { Section } from "../workspace/navigation";
 const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
 const state = props.workspace.state;
+const text = computed(() =>
+  strings(props.workspace.preferences.state.value.language),
+);
+const sections: Section[] = ["boards", "search", "saved", "notices", "drafts"];
+const sectionInfo = computed(() => {
+  const section = state.value.section;
+  if (section === "boards") return null;
+  return {
+    title: text.value[section],
+    heading: text.value[`${section}Heading`],
+    description: text.value[`${section}Overview`],
+    secondary:
+      section === "saved"
+        ? [text.value.savedBoards, text.value.savedThreads]
+        : [text.value[`${section}Scope`]],
+    nativeURL:
+      section === "search"
+        ? "https://www.tsdm39.com/search.php?mod=forum"
+        : section === "saved"
+          ? "https://www.tsdm39.com/home.php?mod=space&do=favorite&type=thread"
+          : section === "notices"
+            ? "https://www.tsdm39.com/home.php?mod=space&do=notice"
+            : "https://www.tsdm39.com/home.php?mod=space&do=thread&view=me&type=thread&filter=save",
+  };
+});
+function chooseSection(event: Event) {
+  if (
+    event.target instanceof HTMLSelectElement &&
+    sections.includes(event.target.value as Section)
+  )
+    void props.workspace.openSection(event.target.value as Section);
+}
+type PanePosition = {
+  pane: HTMLElement;
+  anchor: HTMLElement;
+  offset: number;
+  paneTop: number;
+};
+let viewportPositions: PanePosition[] = [];
+let viewportWidth = window.innerWidth;
+let viewportHeight = window.innerHeight;
+const workspaceHost = () =>
+  (props.portal.getRootNode() as ShadowRoot).host as HTMLElement;
+function capturePositions(): PanePosition[] {
+  return [
+    ...(workspaceHost().shadowRoot?.querySelectorAll<HTMLElement>(".pane") ??
+      []),
+  ].flatMap((pane) => {
+    if (!pane.getClientRects().length) return [];
+    const bounds = pane.getBoundingClientRect();
+    const anchor = [
+      ...pane.querySelectorAll<HTMLElement>(
+        ".post-content p, .post-content pre, .post-content .table-overflow, .post-content summary, .thread-row, .board-card, .board-group > h2, .thread-heading",
+      ),
+    ].find(
+      (node) =>
+        node.getBoundingClientRect().bottom > bounds.top + 1 &&
+        node.getBoundingClientRect().top < bounds.bottom,
+    );
+    return anchor
+      ? [
+          {
+            pane,
+            anchor,
+            offset: anchor.getBoundingClientRect().top,
+            paneTop: bounds.top,
+          },
+        ]
+      : [];
+  });
+}
+function rememberPositions() {
+  if (
+    window.innerWidth !== viewportWidth ||
+    window.innerHeight !== viewportHeight
+  )
+    return;
+  const current = capturePositions();
+  viewportPositions = [
+    ...viewportPositions.filter(
+      ({ pane }) =>
+        pane.isConnected && !current.some((position) => position.pane === pane),
+    ),
+    ...current,
+  ];
+}
+function restorePositions(positions: PanePosition[], relativeToPane = false) {
+  for (const { pane, anchor, offset, paneTop } of positions)
+    if (anchor.isConnected && pane.getClientRects().length)
+      pane.scrollTop +=
+        anchor.getBoundingClientRect().top -
+        offset -
+        (relativeToPane ? pane.getBoundingClientRect().top - paneTop : 0);
+}
+function resize() {
+  restorePositions(viewportPositions, true);
+  viewportWidth = window.innerWidth;
+  viewportHeight = window.innerHeight;
+  rememberPositions();
+}
+watch(() => [state.value.result, state.value.section], rememberPositions, {
+  flush: "post",
+});
+onMounted(() => {
+  rememberPositions();
+  workspaceHost().shadowRoot!.addEventListener(
+    "scroll",
+    rememberPositions,
+    true,
+  );
+  window.addEventListener("resize", resize);
+});
+onUnmounted(() => {
+  workspaceHost().shadowRoot!.removeEventListener(
+    "scroll",
+    rememberPositions,
+    true,
+  );
+  window.removeEventListener("resize", resize);
+});
+watch(
+  props.workspace.preferences.state,
+  () => {
+    const host = workspaceHost();
+    const positions = capturePositions();
+    host.style.setProperty(
+      "--text-scale",
+      String(props.workspace.preferences.state.value.textSize / 100),
+    );
+    host.dataset.theme = props.workspace.preferences.state.value.theme;
+    host.dataset.spacing =
+      props.workspace.preferences.state.value.textSize < 100
+        ? "compact"
+        : "default";
+    host.lang = props.workspace.preferences.state.value.language;
+    void nextTick().then(() => {
+      restorePositions(positions);
+      rememberPositions();
+    });
+  },
+  { immediate: true, flush: "sync" },
+);
 const boardContext = computed(() =>
-  state.value.result?.kind === "board"
-    ? state.value.result.board
-    : state.value.result?.kind !== "directory" &&
-        state.value.origin?.kind === "board"
-      ? state.value.origin.board
-      : null,
+  state.value.section !== "boards"
+    ? null
+    : state.value.result?.kind === "board"
+      ? state.value.result.board
+      : state.value.result?.kind !== "directory" &&
+          state.value.origin?.kind === "board"
+        ? state.value.origin.board
+        : null,
 );
 const selectedThread = computed(() =>
   state.value.result?.kind === "thread" ? state.value.result.thread.id : null,
@@ -130,14 +277,14 @@ onMounted(() => {
 const accountLabel = computed(() => {
   const account = state.value.result?.account;
   if (state.value.restored && account?.kind === "member")
-    return `Snapshot from ${account.name}`;
+    return insert(text.value.snapshotMember, account.name);
   if (state.value.restored && account?.kind === "guest")
-    return "Snapshot from guest browsing";
+    return text.value.snapshotGuest;
   return account?.kind === "member"
-    ? `Signed in as ${account.name}`
+    ? insert(text.value.signedIn, account.name)
     : account?.kind === "guest"
-      ? "Browsing as a guest"
-      : "Account not yet confirmed";
+      ? text.value.guest
+      : text.value.accountUnknown;
 });
 </script>
 <template>
@@ -145,53 +292,57 @@ const accountLabel = computed(() => {
     <header>
       <a class="brand" href="https://www.tsdm39.com/">TSDM</a
       ><span>{{ accountLabel }}</span>
+      <SettingsDialog :workspace="workspace" :portal="portal" />
       <DialogRoot v-model:open="aboutOpen"
-        ><DialogTrigger>About this workspace</DialogTrigger
+        ><DialogTrigger>{{ text.about }}</DialogTrigger
         ><DialogPortal :to="portal"
           ><DialogOverlay class="dialog-overlay" /><DialogContent
             class="dialog-content"
             @keydown.esc="closeAboutOnEscape"
-            ><DialogTitle>About this workspace</DialogTitle
-            ><DialogDescription
-              >TSDM Workspace 0.2.0. Reading uses your current forum
-              account.</DialogDescription
-            >
+            ><DialogTitle>{{ text.about }}</DialogTitle
+            ><DialogDescription>{{ text.aboutDescription }}</DialogDescription>
             <p>
-              For unsupported content or verification, continue at the same
-              destination in the native forum.
+              {{ text.nativeHelp }}
             </p>
-            <DialogClose>Close</DialogClose></DialogContent
+            <DialogClose>{{ text.close }}</DialogClose></DialogContent
           ></DialogPortal
         ></DialogRoot
       >
     </header>
     <div class="workspace-tools">
-      <nav aria-label="Thread actions">
+      <nav :aria-label="text.actions">
         <a
           v-if="state.result?.kind !== 'directory'"
           class="narrow-overview-link"
           href="https://www.tsdm39.com/forum.php"
-          >All boards</a
+          >{{ text.allBoards }}</a
         >
-        <button v-if="state.canBack" @click="workspace.back()">Back</button
+        <button v-if="state.canBack" @click="workspace.back()">
+          {{ text.back }}</button
         ><button @click="workspace.refresh()">
           {{
             state.destination.includes("mod=viewthread")
-              ? "Refresh thread"
-              : "Refresh"
+              ? text.refreshThread
+              : text.refresh
           }}</button
-        ><a :href="nativeDestination(state.destination)"
-          >Continue in native forum</a
+        ><a
+          :href="nativeDestination(sectionInfo?.nativeURL ?? state.destination)"
+          >{{ text.native }}</a
         >
       </nav>
-      <label class="board-picker"
-        >Board navigation<select
-          aria-label="Board navigation"
+      <label v-if="state.section === 'boards'" class="board-picker"
+        >{{ text.boardNavigation
+        }}<select
+          :aria-label="text.boardNavigation"
           :value="pickerValue"
           @change="chooseBoard"
         >
-          <option v-if="!pickerValue" value="" disabled>Choose a board</option>
-          <option value="https://www.tsdm39.com/forum.php">All boards</option>
+          <option v-if="!pickerValue" value="" disabled>
+            {{ text.chooseBoard }}
+          </option>
+          <option value="https://www.tsdm39.com/forum.php">
+            {{ text.allBoards }}
+          </option>
           <option v-if="pickerBoard" :value="pickerBoard.url">
             {{ pickerBoard.label }}
           </option>
@@ -204,37 +355,54 @@ const accountLabel = computed(() => {
           </option>
         </select></label
       >
+      <label v-if="sectionInfo" class="board-picker"
+        >{{ text.sectionNavigation
+        }}<select
+          :aria-label="text.sectionNavigation"
+          :value="state.section"
+          @change="chooseSection"
+        >
+          <option v-for="section in sections" :key="section" :value="section">
+            {{ text[section] }}
+          </option>
+        </select></label
+      >
+      <label class="narrow-section-picker"
+        >{{ text.mainDestinations
+        }}<select
+          :aria-label="text.mainDestinations"
+          :value="state.section"
+          @change="chooseSection"
+        >
+          <option v-for="section in sections" :key="section" :value="section">
+            {{ text[section] }}
+          </option>
+        </select></label
+      >
     </div>
     <div class="workspace-status">
       <p v-if="state.recoveryAvailable === false" class="recovery-note">
-        Refresh recovery unavailable. This tab keeps navigation while the page
-        remains open.
+        {{ text.recoveryUnavailable }}
       </p>
       <section v-if="state.missing" role="alert">
-        <p>This navigation snapshot is unavailable.</p>
+        <p>{{ text.snapshotUnavailable }}</p>
         <p>
-          Reload explicitly to request the destination again. If its saved
-          context is unavailable, Reload opens Boards.
+          {{ text.snapshotReload }}
         </p>
-        <button @click="workspace.refresh()">Reload</button>
+        <button @click="workspace.refresh()">{{ text.reload }}</button>
       </section>
       <section v-if="state.documentNavigation" role="alert">
         <p>
-          Return recovery could not be saved. Continue only if you accept losing
-          this return snapshot.
+          {{ text.returnUnavailable }}
         </p>
         <button @click="workspace.continueWithoutRecovery()">
-          Continue without return recovery
+          {{ text.continueWithoutRecovery }}
         </button>
       </section>
       <p v-if="state.stale" role="status">
-        {{
-          state.restored
-            ? "Restored snapshot — account and content have not been rechecked."
-            : "Previous results are stale."
-        }}
+        {{ state.restored ? text.restored : text.stale }}
       </p>
-      <p v-if="state.loading" role="status">Loading…</p>
+      <p v-if="state.loading" role="status">{{ text.loading }}</p>
       <p
         v-if="
           state.failure &&
@@ -243,21 +411,35 @@ const accountLabel = computed(() => {
         "
         role="alert"
       >
-        {{ state.failure.message }}
+        {{
+          description(
+            state.failure.message,
+            workspace.preferences.state.value.language,
+          )
+        }}
       </p>
     </div>
     <main
       class="workspace-body"
       :data-view="state.result?.kind ?? 'unavailable'"
     >
-      <nav aria-label="Main destinations" class="main-destinations">
-        <a href="https://www.tsdm39.com/forum.php" aria-current="page"
-          >Boards</a
+      <nav :aria-label="text.mainDestinations" class="main-destinations pane">
+        <button
+          v-for="section in sections"
+          :key="section"
+          :aria-current="state.section === section ? 'page' : undefined"
+          @click="workspace.openSection(section)"
         >
+          {{ text[section] }}
+        </button>
       </nav>
-      <nav aria-label="Boards navigation" class="boards-navigation pane">
-        <h2>Browse boards</h2>
-        <a href="https://www.tsdm39.com/forum.php">All boards</a
+      <nav
+        v-if="state.section === 'boards'"
+        :aria-label="text.boardsNavigation"
+        class="boards-navigation pane"
+      >
+        <h2>{{ text.browseBoards }}</h2>
+        <a href="https://www.tsdm39.com/forum.php">{{ text.allBoards }}</a
         ><a v-if="boardContext" :href="boardContext.url">{{
           boardContext.title
         }}</a
@@ -271,14 +453,34 @@ const accountLabel = computed(() => {
           board.label
         }}</a>
       </nav>
+      <nav
+        v-if="sectionInfo"
+        class="boards-navigation pane"
+        :aria-label="text.sectionNavigation"
+      >
+        <h2>{{ sectionInfo.title }}</h2>
+        <p v-for="label in sectionInfo.secondary" :key="label">{{ label }}</p>
+      </nav>
       <section
-        v-if="state.result?.kind === 'directory'"
+        v-if="sectionInfo"
         class="overview pane"
         data-scroll-pane="overview"
-        aria-label="Boards overview"
       >
-        <h1>Boards</h1>
-        <p>Choose a board to read its threads.</p>
+        <h1>{{ sectionInfo.title }}</h1>
+        <h2>{{ sectionInfo.heading }}</h2>
+        <p>{{ sectionInfo.description }}</p>
+        <a :href="nativeDestination(sectionInfo.nativeURL)">{{
+          text.native
+        }}</a>
+      </section>
+      <section
+        v-if="state.section === 'boards' && state.result?.kind === 'directory'"
+        class="overview pane"
+        data-scroll-pane="overview"
+        :aria-label="text.boardsOverview"
+      >
+        <h1>{{ text.boards }}</h1>
+        <p>{{ text.chooseBoardDescription }}</p>
         <section
           v-for="group in state.result.directory.groups"
           :key="group.title"
@@ -298,7 +500,7 @@ const accountLabel = computed(() => {
             >
           </div>
         </section>
-        <nav aria-label="Directory pages">
+        <nav :aria-label="text.directoryPages">
           <a
             v-for="link in state.result.directory.pages.links"
             :key="link.url"
@@ -312,11 +514,11 @@ const accountLabel = computed(() => {
         class="results-pane pane"
         :class="{ 'secondary-results': state.result?.kind === 'thread' }"
         data-scroll-pane="results"
-        aria-label="Thread results"
+        :aria-label="text.threadResults"
       >
         <h1>{{ boardContext.title }}</h1>
         <section v-if="boardContext.boards.length">
-          <h2>Subordinate boards</h2>
+          <h2>{{ text.subordinateBoards }}</h2>
           <div class="board-grid">
             <a
               v-for="board in boardContext.boards"
@@ -328,7 +530,7 @@ const accountLabel = computed(() => {
             >
           </div>
         </section>
-        <nav aria-label="Board filters">
+        <nav :aria-label="text.boardFilters">
           <a
             v-for="filter in boardContext.filters"
             :key="filter.url"
@@ -336,12 +538,12 @@ const accountLabel = computed(() => {
             >{{ filter.label }}</a
           >
         </nav>
-        <ul aria-label="Effective criteria">
+        <ul :aria-label="text.criteria">
           <li v-for="criterion in boardContext.criteria" :key="criterion.label">
             {{ criterion.label }}
           </li>
         </ul>
-        <p>Page {{ boardContext.pages.current }}</p>
+        <p>{{ text.page }} {{ boardContext.pages.current }}</p>
         <div
           v-for="row in boardContext.threads"
           :id="`row-${row.rowId}`"
@@ -349,8 +551,9 @@ const accountLabel = computed(() => {
           class="thread-row"
           :data-thread-id="row.id"
         >
-          <span v-if="row.pinned">Pinned</span
-          ><span v-if="row.moved">Moved</span><span>{{ row.category }}</span
+          <span v-if="row.pinned">{{ text.pinned }}</span
+          ><span v-if="row.moved">{{ text.moved }}</span
+          ><span>{{ row.category }}</span
           ><a
             :href="row.url"
             class="subject"
@@ -362,13 +565,15 @@ const accountLabel = computed(() => {
             >{{ row.label }}</a
           ><span>{{ row.author }}</span
           ><time>{{ row.date }}</time
-          ><span>{{ row.replies }} replies · {{ row.views }} views</span
-          ><a v-if="row.lastPost" :href="row.lastPost.url"
-            >Last reply to {{ row.label }}</a
-          >
+          ><span
+            >{{ row.replies }} {{ text.replies }} · {{ row.views }}
+            {{ text.views }}</span
+          ><a v-if="row.lastPost" :href="row.lastPost.url">{{
+            insert(text.lastReply, row.label)
+          }}</a>
         </div>
         <p v-if="!boardContext.threads.length">{{ boardContext.empty }}</p>
-        <nav aria-label="Board pages">
+        <nav :aria-label="text.boardPages">
           <a
             v-for="link in boardContext.pages.links"
             :key="link.url"
@@ -378,22 +583,22 @@ const accountLabel = computed(() => {
         </nav>
       </section>
       <section
-        v-if="state.result?.kind === 'thread'"
+        v-if="state.section === 'boards' && state.result?.kind === 'thread'"
         class="reading-pane pane"
         data-scroll-pane="reading"
-        aria-label="Thread reading"
+        :aria-label="text.threadReading"
       >
         <section class="thread-heading">
-          <p class="eyebrow">THREAD {{ state.result.thread.id }}</p>
+          <p class="eyebrow">{{ text.thread }} {{ state.result.thread.id }}</p>
           <h1>{{ state.result.thread.title }}</h1>
-          <p>Page {{ state.result.thread.pages.current }}</p>
+          <p>{{ text.page }} {{ state.result.thread.pages.current }}</p>
           <a
             v-if="state.result.thread.parent"
             :href="state.result.thread.parent.url"
             >{{ state.result.thread.parent.label }}</a
           >
         </section>
-        <nav aria-label="Thread filters">
+        <nav :aria-label="text.threadFilters">
           <a
             v-for="filter in state.result.thread.filters"
             :key="filter.url"
@@ -402,8 +607,7 @@ const accountLabel = computed(() => {
           >
         </nav>
         <p v-if="missingTarget" role="alert">
-          Requested post {{ state.result.thread.target }} is missing from this
-          page.
+          {{ insert(text.missingPost, state.result.thread.target ?? "") }}
         </p>
         <p
           v-for="notice in state.result.thread.notices"
@@ -416,19 +620,22 @@ const accountLabel = computed(() => {
           v-for="post in state.result.thread.posts"
           :id="`pid${post.id}`"
           :key="post.id"
-          :aria-label="`Post ${post.id}`"
+          :aria-label="`${text.post} ${post.id}`"
           :data-targeted="state.result.thread.target === post.id"
           tabindex="-1"
         >
           <header>
             <strong>{{ post.author }}</strong
-            ><span>Floor {{ post.floor || "unknown" }}</span
+            ><span>{{ text.floor }} {{ post.floor || text.unknown }}</span
             ><time>{{ post.date }}</time
-            ><a :href="post.url">Post {{ post.id }}</a>
+            ><a :href="post.url">{{ text.post }} {{ post.id }}</a>
           </header>
-          <ContentView :nodes="post.content" />
+          <ContentView
+            :nodes="post.content"
+            :language="workspace.preferences.state.value.language"
+          />
         </article>
-        <nav aria-label="Pages">
+        <nav :aria-label="text.pages">
           <a
             v-for="link in state.result.thread.pages.links"
             :key="link.url"
@@ -439,6 +646,7 @@ const accountLabel = computed(() => {
       </section>
       <section
         v-if="
+          state.section === 'boards' &&
           state.result &&
           !['directory', 'board', 'thread'].includes(state.result.kind)
         "
@@ -448,21 +656,32 @@ const accountLabel = computed(() => {
         <h1>
           {{
             state.result.kind === "invalid"
-              ? "Content unavailable"
-              : state.result.kind.charAt(0).toUpperCase() +
-                state.result.kind.slice(1)
+              ? text.contentUnavailable
+              : description(
+                  state.result.kind.charAt(0).toUpperCase() +
+                    state.result.kind.slice(1),
+                  workspace.preferences.state.value.language,
+                )
           }}
         </h1>
-        <p>{{ "message" in state.result ? state.result.message : "" }}</p>
+        <p>
+          {{
+            "message" in state.result
+              ? description(
+                  state.result.message,
+                  workspace.preferences.state.value.language,
+                )
+              : ""
+          }}
+        </p>
       </section>
       <section
         v-if="state.result?.kind === 'board'"
         class="board-overview pane"
       >
-        <h2>Choose a thread</h2>
+        <h2>{{ text.chooseThread }}</h2>
         <p>
-          Read complete posts, follow exact replies, and return to this result
-          page.
+          {{ text.chooseThreadDescription }}
         </p>
       </section>
     </main>

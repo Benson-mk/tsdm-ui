@@ -210,6 +210,11 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
     if (
       !key(entryKey) ||
       !object(entry) ||
+      (entry.section !== undefined &&
+        (typeof entry.section !== "string" ||
+          !["boards", "search", "saved", "notices", "drafts"].includes(
+            entry.section,
+          ))) ||
       entry.key !== entryKey ||
       !destination(entry.destination) ||
       !(

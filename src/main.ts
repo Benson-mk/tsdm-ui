@@ -10,6 +10,7 @@ import {
   recoverNavigationDestination,
 } from "./hosts/navigation";
 import { createWorkspace } from "./workspace";
+import { createBrowserPreferences } from "./hosts/preferences";
 import WorkspaceLayout from "./layouts/WorkspaceLayout.vue";
 import styles from "./styles.css?inline";
 declare const GM_registerMenuCommand:
@@ -34,7 +35,7 @@ if (
   const root = document.createElement("div");
   root.id = "tsdm-workspace";
   root.style.cssText =
-    "position:fixed;inset:0;overflow:auto;z-index:2147483600;background:#fff";
+    "position:fixed;inset:0;overflow:auto;z-index:2147483600;visibility:hidden";
   const shadow = root.attachShadow({ mode: "open" });
   const style = document.createElement("style");
   style.textContent = styles;
@@ -51,10 +52,12 @@ if (
       }),
       destination.href,
       createBrowserNavigation(),
+      createBrowserPreferences(),
     );
     recover = async () =>
       location.assign(nativeDestination(workspace.state.value.destination));
     createApp(WorkspaceLayout, { workspace, portal }).mount(mount);
+    root.style.visibility = "visible";
     window.addEventListener("hashchange", () =>
       workspace.updateAnchor(location.hash),
     );

@@ -1,10 +1,12 @@
 import type { ReadResult } from "../forum-client";
+export type Section = "boards" | "search" | "saved" | "notices" | "drafts";
 export interface ViewPosition {
   anchor: string | null;
   offset: number;
   scrollTop: number;
 }
 export interface NavigationEntry {
+  section?: Section;
   key: string;
   destination: string;
   originKey: string | null;

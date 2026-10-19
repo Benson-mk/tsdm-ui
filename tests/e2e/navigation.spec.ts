@@ -1144,6 +1144,58 @@ test("J2.session-unknown-key: an absent opaque key cannot resolve inherited obje
   expect(requests).toHaveLength(0);
 });
 
+test("J2.section-unavailable-back: returning from Search to a missing snapshot keeps explicit Reload usable", async ({
+  page,
+}, info) => {
+  const requests = await open(page, `${directoryURL}#workspace=missing-key`);
+  await expect(
+    page.getByRole("button", { name: "Reload", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(
+    page.getByRole("button", { name: "Reload", exact: true }),
+  ).toBeVisible();
+  expect(requests).toHaveLength(0);
+  await page.getByRole("button", { name: "Reload", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Boards", exact: true }),
+  ).toBeVisible();
+  expect(requests).toHaveLength(1);
+  await info.attach("missing-entry-reloaded.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("J5.appearance-pinned-locales: generated row labels translate while returned board content stays original", async ({
+  page,
+}, info) => {
+  const requests = await open(page, boardURL);
+  await expect(page.getByText("Pinned", { exact: true })).toBeVisible();
+  for (const [locale, label] of [
+    ["zh-CN", "置顶"],
+    ["zh-TW", "置頂"],
+    ["en", "Pinned"],
+  ]) {
+    await page.locator(".workspace > header button").first().click();
+    await page.locator("#interface-language").selectOption(locale!);
+    await page.keyboard.press("Escape");
+    await expect(page.getByText(label!, { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Board guide", exact: true }),
+    ).toBeVisible();
+    expect(requests).toHaveLength(1);
+  }
+  await info.attach("localized-pinned-row.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
 test("J2.session-redirect: real 302 remount retains canonical PID and populated origin through Back and reload", async ({
   browser,
 }, info) => {
