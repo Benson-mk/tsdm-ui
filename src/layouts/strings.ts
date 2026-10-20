@@ -101,11 +101,28 @@ const english = {
   searchHeading: "Search threads or authors",
   savedHeading: "Saved boards and threads",
   noticesHeading: "Load notices deliberately",
+  noticesOverviewLabel: "Notices overview",
+  loadNotices: "Load notices",
+  refreshNotices: "Refresh notices",
+  noticeEffects:
+    "Every load, refresh, category and page request can mark notices read on the server. Failed loading can still have effects.",
+  noticeCategories: "Notice categories",
+  noticePages: "Notice pages",
+  noticeUnreadObserved:
+    "Returned unread indicator: {value}. Current unread state may already have changed.",
+  noticeUnreadAbsent:
+    "No unread indicator was returned. The current unread count is unknown.",
+  noticeUnreadUnknown:
+    "The returned unread indicator could not be interpreted. The current unread count is unknown.",
+  deferredNotices:
+    "Private messages, broadcasts and native activity actions continue in the forum. Standard social-activity notices are included in the list.",
+  nativePM: "Private messages and broadcasts — continue in native forum",
+  nativeNotices: "Notice actions — continue in native forum",
   draftsHeading: "Forum drafts",
   searchOverview: "Search threads or authors in the native forum.",
   savedOverview: "View your saved boards and threads in the native forum.",
   noticesOverview:
-    "Load notices in the native forum. Opening this overview leaves notices unread.",
+    "Opening this overview makes no notice request. Notices are loaded only by your deliberate action; there is no background polling.",
   draftsOverview: "View and resume your forum drafts in the native forum.",
   savedBoards: "Boards",
   savedThreads: "Threads",
@@ -258,10 +275,25 @@ const simplified: Strings = {
   searchHeading: "搜索主题或作者",
   savedHeading: "收藏的版块与主题",
   noticesHeading: "主动加载通知",
+  noticesOverviewLabel: "通知总览",
+  loadNotices: "加载通知",
+  refreshNotices: "刷新通知",
+  noticeEffects:
+    "每次加载、刷新、分类和翻页请求都可能在服务器上将通知标为已读。加载失败也可能产生影响。",
+  noticeCategories: "通知分类",
+  noticePages: "通知分页",
+  noticeUnreadObserved: "返回的未读提示：{value}。当前未读状态可能已改变。",
+  noticeUnreadAbsent: "响应没有返回未读提示。当前未读数量未知。",
+  noticeUnreadUnknown: "无法识别返回的未读提示。当前未读数量未知。",
+  deferredNotices:
+    "私信、广播和原版动态操作请继续前往论坛。标准坛友互动通知包含在列表中。",
+  nativePM: "私信与广播 — 前往原版论坛",
+  nativeNotices: "通知操作 — 前往原版论坛",
   draftsHeading: "论坛草稿",
   searchOverview: "在原版论坛中搜索主题或作者。",
   savedOverview: "在原版论坛中查看收藏的版块与主题。",
-  noticesOverview: "在原版论坛中加载通知。打开此总览不会将通知标为已读。",
+  noticesOverview:
+    "打开此总览不会请求通知。只有您的主动操作才会加载通知；没有后台轮询。",
   draftsOverview: "在原版论坛中查看及继续编辑论坛草稿。",
   savedBoards: "版块",
   savedThreads: "主题",
@@ -411,10 +443,25 @@ const traditional: Strings = {
   searchHeading: "搜尋主題或作者",
   savedHeading: "收藏的版塊與主題",
   noticesHeading: "主動載入通知",
+  noticesOverviewLabel: "通知總覽",
+  loadNotices: "載入通知",
+  refreshNotices: "重新載入通知",
+  noticeEffects:
+    "每次載入、重新載入、分類和翻頁請求都可能在伺服器上將通知標為已讀。載入失敗也可能產生影響。",
+  noticeCategories: "通知分類",
+  noticePages: "通知分頁",
+  noticeUnreadObserved: "傳回的未讀提示：{value}。目前未讀狀態可能已改變。",
+  noticeUnreadAbsent: "回應沒有傳回未讀提示。目前未讀數量未知。",
+  noticeUnreadUnknown: "無法識別傳回的未讀提示。目前未讀數量未知。",
+  deferredNotices:
+    "私訊、廣播和原版動態操作請繼續前往論壇。標準壇友互動通知包含在清單中。",
+  nativePM: "私訊與廣播 — 前往原版論壇",
+  nativeNotices: "通知操作 — 前往原版論壇",
   draftsHeading: "論壇草稿",
   searchOverview: "在原版論壇中搜尋主題或作者。",
   savedOverview: "在原版論壇中查看收藏的版塊與主題。",
-  noticesOverview: "在原版論壇中載入通知。開啟此總覽不會將通知標為已讀。",
+  noticesOverview:
+    "開啟此總覽不會請求通知。只有您的主動操作才會載入通知；沒有背景輪詢。",
   draftsOverview: "在原版論壇中查看及繼續編輯論壇草稿。",
   savedBoards: "版塊",
   savedThreads: "主題",
@@ -825,6 +872,107 @@ const descriptions: Record<string, readonly [string, string]> = {
       "論壇跳轉傳回了不同主題。已保留原目標以便在原版論壇復原。",
     ],
   "Unsupported interactive content": ["不支持的交互内容", "不支援的互動內容"],
+  "This action requires current native forum controls.": [
+    "此操作需要当前的原版论坛控件。",
+    "此操作需要目前的原版論壇控制項。",
+  ],
+  "The notice request failed. It may still have marked notices read. Retry only deliberately.":
+    [
+      "通知请求失败，仍可能已将通知标为已读。请仅在主动操作时重试。",
+      "通知請求失敗，仍可能已將通知標為已讀。請僅在主動操作時重試。",
+    ],
+  "This is not a supported notice destination.": [
+    "此目标不是受支持的通知页面。",
+    "此目標不是受支援的通知頁面。",
+  ],
+  "This category or page was not offered by the current notice list.": [
+    "当前通知列表未提供此分类或分页。",
+    "目前通知清單未提供此分類或分頁。",
+  ],
+  "A newer request replaced this notice load. It may still have marked notices read.":
+    [
+      "较新的请求已替代此次通知加载。之前的请求仍可能已将通知标为已读。",
+      "較新的請求已替代此次通知載入。先前的請求仍可能已將通知標為已讀。",
+    ],
+  "The account changed while loading notices. Previous notices were cleared. This request may still have had read effects.":
+    [
+      "加载通知时账号已更改。之前的通知已清除；此次请求仍可能产生已读影响。",
+      "載入通知時帳號已更改。先前的通知已清除；此次請求仍可能產生已讀影響。",
+    ],
+  "Notices must be loaded deliberately. Each load may mark notices read.": [
+    "请主动加载通知。每次加载都可能将通知标为已读。",
+    "請主動載入通知。每次載入都可能將通知標為已讀。",
+  ],
+  "This native notice request may have marked notices read before the workspace started. No notice request has been repeated. Load notices only deliberately.":
+    [
+      "此原版通知请求可能在工作区启动前已将通知标为已读。没有重复请求通知。请仅主动加载通知。",
+      "此原版通知請求可能在工作區啟動前已將通知標為已讀。沒有重複請求通知。請僅主動載入通知。",
+    ],
+  "The forum returned an unsupported notice response. This request may still have marked notices read.":
+    [
+      "论坛返回了不支持的通知响应。此次请求仍可能已将通知标为已读。",
+      "論壇傳回了不支援的通知回應。此次請求仍可能已將通知標為已讀。",
+    ],
+  "The notice response could not be interpreted. This request may still have marked notices read.":
+    [
+      "无法识别通知响应。此次请求仍可能已将通知标为已读。",
+      "無法識別通知回應。此次請求仍可能已將通知標為已讀。",
+    ],
+  "Native verification is required. This request may still have marked notices read.":
+    [
+      "需要原版论坛验证。此次请求仍可能已将通知标为已读。",
+      "需要原版論壇驗證。此次請求仍可能已將通知標為已讀。",
+    ],
+  "Sign in through the native forum before loading notices deliberately. This request may still have had read effects.":
+    [
+      "请先在原版论坛登录，再主动加载通知。此次请求仍可能产生已读影响。",
+      "請先在原版論壇登入，再主動載入通知。此次請求仍可能產生已讀影響。",
+    ],
+  "The current account cannot read these notices. This request may still have had read effects.":
+    [
+      "当前账号无法读取这些通知。此次请求仍可能产生已读影响。",
+      "目前帳號無法讀取這些通知。此次請求仍可能產生已讀影響。",
+    ],
+  "The forum is limiting requests. Retry notices only deliberately; this request may still have had read effects.":
+    [
+      "论坛正在限制请求。请仅主动重试通知；此次请求仍可能产生已读影响。",
+      "論壇正在限制請求。請僅主動重試通知；此次請求仍可能產生已讀影響。",
+    ],
+  "The notices could not be displayed reliably. This request may still have marked notices read.":
+    [
+      "无法可靠地显示通知。此次请求仍可能已将通知标为已读。",
+      "無法可靠地顯示通知。此次請求仍可能已將通知標為已讀。",
+    ],
+  "The current notice account could not be confirmed. This request may still have had read effects.":
+    [
+      "无法确认当前通知账号。此次请求仍可能产生已读影响。",
+      "無法確認目前通知帳號。此次請求仍可能產生已讀影響。",
+    ],
+  "The forum returned a different notice category or page. This request may still have had read effects.":
+    [
+      "论坛返回了不同通知分类或分页。此次请求仍可能产生已读影响。",
+      "論壇傳回了不同通知分類或分頁。此次請求仍可能產生已讀影響。",
+    ],
+  "The complete notice list could not be recognized. Continue in the native forum; this request may still have marked notices read.":
+    [
+      "无法识别完整通知列表。请前往原版论坛；此次请求仍可能已将通知标为已读。",
+      "無法識別完整通知清單。請前往原版論壇；此次請求仍可能已將通知標為已讀。",
+    ],
+  "A notice has incomplete or ambiguous content. Continue in the native forum for the complete list; this request may still have marked notices read.":
+    [
+      "一则通知的内容不完整或有歧义。请前往原版论坛查看完整列表；此次请求仍可能已将通知标为已读。",
+      "一則通知的內容不完整或有歧義。請前往原版論壇查看完整清單；此次請求仍可能已將通知標為已讀。",
+    ],
+  "The returned notice categories could not be recognized. Continue in the native forum for the complete inbox; this request may still have marked notices read.":
+    [
+      "无法识别返回的通知分类。请前往原版论坛查看完整通知；此次请求仍可能已将通知标为已读。",
+      "無法識別傳回的通知分類。請前往原版論壇查看完整通知；此次請求仍可能已將通知標為已讀。",
+    ],
+  "The returned notice pagination could not be preserved completely. Continue in the native forum; this request may still have marked notices read.":
+    [
+      "无法完整保留返回的通知分页。请前往原版论坛；此次请求仍可能已将通知标为已读。",
+      "無法完整保留傳回的通知分頁。請前往原版論壇；此次請求仍可能已將通知標為已讀。",
+    ],
   "Image or attachment requires native viewing": [
     "图片或附件需要在原版论坛中查看",
     "圖片或附件需要在原版論壇中查看",

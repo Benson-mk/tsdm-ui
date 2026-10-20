@@ -1,4 +1,5 @@
 import { fileFailure } from "./download.js";
+import { decodeNotices } from "./notices.js";
 import {
   decodeSearchForm,
   prepareSearchRequest,
@@ -10,7 +11,7 @@ import { decodeThread } from "./read-thread.js";
 import { decodeBoard } from "./read-board.js";
 import { routeFor } from "./routes.js";
 export function describeDestination(value: string): {
-  kind: "directory" | "board" | "thread" | "redirect" | "search";
+  kind: "directory" | "board" | "thread" | "redirect" | "search" | "notices";
   url: string;
 } | null {
   const route = routeFor(value);
@@ -40,6 +41,63 @@ export function createForumClient(options: {
   let sequence = 0;
   let downloadSequence = 0;
   return {
+    async readNotices(destination, prior, expectedAccount) {
+      const current = ++sequence;
+      const route = routeFor(destination);
+      const fail = (
+        message: string,
+        kind: "invalid" | "stale" | "network" = "invalid",
+      ): ReadResult => ({
+        kind,
+        message,
+        account,
+        generation,
+        sourceURL: destination,
+      });
+      if (route?.kind !== "notices" || route.url.origin !== options.origin)
+        return fail("This is not a supported notice destination.");
+      if (
+        prior &&
+        ![
+          prior.url,
+          ...prior.categories.map((link) => link.url),
+          ...prior.pages.links.map((link) => link.url),
+        ].includes(destination)
+      )
+        return fail(
+          "This category or page was not offered by the current notice list.",
+        );
+      route.url.searchParams.set("tsdmapp", "json");
+      try {
+        const response = await options.transport.request(route.url.href, {
+          fresh: true,
+        });
+        if (current !== sequence)
+          return fail(
+            "A newer request replaced this notice load. It may still have marked notices read.",
+            "stale",
+          );
+        const decoded = decodeNotices(response, destination);
+        if (actor(decoded.account) !== actor(account)) {
+          account = decoded.account;
+          generation++;
+        }
+        if (
+          decoded.kind === "notices" &&
+          expectedAccount &&
+          actor(decoded.account) !== actor(expectedAccount)
+        )
+          return fail(
+            "The account changed while loading notices. Previous notices were cleared. This request may still have had read effects.",
+          );
+        return { ...decoded, generation };
+      } catch {
+        return fail(
+          "The notice request failed. It may still have marked notices read. Retry only deliberately.",
+          current !== sequence ? "stale" : "network",
+        );
+      }
+    },
     async prepareNewThread(boardId) {
       const current = ++sequence;
       const url = new URL("/forum.php", options.origin);
@@ -328,6 +386,15 @@ export function createForumClient(options: {
       const current = ++sequence;
       const route = routeFor(destination);
       const url = route?.url;
+      if (route?.kind === "notices")
+        return {
+          kind: "invalid",
+          message:
+            "Notices must be loaded deliberately. Each load may mark notices read.",
+          account,
+          generation,
+          sourceURL: destination,
+        };
       if (route?.kind === "search" && url?.searchParams.has("searchid"))
         return {
           kind: "invalid",

@@ -1,0 +1,409 @@
+{
+  "schema": 1,
+  "issue": 31,
+  "mode": "installed-development-partial",
+  "date": "2026-10-21",
+  "timezone": "Asia/Hong_Kong",
+  "candidate": {
+    "version": "0.3.0",
+    "bytes": 842336,
+    "sha256": "fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81"
+  },
+  "os": "macOS 15.6",
+  "managerChannel": "BETA development; Tampermonkey BETA 5.6.6242 in both browsers, human-reported on 2026-10-21 Asia/Hong_Kong",
+  "browserOrder": ["Edge", "Chrome"],
+  "browsers": {
+    "edge": {
+      "identity": {
+        "officialStoredSourceExact": true,
+        "previousSourceBackedUpExact": true,
+        "executingSourceContainsExactCandidate": true,
+        "matchingRuntimeScriptsObserved": 1
+      },
+      "scopes": {
+        "load": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "mypost": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "rate": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "mention": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "system": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "interactive": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "friend": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "friend-refresh": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "all-before-target": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "exact-target": {
+          "ledgerTruncated": false,
+          "allRequests": 64,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": [301, 301]
+        },
+        "back": {
+          "ledgerTruncated": false,
+          "allRequests": 109,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "forward": {
+          "ledgerTruncated": false,
+          "allRequests": 109,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "back2": {
+          "ledgerTruncated": false,
+          "allRequests": 109,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "list-reload": {
+          "ledgerTruncated": false,
+          "allRequests": 111,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "idle": {
+          "ledgerTruncated": false,
+          "allRequests": 0,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        }
+      },
+      "rows": {
+        "all": 14,
+        "reply": 4,
+        "rating": 1,
+        "system": 8,
+        "friend": 1,
+        "mentions": 0,
+        "defaultSocial": 0
+      },
+      "unread": "unknown",
+      "returnedPagerLinks": 0,
+      "rowRecordsEqualAcrossTargetAndAllPassiveStates": true,
+      "selectedFocusRestored": true,
+      "listScrollTop": 870,
+      "idleSeconds": 82.97,
+      "inertNoticeDom": {
+        "scriptCount": 0,
+        "inlineHandlerCount": 0,
+        "formhashLinkCount": 0
+      },
+      "warning": {
+        "mode": "restored existing native-arrival snapshot; no second direct native read",
+        "panelWidth": 1265,
+        "paragraphBottom": 273,
+        "viewportHeight": 540,
+        "readable": true,
+        "passiveReload": {
+          "ledgerTruncated": false,
+          "allRequests": 111,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        }
+      }
+    },
+    "chrome": {
+      "identity": {
+        "officialStoredSourceExact": true,
+        "previousSourceBackedUpExact": true,
+        "executingSourceContainsExactCandidate": true,
+        "matchingRuntimeScriptsObserved": 1
+      },
+      "scopes": {
+        "load": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "mypost": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "rate": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "mention": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "system": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "interactive": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "friend": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "friend-refresh": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "all-before-target": {
+          "ledgerTruncated": false,
+          "allRequests": 1,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "exact-target": {
+          "ledgerTruncated": false,
+          "allRequests": 65,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": [301, 301]
+        },
+        "back": {
+          "ledgerTruncated": false,
+          "allRequests": 115,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": [302]
+        },
+        "forward": {
+          "ledgerTruncated": false,
+          "allRequests": 114,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "back2": {
+          "ledgerTruncated": false,
+          "allRequests": 114,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "list-reload": {
+          "ledgerTruncated": false,
+          "allRequests": 113,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        },
+        "idle": {
+          "ledgerTruncated": false,
+          "allRequests": 2,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        }
+      },
+      "rows": {
+        "all": 14,
+        "reply": 4,
+        "rating": 1,
+        "system": 8,
+        "friend": 1,
+        "mentions": 0,
+        "defaultSocial": 0
+      },
+      "unread": "unknown",
+      "returnedPagerLinks": 0,
+      "rowRecordsEqualAcrossTargetAndAllPassiveStates": true,
+      "selectedFocusRestored": true,
+      "listScrollTop": 1206.5,
+      "idleSeconds": 85.068,
+      "inertNoticeDom": {
+        "scriptCount": 0,
+        "inlineHandlerCount": 0,
+        "formhashLinkCount": 0
+      },
+      "overview": {
+        "ledgerTruncated": false,
+        "allRequests": 0,
+        "noticeRequests": 0,
+        "noticeDocumentRequests": 0,
+        "redirectStatuses": []
+      },
+      "warning": {
+        "mode": "authorized one direct native arrival",
+        "panelWidth": 1297,
+        "paragraphBottom": 260.5859375,
+        "viewportHeight": 621,
+        "readable": true,
+        "directArrival": {
+          "ledgerTruncated": false,
+          "allRequests": 41,
+          "noticeRequests": 1,
+          "noticeDocumentRequests": 1,
+          "redirectStatuses": []
+        },
+        "passiveReload": {
+          "ledgerTruncated": false,
+          "allRequests": 113,
+          "noticeRequests": 0,
+          "noticeDocumentRequests": 0,
+          "redirectStatuses": []
+        }
+      }
+    }
+  },
+  "limits": [
+    "Current populated mentions unavailable.",
+    "No returned pager available.",
+    "Unread count remains unknown; no causal unread-to-read transition.",
+    "Stable-manager and full release OS matrix not qualified.",
+    "Issue19 native-input/lifecycle acceptance gaps remain separate."
+  ],
+  "acceptance": "AC1 and AC5 verified for approved BETA development; AC2, AC3 and AC4 partial/unchecked. The human explicitly approved one local #31 commit with these gaps on 2026-10-21 Asia/Hong_Kong. Issue31 remains incomplete; no issue closure, push, PR or publication is authorized by that approval.",
+  "localCommitApproval": {
+    "date": "2026-10-21",
+    "timezone": "Asia/Hong_Kong",
+    "source": "human structured reply in this chat",
+    "reply": "Approve local commit with these gaps",
+    "scope": "One local #31 commit retaining AC2, AC3 and AC4 unchecked for the named unavailable live evidence.",
+    "acceptsWholeIssue": false,
+    "authorizesClosurePushOrPublication": false
+  },
+  "synthetic": {
+    "applicationPassed": 293,
+    "noticeCasesPassed": 35,
+    "libraryPackageByteIdenticalToPassingCleanConsumer": true
+  },
+  "privateEvidence": "Raw authenticated DOM, requests and screenshots retained separately; excluded from this public authored package.",
+  "acceptanceCriteria": {
+    "AC1": {
+      "status": "verified-development",
+      "basis": "Installed deliberate overview/load/category/refresh/idle behavior plus deterministic returned-page/failure cases."
+    },
+    "AC2": {
+      "status": "partial",
+      "remaining": "Current populated mention and actual returned pagination."
+    },
+    "AC3": {
+      "status": "partial",
+      "remaining": "Current positive mention/pager observations and causal unread-to-read transition; numeric unread state remains unknown."
+    },
+    "AC4": {
+      "status": "partial",
+      "remaining": "Current populated exact mention; installed exact reply and passive restoration verified."
+    },
+    "AC5": {
+      "status": "verified-development",
+      "basis": "Explicit native continuation, standard notices retained and unavailable positive cases named."
+    }
+  },
+  "metadataTraceability": {
+    "status": "complete-human-reported",
+    "source": "human structured replies in this chat on 2026-10-21 Asia/Hong_Kong",
+    "versions": {
+      "edge": "155.0.4283.62",
+      "chrome": "155.0.8059.85",
+      "tampermonkeyEdge": "BETA 5.6.6242",
+      "tampermonkeyChrome": "BETA 5.6.6242"
+    },
+    "limitation": "Browser policy blocked the internal version page; reduced request headers do not independently establish exact patch versions. Versions are human-reported, not tool-observed.",
+    "behavioralAC1AndAC5RemainVerified": true,
+    "requiresAnotherNoticeOperation": false
+  },
+  "derivation": {
+    "kind": "repository-documentation-derivative",
+    "sourcePackage": "corrected-notices-installed-development-2026-10-21",
+    "sourceReviewedFileIdentities": [
+      {
+        "path": "current-native-comparison.json",
+        "bytes": 2131,
+        "sha256": "ceef6760e5d6c0495a1d3a9094425aae0d4aced4c6689d5e630ddca003958224"
+      },
+      {
+        "path": "receipt.json",
+        "bytes": 10110,
+        "sha256": "e1904e84b3d7969e4123d8ae7f103d6f043e9d7dfc824a0f09ef74671574a009"
+      },
+      {
+        "path": "report.md",
+        "bytes": 5710,
+        "sha256": "6ec294d9cbcb74081f4264c53bc32e633b95e9abc80052e8119508a46a5aca45"
+      }
+    ],
+    "changes": "Report/receipt updated after completed installed BDFL audit with acceptance disposition, human-reported exact tool versions and explicit local-commit approval. current-native-comparison.json unchanged. New manifest identifies derivative bytes, not original advisor inputs."
+  }
+}

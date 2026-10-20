@@ -116,12 +116,57 @@ assert.equal(JSON.stringify(referenceWriting), beforeReferences);
 assert.deepEqual(unresolvedWritingAttachments({ ...referenceWriting, uploadedReferences: [] }), ['51', '52']);
 assert.deepEqual(unresolvedWritingAttachments({ source: '[unknown]literal[/unknown]', uploadedReferences: [] }), []);
 
-console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests }));
+const noticeURL = origin + '/home.php?mod=space&do=notice';
+const noticeRequests = [];
+let noticeActor = 7;
+let noticeNetworkFailure = false;
+const noticeClient = createForumClient({ origin, transport: { async request(url, options) {
+  noticeRequests.push({ url, options });
+  if (noticeNetworkFailure) throw Error('Authored network failure');
+  const selected = new URL(url);
+  const page = selected.searchParams.get('page') ?? '1';
+  const category = selected.searchParams.get('view') === 'system' ? '&view=system' : '';
+  const document = '<div id="um"><strong><a href="home.php?mod=space&uid=' + noticeActor + '">Authored member</a></strong><a id="myprompt">提醒(0)</a></div><div id="ct"><div class="tbn"><a href="' + noticeURL + '">All notices</a><a href="' + noticeURL + '&view=system">System notices</a></div><div class="nts"><dl notice="73" id="pendingFriend_19"><dt><span title="2026-10-20 21:40:00">just now</span></dt><dd class="ntc_body"><p>Complete portable notice body.</p><a href="forum.php?mod=redirect&goto=findpost&ptid=42&pid=202">Exact portable target</a><a href="home.php?mod=spacecp&ac=friend&formhash=NEVER-EXPORT-NOTICE">Native action</a></dd></dl></div><div class="pg"><strong>' + page + '</strong><a href="' + noticeURL + category + '&page=2">2</a></div></div>';
+  return { status: 200, url, contentType: 'application/json', body: JSON.stringify({ uid: noticeActor, document }) };
+} } });
+assert.equal((await noticeClient.readPage(noticeURL)).kind, 'invalid');
+assert.equal(noticeRequests.length, 0);
+const loadedNotices = await noticeClient.readNotices(noticeURL);
+assert.equal(loadedNotices.kind, 'notices');
+assert.equal(loadedNotices.notices.entries[0].id, '73');
+assert.equal(loadedNotices.notices.entries[0].time, '2026-10-20 21:40:00');
+assert.deepEqual(loadedNotices.notices.unread, { kind: 'observed', count: 0 });
+assert.deepEqual(loadedNotices.notices.entries[0].body[0].children, [{ kind: 'text', text: 'Complete portable notice body.' }]);
+assert.equal(loadedNotices.notices.entries[0].body[1].attributes.href, origin + '/forum.php?mod=redirect&goto=findpost&ptid=42&pid=202');
+assert.deepEqual(JSON.parse(JSON.stringify(loadedNotices)), loadedNotices);
+assert.equal(JSON.stringify(loadedNotices).includes('NEVER-EXPORT-NOTICE'), false);
+assert.equal((await noticeClient.readNotices(noticeURL + '&page=99', loadedNotices.notices, loadedNotices.account)).kind, 'invalid');
+assert.equal(noticeRequests.length, 1);
+const systemNotices = await noticeClient.readNotices(loadedNotices.notices.categories[1].url, loadedNotices.notices, loadedNotices.account);
+assert.equal(systemNotices.kind, 'notices');
+const nextNotices = await noticeClient.readNotices(systemNotices.notices.pages.links[0].url, systemNotices.notices, systemNotices.account);
+assert.equal(nextNotices.kind, 'notices');
+assert.equal(nextNotices.notices.pages.current, '2');
+assert.equal(nextNotices.notices.url, noticeURL + '&view=system&page=2');
+assert.equal(noticeRequests.length, 3);
+assert.equal(noticeRequests.every((request) => request.options.fresh === true && new URL(request.url).searchParams.get('tsdmapp') === 'json'), true);
+noticeActor = 8;
+const changedNotices = await noticeClient.readNotices(nextNotices.notices.url, nextNotices.notices, nextNotices.account);
+assert.equal(changedNotices.kind, 'invalid');
+assert.equal(changedNotices.account.id, '8');
+assert.ok(changedNotices.generation > nextNotices.generation);
+noticeNetworkFailure = true;
+const failedNotices = await noticeClient.readNotices(noticeURL);
+assert.equal(failedNotices.kind, 'network');
+assert.match(failedNotices.message, /may still have marked notices read/);
+assert.equal(noticeRequests.length, 5);
+
+console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current }));
 `;
   writeFileSync(join(consumer, "consume.mjs"), source);
   writeFileSync(
     join(consumer, "consume.ts"),
-    `import { createForumClient, unresolvedWritingAttachments, type ForumClient, type ReadResult, type SearchForm, type SearchCriteria, type AttachmentRequest, type PrepareWritingResult, type Account } from '@tsdm/forum-client';
+    `import { createForumClient, unresolvedWritingAttachments, type ForumClient, type ReadResult, type SearchForm, type SearchCriteria, type AttachmentRequest, type PrepareWritingResult, type Account, type Notice, type Notices } from '@tsdm/forum-client';
 const client: ForumClient = createForumClient({ origin: 'https://fixture.example', transport: { async request(url) { return { status: 200, url, contentType: 'text/html', body: '' }; } } });
 const result: ReadResult = await client.readThread('https://fixture.example/forum.php?mod=viewthread&tid=42');
 const serialized: string = JSON.stringify(result);
@@ -132,7 +177,9 @@ void serialized;
 const search: (criteria: SearchCriteria, form: SearchForm, account: Account) => Promise<ReadResult> = client.search;
 const returnedPage: (url: string, prior: Extract<ReadResult, { kind: 'search' }>['search'], account: Account) => Promise<ReadResult> = client.readSearchPage;
 const attachment = (request: AttachmentRequest) => client.downloadAttachment(request);
-void [search, returnedPage, attachment];
+const notices: (url: string, prior?: Notices, account?: Account) => Promise<ReadResult> = client.readNotices;
+const notice: Notice = { id: '73', time: '2026-10-20 21:40:00', body: [{ kind: 'text', text: 'Portable notice' }] };
+void [search, returnedPage, attachment, notices, notice];
 `,
   );
   writeFileSync(
@@ -201,11 +248,12 @@ void [search, returnedPage, attachment];
       freshAttachmentAndBinaryContract: "passed",
       portablePreparedWriting: "passed",
       portableWritingReferences: "passed",
+      deliberateCompleteNotices: "passed",
       noRuntimeDependencies: "passed",
     },
     observed,
     limitations: [
-      "This consumer qualifies public imports, declarations and read/search/download/current-form preparation contracts without browser globals; browser behavior is qualified by complete application E2Es.",
+      "This consumer qualifies public imports, declarations and read/search/notices/download/current-form preparation contracts without browser globals; browser behavior is qualified by complete application E2Es.",
       "Synthetic transport is not live forum evidence.",
     ],
   };
@@ -215,7 +263,7 @@ void [search, returnedPage, attachment];
   );
   writeFileSync(
     `${directory}/report.md`,
-    "# Clean public consumer\n\nPassed clean local package installation, public ESM import, strict declarations without DOM types, populated read, explicit search, returned-identity page, freshly checked attachment and exact binary bytes, plus JSON serialization on pinned Node LTS. No runtime package dependencies. See receipt.json and consume.mjs.\n",
+    "# Clean public consumer\n\nPassed clean local package installation, public ESM import, strict declarations without DOM types, populated read, explicit search, returned-identity page, freshly checked attachment and exact binary bytes, complete deliberate notices with returned category/page targets and account generations, plus JSON serialization on pinned Node LTS. No runtime package dependencies. See receipt.json and consume.mjs.\n",
   );
   const manifest = Object.fromEntries(
     ["consume.mjs", "receipt.json", "report.md"].map((file) => [

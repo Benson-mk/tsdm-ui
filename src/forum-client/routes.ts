@@ -1,6 +1,7 @@
 export type RouteKind =
-  "directory" | "board" | "thread" | "redirect" | "search";
+  "directory" | "board" | "thread" | "redirect" | "search" | "notices";
 const keys: Record<RouteKind, readonly string[]> = {
+  notices: ["mod", "do", "view", "type", "page"],
   search: [
     "mod",
     "adv",
@@ -78,6 +79,15 @@ export function routeFor(value: string): { kind: RouteKind; url: URL } | null {
       (!q.has("searchid") || /^[1-9]\d*$/.test(q.get("searchid") ?? ""))
     )
       kind = "search";
+    if (
+      url.pathname === "/home.php" &&
+      q.get("mod") === "space" &&
+      q.get("do") === "notice" &&
+      ["view", "type"].every(
+        (key) => !q.has(key) || /^[a-zA-Z0-9_-]+$/.test(q.get(key)!),
+      )
+    )
+      kind = "notices";
     if (!kind) return null;
     const allowed = [...keys[kind], "extra", "mobile", "tsdmapp"];
     for (const key of q.keys())

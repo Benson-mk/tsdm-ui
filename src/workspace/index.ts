@@ -46,7 +46,7 @@ const accountKey = (account: Account) =>
       ? "guest"
       : null;
 const success = (result: ReadResult) =>
-  ["thread", "board", "directory", "search"].includes(result.kind);
+  ["thread", "board", "directory", "search", "notices"].includes(result.kind);
 export function createWorkspace(
   client: ForumClient,
   destination: string,
@@ -235,7 +235,10 @@ export function createWorkspace(
         entry.result?.kind === "search" ||
         originContext(entry)?.kind === "search"
           ? "search"
-          : "boards"),
+          : entry.result?.kind === "notices" ||
+              originContext(entry)?.kind === "notices"
+            ? "notices"
+            : "boards"),
       key: entry.key,
       destination: entry.destination,
       result: mismatch ? null : entry.result,
@@ -244,7 +247,10 @@ export function createWorkspace(
       selection: entry.selection,
       missing:
         mismatch ||
-        (!entry.result && (!entry.section || entry.section === "boards")),
+        (!entry.result &&
+          (!entry.section ||
+            entry.section === "boards" ||
+            routeFor(entry.destination)?.kind === "notices")),
       stale: restored && entry.result !== null,
       restored,
       canBack: entry.originKey !== null,
@@ -267,7 +273,11 @@ export function createWorkspace(
         (state.value.section === "search" &&
           ["thread", "redirect"].includes(routeFor(url)?.kind ?? ""))
           ? "search"
-          : "boards",
+          : routeFor(url)?.kind === "notices" ||
+              (state.value.section === "notices" &&
+                ["thread", "redirect"].includes(routeFor(url)?.kind ?? ""))
+            ? "notices"
+            : "boards",
       destination: url,
       originKey,
       selection: null,
@@ -282,6 +292,22 @@ export function createWorkspace(
   function observeAccount(account: Account) {
     let invalidated = false;
     const observed = accountKey(account);
+    if (account.kind === "unknown") {
+      for (const entry of Object.values(record.entries))
+        if (entry.result?.kind === "notices") {
+          entry.result = null;
+          invalidated = true;
+        }
+      if (state.value.result?.kind === "notices")
+        state.value = {
+          ...state.value,
+          result: null,
+          restored: false,
+          missing: true,
+        };
+      if (state.value.origin?.kind === "notices")
+        state.value = { ...state.value, origin: null };
+    }
     if (observed) {
       knownAccount = observed;
       if (
@@ -426,6 +452,7 @@ export function createWorkspace(
       })
     )
       return;
+    if (routeFor(url)?.kind === "notices") return loadNotices(url);
     clearDownload();
     const current = state.value.result;
     const requested = routeFor(url);
@@ -466,6 +493,42 @@ export function createWorkspace(
       searchPage
         ? client.readSearchPage(url, searchPage.search, searchPage.account)
         : undefined,
+    );
+  }
+  async function loadNotices(url?: string) {
+    if (state.value.loading) return;
+    if (
+      writing.deferViewChange(() => {
+        void loadNotices(url);
+      })
+    )
+      return;
+    const current =
+      state.value.result?.kind === "notices"
+        ? state.value.result
+        : state.value.origin?.kind === "notices"
+          ? state.value.origin
+          : null;
+    const destinationURL =
+      url ??
+      current?.notices.url ??
+      (routeFor(state.value.destination)?.kind === "notices"
+        ? state.value.destination
+        : `${new URL(destination).origin}/home.php?mod=space&do=notice`);
+    clearDownload();
+    writing.hide();
+    capture();
+    const entry = newEntry(destinationURL, state.value.key || null);
+    entry.section = "notices";
+    if (current) {
+      entry.result = current;
+      entry.account = accountKey(current.account);
+    }
+    host.push(entry.key);
+    show(entry);
+    await read(
+      entry,
+      client.readNotices(destinationURL, current?.notices, current?.account),
     );
   }
   function updateAnchor(hash: string) {
@@ -568,6 +631,22 @@ export function createWorkspace(
       return;
     }
     const initial = new URL(destination);
+    if (routeFor(destination)?.kind === "notices") {
+      const entry = newEntry(destination, null);
+      entry.section = "notices";
+      entry.result = {
+        kind: "invalid",
+        account: { kind: "unknown" },
+        generation: client.generation,
+        sourceURL: entry.destination,
+        message:
+          "This native notice request may have marked notices read before the workspace started. No notice request has been repeated. Load notices only deliberately.",
+      };
+      host.replace(entry.key);
+      show(entry);
+      void persist();
+      return;
+    }
     if (
       initial.pathname === "/search.php" &&
       (initial.searchParams.has("searchid") ||
@@ -599,7 +678,12 @@ export function createWorkspace(
     await read(entry);
   }
   async function refresh() {
-    if (!["boards", "search"].includes(state.value.section)) return;
+    if (
+      state.value.section === "notices" &&
+      state.value.result?.kind !== "thread"
+    )
+      return loadNotices();
+    if (!["boards", "search", "notices"].includes(state.value.section)) return;
     clearDownload();
     let entry = entryFor(state.value.key);
     if (!entry) {
@@ -648,6 +732,7 @@ export function createWorkspace(
   return {
     preferences,
     openSection,
+    loadNotices,
     writing,
     resetRecovery: () => {
       host.resetRecovery();

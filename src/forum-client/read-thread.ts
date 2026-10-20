@@ -32,7 +32,9 @@ function outsidePosts(node: Node): boolean {
       ) ||
       hasClass(current, "pcb") ||
       hasClass(current, "pcbs") ||
-      hasClass(current, "viewthread")
+      hasClass(current, "viewthread") ||
+      hasClass(current, "nts") ||
+      hasClass(current, "ntc_body")
     )
       return false;
     current = "parentNode" in current ? current.parentNode : null;

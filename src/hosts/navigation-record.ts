@@ -200,6 +200,36 @@ function result(value: unknown): boolean {
       Object.values(search.edited).every((value) => list(value, string))
     );
   }
+  if (value.kind === "notices") {
+    const notices = value.notices;
+    return (
+      object(notices) &&
+      destination(notices.url) &&
+      list(
+        notices.categories,
+        (category) =>
+          link(category) &&
+          object(category) &&
+          typeof category.current === "boolean",
+      ) &&
+      pages(notices.pages) &&
+      string(notices.empty) &&
+      object(notices.unread) &&
+      (["unknown", "absent"].includes(String(notices.unread.kind)) ||
+        (notices.unread.kind === "observed" &&
+          finite(notices.unread.count) &&
+          Number.isSafeInteger(notices.unread.count) &&
+          notices.unread.count >= 0)) &&
+      list(
+        notices.entries,
+        (entry) =>
+          object(entry) &&
+          id(entry.id) &&
+          string(entry.time) &&
+          list(entry.body, content),
+      )
+    );
+  }
   if (value.kind === "thread") {
     const t = value.thread;
     return (

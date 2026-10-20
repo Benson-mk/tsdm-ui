@@ -81,6 +81,19 @@ export interface Pagination {
   current: string;
   links: ForumLink[];
 }
+export interface Notice {
+  id: string;
+  time: string;
+  body: ContentNode[];
+}
+export interface Notices {
+  url: string;
+  categories: (ForumLink & { current: boolean })[];
+  entries: Notice[];
+  pages: Pagination;
+  empty: string;
+  unread: { kind: "observed"; count: number } | { kind: "absent" | "unknown" };
+}
 export interface BoardLink extends ForumLink {
   id: string;
   description: string;
@@ -138,6 +151,13 @@ export type FailureKind =
   | "network"
   | "stale";
 export type ReadResult =
+  | {
+      kind: "notices";
+      notices: Notices;
+      account: Account;
+      generation: number;
+      sourceURL: string;
+    }
   | {
       kind: "search";
       search: Search;
@@ -225,6 +245,11 @@ export interface Search {
   results: SearchResults | null;
 }
 export interface ForumClient {
+  readNotices(
+    destination: string,
+    prior?: Notices,
+    expectedAccount?: Account,
+  ): Promise<ReadResult>;
   cancelDownload(): void;
   downloadAttachment(request: AttachmentRequest): Promise<AttachmentResult>;
   readSearchPage(

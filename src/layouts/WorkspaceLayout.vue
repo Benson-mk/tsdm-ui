@@ -11,6 +11,7 @@ import {
   DialogClose,
 } from "reka-ui";
 import SearchView from "../components/SearchView.vue";
+import NoticesView from "../components/NoticesView.vue";
 import SourceWriting from "../components/SourceWriting.vue";
 import ContentView from "../components/ContentView";
 import SettingsDialog from "../components/SettingsDialog.vue";
@@ -27,7 +28,8 @@ const text = computed(() =>
 const sections: Section[] = ["boards", "search", "saved", "notices", "drafts"];
 const sectionInfo = computed(() => {
   const section = state.value.section;
-  if (section === "boards" || section === "search") return null;
+  if (section === "boards" || section === "search" || section === "notices")
+    return null;
   return {
     title: text.value[section],
     heading: text.value[`${section}Heading`],
@@ -39,9 +41,7 @@ const sectionInfo = computed(() => {
     nativeURL:
       section === "saved"
         ? "https://www.tsdm39.com/home.php?mod=space&do=favorite&type=thread"
-        : section === "notices"
-          ? "https://www.tsdm39.com/home.php?mod=space&do=notice"
-          : "https://www.tsdm39.com/home.php?mod=space&do=thread&view=me&type=thread&filter=save",
+        : "https://www.tsdm39.com/home.php?mod=space&do=thread&view=me&type=thread&filter=save",
   };
 });
 function chooseSection(event: Event) {
@@ -220,6 +220,15 @@ const searchContext = computed(() =>
 const selectedThread = computed(() =>
   state.value.result?.kind === "thread" ? state.value.result.thread.id : null,
 );
+const noticeContext = computed(() =>
+  state.value.section !== "notices"
+    ? null
+    : state.value.result?.kind === "notices"
+      ? state.value.result.notices
+      : state.value.origin?.kind === "notices"
+        ? state.value.origin.notices
+        : null,
+);
 const boardChoices = computed(() =>
   state.value.result?.kind === "directory"
     ? state.value.result.directory.groups.flatMap((group) => group.boards)
@@ -242,6 +251,11 @@ function chooseBoard(event: Event) {
   const target = event.target;
   if (target instanceof HTMLSelectElement && target.value)
     void props.workspace.openThread(target.value);
+}
+function chooseNoticeCategory(event: Event) {
+  const target = event.target;
+  if (target instanceof HTMLSelectElement && target.value)
+    void props.workspace.loadNotices(target.value);
 }
 const aboutOpen = ref(false);
 function changeAboutOpen(value: boolean) {
@@ -299,7 +313,9 @@ function navigate(event: MouseEvent) {
   event.preventDefault();
   void props.workspace.openThread(
     link.href,
-    link.closest("[data-thread-id]")?.getAttribute("data-thread-id") ?? null,
+    link.closest("[data-notice-id]")?.getAttribute("data-notice-id") ??
+      link.closest("[data-thread-id]")?.getAttribute("data-thread-id") ??
+      null,
   );
 }
 onMounted(() => {
@@ -344,9 +360,10 @@ onMounted(() => {
           ?.querySelector<HTMLElement>(".search-results h2")
           ?.scrollIntoView({ block: "start" });
       const selected = selection
-        ? root.shadowRoot
+        ? (root.shadowRoot?.getElementById(`notice-${selection}`) ??
+          root.shadowRoot
             ?.getElementById(`row-${selection}`)
-            ?.querySelector<HTMLElement>(".subject")
+            ?.querySelector<HTMLElement>(".subject"))
         : null;
       (node ?? selected)?.focus({ preventScroll: true });
     },
@@ -446,7 +463,30 @@ const accountLabel = computed(() => {
           </option>
         </select></label
       >
-      <label v-if="state.section !== 'boards'" class="board-picker"
+      <label
+        v-if="state.section === 'notices' && noticeContext"
+        class="board-picker"
+        >{{ text.noticeCategories
+        }}<select
+          :aria-label="text.noticeCategories"
+          :value="
+            noticeContext.categories.find((category) => category.current)
+              ?.url ?? ''
+          "
+          :disabled="state.loading"
+          @change="chooseNoticeCategory"
+        >
+          <option value="" disabled>{{ text.noticeCategories }}</option>
+          <option
+            v-for="category in noticeContext.categories"
+            :key="category.url"
+            :value="category.url"
+          >
+            {{ category.label }}
+          </option>
+        </select></label
+      >
+      <label v-else-if="state.section !== 'boards'" class="board-picker"
         >{{ text.sectionNavigation
         }}<select
           :aria-label="text.sectionNavigation"
@@ -556,6 +596,7 @@ const accountLabel = computed(() => {
           {{ text.snapshotReload }}
         </p>
         <p>{{ text.missingSearch }}</p>
+        <p v-if="state.section === 'notices'">{{ text.noticeEffects }}</p>
         <button @click="workspace.refresh()">{{ text.reload }}</button>
       </section>
       <section v-if="state.documentNavigation" role="alert">
@@ -588,6 +629,42 @@ const accountLabel = computed(() => {
           )
         }}
       </p>
+      <section
+        v-if="
+          ['boards', 'search', 'notices'].includes(state.section) &&
+          state.result &&
+          !['directory', 'board', 'thread', 'search', 'notices'].includes(
+            state.result.kind,
+          )
+        "
+        class="notice"
+        role="alert"
+      >
+        <h1>
+          {{
+            state.result.kind === "invalid"
+              ? text.contentUnavailable
+              : description(
+                  state.result.kind.charAt(0).toUpperCase() +
+                    state.result.kind.slice(1),
+                  workspace.preferences.state.value.language,
+                )
+          }}
+        </h1>
+        <p>
+          {{
+            "message" in state.result
+              ? description(
+                  state.result.message,
+                  workspace.preferences.state.value.language,
+                  "nativeText" in state.result
+                    ? state.result.nativeText
+                    : undefined,
+                )
+              : ""
+          }}
+        </p>
+      </section>
     </div>
     <main
       v-show="!writing.visible"
@@ -665,6 +742,30 @@ const accountLabel = computed(() => {
         @submit="workspace.submitSearch"
         @edit="workspace.editSearch"
       />
+      <NoticesView
+        v-if="state.section === 'notices'"
+        :notices="noticeContext"
+        :loading="state.loading"
+        :language="workspace.preferences.state.value.language"
+        :secondary="state.result?.kind === 'thread'"
+        :selection="state.selection"
+        @load="workspace.loadNotices()"
+      />
+      <nav
+        v-if="state.section === 'notices'"
+        class="boards-navigation pane notices-navigation"
+        :aria-label="text.noticeCategories"
+      >
+        <h2>{{ text.notices }}</h2>
+        <a
+          v-for="category in noticeContext?.categories ?? []"
+          :key="category.url"
+          :href="category.url"
+          :aria-current="category.current ? 'page' : undefined"
+          >{{ category.label }}</a
+        >
+        <p v-if="!noticeContext">{{ text.noticesHeading }}</p>
+      </nav>
       <section
         v-if="state.section === 'boards' && state.result?.kind === 'directory'"
         class="overview pane"
@@ -776,7 +877,7 @@ const accountLabel = computed(() => {
       </section>
       <section
         v-if="
-          ['boards', 'search'].includes(state.section) &&
+          ['boards', 'search', 'notices'].includes(state.section) &&
           state.result?.kind === 'thread'
         "
         class="reading-pane pane"
@@ -875,42 +976,6 @@ const accountLabel = computed(() => {
             >{{ link.label }}</a
           >
         </nav>
-      </section>
-      <section
-        v-if="
-          ['boards', 'search'].includes(state.section) &&
-          state.result &&
-          !['directory', 'board', 'thread', 'search'].includes(
-            state.result.kind,
-          )
-        "
-        class="notice pane"
-        role="alert"
-      >
-        <h1>
-          {{
-            state.result.kind === "invalid"
-              ? text.contentUnavailable
-              : description(
-                  state.result.kind.charAt(0).toUpperCase() +
-                    state.result.kind.slice(1),
-                  workspace.preferences.state.value.language,
-                )
-          }}
-        </h1>
-        <p>
-          {{
-            "message" in state.result
-              ? description(
-                  state.result.message,
-                  workspace.preferences.state.value.language,
-                  "nativeText" in state.result
-                    ? state.result.nativeText
-                    : undefined,
-                )
-              : ""
-          }}
-        </p>
       </section>
       <section
         v-if="state.result?.kind === 'board'"

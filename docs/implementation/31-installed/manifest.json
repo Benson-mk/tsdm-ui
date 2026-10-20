@@ -1,0 +1,14 @@
+{
+  "current-native-comparison.json": {
+    "bytes": 2131,
+    "sha256": "ceef6760e5d6c0495a1d3a9094425aae0d4aced4c6689d5e630ddca003958224"
+  },
+  "receipt.json": {
+    "bytes": 13075,
+    "sha256": "d0f830ff36a18b044004cde9b995981bc2784b18407f6dd0724f6a94c14d56e8"
+  },
+  "report.md": {
+    "bytes": 9591,
+    "sha256": "ebd5022f39a1b986c8ada4d65f5b24d4f5ab60c732605a1d163c2b8089dfd2b6"
+  }
+}
