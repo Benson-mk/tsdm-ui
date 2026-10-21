@@ -1,0 +1,14 @@
+{
+  "comparison.json": {
+    "bytes": 3760,
+    "sha256": "53609f3d181adbd4a86dc40083cbd0dd3aea9535c0f44e62ed34c0a6c025ae3f"
+  },
+  "receipt.json": {
+    "bytes": 6184,
+    "sha256": "ec534b3de02383796ff1f404d70273a3b634d3b1a6a5629dc02f032cca3c2cf2"
+  },
+  "report.md": {
+    "bytes": 8864,
+    "sha256": "223293f8e104429dd79ca5637bd6114955091f6dd5904f75127f4e9df19c7fb1"
+  }
+}

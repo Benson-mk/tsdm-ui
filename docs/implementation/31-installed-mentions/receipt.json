@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "issue": 31,
+  "date": "2026-10-21",
+  "timezone": "Asia/Hong_Kong",
+  "candidate": {
+    "version": "0.3.0",
+    "bytes": 842336,
+    "sha256": "fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81"
+  },
+  "mode": "installed-development-live-mention-continuation",
+  "browserOrder": ["Edge", "Chrome"],
+  "versions": {
+    "source": "human structured replies on 2026-10-21 Asia/Hong_Kong",
+    "edge": "155.0.4283.62",
+    "chrome": "155.0.8059.85",
+    "tampermonkeyEdge": "BETA 5.6.6242",
+    "tampermonkeyChrome": "BETA 5.6.6242",
+    "os": "macOS 15.6"
+  },
+  "identity": {
+    "exactExecutingSourceBoth": true,
+    "matchingCopiesEach": 1,
+    "freshOfficialReadback": false,
+    "reason": "Connector disconnected; no source replacement performed. Prior exact official stored-source attestations retained."
+  },
+  "allRowsEach": 5,
+  "mentionRowsEach": 1,
+  "deliberateNoticeRequestsEach": 3,
+  "independentComparisons": 4,
+  "completeQualifiedScopes": 16,
+  "fullRowsMatch": true,
+  "exactMentionTargetFocusedBoth": true,
+  "passiveRowsEqual": true,
+  "passiveNoticeRequests": 0,
+  "selectedNoticeFocusRestoredBoth": true,
+  "scroll": {
+    "edge": 369.5,
+    "chrome": 497
+  },
+  "readEffect": {
+    "freshNativeHeaderBefore": "count 1",
+    "firstDeliberateResponseHeader": "count 1",
+    "freshNativeHeaderAfter": "plain label without count",
+    "subsequentSameMentionBodyStyle": "no unread bold style",
+    "subsequentAppUnread": "unknown",
+    "explicitNumericZeroObserved": false,
+    "effectOccursOnSharedAccount": "Edge load preceded Chrome checks; Chrome is not a second independent unread transition",
+    "recordedSequence": "No other agent notice action between the fresh Edge before/after native-root readbacks; this is an action-sequence observation, not complete global traffic coverage.",
+    "firstCompleteAllResponse": "count 1 and a bold unread mention body",
+    "afterNativeRootScope": "Complete scope with zero notice requests.",
+    "precheckScopeLimit": "Initial Edge and Chrome native-root precheck ledgers are truncated; fresh header content is observed, but complete request coverage is not established.",
+    "causalLimit": "Current presentation transition accounts for the deliberate notice load and ordinary native-root verification read; exclusive endpoint-level causation, isolation from external account activity and universal server behavior are not established."
+  },
+  "returnedPagerLinksEach": 0,
+  "humanPaginationExperience": {
+    "source": "Subsequent human reply on 2026-10-21 Asia/Hong_Kong",
+    "statement": "notices should be only one page, for my experience",
+    "interpretation": "Consistent with both observed accounts. Not universal no-pager proof or an explicit acceptance-contract change; no further account switch requested in this continuation."
+  },
+  "limits": [
+    "No actual returned pager on either observed account.",
+    "First target scope in each browser truncated; replacement complete scope retained separately.",
+    "No fresh official manager readback; exact executing source and prior stored-source attestations retained.",
+    "Stable/other-OS release and issue19 qualification remain separate.",
+    "Initial Edge/Chrome native-root precheck ledgers truncated; header content observed, but complete request coverage not claimed."
+  ],
+  "acceptance": "Completed independent BDFL audit: AC1, AC4 and AC5 verified for development acceptance when combined with previous corrected-candidate evidence; AC2 and AC3 remain partial only for actual returned pagination. Original 2091d67 commit unchanged; no whole-ticket acceptance or publication claimed.",
+  "acceptanceCriteria": {
+    "AC1": {
+      "status": "verified-development",
+      "basis": "Previous corrected-candidate deliberate-load/disclosure/no-polling evidence retained; three new deliberate scopes per browser each contain exactly one notice request."
+    },
+    "AC2": {
+      "status": "partial",
+      "remaining": "Actual returned pagination only."
+    },
+    "AC3": {
+      "status": "partial",
+      "remaining": "Actual returned pagination only; current populated mention and bounded unread-to-read presentation observation now verified. Plain remains unknown, not numeric zero."
+    },
+    "AC4": {
+      "status": "verified-development",
+      "basis": "Both actual mention targets focused and visible after real redirects/remounts; complete passive scopes retain equal full records, selected focus and useful scroll with zero notice requests, combined with prior reply/direct-arrival and deterministic safe/missing-history evidence."
+    },
+    "AC5": {
+      "status": "verified-development",
+      "basis": "Previous explicit native-continuation evidence retained; populated mention remains inert and unavailable actual pagination remains named."
+    }
+  },
+  "originalCommit": {
+    "sha": "2091d671d2cbab34ed6f9050554238007c8d1044",
+    "unchanged": true,
+    "priorApproval": "Explicit human approval for one local commit with AC2, AC3 and AC4 unchecked; historical approval does not accept the whole issue."
+  },
+  "privateEvidence": "Raw authenticated captures/screenshots retained separately and excluded from authored public summary.",
+  "derivation": {
+    "kind": "repository-documentation-derivative",
+    "sourcePackage": "populated-mention-installed-development-2026-10-21",
+    "sourceReviewedFileIdentities": [
+      {
+        "path": "comparison.json",
+        "bytes": 3760,
+        "sha256": "53609f3d181adbd4a86dc40083cbd0dd3aea9535c0f44e62ed34c0a6c025ae3f"
+      },
+      {
+        "path": "receipt.json",
+        "bytes": 2556,
+        "sha256": "e767a090a7054536518376ac842874d0693f887c7d6ab2aeb9e0186a5eb72bbc"
+      },
+      {
+        "path": "report.md",
+        "bytes": 6643,
+        "sha256": "1e020e48779fc6674fa921d7e604020de8eee3d4748ddc6d11fefb052b7e60ac"
+      }
+    ],
+    "changes": "Report/receipt record the completed independent acceptance judgment, bounded read-transition claim and human-reported version metadata with readable spacing. comparison.json remains byte-identical. New manifest identifies derivative bytes rather than original advisor inputs."
+  }
+}

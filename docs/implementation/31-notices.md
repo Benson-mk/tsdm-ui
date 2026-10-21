@@ -68,7 +68,9 @@ The corrected candidate is version **0.3.0**, **842336 bytes**, SHA-256
 `fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81`.
 The ticket branch includes integration tip `76d6ca9`. On 2026-10-21
 (Asia/Hong_Kong), the human explicitly approved a single local #31 commit with
-AC2, AC3 and AC4 unchecked for the evidence gaps below. This is a development
+AC2, AC3 and AC4 unchecked for the evidence gaps then present. The later
+populated-mention continuation below verifies AC4; actual returned pagination
+still leaves AC2 and AC3 unchecked. This is a development
 candidate; the approval does not accept the whole ticket or authorize issue
 closure, push or publication.
 
@@ -210,7 +212,14 @@ historical c0 evidence, not passes for the corrected candidate.** c0 direct
 arrival is explicitly a visual failure. Corrected-candidate observations are
 recorded separately below; no historical c0 result is promoted to new bytes.
 
-### Corrected installed development evidence
+### Earlier corrected installed development evidence
+
+This section retains the first corrected-candidate audit and its disposition
+before the human switched to the account with a populated mention. The later
+[populated-mention continuation](#populated-mention-continuation) supplies the
+current additional evidence. The original `31-installed/` package remains
+unchanged; its earlier gaps are historical rather than the current acceptance
+disposition.
 
 The parent installed and observed the exact corrected **842336-byte** candidate
 in **Edge then Chrome on macOS 15.6**, using the approved **BETA development
@@ -266,8 +275,8 @@ corrected Edge warning/target/restored-list and Chrome warning/target images
 were actually inspected; screenshots and raw authenticated captures remain
 private and are excluded from the repository package.
 
-Current populated mentions and their exact target, an actual returned pager
-and a causal unread-to-read transition remain unavailable. The human supplied
+At that audit, populated mentions and their exact target, an actual returned
+pager and a current unread-to-read transition remained unavailable. The human supplied
 the exact tool versions on 2026-10-21 (Asia/Hong_Kong): **Microsoft Edge
 155.0.4283.62**, **Google Chrome 155.0.8059.85**, and **Tampermonkey BETA
 5.6.6242 in both browsers**. These are human-reported metadata, supplied after
@@ -279,19 +288,98 @@ single local commit with AC2/AC3/AC4 unchecked; no full #31/#15 or release
 qualification, issue closure, push or publication is claimed. This documentation
 adds no distinct trade-off.
 
-### Acceptance audit
+### Populated-mention continuation
 
-The completed installed BDFL audit verifies AC1 and AC5 for the approved BETA
-development scope. AC2, AC3 and AC4 remain partial/unchecked; fixtures do not
-replace their missing current positive observations.
+After that earlier audit and the approved local commit, the human switched
+both installed browsers to an existing account containing a populated mention.
+The parent observed the unchanged corrected candidate in Edge then Chrome;
+one executing copy in each matched the exact **842336-byte fdc** source above.
+Prior official stored-source readbacks remain their own evidence. The manager
+connector was disconnected, so this continuation claims no fresh official
+readback or source replacement. Browser/manager versions are the same
+human-reported metadata above, on macOS 15.6. No mention was manufactured and
+no post, edit, PM, social action, upload or spend was performed.
 
-| #31 criterion                                                     | Verified development evidence                                                                                                                                                                               | Remaining evidence                                                                                                        |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| [x] 1. Deliberate overview/load/refresh/category/page; no polling | Installed Edge/Chrome overview, single-request load/category/refresh and idle observations; deterministic returned-page/failure cases preserve disclosure and deliberate actions.                           | Live pager absence remains AC2/AC3's named gap.                                                                           |
-| [ ] 2. Complete standard bodies/time/target/pagination            | Full populated all/reply/rating/system/friend comparisons match both installed browsers; complete mention/pager variants and refusal of partial content pass synthetically.                                 | Current populated mention and actual returned pagination.                                                                 |
-| [ ] 3. Current read behavior and truthful unread state            | Possible effects are disclosed; installed plain indicator stays unknown; synthetic absent/unknown/observed-zero/stale/failure states differ; no invented unread control.                                    | Current positive mention/pager observations and a causal unread-to-read transition; no current numeric zero was observed. |
-| [ ] 4. Exact target and passive return/recovery                   | Both installed reply journeys follow real301/remount and retain full rows/focus/scroll with zero passive notice reads; corrected warnings are readable; synthetic safe-history/missing-snapshot cases pass. | Current populated exact mention remains unavailable.                                                                      |
-| [x] 5. Explicit native deferred destinations and honest gaps      | Installed PM/broadcast/friend-action links explicitly continue natively; standard social bodies remain in the list; unavailable cases stay named.                                                           | AC2's independent completeness gate remains; no deferred action was executed or needed to verify an explicit link.        |
+The authored [continuation report](31-installed-mentions/report.md),
+[receipt](31-installed-mentions/receipt.json) and
+[comparison](31-installed-mentions/comparison.json) record the completed
+observations and independent BDFL judgment. This is a documentation derivative:
+the report/receipt incorporate the completed judgment and bounded read-effect
+claim; the comparison remains byte-identical. The receipt preserves the
+advisor's original reviewed file identities separately from the derivative's
+[manifest](31-installed-mentions/manifest.json). Verify exact package coverage,
+safe paths, sizes and SHA-256 with:
+
+```sh
+npm run evidence:verify -- docs/implementation/31-installed-mentions
+```
+
+Four independent nonempty comparisons match all **five All rows** and the
+**one mention row** in each browser for identity, returned time, complete
+native notice body text and ordered targets. A forum-provided post excerpt
+is preserved as the complete returned notice body, without claiming the
+complete target post. Each browser made three deliberate actions—All load,
+returned personal-post category and returned mention category—with exactly
+one notice request each. The personal-post default was explicitly empty.
+
+Across **16 complete qualifying scopes**, both actual mention targets follow
+real **301** redirects/document remounts to the intended focused, visible post.
+Target/Back/Forward/second-Back/list-reload scopes contain **zero notice
+requests**; full mention records remain equal, selected-notice focus returns
+and survives reload, and useful scroll remains **369.5px in Edge** and **497px
+in Chrome**. Stale-snapshot disclosure remains visible. Each browser's first
+target scope was truncated and remains inconclusive; each target was repeated
+once solely because traffic coverage was incomplete. Complete replacement
+scopes do not relabel those attempts or justify repeating successful cases.
+
+Edge's fresh native-root header before the first deliberate load showed
+count **1**. The complete first All response itself contained count **1** and
+a bold unread mention. After that single load, a fresh native-root header
+showed a plain label, and the later same mention no longer had unread bold
+styling. The completed independent audit accepts this current presentation
+transition for AC3's read-effect branch, accounting for the deliberate notice
+request and ordinary native-root verification read. It does not establish
+exclusive endpoint causation or isolation from external account activity.
+The complete after-load native-root scope has zero notice requests; initial
+Edge/Chrome precheck ledgers were truncated, so their fresh header contents
+are observations without complete traffic coverage. Plain remains **unknown**,
+never numeric zero. Edge read the shared account before Chrome: Chrome's old
+count of 1 was stale, its fresh precheck was plain, and it is not a second
+independent unread transition.
+
+The first hidden/native post-locator ambiguity was resolved semantically
+without another click. An early response-body read was completed against the
+original request without another load. A stale integration f36 build input
+initially failed source comparison; the separately frozen ticket fdc bytes
+then matched execution. This tooling-input failure remains recorded without
+inferring source/runtime replacement. Raw member data, native targets and
+screenshots remain private.
+
+The completed BDFL audit verifies **AC1, AC4 and AC5** for the approved BETA
+development scope. **AC2 and AC3 remain unchecked solely for actual returned
+pagination**: neither the earlier fourteen-notice account nor this five-notice
+account returned a pager. The human subsequently reported that notices have
+only one page in their experience, consistent with those observations. This
+does not establish universal absence or change the accepted pagination
+requirement; no further account switch is requested for this continuation.
+The earlier commit's approval with AC2/AC3/AC4
+unchecked remains historical; the unchanged commit is not whole-ticket
+acceptance. No #31/#15 closure, stable/other-OS release qualification or #19
+acceptance is claimed. Recording this evidence adds no distinct trade-off.
+
+### Current acceptance audit
+
+The completed populated-mention BDFL audit retains AC1/AC5, verifies AC4 and
+leaves AC2/AC3 partial solely on actual returned pagination. Fixtures do not
+replace that missing current positive observation.
+
+| #31 criterion                                                     | Verified development evidence                                                                                                                                                                                                   | Remaining evidence                                                                                                 |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [x] 1. Deliberate overview/load/refresh/category/page; no polling | Installed Edge/Chrome overview, single-request load/category/refresh and idle observations; deterministic returned-page/failure cases preserve disclosure and deliberate actions.                                               | Live pager absence remains AC2/AC3's named gap.                                                                    |
+| [ ] 2. Complete standard bodies/time/target/pagination            | Full populated all/reply/rating/system/friend and now mention comparisons match both installed browsers; deterministic pager variants and refusal of partial content pass.                                                      | Actual returned pagination only.                                                                                   |
+| [ ] 3. Current read behavior and truthful unread state            | Current populated mention and bounded Edge unread-to-read presentation transition are verified; plain remains unknown; synthetic absent/unknown/observed-zero/stale/failure cases remain distinct.                              | Actual returned pagination only; no numeric zero is claimed or required from a plain label.                        |
+| [x] 4. Exact target and passive return/recovery                   | Both installed reply and mention targets follow real redirects/remounts; complete passive scopes retain full records/focus/scroll with zero notice reads; corrected warnings and deterministic safe/missing-history cases pass. | None for this approved development scope.                                                                          |
+| [x] 5. Explicit native deferred destinations and honest gaps      | Installed PM/broadcast/friend-action links explicitly continue natively; standard social bodies remain in the list; unavailable cases stay named.                                                                               | AC2's independent completeness gate remains; no deferred action was executed or needed to verify an explicit link. |
 
 The parent obtained current native Edge then Chrome category shapes with the
 human's explicit authorization, acknowledging that the checks themselves can
@@ -299,7 +387,9 @@ mark notices read even when tooling fails. Populated all/reply/rating/friend/
 system and explicit-empty returned categories were observed. These native
 shape-only observations informed compatibility; they alone are **not installed
 #31 evidence**. The separately audited corrected-candidate installed package
-above supports only its stated observations and acceptance disposition.
+above and the later populated-mention package support their own stated
+observations. The current acceptance disposition combines the two completed
+audits without promoting historical failed or truncated observations.
 No private account content, raw captures or tokens are copied into fixtures or
 this public document. No live reads, writes, installation or publication were
 performed by this implementer.
