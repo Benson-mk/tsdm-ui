@@ -1,6 +1,6 @@
 # Retain one source writing context
 
-Issue [#19](https://github.com/Benson-mk/tsdm-ui/issues/19): **Retain one source writing context through navigation, refresh and session changes**. Baseline `6ccaee92c8b0016433e2d9e774d1dfd0b1ccf328`, original integration branch `implement/issue-15`; current isolated implementation branch `ticket/19-writing`.
+Issue [#19](https://github.com/Benson-mk/tsdm-ui/issues/19): **Retain one source writing context through navigation, refresh and session changes**. Baseline `6ccaee92c8b0016433e2d9e774d1dfd0b1ccf328`, original integration branch `implement/issue-15`; original isolated implementation branch `ticket/19-writing`. The current integrated continuation uses `ticket/19-verification`; its [acceptance audit](19-acceptance.md) controls the historical checkpoints below.
 
 ## Plan and confirmed seams
 
@@ -138,3 +138,16 @@ Accepted non-stale observations now propagate before local view/copy cancellatio
 The completed correction passes16/16 affected E2Es, the clean public consumer, and258/258 full application E2Es. Standards, Spec and advisor delta reviews confirm all three code findings resolved. Exact f36 installed correction cases pass8/8 in Edge and8/8 in Chrome, using authored external HTTP responses with unchanged installed code and real storage. All189 baseline and39 installed-delta screenshots were inspected; manifests verify243 and105 files respectively. See the current acceptance audit for the remaining explicit qualification gaps.
 
 15. Bound the new candidate's installed rerun to the changed account-observation/persistence/reference behavior, while retaining exact c855 identity for prior native input and disruptive lifecycle evidence. This avoids repeating the user's completed sign-outs, account switches, IME entries and browser quits, at the cost of leaving final-candidate lifecycle/native-input qualification incomplete. It is not a waiver: those acceptance rows stay unchecked and a local commit requires explicit user approval. Controlled response delays give repeatable cancellation coverage without changing real forum login; their receipts identify the external substitution.
+
+## Integrated verification continuation — 2026-10-21
+
+The [current acceptance audit](19-acceptance.md) and [installed report](19-installed-integrated/report.md) describe the continuation on `2091d671d2cbab34ed6f9050554238007c8d1044`. Original implementation commit `3eda353b66ddabc032cfc9de92ac2fb8194c93dd` and its approved unchecked AC4/AC6 remain historical. New observations qualify only integrated candidate `fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81`; no production or test edits were needed. The new failure inventory preceded the installed operations and retained wrong-identity, rapid-save, hidden-view, idle, tab-copy/divergence, native restore, redirect, quota/refusal, incompatible-schema, appearance/IME and cleanup failures as explicit cases.
+
+The continuation’s distinct actual trade-offs are:
+
+16. Keep the already installed integrated #31 candidate for #19 instead of rolling back f36. This avoids disrupting parallel work and exercises current notice integration, while limiting every new result to fdc bytes rather than qualifying f36.
+17. Use a separate owned continuation checkout. This preserves the original clean implementation checkout/commit and avoids editing another chat’s work or rewriting history, at the cost of another checkout and separately scoped evidence commit.
+18. Use twelve appearance cases per browser. They cover every theme/language pair, four text sizes, three measured widths and Compact transitions while bounding repetition; this does not establish the exhaustive interaction cross-product.
+19. Use human native controls when automation collides with another active profile or protected work. This preserves actual browser copy/reopen/lifecycle semantics and avoids unrelated-window actions, at the cost of operator participation and limited unattended repeatability.
+
+The public package preserves failed/inconclusive interpretations and private-evidence limits. It does not add a recovery fallback, cross-tab synchronization or durable-draft promise. Current lifecycle/review/commit disposition is recorded in the acceptance audit, avoiding any reinterpretation of earlier historical checkpoints.
