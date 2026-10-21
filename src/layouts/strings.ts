@@ -35,7 +35,7 @@ const english = {
     "Preferences are available for this page only. Storage is unavailable; changes may not survive reload.",
   about: "About this workspace",
   aboutDescription:
-    "TSDM Workspace 0.3.0. Reading uses your current forum account.",
+    "TSDM Workspace 0.4.0. Reading uses your current forum account.",
   nativeHelp:
     "For unsupported content or verification, continue at the same destination in the native forum.",
   snapshotMember: "Snapshot from {value}",
@@ -166,6 +166,25 @@ const english = {
   completeSource: "Complete source",
   currentFormOptions: "Current form options",
   returnReading: "Return to reading",
+  openConfirmedThread: "Open confirmed thread",
+  normalizedStoredPrice:
+    "Stored price: 0 (normalized from an empty submitted value).",
+  deliveryUnverified: "Delivery unverified",
+  effectNotRequested: "Not requested",
+  effectNotIncluded: "Not included in the command",
+  legacyStoredConfirmation:
+    "Previous stored confirmation. This legacy result has no separate normalization or creation-effect evidence.",
+  candidateThreadURL: "Candidate thread URL",
+  checkThreadResult: "Check result",
+  prepareAnotherAttempt: "Prepare another attempt",
+  duplicatePublicationWarning:
+    "The earlier attempt remains unknown. Sending again may create a duplicate thread and repeat its effects. This cannot undo the first attempt.",
+  keepOriginalAttempt: "Keep original attempt",
+  acceptDuplicateReview: "Accept duplicate risk and review",
+  reviewPublication: "Review publication",
+  publicationReview:
+    "Review revision {value} for {account} in {board}. Publishing may create a public thread with the selected price and read permission.",
+  publishThread: "Publish thread",
   incompatibleRecovery:
     "Stored recovery data is incompatible or malformed. It is retained without overwriting; new changes cannot be recovered until you resolve it.",
   inspectRecovery: "Inspect retained recovery data",
@@ -212,7 +231,7 @@ const simplified: Strings = {
   storageUnavailable:
     "偏好设置仅在当前页面有效。存储不可用；重新加载后可能无法保留更改。",
   about: "关于此工作区",
-  aboutDescription: "TSDM 工作区 0.3.0。阅读使用当前论坛账号。",
+  aboutDescription: "TSDM 工作区 0.4.0。阅读使用当前论坛账号。",
   nativeHelp:
     "如需查看不支持的内容或完成验证，请在原版论坛中继续访问同一目标。",
   snapshotMember: "来自 {value} 的快照",
@@ -334,6 +353,24 @@ const simplified: Strings = {
   completeSource: "完整源码",
   currentFormOptions: "当前表单选项",
   returnReading: "返回阅读",
+  openConfirmedThread: "打开已确认的主题",
+  normalizedStoredPrice: "存储售价为 0（由提交的空值规范化）。",
+  deliveryUnverified: "尚未验证送达",
+  effectNotRequested: "未请求",
+  effectNotIncluded: "未包含在提交指令中",
+  legacyStoredConfirmation:
+    "先前的存储确认。此旧版结果没有独立的规范化或创建影响证据。",
+  candidateThreadURL: "待检查的主题网址",
+  checkThreadResult: "检查结果",
+  prepareAnotherAttempt: "准备再次尝试",
+  duplicatePublicationWarning:
+    "先前尝试的结果仍未知。再次发送可能建立重复主题并重复其影响，而且无法撤销首次尝试。",
+  keepOriginalAttempt: "保留原尝试",
+  acceptDuplicateReview: "接受重复风险并检查",
+  reviewPublication: "检查发布",
+  publicationReview:
+    "检查 {account} 在 {board} 的第 {value} 版。发布可能建立公开主题，并采用所选售价和阅读权限。",
+  publishThread: "发布主题",
   incompatibleRecovery:
     "存储的恢复数据不兼容或格式错误。数据将保留而不被覆盖；解决前无法恢复新的更改。",
   inspectRecovery: "查看保留的恢复数据",
@@ -379,7 +416,7 @@ const traditional: Strings = {
   storageUnavailable:
     "偏好設定僅在目前頁面有效。儲存空間無法使用；重新載入後可能無法保留變更。",
   about: "關於此工作區",
-  aboutDescription: "TSDM 工作區 0.3.0。閱讀使用目前論壇帳號。",
+  aboutDescription: "TSDM 工作區 0.4.0。閱讀使用目前論壇帳號。",
   nativeHelp:
     "如需查看不支援的內容或完成驗證，請在原版論壇中繼續存取同一目標。",
   snapshotMember: "來自 {value} 的快照",
@@ -502,6 +539,24 @@ const traditional: Strings = {
   completeSource: "完整原始碼",
   currentFormOptions: "目前表單選項",
   returnReading: "返回閱讀",
+  openConfirmedThread: "開啟已確認的主題",
+  normalizedStoredPrice: "儲存售價為 0（由提交的空值正規化）。",
+  deliveryUnverified: "尚未驗證送達",
+  effectNotRequested: "未請求",
+  effectNotIncluded: "未包含在提交指令中",
+  legacyStoredConfirmation:
+    "先前的儲存確認。此舊版結果沒有獨立的正規化或建立影響證據。",
+  candidateThreadURL: "待檢查的主題網址",
+  checkThreadResult: "檢查結果",
+  prepareAnotherAttempt: "準備再次嘗試",
+  duplicatePublicationWarning:
+    "先前嘗試的結果仍未知。再次傳送可能建立重複主題並重複其影響，而且無法撤銷首次嘗試。",
+  keepOriginalAttempt: "保留原嘗試",
+  acceptDuplicateReview: "接受重複風險並檢查",
+  reviewPublication: "檢查發佈",
+  publicationReview:
+    "檢查 {account} 在 {board} 的第 {value} 版。發佈可能建立公開主題，並採用所選售價和閱讀權限。",
+  publishThread: "發佈主題",
   incompatibleRecovery:
     "儲存的復原資料不相容或格式錯誤。資料將保留而不被覆寫；解決前無法復原新的變更。",
   inspectRecovery: "檢視保留的復原資料",
@@ -526,6 +581,142 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "The forum reports pending moderation. Public stored source has not been confirmed.":
+    [
+      "论坛报告正在等待审核。尚未确认公开储存的源码。",
+      "論壇回報正在等候審核。尚未確認公開儲存的原始碼。",
+    ],
+  "The forum explicitly refused validation. Nothing is confirmed published.": [
+    "论坛明确拒绝了验证。尚未确认发布任何内容。",
+    "論壇明確拒絕了驗證。尚未確認發佈任何內容。",
+  ],
+  "The publication outcome is uncertain. Check the original attempt before considering another send.":
+    [
+      "发布结果不确定。考虑再次发送前，请检查原尝试。",
+      "發佈結果不確定。考慮再次傳送前，請檢查原嘗試。",
+    ],
+  "No supported candidate thread URL is available. Enter its thread URL to check this original attempt.":
+    [
+      "没有可用的受支持主题网址。请输入主题网址以检查原尝试。",
+      "沒有可用的受支援主題網址。請輸入主題網址以檢查原嘗試。",
+    ],
+  "The account changed during result checking. Original writing and possible effects are retained.":
+    [
+      "检查结果时账号发生变化。保留原写作内容和可能产生的影响。",
+      "檢查結果時帳號發生變更。保留原寫作內容和可能產生的影響。",
+    ],
+  "The candidate thread could not be independently read. Publication remains uncertain.":
+    [
+      "无法独立读取待检查的主题。发布结果仍不确定。",
+      "無法獨立讀取待檢查的主題。發佈結果仍不確定。",
+    ],
+  "Candidate actor, board, title or opening-post identity did not match the submitted revision.":
+    [
+      "待检查主题的作者、版块、标题或首帖身份与提交版本不符。",
+      "待檢查主題的作者、版塊、標題或首帖身分與提交版本不符。",
+    ],
+  "The account changed during stored-source readback. Possible publication remains uncertain.":
+    [
+      "回读已储存源码时账号发生变化。可能已发布，但结果仍不确定。",
+      "回讀已儲存原始碼時帳號發生變更。可能已發佈，但結果仍不確定。",
+    ],
+  "Complete stored source or offered options did not match, or were unavailable. No confirmation is claimed.":
+    [
+      "完整储存源码或所提供选项不符或无法取得。尚未确认发布成功。",
+      "完整儲存原始碼或所提供選項不符或無法取得。尚未確認發佈成功。",
+    ],
+  "Independent stored-result readback failed. Publication remains uncertain; no send was repeated.":
+    [
+      "独立回读储存结果失败。发布结果仍不确定；没有重复发送。",
+      "獨立回讀儲存結果失敗。發佈結果仍不確定；沒有重複傳送。",
+    ],
+  "A title, complete source and valid ordinary new-thread revision are required.":
+    [
+      "需要标题、完整源码和有效的普通新主题版本。",
+      "需要標題、完整原始碼和有效的普通新主題版本。",
+    ],
+  "The account changed or expired during preparation. Original writing remains paused.":
+    [
+      "准备期间账号发生变化或已过期。原写作内容保持暂停发送。",
+      "準備期間帳號發生變更或已過期。原寫作內容保持暫停傳送。",
+    ],
+  "The current native options changed or are unavailable. Review the current form before publication; no values were reset.":
+    [
+      "当前原生选项已变化或无法取得。发布前请检查当前表单；没有重设任何值。",
+      "目前原生選項已變更或無法取得。發佈前請檢查目前表單；沒有重設任何值。",
+    ],
+  "The current native successful controls or required values are unsupported. Nothing was sent.":
+    [
+      "不支持当前原生表单的提交控件或必要值。没有发送任何内容。",
+      "不支援目前原生表單的提交控制項或必要值。沒有傳送任何內容。",
+    ],
+  "Fresh publication preparation failed. Your writing remains here.": [
+    "重新准备发布失败。写作内容仍保留在这里。",
+    "重新準備發佈失敗。寫作內容仍保留在這裡。",
+  ],
+  "This preparation, account or attempt is stale or already active. Nothing was sent.":
+    [
+      "此准备、账号或尝试已失效或正在进行。没有发送任何内容。",
+      "此準備、帳號或嘗試已失效或正在進行。沒有傳送任何內容。",
+    ],
+  "The account changed or expired before send. Original writing remains retained and paused.":
+    [
+      "发送前账号已变化或过期。保留原写作内容并暂停发送。",
+      "傳送前帳號已變更或過期。保留原寫作內容並暫停傳送。",
+    ],
+  "The current form changed before send. Nothing was sent; review again.": [
+    "发送前当前表单已变化。没有发送任何内容；请重新检查。",
+    "傳送前目前表單已變更。沒有傳送任何內容；請重新檢查。",
+  ],
+  "The current successful controls changed before send. Nothing was sent.": [
+    "发送前当前表单的提交控件已变化。没有发送任何内容。",
+    "傳送前目前表單的提交控制項已變更。沒有傳送任何內容。",
+  ],
+  "The account changed while publication was in flight. It may have been accepted; no rollback or atomic account isolation is guaranteed.":
+    [
+      "发布请求进行期间账号发生变化。请求可能已被接受；无法保证回滚或账号的原子隔离。",
+      "發佈請求進行期間帳號發生變更。請求可能已被接受；無法保證回滾或帳號的原子隔離。",
+    ],
+  "The response was lost. The forum may have accepted this attempt. Check result; no send was repeated.":
+    [
+      "响应已丢失。论坛可能已接受此尝试。请检查结果；没有重复发送。",
+      "回應已遺失。論壇可能已接受此嘗試。請檢查結果；沒有重複傳送。",
+    ],
+  "Fresh preflight failed before publication was sent. Your writing is retained; review again deliberately.":
+    [
+      "发布发送前的重新检查失败。写作内容已保留；请主动重新检查。",
+      "發佈傳送前的重新檢查失敗。寫作內容已保留；請主動重新檢查。",
+    ],
+  "Publication or result checking is pending. Keep this context until it settles.":
+    [
+      "发布或结果检查正在进行。请保留此写作内容，直到操作结束。",
+      "發佈或結果檢查正在進行。請保留此寫作內容，直到操作結束。",
+    ],
+  "An earlier attempt may already exist. Check result, then explicitly accept duplicate risk before another send.":
+    [
+      "先前尝试可能已产生主题。再次发送前，请检查结果并明确接受重复风险。",
+      "先前嘗試可能已產生主題。再次傳送前，請檢查結果並明確接受重複風險。",
+    ],
+  "Writing changed during publication preparation. Review the current revision again.":
+    [
+      "准备发布期间写作内容已变化。请重新检查当前版本。",
+      "準備發佈期間寫作內容已變更。請重新檢查目前版本。",
+    ],
+  "Publication is pending. Refresh will retain it as uncertain without replay.":
+    [
+      "发布正在进行。刷新后将保留为不确定状态，不会重新发送。",
+      "發佈正在進行。重新載入後將保留為不確定狀態，不會重新傳送。",
+    ],
+  "Publication was not sent because recovery, writing or the account changed before send. Your source is retained.":
+    [
+      "由于恢复、写作内容或账号在发送前变化，发布尚未发送。源码已保留。",
+      "由於復原、寫作內容或帳號在傳送前變更，發佈尚未傳送。原始碼已保留。",
+    ],
+  "Pending publication restored as uncertain. Nothing has been replayed; check the original attempt.":
+    [
+      "进行中的发布已恢复为不确定状态。没有重新发送；请检查原尝试。",
+      "進行中的發佈已復原為不確定狀態。沒有重新傳送；請檢查原嘗試。",
+    ],
   Cost: ["积分限制", "積分限制"],
   Throttle: ["搜索频率受限", "搜尋頻率受限"],
   Expired: ["搜索结果已过期", "搜尋結果已過期"],
@@ -1063,8 +1254,25 @@ export function description(
   nativeText?: string | null,
 ): string {
   if (language === "en") return value;
+  const retained =
+    "Previous stored confirmation retained. This recheck did not verify the current result. ";
+  if (value.startsWith(retained))
+    return (
+      (language === "zh-CN"
+        ? "保留先前的存储确认。本次检查未验证当前结果。"
+        : "保留先前的儲存確認。本次檢查未驗證目前結果。") +
+      description(value.slice(retained.length), language, nativeText)
+    );
   const localized = descriptions[value];
   if (localized) return localized[language === "zh-CN" ? 0 : 1];
+  const publication =
+    /^Confirmed stored thread (\d+), post (\d+), submitted revision (\d+)\.$/.exec(
+      value,
+    );
+  if (publication)
+    return language === "zh-CN"
+      ? `已确认储存主题 ${publication[1]}、帖子 ${publication[2]}，提交版本 ${publication[3]}。`
+      : `已確認儲存主題 ${publication[1]}、帖子 ${publication[2]}，提交版本 ${publication[3]}。`;
   for (const [prefix, translated] of Object.entries(searchPrefixes)) {
     if (!value.startsWith(prefix)) continue;
     const suffix = value.slice(prefix.length);

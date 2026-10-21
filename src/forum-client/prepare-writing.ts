@@ -2,6 +2,7 @@ import {
   attr,
   byId,
   children,
+  controlDisabled,
   descendants,
   documentFrom,
   label,
@@ -37,6 +38,7 @@ const optionLabels: Record<string, string> = {
   addfeed: "Publish activity",
   adddynamic: "Share with followers",
   adddynamic_doing: "Ask followers to share",
+  tags: "Tags",
 };
 const has = (node: Element, name: string) =>
   node.attrs.some((a) => a.name === name);
@@ -72,6 +74,7 @@ export function decodeWriting(
   response: HostResponse,
   requested: string,
   boardId: string,
+  edit?: { threadId: string; postId: string },
 ): Decoded {
   let account: Account = { kind: "unknown" };
   const fail = (
@@ -168,9 +171,21 @@ export function decodeWriting(
     target.origin !== new URL(requested).origin ||
     target.pathname !== "/forum.php" ||
     target.searchParams.get("mod") !== "post" ||
-    target.searchParams.get("action") !== "newthread" ||
-    target.searchParams.get("fid") !== boardId ||
-    ["fid", "mod", "action"].some(
+    target.searchParams.get("action") !== (edit ? "edit" : "newthread") ||
+    (!edit && target.searchParams.get("fid") !== boardId) ||
+    (edit &&
+      ["fid", "tid", "pid"].some((key) => {
+        const expected =
+          key === "fid" ? boardId : key === "tid" ? edit.threadId : edit.postId;
+        const values = [
+          ...target.searchParams.getAll(key),
+          ...descendants(form, (node) => attr(node, "name") === key).map(
+            (node) => attr(node, "value"),
+          ),
+        ];
+        return values.length !== 1 || values[0] !== expected;
+      })) ||
+    ["mod", "action", ...(!edit ? ["fid"] : [])].some(
       (k) => target.searchParams.getAll(k).length !== 1,
     ) ||
     (target.searchParams.has("special") &&
@@ -201,9 +216,9 @@ export function decodeWriting(
     const choices =
       node.tagName === "select"
         ? descendants(node, (n) => n.tagName === "option").map((n) => ({
-            value: attr(n, "value") || text(n),
+            value: has(n, "value") ? attr(n, "value") : text(n),
             label: label(n) || "No category",
-            disabled: has(n, "disabled"),
+            disabled: controlDisabled(n),
           }))
         : [];
     const selected =
@@ -225,11 +240,13 @@ export function decodeWriting(
       value:
         node.tagName === "select"
           ? selected
-            ? attr(selected, "value") || text(selected)
+            ? has(selected, "value")
+              ? attr(selected, "value")
+              : text(selected)
             : (choices[0]?.value ?? "")
           : attr(node, "value"),
       checked: has(node, "checked"),
-      disabled: has(node, "disabled"),
+      disabled: controlDisabled(node),
       choices,
       maxLength: /^\d+$/.test(attr(node, "maxlength"))
         ? Number(attr(node, "maxlength"))

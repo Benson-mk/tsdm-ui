@@ -1,0 +1,473 @@
+{
+  "schema": 1,
+  "issue": 20,
+  "title": "Publish ordinary threads with confirmed revisions and uncertain-attempt recovery",
+  "date": "2026-10-21",
+  "timezone": "Asia/Hong_Kong",
+  "mode": "historical-installed-controlled-http-and-bounded-live",
+  "status": "historical-incomplete",
+  "candidate": {
+    "version": "0.3.0",
+    "userscript": {
+      "file": "tsdm-workspace.user.js",
+      "bytes": 887221,
+      "sha256": "9921f8ad772eaf2fe532b09f14cb2f5dd3378989b6da81ef598a00b475ed8052"
+    },
+    "node": "24.22.0",
+    "npm": "11.21.1",
+    "lockSha256": "2855b0d9260df201dda5f0c775669e8941cb9716a35e54757d0e6cd0035e7825"
+  },
+  "environment": {
+    "edge": "155.0.4283.62",
+    "chrome": "155.0.8059.85",
+    "tampermonkeyEdge": "BETA 5.6.6242",
+    "tampermonkeyChrome": "BETA 5.6.6242",
+    "os": "macOS 15.6",
+    "provenance": "Human-reported browser/manager patches; macOS uses shared prior receipt human-report provenance.",
+    "releaseMatrixQualified": false
+  },
+  "identity": {
+    "officialBackupsUpdatesFullReadbacksBoth": true,
+    "exactExecutingSourceBoth": true,
+    "matchingCopiesEach": 1,
+    "runtimeInventoriesComplete": true,
+    "connectionAtHistoricalHandoff": "Chrome"
+  },
+  "retainedDeterministicEvidence": {
+    "application": {
+      "run": "2026-10-21T09-07-22.806Z",
+      "passed": 356,
+      "total": 356,
+      "userscriptSha256": "9921f8ad772eaf2fe532b09f14cb2f5dd3378989b6da81ef598a00b475ed8052"
+    },
+    "consumer": {
+      "run": "consumer-2026-10-21T09-06-12.812Z",
+      "status": "passed",
+      "publicationCasesPassed": 15,
+      "packageSha256": "f8e7c00058325f95b579eab55f182e7eaf3ea0e893a13230b2338b7d653dd178"
+    },
+    "rerunByDocumentationTask": false
+  },
+  "boundedRootAudit": {
+    "explicitPredicates": 35,
+    "allListedPredicatesPass": true,
+    "privateInputFiles": 262,
+    "allPrivateInputHashesReverifiedByAuthorship": true,
+    "cumulativeLedgerRows": 43,
+    "rowsShareRequestsAndMustNotBeSummed": true,
+    "completeUIAudit": false,
+    "completeScreenshotAudit": false,
+    "completeNetworkCausalityAudit": false,
+    "predicates": [
+      {
+        "alias": "predicate-01",
+        "observation": "edge: official source equals candidate",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-02",
+        "observation": "edge: native quota refuses and retains acknowledged record",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-03",
+        "observation": "edge: accepted-response-loss retains uncertain",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-04",
+        "observation": "edge: loss-explicit-confirmation retains confirmed",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-05",
+        "observation": "edge: known-rejection retains rejected",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-06",
+        "observation": "edge: moderation retains moderation",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-07",
+        "observation": "edge: session-before-send retains not-sent",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-08",
+        "observation": "edge: session-after-held-response retains uncertain",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-09",
+        "observation": "edge: session-changed-during-source retains uncertain",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-10",
+        "observation": "edge: pending-before-reload retains pending",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-11",
+        "observation": "edge: explicit check preserves original submission and attempt",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-12",
+        "observation": "edge: loss/check has exactly one intercepted publication POST",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-13",
+        "observation": "edge: held older confirmation preserves later title/source/options",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-14",
+        "observation": "edge: reader failure retains confirmation",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-15",
+        "observation": "chrome: official source equals candidate",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-16",
+        "observation": "chrome: native quota refuses and retains acknowledged record",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-17",
+        "observation": "chrome: accepted-response-loss retains uncertain",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-18",
+        "observation": "chrome: loss-explicit-confirmation retains confirmed",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-19",
+        "observation": "chrome: known-rejection retains rejected",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-20",
+        "observation": "chrome: moderation retains moderation",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-21",
+        "observation": "chrome: session-before-send retains not-sent",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-22",
+        "observation": "chrome: session-after-held-response retains uncertain",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-23",
+        "observation": "chrome: session-changed-during-source retains uncertain",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-24",
+        "observation": "chrome: pending-before-reload retains pending",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-25",
+        "observation": "chrome: explicit check preserves original submission and attempt",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-26",
+        "observation": "chrome: loss/check has exactly one intercepted publication POST",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-27",
+        "observation": "chrome: held older confirmation preserves later title/source/options",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-28",
+        "observation": "chrome: reader failure retains confirmation",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-29",
+        "observation": "Edge: one complete exact executing source",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-30",
+        "observation": "Chrome: one complete exact executing source",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-31",
+        "observation": "edge: pending explicit recovery confirms original",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-32",
+        "observation": "chrome: pending explicit recovery confirms original",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-33",
+        "observation": "edge: passive reload retains confirmation",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-34",
+        "observation": "chrome: passive reload retains confirmation",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      },
+      {
+        "alias": "predicate-35",
+        "observation": "historical live Edge attempt remains uncertain and unchanged identity",
+        "passedListedPredicate": true,
+        "candidateScope": "historical-9921",
+        "acceptancePromotion": false
+      }
+    ]
+  },
+  "controlledInstalledBoundary": {
+    "browsers": ["Edge", "Chrome"],
+    "realManagerApplicationInputStorageHistoryFocus": true,
+    "controlled": "Application XHR/Fetch request-stage HTTP only",
+    "nativeDocumentAndStaticBackgroundTraffic": "normal and uncontrolled",
+    "syntheticStoredPostsAreForumPublications": false,
+    "knownRejection": {
+      "interceptedPublicationPOSTs": 1,
+      "acceptedSyntheticStoredPosts": 0
+    },
+    "lossAndExplicitCheckPerBrowser": {
+      "interceptedPublicationPOSTs": 1,
+      "extraPublicationPOSTForCheck": 0
+    },
+    "accountIsolationAtomic": false,
+    "rollbackGuaranteed": false
+  },
+  "live": {
+    "edge": {
+      "alias": "original-live-thread",
+      "publicationPOSTs": 1,
+      "GETs": 5,
+      "completeNamedScopes": 6,
+      "truncated": false,
+      "hasMore": false,
+      "expectedAuthorTargetTitleAndCompleteSourceReadbackAvailable": true,
+      "titleAndSourceEqualOriginalSubmission": true,
+      "applicationStatus": "uncertain",
+      "sameOriginalAttemptPreserved": true,
+      "resendPerformed": false
+    },
+    "chrome": {
+      "publicationPOSTs": 0
+    },
+    "referenceExistingThreadModified": false,
+    "anotherEdgeThreadCreated": false,
+    "creationEffectsVerified": false
+  },
+  "nativeCompatibilityBlockers": {
+    "callback": {
+      "observedLiteralName": "succeedhandle_",
+      "observedMatchingGuard": true,
+      "acceptedByHistorical9921Grammar": false,
+      "callbackOnlyCandidateEvidence": true
+    },
+    "price": {
+      "immutableSubmittedValue": "",
+      "presentStoredValue": "0",
+      "historical9921ConfirmsNormalization": false
+    },
+    "creationDirectives": [
+      {
+        "name": "addfeed",
+        "value": "1",
+        "requested": true,
+        "presentOnOwnedEdit": false,
+        "actualEffect": "unknown"
+      },
+      {
+        "name": "adddynamic",
+        "value": "true",
+        "requested": true,
+        "presentOnOwnedEdit": false,
+        "actualEffect": "unknown"
+      },
+      {
+        "name": "adddynamic_doing",
+        "value": "true",
+        "requested": false,
+        "presentOnOwnedEdit": false,
+        "actualEffect": "not-established"
+      }
+    ],
+    "feedIdentifierProvesDelivery": false,
+    "missingPersistentFieldsMayBeAccepted": false
+  },
+  "keyboard": {
+    "status": "failed-native-boundary",
+    "filteredPassiveTraces": 2,
+    "trustedSamplesPerTrace": 12,
+    "trustedSamplesTotal": 24,
+    "sampledBrowsers": ["Edge"],
+    "innerOrigins": ["INPUT", "TEXTAREA"],
+    "outerTarget": "DIV workspace host",
+    "nativeHandlerChain": ["document.onkeyup", "keyPageScroll"],
+    "unintendedNativeDocumentNavigationObserved": true,
+    "chromeRangeSymptomAlsoObserved": true,
+    "independentCrossBrowserTracePairClaimed": false,
+    "syntheticStoredPostsInFilteredReproductions": 0,
+    "livePublicationActionInDiagnostics": false,
+    "edgeTextSizeRestoredFrom110To100": true,
+    "chromePreferenceAndViewportRestored": true,
+    "disposableDiagnosticsClosedUnderActiveInterception": true,
+    "originalLiveContextsPreserved": true
+  },
+  "visual": {
+    "narrow150PercentImagesAvailable": true,
+    "coverage": "limited actual viewport/scroll observations",
+    "responsivePassClaimed": false
+  },
+  "retainedUnqualifiedAttempts": [
+    "Earlier browser-managed Document/response-stage interception errors",
+    "Initial incomplete reload scopes",
+    "First Chrome unexpected telemetry controller stop",
+    "Syntax-error handler attempt"
+  ],
+  "interceptionLifecycle": {
+    "skipBrowserManagedDocumentAndResponseStage": true,
+    "disableFetchWithPausedRequestsAllowed": false,
+    "closeDisposableTabsWithInterceptionActive": true,
+    "savedClosureDependentControllerFragmentsStandalone": false
+  },
+  "acceptanceCriteria": {
+    "AC1": {
+      "checked": false,
+      "status": "unchecked",
+      "remaining": "Historical native callback/options mismatch blocks current confirmation; corrected exact-source native qualification pending."
+    },
+    "AC2": {
+      "checked": false,
+      "status": "unchecked",
+      "remaining": "Retained binding/session predicates do not establish complete acceptance while native defects and correction gates remain."
+    },
+    "AC3": {
+      "checked": false,
+      "status": "unchecked",
+      "remaining": "Live original remains uncertain on9921; corrected stored-result/effect semantics and affected independent native readback pending."
+    },
+    "AC4": {
+      "checked": false,
+      "status": "unchecked",
+      "remaining": "Controlled later-edit/pending/loss/check observations retained; repaired native keyboard and actual corrected original-attempt recovery remain pending."
+    },
+    "AC5": {
+      "checked": false,
+      "status": "unchecked",
+      "remaining": "Bounded deterministic/controlled failure coverage retained; actual native blockers and new-candidate review/installed gates remain."
+    }
+  },
+  "qualification": {
+    "allAcceptanceCriteriaVerified": false,
+    "issue20Complete": false,
+    "issue15Complete": false,
+    "releaseQualified": false,
+    "completeCommitApprovalExists": false,
+    "newCandidatePassClaimed": false,
+    "published": false
+  },
+  "sourceAuditIdentities": [
+    {
+      "alias": "bounded-root-audit",
+      "sha256": "99fbe15f3b4ed5bf8a8919884aa5ee9de9a23036527cff7d75381140f94ad203"
+    },
+    {
+      "alias": "live-and-keyboard-supplement",
+      "sha256": "71aa8a8869469b509788a54b31512d98a4bb015a5f04305aa389146022463948"
+    },
+    {
+      "alias": "native-confirmation-advisory",
+      "sha256": "e3958083848a7c9353302925c2146d14221f767c14b197c7e1d734e707256eb8"
+    }
+  ],
+  "privateEvidence": "Authenticated raw bodies/headers/tokens/member details/target URLs/screenshots/workstation paths are excluded. The public manifest identifies authored bytes only.",
+  "evidenceTradeoffs": "One historical controlled-HTTP/native-browser boundary trade-off is recorded once in report.md. Product choices remain in the central implementation ledger; authorship adds no new distinct product choice."
+}

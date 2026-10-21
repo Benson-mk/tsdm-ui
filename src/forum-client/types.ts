@@ -263,6 +263,14 @@ export interface ForumClient {
     expectedAccount: Account,
   ): Promise<ReadResult>;
   prepareNewThread(boardId: string): Promise<PrepareWritingResult>;
+  prepareThreadPublication(
+    submission: ThreadSubmission,
+  ): Promise<PublicationPreparationResult>;
+  publishThread(attempt: ThreadAttempt): Promise<ThreadAttempt>;
+  checkThreadResult(
+    attempt: ThreadAttempt,
+    candidateURL?: string,
+  ): Promise<ThreadAttempt>;
   readThread(url: string): Promise<ReadResult>;
   readPage(url: string, options?: { fresh?: boolean }): Promise<ReadResult>;
   readonly account: Account;
@@ -304,3 +312,62 @@ export type PrepareWritingResult =
       generation: number;
       sourceURL: string;
     };
+
+/** An immutable submitted revision, separate from subsequently edited writing. */
+export interface ThreadSubmission {
+  contextId: string;
+  revision: number;
+  writing: PreparedWriting;
+}
+export interface ThreadPublication {
+  id: string;
+  generation: number;
+  submission: ThreadSubmission;
+}
+export type PublicationPreparationResult =
+  | {
+      kind: "ready";
+      publication: ThreadPublication;
+      account: Account;
+      generation: number;
+    }
+  | {
+      kind: FailureKind | "validation";
+      message: string;
+      account: Account;
+      generation: number;
+    };
+/** A command instruction, independent of the verified stored thread. */
+export type ThreadCreationEffect = {
+  name: "addfeed" | "adddynamic" | "adddynamic_doing";
+} & (
+  | { requested: true; included: boolean; outcome: "unknown" }
+  | { requested: false; included: false; outcome: "not-requested" }
+);
+/** Fresh complete stored-source/options verification, not effect-delivery proof. */
+export interface ThreadVerification {
+  stored: "verified";
+  normalizations: { name: "price"; submitted: ""; stored: "0" }[];
+  creationEffects: ThreadCreationEffect[];
+}
+export interface ThreadAttempt {
+  id: string;
+  publication: ThreadPublication;
+  status:
+    | "pending"
+    | "uncertain"
+    | "rejected"
+    | "moderation"
+    | "confirmed"
+    | "not-sent";
+  message: string;
+  checked: boolean;
+  candidateURL: string | null;
+  result: {
+    threadId: string;
+    postId: string;
+    url: string;
+    /** Absent only on compatible legacy confirmations. New readbacks supply it. */
+    verification?: ThreadVerification;
+  } | null;
+}

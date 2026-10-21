@@ -25,6 +25,31 @@ export function descendants(
 export function byId(node: Node, id: string): Element | undefined {
   return descendants(node, (child) => attr(child, "id") === id)[0];
 }
+/** Native disabled fieldset/first-legend and optgroup semantics, without DOM. */
+export function controlDisabled(node: Element): boolean {
+  const disabled = (value: Element) =>
+    value.attrs.some((a) => a.name === "disabled");
+  if (disabled(node)) return true;
+  let child: Node = node;
+  for (
+    let parent: Node | null = node.parentNode;
+    parent;
+    parent = "parentNode" in parent ? parent.parentNode : null
+  ) {
+    if (element(parent) && disabled(parent)) {
+      if (parent.tagName === "optgroup" && node.tagName === "option")
+        return true;
+      if (
+        parent.tagName === "fieldset" &&
+        children(parent).find((n) => element(n) && n.tagName === "legend") !==
+          child
+      )
+        return true;
+    }
+    child = parent;
+  }
+  return false;
+}
 export function hasClass(node: Node, name: string): boolean {
   return attr(node, "class").split(/\s+/).includes(name);
 }

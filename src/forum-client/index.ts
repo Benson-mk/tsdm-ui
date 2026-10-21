@@ -6,6 +6,7 @@ import {
   decodeSearchResults,
 } from "./search.js";
 import { decodeWriting } from "./prepare-writing.js";
+import { createThreadPublisher } from "./publish-thread.js";
 export { unresolvedWritingAttachments } from "./prepare-writing.js";
 import { decodeThread } from "./read-thread.js";
 import { decodeBoard } from "./read-board.js";
@@ -31,7 +32,7 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.3.0";
+export const FORUM_CLIENT_VERSION = "0.4.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -40,7 +41,21 @@ export function createForumClient(options: {
   let generation = 0;
   let sequence = 0;
   let downloadSequence = 0;
+  const publisher = createThreadPublisher({
+    ...options,
+    account: () => account,
+    generation: () => generation,
+    observe: (observed) => {
+      if (actor(observed) !== actor(account)) {
+        account = observed;
+        generation++;
+      }
+    },
+  });
   return {
+    prepareThreadPublication: publisher.prepare,
+    publishThread: publisher.publish,
+    checkThreadResult: publisher.check,
     async readNotices(destination, prior, expectedAccount) {
       const current = ++sequence;
       const route = routeFor(destination);

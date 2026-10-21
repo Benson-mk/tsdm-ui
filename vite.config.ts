@@ -9,7 +9,7 @@ export default defineConfig({
       userscript: {
         name: "TSDM Workspace",
         namespace: "https://github.com/Benson-mk/tsdm-ui",
-        version: "0.3.0",
+        version: "0.4.0",
         description:
           "Current-account forum workspace. Manual installation and updates.",
         match: ["https://www.tsdm39.com/*"],

@@ -60,6 +60,10 @@ export function nativeDestination(destination: string): string {
 
 /** Keep the native document available for recovery without exposing a second UI. */
 export function suspendNativeBackground(root: HTMLElement): () => void {
+  // Native document keyup paging sees the shadow host rather than its control.
+  // Keep workspace handlers/defaults, then stop the native bubble path.
+  const stopNativeKeyup = (event: KeyboardEvent) => event.stopPropagation();
+  root.addEventListener("keyup", stopNativeKeyup);
   const previous = new Map<
     HTMLElement,
     { inert: boolean; ariaHidden: string | null }
@@ -84,6 +88,7 @@ export function suspendNativeBackground(root: HTMLElement): () => void {
   suspend();
   observer.observe(document.body, { childList: true });
   return () => {
+    root.removeEventListener("keyup", stopNativeKeyup);
     observer.disconnect();
     for (const [element, state] of previous) {
       element.inert = state.inert;

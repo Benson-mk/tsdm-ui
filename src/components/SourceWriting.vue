@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import type { Workspace } from "../workspace";
-import { strings, insert } from "../layouts/strings";
+import { strings, insert, description } from "../layouts/strings";
 import type { WritingOption } from "../forum-client";
 const props = defineProps<{ workspace: Workspace }>();
 const state = props.workspace.writing.state;
@@ -10,6 +10,16 @@ const text = computed(() =>
 );
 const unresolved = props.workspace.writing.unresolvedAttachments;
 const editor = ref<HTMLTextAreaElement | null>(null);
+const candidateURLs = ref<Record<string, string>>({});
+function effectLabel(
+  options: readonly { name: string; label: string }[],
+  name: string,
+): string {
+  return description(
+    options.find((option) => option.name === name)?.label ?? "",
+    props.workspace.preferences.state.value.language,
+  );
+}
 function selection() {
   const element = editor.value;
   if (element)
@@ -85,11 +95,14 @@ function updateOption(option: WritingOption, event: Event) {
       {{ insert(text.unresolvedAttachments, unresolved.join(", ")) }}
     </p>
     <div class="writing-actions">
-      <button :disabled="state.preparing" @click="workspace.writing.check()">
+      <button
+        :disabled="state.preparing || state.publishing"
+        @click="workspace.writing.check()"
+      >
         {{ text.checkWriting }}
       </button>
       <button
-        :disabled="state.preparing"
+        :disabled="state.preparing || state.publishing"
         @click="workspace.writing.check(true)"
       >
         {{ text.prepareTextCopy }}
@@ -108,11 +121,125 @@ function updateOption(option: WritingOption, event: Event) {
       <button @click="workspace.writing.cancelCopy()">
         {{ text.keepWriting }}
       </button>
-      <button @click="workspace.writing.confirmCopy()">
+      <button
+        :disabled="state.publishing"
+        @click="workspace.writing.confirmCopy()"
+      >
         {{ text.replaceTextCopy }}
       </button>
     </section>
-    <p>{{ text.localWriting }}</p>
+    <p v-if="!state.context.attempts?.length">{{ text.localWriting }}</p>
+    <section
+      v-for="attempt in state.context.attempts"
+      :key="attempt.id"
+      role="status"
+    >
+      <p>
+        {{
+          description(
+            attempt.message,
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </p>
+      <template v-if="attempt.result?.verification">
+        <p
+          v-for="normalization in attempt.result.verification.normalizations"
+          :key="normalization.name"
+        >
+          {{ text.normalizedStoredPrice }}
+        </p>
+        <ul v-if="attempt.result.verification.creationEffects.length">
+          <li
+            v-for="effect in attempt.result.verification.creationEffects"
+            :key="effect.name"
+          >
+            {{
+              effectLabel(
+                attempt.publication.submission.writing.options,
+                effect.name,
+              )
+            }}:
+            <span>{{
+              effect.outcome === "unknown"
+                ? text.deliveryUnverified
+                : text.effectNotRequested
+            }}</span>
+            <span v-if="effect.requested && !effect.included">
+              · {{ text.effectNotIncluded }}</span
+            >
+          </li>
+        </ul>
+      </template>
+      <p v-else-if="attempt.result">{{ text.legacyStoredConfirmation }}</p>
+      <a
+        v-if="attempt.result"
+        :href="attempt.result.url"
+        @click.prevent="workspace.openThread(attempt.result.url)"
+        >{{ text.openConfirmedThread }}</a
+      >
+      <template
+        v-if="attempt.status === 'uncertain' || attempt.status === 'moderation'"
+      >
+        <label
+          >{{ text.candidateThreadURL
+          }}<input
+            v-model="candidateURLs[attempt.id]"
+            type="url"
+            :placeholder="attempt.candidateURL ?? ''"
+        /></label>
+        <button
+          :disabled="state.publishing"
+          @click="
+            workspace.writing.checkResult(attempt.id, candidateURLs[attempt.id])
+          "
+        >
+          {{ text.checkThreadResult }}
+        </button>
+        <button
+          v-if="attempt.status === 'uncertain'"
+          :disabled="!attempt.checked || state.publishing"
+          @click="workspace.writing.warnResend(attempt.id)"
+        >
+          {{ text.prepareAnotherAttempt }}
+        </button>
+      </template>
+    </section>
+    <section v-if="state.resend" role="alert">
+      <p>{{ text.duplicatePublicationWarning }}</p>
+      <button @click="workspace.writing.cancelResend()">
+        {{ text.keepOriginalAttempt }}
+      </button>
+      <button @click="workspace.writing.confirmResend()">
+        {{ text.acceptDuplicateReview }}
+      </button>
+    </section>
+    <div class="writing-actions">
+      <button
+        :disabled="state.preparing || state.publishing"
+        @click="workspace.writing.reviewPublication()"
+      >
+        {{ text.reviewPublication }}
+      </button>
+      <section v-if="state.publication" role="alert">
+        <p>
+          {{
+            insert(
+              text.publicationReview,
+              state.publication.submission.revision,
+            )
+              .replace("{account}", state.context.account.name)
+              .replace("{board}", state.context.board.label)
+          }}
+        </p>
+        <button
+          :disabled="state.publishing"
+          @click="workspace.writing.publish()"
+        >
+          {{ text.publishThread }}
+        </button>
+      </section>
+    </div>
     <p v-if="state.recoveryAvailable === false" role="alert">
       {{ text.writingRecoveryUnavailable }}
     </p>

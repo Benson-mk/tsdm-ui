@@ -59,7 +59,7 @@ export function createWorkspace(
     client,
     () => {
       record.writing = writing.snapshot();
-      void persist();
+      return persist();
     },
     (account) => {
       if (observeAccount(account)) void persist();
