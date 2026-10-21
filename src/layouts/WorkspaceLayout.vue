@@ -318,6 +318,67 @@ function navigate(event: MouseEvent) {
       null,
   );
 }
+let stopReadingImageRestore: (() => void) | undefined;
+function followPendingReadingImages(
+  container: HTMLElement,
+  target: HTMLElement,
+  savedScrollTop: number | null,
+) {
+  const pending = new Set(
+    [...container.querySelectorAll<HTMLImageElement>("img")].filter(
+      (image) =>
+        !image.complete &&
+        !!(
+          target.compareDocumentPosition(image) &
+          Node.DOCUMENT_POSITION_PRECEDING
+        ),
+    ),
+  );
+  if (!pending.size) return;
+  let expectedScrollTop = container.scrollTop;
+  const inputEvents = ["wheel", "touchstart", "pointerdown", "keydown"];
+  const stop = () => {
+    container.removeEventListener("load", settled, true);
+    container.removeEventListener("error", settled, true);
+    container.removeEventListener("scroll", scrolled);
+    for (const event of inputEvents) container.removeEventListener(event, stop);
+    if (stopReadingImageRestore === stop) stopReadingImageRestore = undefined;
+  };
+  const scrolled = () => {
+    if (container.scrollTop !== expectedScrollTop) stop();
+  };
+  const settled = (event: Event) => {
+    if (
+      !(event.target instanceof HTMLImageElement) ||
+      !pending.delete(event.target)
+    )
+      return;
+    if (!target.isConnected) return stop();
+    if (savedScrollTop !== null) container.scrollTop = savedScrollTop;
+    else target.scrollIntoView({ block: "start" });
+    expectedScrollTop = container.scrollTop;
+    if (!pending.size) stop();
+  };
+  // Late intrinsic image sizes can invalidate the initial target positioning.
+  // Stop when these images settle or the reader expresses a new scroll intent.
+  container.addEventListener("load", settled, true);
+  container.addEventListener("error", settled, true);
+  container.addEventListener("scroll", scrolled);
+  for (const event of inputEvents)
+    container.addEventListener(event, stop, { passive: true });
+  stopReadingImageRestore = stop;
+}
+watch(
+  [
+    () => state.value.key,
+    () => state.value.section,
+    () => state.value.result,
+    () => writing.value.visible,
+  ],
+  () => stopReadingImageRestore?.(),
+  { flush: "sync" },
+);
+onUnmounted(() => stopReadingImageRestore?.());
 onMounted(() => {
   const root = (props.portal.getRootNode() as ShadowRoot).host as HTMLElement;
   const pane = () =>
@@ -343,6 +404,7 @@ onMounted(() => {
       };
     },
     restore(position, target, selection) {
+      stopReadingImageRestore?.();
       if (writing.value.visible) return;
       const container = pane();
       if (container) container.scrollTop = position?.scrollTop ?? 0;
@@ -366,6 +428,12 @@ onMounted(() => {
             ?.querySelector<HTMLElement>(".subject"))
         : null;
       (node ?? selected)?.focus({ preventScroll: true });
+      if (container && node)
+        followPendingReadingImages(
+          container,
+          node,
+          position?.scrollTop ?? null,
+        );
     },
   });
 });

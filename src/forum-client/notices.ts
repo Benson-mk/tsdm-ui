@@ -65,6 +65,14 @@ function noticeContent(nodes: ContentNode[]): ContentNode[] {
     return { ...node, children };
   });
 }
+function sameCategory(left: URL, right: URL): boolean {
+  return (
+    (left.searchParams.get("view") ?? "all") ===
+      (right.searchParams.get("view") ?? "all") &&
+    (left.searchParams.get("type") ?? "") ===
+      (right.searchParams.get("type") ?? "")
+  );
+}
 export function decodeNotices(
   response: HostResponse,
   requested: string,
@@ -169,11 +177,11 @@ export function decodeNotices(
       "The current notice account could not be confirmed. This request may still have had read effects.",
     );
   if (
-    !["view", "type", "page"].every(
-      (key) =>
-        (request.url.searchParams.get(key) ?? (key === "page" ? "1" : "")) ===
-        (actual.url.searchParams.get(key) ?? (key === "page" ? "1" : "")),
-    )
+    !sameCategory(request.url, actual.url) ||
+    (request.url.searchParams.get("page") ?? "1") !==
+      (actual.url.searchParams.get("page") ?? "1") ||
+    request.url.searchParams.get("isread") !==
+      actual.url.searchParams.get("isread")
   )
     return fail(
       "The forum returned a different notice category or page. This request may still have had read effects.",
@@ -291,19 +299,22 @@ export function decodeNotices(
   const offeredPages = pagerRoots.flatMap((root) =>
     descendants(root, (node) => node.tagName === "a"),
   );
+  const pageRoutes = offeredPages.map((node) => {
+    const href = safeURL(attr(node, "href"), response.url);
+    return href ? routeFor(href) : null;
+  });
+  const readFilter =
+    actual.url.searchParams.get("isread") ??
+    pageRoutes[0]?.url.searchParams.get("isread") ??
+    null;
   if (
-    offeredPages.some((node) => {
-      const href = safeURL(attr(node, "href"), response.url),
-        route = href && routeFor(href);
+    pageRoutes.some((route) => {
       return (
         !route ||
         route.kind !== "notices" ||
         route.url.origin !== request.url.origin ||
-        !["view", "type"].every(
-          (key) =>
-            route.url.searchParams.get(key) ===
-            actual.url.searchParams.get(key),
-        )
+        !sameCategory(route.url, actual.url) ||
+        route.url.searchParams.get("isread") !== readFilter
       );
     })
   )

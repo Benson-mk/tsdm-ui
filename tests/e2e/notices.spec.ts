@@ -30,6 +30,12 @@ function notices(url: URL, header = account()) {
   const categoryURL = inbox + (category?.query ?? "");
   return `${header}<div id="ct"><div class="mn"><div class="nts"><dl notice="${page}1" id="notice_${page}1"><dt><span class="xg1"><span title="2026-10-20 21:35:42">just now</span></span><a href="home.php?mod=spacecp&ac=common&op=ignore&formhash=NEVER-STORE">Ignore</a></dt><dd class="ntc_body" style="font-weight:bold"><p>${label} page ${page}: full notice introduction.</p><p>${"Preserved body detail. ".repeat(80)}</p><p>${completeTail}</p><a href="forum.php?mod=redirect&goto=findpost&ptid=42&pid=202">Open exact reply</a><script>window.noticeExecuted=true</script><img src="javascript:alert(1)" onerror="window.noticeExecuted=true"></dd></dl></div><div class="pg"><strong>${page}</strong><a href="${categoryURL}&page=${page === "1" ? "2" : "1"}">${page === "1" ? "2" : "1"}</a></div></div><div class="appl"><div class="tbn"><ul><li class="${category ? "" : "a"}"><a href="${inbox}">All standard notices</a></li>${categoryLinks.map((item) => `<li class="${category === item ? "a" : ""}"><a href="${inbox}${item.query}">${item.label}</a></li>`).join("")}<li><a href="home.php?mod=space&do=pm">Private messages</a></li></ul></div></div></div>`;
 }
+const nativeAllPage2 = `${inbox}&view=all&type=&isread=1&page=2`;
+function nativePagerNotices(url: URL, query = "&view=all&type=&isread=1") {
+  const page = url.searchParams.get("page") ?? "1";
+  const other = page === "1" ? "2" : "1";
+  return `${account()}<div id="ct"><div class="mn"><div class="nts"><dl notice="${page}1"><dt><span title="2026-10-21 12:30:0${page}">today</span></dt><dd class="ntc_body"><p>Native page ${page} notice.</p><p>${`Complete detail for page ${page}. `.repeat(80)}</p><p>Native page ${page} complete ending.</p><a href="forum.php?mod=redirect&goto=findpost&ptid=42&pid=20${page}">Open exact reply</a></dd></dl></div><div class="pgs cl"><div class="pg"><strong>${page}</strong><a href="home.php?mod=space&do=notice${query}&amp;page=${other}">${other}</a><label><input name="custompage" value="${page}"><span title="共 2 页"> / 2 页</span></label><a href="home.php?mod=space&do=notice${query}&amp;page=${other}" class="${page === "1" ? "nxt" : "prev"}">${page === "1" ? "下一页" : "上一页"}</a></div></div></div><div class="appl"><div class="tbn"><ul><li class="a"><a href="home.php?mod=space&do=notice">All standard notices</a></li></ul></div></div></div>`;
+}
 type Response =
   | string
   | { body: string; contentType?: string; status?: number; abort?: boolean };
@@ -103,6 +109,175 @@ async function artifact(
     contentType: "application/json",
   });
 }
+
+test("J10.notices-native-default-pager: native default All aliases and read filter preserve full returned pages and passive history without another read", async ({
+  page,
+}, info) => {
+  const server = await open(page, (url) => nativePagerNotices(url));
+  await overview(page);
+  expect(server.effects()).toBe(0);
+  await page.getByRole("button", { name: "Load notices", exact: true }).click();
+  await artifact(page, info, server.ledger, "native-default-pager-load");
+  const pane = page.locator(".notices-pane");
+  async function checkPage(number: "1" | "2") {
+    await expect(
+      pane.getByText(`Page ${number}`, { exact: true }),
+    ).toBeVisible();
+    const row = page.locator(`[data-notice-id="${number}1"]`);
+    await expect(row.locator("time")).toHaveText(`2026-10-21 12:30:0${number}`);
+    await expect(row.locator("p")).toHaveText([
+      `Native page ${number} notice.`,
+      `Complete detail for page ${number}. `.repeat(80).trim(),
+      `Native page ${number} complete ending.`,
+    ]);
+    await expect(
+      row.getByRole("link", { name: "Open exact reply" }),
+    ).toHaveAttribute(
+      "href",
+      `${origin}/forum.php?mod=redirect&goto=findpost&ptid=42&pid=20${number}`,
+    );
+    return row.evaluate((element) => ({
+      id: element.getAttribute("data-notice-id"),
+      text: element.textContent,
+      targets: Array.from(element.querySelectorAll("a")).map((a) => a.href),
+    }));
+  }
+  const first = await checkPage("1");
+  await expect(
+    page
+      .getByRole("navigation", { name: "Notice pages", exact: true })
+      .getByRole("link", { name: "下一页", exact: true }),
+  ).toHaveAttribute("href", nativeAllPage2);
+  expect(server.effects()).toBe(1);
+  const next = page
+    .getByRole("navigation", { name: "Notice pages", exact: true })
+    .getByRole("link", { name: "下一页", exact: true });
+  await next.scrollIntoViewIfNeeded();
+  const firstScroll = await pane.evaluate((element) => element.scrollTop);
+  expect(firstScroll).toBeGreaterThan(0);
+  await next.click();
+  const second = await checkPage("2");
+  expect(server.effects()).toBe(2);
+  expect(
+    server.ledger.filter((item) => item.url.includes("do=notice")),
+  ).toEqual([
+    { url: `${inbox}&tsdmapp=json`, method: "GET", effect: 1 },
+    { url: `${nativeAllPage2}&tsdmapp=json`, method: "GET", effect: 2 },
+  ]);
+  await expect(
+    page
+      .getByRole("navigation", { name: "Notice pages", exact: true })
+      .getByRole("link", { name: "上一页", exact: true }),
+  ).toHaveAttribute("href", `${inbox}&view=all&type=&isread=1&page=1`);
+  await pane.evaluate((element) => {
+    element.scrollTop = 300;
+  });
+  const secondScroll = await pane.evaluate((element) => element.scrollTop);
+  expect(secondScroll).toBeGreaterThan(0);
+  await page.goBack();
+  expect(await checkPage("1")).toEqual(first);
+  await expect
+    .poll(() => pane.evaluate((element) => element.scrollTop))
+    .toBe(firstScroll);
+  await page.goForward();
+  expect(await checkPage("2")).toEqual(second);
+  await expect
+    .poll(() => pane.evaluate((element) => element.scrollTop))
+    .toBe(secondScroll);
+  await page.reload();
+  expect(await checkPage("2")).toEqual(second);
+  await expect
+    .poll(() => pane.evaluate((element) => element.scrollTop))
+    .toBe(secondScroll);
+  await expect(
+    page.getByText(
+      "Restored snapshot — account and content have not been rechecked.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect(server.effects()).toBe(2);
+  await artifact(
+    page,
+    info,
+    { requests: server.ledger, first, second, firstScroll, secondScroll },
+    "native-default-pages-passive-return",
+  );
+});
+
+for (const invalid of [
+  {
+    id: "different-category",
+    query: "&view=system&type=&isread=1",
+    destination: inbox,
+  },
+  {
+    id: "different-type",
+    query: "&view=all&type=post&isread=1",
+    destination: inbox,
+  },
+  {
+    id: "changed-read-filter",
+    query: "&view=all&type=&isread=0",
+    destination: `${inbox}&isread=1`,
+  },
+  {
+    id: "missing-read-filter",
+    query: "&view=all&type=",
+    destination: `${inbox}&isread=1`,
+  },
+  {
+    id: "unknown-read-filter",
+    query: "&view=all&type=&isread=fiction",
+    destination: inbox,
+  },
+]) {
+  test(`J10.notices-native-pager-rejects-${invalid.id}: a different returned category, type or read filter cannot become a complete list`, async ({
+    page,
+  }, info) => {
+    const server = await open(
+      page,
+      (url) => nativePagerNotices(url, invalid.query),
+      invalid.destination,
+    );
+    await page
+      .getByRole("button", { name: "Load notices", exact: true })
+      .click();
+    await expect(
+      page
+        .getByRole("alert")
+        .filter({ hasText: "pagination could not be preserved completely" }),
+    ).toBeVisible();
+    await expect(page.locator("[data-notice-id]")).toHaveCount(0);
+    expect(server.effects()).toBe(1);
+    await artifact(
+      page,
+      info,
+      server.ledger,
+      `native-pager-rejects-${invalid.id}`,
+    );
+  });
+}
+
+test("J10.notices-native-pager-rejects-conflicting-filters: an unfiltered response cannot offer contradictory read filters", async ({
+  page,
+}, info) => {
+  const server = await open(page, (url) =>
+    nativePagerNotices(url).replace(
+      'isread=1&amp;page=2" class="nxt"',
+      'isread=0&amp;page=2" class="nxt"',
+    ),
+  );
+  await overview(page);
+  await page.getByRole("button", { name: "Load notices", exact: true }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "pagination could not be preserved completely" }),
+  ).toBeVisible();
+  await expect(page.locator("[data-notice-id]")).toHaveCount(0);
+  expect(server.effects()).toBe(1);
+  await artifact(page, info, server.ledger, "native-pager-conflicting-filters");
+});
 
 test("J10.notices-deliberate-complete: overview does not preload or poll; deliberate loads preserve full inert bodies and every returned category/page", async ({
   page,
@@ -366,6 +541,239 @@ test("J10.notices-content-identity: inert body header-shaped content cannot impe
 });
 
 const thread = `${account()}<div id="postlist"><h1 id="thread_subject">Exact notice destination</h1><div id="post_201"><div class="authi"><a href="home.php?mod=space&uid=9">Poster</a></div><a id="postnum201">21</a><span id="authorposton201">2026-10-20</span><div class="pcb"><p>Earlier complete post.</p></div></div><div id="post_202"><div class="authi"><a href="home.php?mod=space&uid=9">Poster</a></div><a id="postnum202">22</a><span id="authorposton202">2026-10-20</span><div class="pcb"><p>Exact complete notice target.</p></div></div></div><div class="pg"><strong>3</strong><a href="forum.php?mod=viewthread&tid=42&page=2">2</a></div>`;
+const tallImage = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAABAAAAu4CAIAAABn2a9PAAABy0lEQVR4nO3LIREAAAgEsO+fEY+iAxlwiN3NLtVzEkEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBOFjWDoOBYnqK+uGAAAAAElFTkSuQmCC",
+  "base64",
+);
+async function holdImage(page: Page, name: string) {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`${origin}/${name}.png`, async (route) => {
+    await gate;
+    await route.fulfill({ contentType: "image/png", body: tallImage });
+  });
+  return release;
+}
+async function imageLoaded(page: Page, name: string) {
+  await expect
+    .poll(() =>
+      page
+        .getByAltText(name, { exact: true })
+        .evaluate(
+          (node) =>
+            node instanceof HTMLImageElement &&
+            node.complete &&
+            node.naturalHeight,
+        ),
+    )
+    .toBe(3000);
+}
+async function targetGeometry(page: Page) {
+  return page.locator("#pid202").evaluate((node) => {
+    const pane = node.closest('[data-scroll-pane="reading"]')!;
+    const bounds = pane.getBoundingClientRect();
+    const rect = node.getBoundingClientRect();
+    return {
+      pane: { top: bounds.top, bottom: bounds.bottom },
+      target: { top: rect.top, bottom: rect.bottom },
+      scrollTop: pane.scrollTop,
+    };
+  });
+}
+test("J10.notices-target-delayed-image: an exact returned page2 target stays visible after a tall earlier image loads and passive list/target restoration adds no notice read", async ({
+  browser,
+}, info) => {
+  await withRedirectFixture(
+    browser,
+    {
+      origin,
+      redirect: `${origin}/forum.php?mod=viewthread&tid=42&page=3`,
+      document: (url) =>
+        url.pathname === "/home.php"
+          ? nativePagerNotices(url)
+          : url.searchParams.get("mod") === "viewthread"
+            ? thread.replace(
+                "<p>Earlier complete post.</p>",
+                `<p>Earlier complete post.</p><img src="${origin}/authored-tall.png" alt="authored-tall">`,
+              )
+            : directory,
+    },
+    async (page, reads, redirects) => {
+      const releaseImage = await holdImage(page, "authored-tall");
+      await page.goto(`${origin}/forum.php`);
+      await overview(page);
+      await page
+        .getByRole("button", { name: "Load notices", exact: true })
+        .click();
+      await page
+        .getByRole("navigation", { name: "Notice pages", exact: true })
+        .getByRole("link", { name: "下一页", exact: true })
+        .click();
+      await expect(
+        page.getByText("Native page 2 complete ending.", { exact: true }),
+      ).toBeVisible();
+      const link = page.getByRole("link", {
+        name: "Open exact reply",
+        exact: true,
+      });
+      await link.scrollIntoViewIfNeeded();
+      const listScroll = await page
+        .locator(".notices-pane")
+        .evaluate((node) => node.scrollTop);
+      const listBefore = await page
+        .locator('[data-notice-id="21"]')
+        .textContent();
+      await link.click();
+      const target = page.locator("#pid202");
+      await expect(target).toBeFocused();
+      releaseImage();
+      await imageLoaded(page, "authored-tall");
+      await artifact(
+        page,
+        info,
+        { reads, redirects, geometry: await targetGeometry(page), listScroll },
+        "delayed-image-target",
+      );
+      await expect(target).toBeInViewport();
+      const geometry = await targetGeometry(page);
+      expect(geometry.target.top).toBeGreaterThanOrEqual(geometry.pane.top);
+      expect(geometry.target.bottom).toBeLessThanOrEqual(geometry.pane.bottom);
+      const before = reads.length;
+      await page.goBack();
+      await expect(page.locator("#notice-21")).toBeFocused();
+      await expect(page.locator("#notice-21")).toHaveAttribute(
+        "aria-current",
+        "true",
+      );
+      expect(await page.locator('[data-notice-id="21"]').textContent()).toBe(
+        listBefore,
+      );
+      await expect
+        .poll(() =>
+          page.locator(".notices-pane").evaluate((node) => node.scrollTop),
+        )
+        .toBe(listScroll);
+      const releaseReturnedImage = await holdImage(page, "authored-tall");
+      await page.goForward();
+      await expect(target).toBeFocused();
+      releaseReturnedImage();
+      await imageLoaded(page, "authored-tall");
+      await expect(target).toBeInViewport();
+      const returnedGeometry = await targetGeometry(page);
+      expect(returnedGeometry.target.top).toBeGreaterThanOrEqual(
+        returnedGeometry.pane.top,
+      );
+      expect(returnedGeometry.target.bottom).toBeLessThanOrEqual(
+        returnedGeometry.pane.bottom,
+      );
+      await page.goBack();
+      await page.reload();
+      await expect(page.locator("#notice-21")).toBeFocused();
+      expect(await page.locator('[data-notice-id="21"]').textContent()).toBe(
+        listBefore,
+      );
+      expect(reads).toHaveLength(before);
+      expect(
+        reads.filter((url) => new URL(url).searchParams.get("do") === "notice"),
+      ).toHaveLength(2);
+      await artifact(
+        page,
+        info,
+        {
+          reads,
+          redirects,
+          listScroll,
+          listBefore,
+          geometry,
+          returnedGeometry,
+        },
+        "delayed-image-restored-page2",
+      );
+    },
+  );
+});
+test("J10.notices-target-reader-intent: after deliberately scrolling away from the exact target, another tall earlier image cannot pull the reader back", async ({
+  browser,
+}, info) => {
+  await withRedirectFixture(
+    browser,
+    {
+      origin,
+      redirect: `${origin}/forum.php?mod=viewthread&tid=42&page=3`,
+      document: (url) =>
+        url.pathname === "/home.php"
+          ? nativePagerNotices(url).replace(
+              "forum.php?mod=redirect&goto=findpost&ptid=42&pid=201",
+              "forum.php?mod=viewthread&tid=42&page=3#pid202",
+            )
+          : url.searchParams.get("mod") === "viewthread"
+            ? thread.replace(
+                "<p>Earlier complete post.</p>",
+                `<p>Earlier complete post.</p><p><img src="${origin}/first-tall.png" alt="first-tall"></p><p><img src="${origin}/second-tall.png" alt="second-tall"></p>`,
+              )
+            : directory,
+    },
+    async (page, reads, redirects) => {
+      const releaseFirst = await holdImage(page, "first-tall");
+      const releaseSecond = await holdImage(page, "second-tall");
+      await page.goto(`${origin}/forum.php`);
+      await overview(page);
+      await page
+        .getByRole("button", { name: "Load notices", exact: true })
+        .click();
+      await page
+        .getByRole("link", { name: "Open exact reply", exact: true })
+        .click();
+      const target = page.locator("#pid202");
+      await expect(target).toBeFocused();
+      releaseFirst();
+      await imageLoaded(page, "first-tall");
+      await expect(target).toBeInViewport();
+      const pane = page.locator('[data-scroll-pane="reading"]');
+      const before = await pane.evaluate((node) => node.scrollTop);
+      const bounds = (await pane.boundingBox())!;
+      await page.mouse.move(
+        bounds.x + bounds.width / 2,
+        bounds.y + bounds.height / 2,
+      );
+      await page.mouse.wheel(0, -600);
+      await expect
+        .poll(() => pane.evaluate((node) => node.scrollTop))
+        .toBe(before - 600);
+      await expect(target).not.toBeInViewport();
+      const deliberate = await targetGeometry(page);
+      await page.goBack();
+      await expect(page.locator("#notice-11")).toBeFocused();
+      await page.goForward();
+      await expect(target).toBeFocused();
+      await imageLoaded(page, "first-tall");
+      await expect
+        .poll(() => pane.evaluate((node) => node.scrollTop))
+        .toBe(deliberate.scrollTop);
+      const returned = await targetGeometry(page);
+      releaseSecond();
+      await imageLoaded(page, "second-tall");
+      await expect
+        .poll(() => pane.evaluate((node) => node.scrollTop))
+        .toBe(deliberate.scrollTop);
+      await expect(target).not.toBeInViewport();
+      const after = await targetGeometry(page);
+      expect(after.target.top - returned.target.top).toBe(3000);
+      expect(reads).toHaveLength(3);
+      expect(
+        reads.filter((url) => new URL(url).searchParams.get("do") === "notice"),
+      ).toHaveLength(1);
+      await artifact(
+        page,
+        info,
+        { reads, redirects, deliberate, returned, after },
+        "delayed-image-reader-intent",
+      );
+    },
+  );
+});
 test("J10.notices-return-remount: exact post follows a real 302/document remount and local Back/Forward/reload preserves category/page/body/selection/position without notice requests", async ({
   browser,
 }, info) => {

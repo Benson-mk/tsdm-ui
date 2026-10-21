@@ -1,7 +1,7 @@
 export type RouteKind =
   "directory" | "board" | "thread" | "redirect" | "search" | "notices";
 const keys: Record<RouteKind, readonly string[]> = {
-  notices: ["mod", "do", "view", "type", "page"],
+  notices: ["mod", "do", "view", "type", "isread", "page"],
   search: [
     "mod",
     "adv",
@@ -84,8 +84,12 @@ export function routeFor(value: string): { kind: RouteKind; url: URL } | null {
       q.get("mod") === "space" &&
       q.get("do") === "notice" &&
       ["view", "type"].every(
-        (key) => !q.has(key) || /^[a-zA-Z0-9_-]+$/.test(q.get(key)!),
-      )
+        (key) =>
+          !q.has(key) ||
+          (key === "type" && q.get(key) === "") ||
+          /^[a-zA-Z0-9_-]+$/.test(q.get(key)!),
+      ) &&
+      (!q.has("isread") || ["0", "1"].includes(q.get("isread")!))
     )
       kind = "notices";
     if (!kind) return null;
