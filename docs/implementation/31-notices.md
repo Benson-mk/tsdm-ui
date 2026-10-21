@@ -68,9 +68,10 @@ The current reader-correction candidate is version **0.3.0**, **844870 bytes**,
 SHA-256 `edb8bc8f1f2f7dabb73f4aafcfd16a2e396d59f0a14477840bcce6fb2d573d64`.
 It retains the pagination correction and adds bounded late-image target
 restoration described [below](#late-image-target-failure-and-correction).
-Exact-source affected installed observations are complete in Edge then Chrome;
-the independent installed acceptance audit remains pending. Earlier installed
-observations belong to their original candidates.
+Exact-source affected installed observations and the independent installed
+acceptance audit are complete. All five development criteria are verified, as
+recorded in the current acceptance audit below. Earlier installed observations
+belong to their original candidates.
 
 The earlier corrected candidate is version **0.3.0**, **842336 bytes**, SHA-256
 `fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81`.
