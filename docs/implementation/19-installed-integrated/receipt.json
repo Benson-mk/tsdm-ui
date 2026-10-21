@@ -1,0 +1,440 @@
+{
+  "schema": 1,
+  "issue": 19,
+  "mode": "installed-development-continuation",
+  "status": "incomplete-continuation-commit-approved",
+  "candidate": {
+    "version": "0.3.0",
+    "node": "v24.22.0",
+    "userscript": {
+      "file": "tsdm-workspace.user.js",
+      "sha256": "fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81",
+      "bytes": 842336
+    },
+    "lockSha256": "2855b0d9260df201dda5f0c775669e8941cb9716a35e54757d0e6cd0035e7825",
+    "base": "2091d671d2cbab34ed6f9050554238007c8d1044",
+    "originalImplementation": "3eda353b66ddabc032cfc9de92ac2fb8194c93dd"
+  },
+  "environment": {
+    "os": "macOS 15.6",
+    "edge": "155.0.4283.62",
+    "chrome": "155.0.8059.85",
+    "manager": "Tampermonkey BETA 5.6.6242 in both browsers",
+    "provenance": "Shared human report dated 2026-10-21, retained by the integrated notice audit; exact patch versions are not inferred from reduced user-agent headers."
+  },
+  "checks": {
+    "lockedBuildReproduced": true,
+    "typecheck": "passed",
+    "lint": "passed",
+    "build": "passed",
+    "application": {
+      "run": "2026-10-21T02-58-19.657Z",
+      "passed": 293,
+      "total": 293,
+      "screenshotsInspected": 224,
+      "manifestFiles": 314
+    },
+    "consumer": {
+      "run": "consumer-2026-10-21T03-00-16.033Z",
+      "status": "passed",
+      "manifestFiles": 3
+    }
+  },
+  "browsers": {
+    "edge": {
+      "storedSourceExact": true,
+      "matchingExecutingCopies": 1,
+      "fastReload": {
+        "writingExact": true,
+        "sourceExact": true,
+        "rangeExact": true
+      },
+      "idle": {
+        "elapsedUntouchedMs": 152185,
+        "untouchedExact": true,
+        "afterReloadExact": true,
+        "sourceExact": true,
+        "rangeExact": true,
+        "truncated": true,
+        "hasMore": false
+      },
+      "appearance": {
+        "cases": 12,
+        "allWritingSourceRangeExact": true,
+        "measuredWidths": [390, 960, 1600],
+        "height": 900,
+        "preferenceBytesRestored": true,
+        "viewportCleared": true
+      },
+      "nativeIme": {
+        "observedAt": "2026-10-21T03:02:36.411Z",
+        "candidateSha256": "fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81",
+        "events": 187,
+        "mutations": 106,
+        "dropped": 0,
+        "trustedStarts": 12,
+        "trustedUpdates": 47,
+        "endFlags": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "allCompositionSamplesKeepTextarea": true,
+        "allActiveMutationsKeepTextarea": true,
+        "reloadSourceExact": true,
+        "reloadWritingExact": true
+      },
+      "redirect": {
+        "writingAfterExact": true,
+        "writingBackExact": true,
+        "rangeExact": true,
+        "actual302": true,
+        "truncated": false
+      },
+      "managerRestart": {
+        "observedAt": "2026-10-21T03:53:13.523Z",
+        "operation": "Human reported extension off/on; task document then reloaded",
+        "reportedVersion": "5.6.6242",
+        "actualSoftwareUpdate": "none offered, human reported",
+        "recordByteExact": true,
+        "writingExact": true,
+        "sourceExact": true,
+        "rangeExact": true,
+        "oneWorkspace": true
+      },
+      "managerSoftwareUpdate": {
+        "status": "not observed; no update offered",
+        "version": "5.6.6242",
+        "provenance": "Human report, 2026-10-21"
+      },
+      "browserQuitRestore": {
+        "observedAt": "2026-10-21T03:56:44.791Z",
+        "operation": "Human reported full browser quit/reopen and normal restore; inspected before agent navigation/reload",
+        "sameTabIdentity": true,
+        "urlExact": false,
+        "recoveryRecordPresent": false,
+        "sourcePresent": false,
+        "successfulContentRecovery": false,
+        "outcome": "conditional absence; explicit unavailable UI; no fallback or automatic request initiated by agent",
+        "explicitUnavailable": true
+      },
+      "nativeTabs": {
+        "initialInheritedExact": true,
+        "mainUnchangedAfterDuplicateEdit": true,
+        "duplicateReloadExact": true,
+        "mainReloadExact": true,
+        "duplicateUnchangedAfterMainEdit": true,
+        "reopenedExact": true
+      },
+      "quota": {
+        "capacity": {
+          "storedCharacters": 5116111,
+          "attempts": 22
+        },
+        "priorAcknowledgedRecordExact": false,
+        "secondRefusalRecordExact": false,
+        "liveUnacknowledgedVisible": true,
+        "warningVisible": true,
+        "reloadRecoversPriorSource": true,
+        "focusSelectionAcknowledged": {
+          "revision": 70,
+          "selection": {
+            "start": 0,
+            "end": 173,
+            "direction": "none"
+          },
+          "sourceUnchanged": true
+        },
+        "establishedRecordExactAcrossNextRefusal": true,
+        "establishedRecordExactAfterReload": true,
+        "interpretation": "Fill first selects all source; this selection revision was acknowledged before the larger source write refused. The pre-focus record was not byte-identical. The established acknowledged record remains exact across the next refusal and reload."
+      },
+      "incompatibleSchema": {
+        "incompatiblePreserved": true,
+        "inspectionPreserved": true,
+        "keepPreserved": true,
+        "deliberateResetRemoved": true,
+        "allStorageRestoredExact": true
+      },
+      "finalRuntimeIdentity": {
+        "observedAt": "2026-10-21T03:58:35.654Z",
+        "candidateSha256": "fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81",
+        "candidateBytes": 842336,
+        "matchingExecutingCopies": 1,
+        "sourceContainsExactCandidate": true,
+        "listingTruncated": false,
+        "listingHasMore": false,
+        "stage": "after full browser quit/restore",
+        "extraction": "Removed only the known connector metadata trailer at its observed final boundary"
+      },
+      "cleanup": {
+        "observedAt": "2026-10-21T04:02:00.629Z",
+        "preferencesByteExact": true,
+        "temporaryViewportClearedBeforeRestart": true,
+        "passiveImeObserversRemovedBeforeReload": true,
+        "quotaAndSchemaDiagnosticsRestoredAndDisposableClosed": true,
+        "rawFetchPatternsCleared": true,
+        "networkDisabled": true,
+        "debuggerDisabled": true,
+        "recoveryRecordCurrentlyAbsent": true,
+        "noPostRestoreNavigationOrReloadByAgent": true
+      },
+      "finalStoredSourceIdentity": {
+        "stage": "after full browser quit/restore",
+        "candidateSha256": "fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81",
+        "candidateBytes": 842336,
+        "sourceCharacters": 825051,
+        "completeSourceEqualityWithPreviouslyHashedEdge": true,
+        "oneListedCopy": true,
+        "extraction": "Known final connector metadata trailer excluded; complete source compared with independently hashed initial extraction",
+        "mutated": false,
+        "sourceReadDate": "2026-10-21",
+        "timestampProvenance": "Date of the official final source read; no exact wall-clock timestamp claimed."
+      }
+    },
+    "chrome": {
+      "storedSourceExact": true,
+      "matchingExecutingCopies": 1,
+      "fastReload": {
+        "writingExact": true,
+        "sourceExact": true,
+        "rangeExact": true
+      },
+      "idle": {
+        "elapsedUntouchedMs": 126675,
+        "untouchedExact": true,
+        "afterReloadExact": true,
+        "sourceExact": true,
+        "rangeExact": true,
+        "truncated": false,
+        "hasMore": false
+      },
+      "appearance": {
+        "cases": 12,
+        "allWritingSourceRangeExact": true,
+        "measuredWidths": [390, 960, 1600],
+        "height": 900,
+        "preferenceBytesRestored": true,
+        "viewportCleared": true
+      },
+      "nativeIme": {
+        "candidateSha256": "fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81",
+        "events": 90,
+        "mutations": 52,
+        "dropped": 0,
+        "trustedStarts": 6,
+        "trustedUpdates": 24,
+        "endFlags": [false, false, false, false, false, false],
+        "allCompositionSamplesKeepTextarea": true,
+        "allActiveMutationsKeepTextarea": true,
+        "reloadSourceExact": true,
+        "reloadWritingExact": true
+      },
+      "redirect": {
+        "observedAt": "2026-10-21T03:24:26.459Z",
+        "fullWritingAfter": true,
+        "fullWritingBack": true,
+        "source": true,
+        "range": true,
+        "actual302": true,
+        "truncated": false,
+        "hasMore": false
+      },
+      "managerRestart": {
+        "observedAt": "2026-10-21T03:53:15.445Z",
+        "operation": "Human reported extension off/on; task document then reloaded",
+        "reportedVersion": "5.6.6242",
+        "actualSoftwareUpdate": "none offered, human reported",
+        "recordByteExact": true,
+        "writingExact": true,
+        "sourceExact": true,
+        "rangeExact": true,
+        "oneWorkspace": true
+      },
+      "managerSoftwareUpdate": {
+        "status": "not observed; no update offered",
+        "version": "5.6.6242",
+        "provenance": "Human report, 2026-10-21"
+      },
+      "browserQuitRestore": {
+        "observedAt": "2026-10-21T03:59:14.956Z",
+        "operation": "Human reported full browser quit/reopen; missing window then natively restored through Recently Closed; inspected before agent navigation/reload",
+        "urlExact": true,
+        "recoveryRecordPresent": false,
+        "sourcePresent": false,
+        "successfulContentRecovery": false,
+        "explicitUnavailable": true,
+        "outcome": "conditional absence; no fallback or automatic request initiated by agent"
+      },
+      "nativeTabs": {
+        "initialInheritedExact": true,
+        "mainUnchangedAfterDuplicateEdit": true,
+        "duplicateUnchangedAfterMainEdit": true,
+        "duplicateReloadExact": true,
+        "mainReloadExact": true,
+        "reopenedExact": true,
+        "reopenedSourceExact": true,
+        "reopenedRangeExact": true,
+        "reopenedRecordByteExact": true,
+        "reopenedObservedAt": "2026-10-21T03:46:25.525Z"
+      },
+      "quota": {
+        "capacity": {
+          "storedCharacters": 5144289,
+          "attempts": 22,
+          "lastError": "QuotaExceededError"
+        },
+        "baseline": "Acknowledged native select-all selection captured before filling quota.",
+        "priorAcknowledgedRecordExact": true,
+        "secondRefusalRecordExact": true,
+        "liveUnacknowledgedVisible": true,
+        "warningVisible": true,
+        "reloadRecoversPriorSource": true,
+        "establishedRecordExactAfterReload": true
+      },
+      "incompatibleSchema": {
+        "incompatiblePreserved": true,
+        "inspectionPreserved": true,
+        "inspectionRawExact": true,
+        "keepPreserved": true,
+        "deliberateResetRemoved": false,
+        "allStorageRestoredExact": true
+      },
+      "schemaResetMeaning": {
+        "strictNullComparison": false,
+        "newCompatibleRecord": true,
+        "newWritingNull": true,
+        "oldIncompatibleBytesGone": true,
+        "interpretation": "Reset discarded old incompatible record and then the mounted owner serialized a compatible navigation record with writing-null; strict null-only comparison is retained as false, not a data-loss defect."
+      },
+      "finalRuntimeIdentity": {
+        "observedAt": "2026-10-21T04:00:39.686Z",
+        "candidateSha256": "fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81",
+        "candidateBytes": 842336,
+        "matchingExecutingCopies": 1,
+        "sourceContainsExactCandidate": true,
+        "listingTruncated": false,
+        "listingHasMore": false,
+        "stage": "after full browser quit/normal restore"
+      },
+      "cleanup": {
+        "observedAt": "2026-10-21T04:02:00.657Z",
+        "preferencesByteExact": true,
+        "temporaryViewportClearedBeforeRestart": true,
+        "passiveImeObserversRemovedBeforeReload": true,
+        "quotaAndSchemaDiagnosticsRestoredAndDisposableClosed": true,
+        "rawFetchPatternsCleared": true,
+        "networkDisabled": true,
+        "debuggerDisabled": true,
+        "recoveryRecordCurrentlyAbsent": true,
+        "noPostRestoreNavigationOrReloadByAgent": true
+      },
+      "finalStoredSourceIdentity": {
+        "stage": "after full browser quit/restore",
+        "candidateSha256": "fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81",
+        "candidateBytes": 842336,
+        "sourceCharacters": 825051,
+        "completeSourceEqualityWithVerifiedEdge": true,
+        "oneListedCopy": true,
+        "extraction": "Known final connector metadata trailer excluded; entire source equals independently hashed and verified Edge source",
+        "mutated": false,
+        "sourceReadDate": "2026-10-21",
+        "timestampProvenance": "Date of the official final source read; no exact wall-clock timestamp claimed."
+      }
+    }
+  },
+  "limits": [
+    "Development BETA environment; stable manager/browser and other OS release matrix not qualified.",
+    "No fresh account sign-out/switch in this continuation; inherited account evidence retains its original identity.",
+    "Native IME observations are bounded samples; all observed composition-end flags are untrusted.",
+    "No actual manager software update was offered; full browser restores supplied no writing recovery record in either browser.",
+    "Raw authenticated captures stay private; this authored package uses counts/comparisons and replay instructions."
+  ],
+  "tradeoffs": [
+    "Keep the integrated installed candidate to avoid rollback/disruption and exercise current notice integration; new observations apply only to fdc, not the older f36 candidate.",
+    "Use a separate owned continuation checkout, preserving the original implementation checkout/commit; this adds a checkout and scoped evidence commit.",
+    "Use a twelve-case appearance covering set for all theme/language pairs, four text sizes and three measured widths/Compact transitions; no exhaustive interaction claim.",
+    "Use human native controls when automation collides with another active profile or protected work; extra operator participation limits unattended repeatability while preserving actual browser semantics and avoiding unrelated actions."
+  ],
+  "review": {
+    "standards": {
+      "documentedBreaches": 0,
+      "actionableSmells": 0,
+      "status": "complete"
+    },
+    "spec": {
+      "knownAcceptanceGaps": 1,
+      "newImplementationOrScopeFindings": 0,
+      "status": "complete",
+      "gap": "AC4 actual manager software update unavailable"
+    },
+    "advisor": {
+      "status": "complete",
+      "newActionableDefects": 0,
+      "standardsZeroFindingsSupported": true,
+      "knownAC4UpdateGapConfirmed": true,
+      "currentAC6CheckedStatusSupported": true,
+      "additionalTradeoffs": 0
+    }
+  },
+  "acceptance": {
+    "AC1": "previously verified; current form and literal source corroborated",
+    "AC2": "previously verified; current section/redirect retention corroborated",
+    "AC3": "previously verified; current real quota/refusal and incompatible-schema behavior corroborated in both browsers",
+    "AC4": "unchecked; all feasible current lifecycle cases observed, including conditional absence after full restore; actual manager software update unavailable (none offered)",
+    "AC5": "previously verified; no fresh login changes claimed",
+    "AC6": "verified on current fdc candidate: installed keyboard, twelve appearance cases per browser, actual human CJK samples and exact source/writing reload; deterministic complete-application tests cover active-composition transition deferral"
+  },
+  "caseCoverage": {
+    "AC1": [
+      "current native form preparation",
+      "literal unfamiliar source/reference preservation"
+    ],
+    "AC2": [
+      "five section returns",
+      "same-action zero-request return",
+      "actual302/remount/Back",
+      "original guarded replacement"
+    ],
+    "AC3": [
+      "rapid edits/reload",
+      "real quota/refusal/prior acknowledgement",
+      "incompatible-schema Inspect/Keep/Reset"
+    ],
+    "AC4": [
+      "idle",
+      "independent/native-duplicate/divergence",
+      "close/native reopen",
+      "manager off/on",
+      "browser quit/restore conditional absence",
+      "actual manager software update: unavailable"
+    ],
+    "AC5": [
+      "original account-bound expiry/change/fresh-copy evidence",
+      "current unchanged full-application account cases"
+    ],
+    "AC6": [
+      "twelve appearance cases per browser",
+      "native keyboard focus",
+      "actual human CJK samples",
+      "complete-application active-composition guard"
+    ]
+  },
+  "commitApproval": {
+    "date": "2026-10-21",
+    "timezone": "Asia/Hong_Kong",
+    "response": "Yes, commit with AC4 unchecked",
+    "scope": "One local continuation commit on ticket/19-verification; docs: verify integrated source writing retention",
+    "unmetCriteria": ["AC4"],
+    "reason": "No actual Tampermonkey software update was offered at BETA 5.6.6242."
+  }
+}
