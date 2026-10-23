@@ -35,6 +35,32 @@ const english = {
   disabledOption: "disabled",
   noReferences: "None",
 
+  draftAttempt: "Draft attempt {value}",
+  checkOriginalDraft: "Check original draft attempt {value}",
+  reviewDraftResend: "Review draft resend {value}",
+  draftAttemptTarget: "Draft {thread}, post {post}",
+  draftAttemptDetails:
+    "{value} · {account} · Board {board} · {target} · revision {revision}",
+  draftResendWarning:
+    "This may duplicate draft content or publication and repeat native creation effects. The original result remains unknown. This resend proposes the current revision shown below, using fresh forum validation. Review its options and any known forum costs before confirming.",
+  cancelDraftResend: "Cancel draft resend",
+  confirmDraftResend: "Confirm draft resend",
+  draftCreationInstructions:
+    "Initial creation instructions are retained with the original save. Draft updates and publication use current native controls; feed or notification delivery is not confirmed.",
+  draftIn: "Forum draft in {value}",
+  draftIdentity:
+    "Forum draft identity: {value}. Saving is explicit; local retention does not update the forum.",
+  publishSavedDraft: "Publish saved draft",
+  loadDrafts: "Load forum drafts",
+  resumeDraft: "Resume {value}",
+  draftPage: "Draft page {value}",
+  draftPages: "Draft pages",
+  saveForumDraft: "Save forum draft",
+  saveDraftContinue: "Save forum draft and continue",
+  discardResumeDraft: "Discard local changes and resume draft",
+  checkDraftRevision: "Check saved revision in {value}",
+  checkDraftSave: "Check original save",
+
   searchOverviewLabel: "Search overview",
   searchExplanation:
     "Search threads or authors. Editing criteria does not run a search.",
@@ -158,7 +184,8 @@ const english = {
   savedOverview: "View your saved boards and threads in the native forum.",
   noticesOverview:
     "Opening this overview makes no notice request. Notices are loaded only by your deliberate action; there is no background polling.",
-  draftsOverview: "View and resume your forum drafts in the native forum.",
+  draftsOverview:
+    "Load your actual forum drafts, resume complete saved source, and explicitly save revisions. Local recovery is separate.",
   savedBoards: "Boards",
   savedThreads: "Threads",
   searchScope: "Thread and author criteria",
@@ -289,6 +316,32 @@ const simplified: Strings = {
   disabledOption: "已禁用",
   noReferences: "无",
 
+  draftAttempt: "草稿操作 {value}",
+  checkOriginalDraft: "核对原草稿操作 {value}",
+  reviewDraftResend: "检查草稿重新发送 {value}",
+  draftAttemptTarget: "草稿 {thread}，帖子 {post}",
+  draftAttemptDetails:
+    "{value} · {account} · 版块 {board} · {target} · 版本 {revision}",
+  draftResendWarning:
+    "此操作可能重复创建草稿或发布内容，并重复原版创建指令的影响。原操作结果仍未知。此次重新发送使用下方所示的当前版本，并重新验证论坛表单。确认前请检查选项及已知的论坛费用。",
+  cancelDraftResend: "取消草稿重新发送",
+  confirmDraftResend: "确认草稿重新发送",
+  draftCreationInstructions:
+    "初次创建指令与原保存操作一起保留。草稿更新及发布使用当前原版控件；未确认动态或通知已送达。",
+  draftIn: "{value} 中的论坛草稿",
+  draftIdentity:
+    "论坛草稿编号：{value}。保存需要明确操作；本地保留不会更新论坛。",
+  publishSavedDraft: "发布已保存的草稿",
+  loadDrafts: "载入论坛草稿",
+  resumeDraft: "继续编辑 {value}",
+  draftPage: "草稿第 {value} 页",
+  draftPages: "草稿分页",
+  saveForumDraft: "保存论坛草稿",
+  saveDraftContinue: "保存论坛草稿并继续",
+  discardResumeDraft: "放弃本地修改并继续编辑草稿",
+  checkDraftRevision: "在 {value} 中核对已保存版本",
+  checkDraftSave: "核对原保存结果",
+
   searchOverviewLabel: "搜索总览",
   searchExplanation: "搜索主题或作者。编辑条件不会执行搜索。",
   searchEffects: "每次主动搜索都可能消耗论坛积分或额度。系统不会自动重复搜索。",
@@ -403,7 +456,8 @@ const simplified: Strings = {
   savedOverview: "在原版论坛中查看收藏的版块与主题。",
   noticesOverview:
     "打开此总览不会请求通知。只有您的主动操作才会加载通知；没有后台轮询。",
-  draftsOverview: "在原版论坛中查看及继续编辑论坛草稿。",
+  draftsOverview:
+    "载入论坛草稿、继续编辑完整来源并明确保存版本。本地恢复与论坛草稿分开。",
   savedBoards: "版块",
   savedThreads: "主题",
   searchScope: "主题与作者条件",
@@ -529,6 +583,32 @@ const traditional: Strings = {
   disabledOption: "已停用",
   noReferences: "無",
 
+  draftAttempt: "草稿操作 {value}",
+  checkOriginalDraft: "核對原草稿操作 {value}",
+  reviewDraftResend: "檢查草稿重新傳送 {value}",
+  draftAttemptTarget: "草稿 {thread}，貼文 {post}",
+  draftAttemptDetails:
+    "{value} · {account} · 版塊 {board} · {target} · 版本 {revision}",
+  draftResendWarning:
+    "此操作可能重複建立草稿或發佈內容，並重複原版建立指令的影響。原操作結果仍未知。此次重新傳送使用下方所示的目前版本，並重新驗證論壇表單。確認前請檢查選項及已知的論壇費用。",
+  cancelDraftResend: "取消草稿重新傳送",
+  confirmDraftResend: "確認草稿重新傳送",
+  draftCreationInstructions:
+    "初次建立指令與原儲存操作一起保留。草稿更新及發佈使用目前原版控制項；未確認動態或通知已送達。",
+  draftIn: "{value} 中的論壇草稿",
+  draftIdentity:
+    "論壇草稿編號：{value}。儲存需要明確操作；本機保留不會更新論壇。",
+  publishSavedDraft: "發佈已儲存的草稿",
+  loadDrafts: "載入論壇草稿",
+  resumeDraft: "繼續編輯 {value}",
+  draftPage: "草稿第 {value} 頁",
+  draftPages: "草稿分頁",
+  saveForumDraft: "儲存論壇草稿",
+  saveDraftContinue: "儲存論壇草稿並繼續",
+  discardResumeDraft: "捨棄本機修改並繼續編輯草稿",
+  checkDraftRevision: "在 {value} 中核對已儲存版本",
+  checkDraftSave: "核對原儲存結果",
+
   searchOverviewLabel: "搜尋總覽",
   searchExplanation: "搜尋主題或作者。編輯條件不會執行搜尋。",
   searchEffects: "每次主動搜尋都可能消耗論壇積分或額度。系統不會自動重複搜尋。",
@@ -644,7 +724,8 @@ const traditional: Strings = {
   savedOverview: "在原版論壇中查看收藏的版塊與主題。",
   noticesOverview:
     "開啟此總覽不會請求通知。只有您的主動操作才會載入通知；沒有背景輪詢。",
-  draftsOverview: "在原版論壇中查看及繼續編輯論壇草稿。",
+  draftsOverview:
+    "載入論壇草稿、繼續編輯完整來源並明確儲存版本。本機復原與論壇草稿分開。",
   savedBoards: "版塊",
   savedThreads: "主題",
   searchScope: "主題與作者條件",
@@ -934,6 +1015,295 @@ const descriptions: Record<string, readonly [string, string]> = {
     [
       "现有附件控件不可用或无法安全保留。",
       "現有附件控制項無法取得或無法安全保留。",
+    ],
+
+  "The forum returned a different or unsupported draft list.": [
+    "论坛返回了不同或不支持的草稿列表。",
+    "論壇回傳了不同或不支援的草稿清單。",
+  ],
+  "The draft list could not be interpreted.": [
+    "无法解析草稿列表。",
+    "無法解析草稿清單。",
+  ],
+  "Complete native verification before loading drafts.": [
+    "请先在原版论坛完成验证，再载入草稿。",
+    "請先在原版論壇完成驗證，再載入草稿。",
+  ],
+  "Sign in before loading forum drafts.": [
+    "请先登录再载入论坛草稿。",
+    "請先登入再載入論壇草稿。",
+  ],
+  "The current account cannot read these drafts.": [
+    "当前账号无法读取这些草稿。",
+    "目前帳號無法讀取這些草稿。",
+  ],
+  "The forum is limiting draft requests.": [
+    "论坛正在限制草稿请求。",
+    "論壇正在限制草稿請求。",
+  ],
+  "A complete current-account draft list is required.": [
+    "需要当前账号的完整草稿列表。",
+    "需要目前帳號的完整草稿清單。",
+  ],
+  "The forum draft filter or list structure is unavailable.": [
+    "论坛草稿筛选或列表结构不可用。",
+    "論壇草稿篩選或清單結構無法使用。",
+  ],
+  "A draft row could not be interpreted; the list is not complete.": [
+    "无法解析一个草稿项目；列表不完整。",
+    "無法解析一個草稿項目；清單不完整。",
+  ],
+  "A draft row has ambiguous identity.": [
+    "草稿项目的身份不明确。",
+    "草稿項目的身分不明確。",
+  ],
+  "A draft row has unsupported or repeated identity.": [
+    "草稿项目的身份不支持或重复。",
+    "草稿項目的身分不支援或重複。",
+  ],
+  "No authoritative empty draft list was returned.": [
+    "未收到论坛明确确认的空草稿列表。",
+    "未收到論壇明確確認的空草稿清單。",
+  ],
+  "The draft pager returned an unsupported destination.": [
+    "草稿分页返回了不支持的目标。",
+    "草稿分頁回傳了不支援的目標。",
+  ],
+  "This draft page was not offered by the current list.": [
+    "当前列表未提供这个草稿页面。",
+    "目前清單未提供這個草稿頁面。",
+  ],
+  "A newer request replaced this draft list.": [
+    "较新的请求已取代此草稿列表。",
+    "較新的請求已取代此草稿清單。",
+  ],
+  "The account changed while loading drafts. Load the current account's list explicitly.":
+    [
+      "载入草稿时账号已变更。请主动载入当前账号的列表。",
+      "載入草稿時帳號已變更。請主動載入目前帳號的清單。",
+    ],
+  "The draft list is incomplete.": ["草稿列表不完整。", "草稿清單不完整。"],
+  "The forum draft list could not be reached.": [
+    "无法连接论坛草稿列表。",
+    "無法連線論壇草稿清單。",
+  ],
+  "The same draft is no longer listed for the expected account.": [
+    "预期账号的列表已没有同一份草稿。",
+    "預期帳號的清單已沒有同一份草稿。",
+  ],
+  "The account changed during draft preparation.": [
+    "准备草稿时账号已变更。",
+    "準備草稿時帳號已變更。",
+  ],
+  "The draft board or thread could not be independently verified.": [
+    "无法独立核实草稿的版块或主题。",
+    "無法獨立核實草稿的版塊或主題。",
+  ],
+  "The draft opening-post owner is unverified.": [
+    "尚未核实草稿首帖的作者。",
+    "尚未核實草稿首帖的作者。",
+  ],
+  "The thread is not independently confirmed as an unpublished draft.": [
+    "尚未独立确认此主题为未发布的草稿。",
+    "尚未獨立確認此主題為未發佈的草稿。",
+  ],
+  "The account changed during saved-source readback.": [
+    "重新读取已保存来源时账号已变更。",
+    "重新讀取已儲存來源時帳號已變更。",
+  ],
+  "The draft could not be independently read. Existing writing is retained.": [
+    "无法独立读取草稿。现有写作内容已保留。",
+    "無法獨立讀取草稿。現有寫作內容已保留。",
+  ],
+  "The save may have succeeded. Select the actual draft from Drafts to check this original attempt; no save was repeated.":
+    [
+      "保存可能已成功。请从草稿列表选择实际草稿来核对原操作；未重复保存。",
+      "儲存可能已成功。請從草稿清單選擇實際草稿來核對原操作；未重複儲存。",
+    ],
+  "This record predates this save, differs from its original target, or the pre-send list was not retained. It cannot confirm this original attempt. No save was repeated.":
+    [
+      "此记录早于本次保存、与原目标不同，或发送前的列表未被保留。它不能确认原操作。未重复保存。",
+      "此紀錄早於本次儲存、與原目標不同，或傳送前的清單未被保留。它不能確認原操作。未重複儲存。",
+    ],
+  "The same draft's complete saved revision could not be confirmed. No save was repeated.":
+    [
+      "无法确认同一草稿的完整已保存版本。未重复保存。",
+      "無法確認同一草稿的完整已儲存版本。未重複儲存。",
+    ],
+  "The original draft publication identity is unavailable.": [
+    "原草稿发布身份不可用。",
+    "原草稿發佈身分無法使用。",
+  ],
+  "The record is still an unpublished forum draft. Publication is not confirmed; no action was repeated.":
+    [
+      "该记录仍是未发布的论坛草稿。尚未确认发布；未重复操作。",
+      "該紀錄仍是未發佈的論壇草稿。尚未確認發佈；未重複操作。",
+    ],
+  "The draft remains listed but its current state is unverified.": [
+    "草稿仍在列表中，但当前状态尚未核实。",
+    "草稿仍在清單中，但目前狀態尚未核實。",
+  ],
+  "The actual published thread could not be independently read for the original account.":
+    [
+      "无法以原账号独立读取实际发布的主题。",
+      "無法以原帳號獨立讀取實際發佈的主題。",
+    ],
+  "The resulting thread identity, author or published state did not match the original draft.":
+    [
+      "结果主题的身份、作者或发布状态与原草稿不符。",
+      "結果主題的身分、作者或發佈狀態與原草稿不符。",
+    ],
+  "The resulting thread has native state restrictions. Public thread publication has not been confirmed.":
+    [
+      "结果主题仍有论坛状态限制。尚未确认主题已公开发布。",
+      "結果主題仍有論壇狀態限制。尚未確認主題已公開發佈。",
+    ],
+  "The complete published source or account could not be confirmed. No publication was repeated.":
+    [
+      "无法确认完整已发布来源或账号。未重复发布。",
+      "無法確認完整已發佈來源或帳號。未重複發佈。",
+    ],
+  "Publication may have succeeded, but independent draft and stored-source readback failed. No action was repeated.":
+    [
+      "发布可能已成功，但独立读取草稿及已保存来源失败。未重复操作。",
+      "發佈可能已成功，但獨立讀取草稿及已儲存來源失敗。未重複操作。",
+    ],
+  "This draft publication is stale or already active. Nothing was sent.": [
+    "此草稿发布已过期或正在执行。未发送内容。",
+    "此草稿發佈已過期或正在執行。未傳送內容。",
+  ],
+  "The saved draft or account changed before publication. Current writing is retained.":
+    [
+      "发布前，已保存草稿或账号发生变更。当前写作内容已保留。",
+      "發佈前，已儲存草稿或帳號發生變更。目前寫作內容已保留。",
+    ],
+  "The current saved draft changed before publication. Nothing was sent.": [
+    "发布前已保存草稿发生变更。未发送内容。",
+    "發佈前已儲存草稿發生變更。未傳送內容。",
+  ],
+  "The current native draft publication controls are unsupported. Nothing was sent.":
+    [
+      "不支持当前原版草稿发布控件。未发送内容。",
+      "不支援目前原版草稿發佈控制項。未傳送內容。",
+    ],
+  "The account changed during draft publication. Possible effects are retained.":
+    [
+      "发布草稿时账号已变更。可能产生的影响仍被保留。",
+      "發佈草稿時帳號已變更。可能產生的影響仍被保留。",
+    ],
+  "The forum reports moderation. Public thread publication has not been confirmed.":
+    [
+      "论坛报告需要审核。尚未确认主题已公开发布。",
+      "論壇報告需要審核。尚未確認主題已公開發佈。",
+    ],
+  "Draft publication may have succeeded. Check the original attempt before another deliberate action.":
+    [
+      "草稿发布可能已成功。再次主动操作前，请核对原操作。",
+      "草稿發佈可能已成功。再次主動操作前，請核對原操作。",
+    ],
+  "Fresh draft publication preparation failed. Nothing was sent.": [
+    "重新准备草稿发布失败。未发送内容。",
+    "重新準備草稿發佈失敗。未傳送內容。",
+  ],
+  "Fresh draft-save preparation failed or the account changed. Nothing was sent.":
+    [
+      "重新准备草稿保存失败或账号已变更。未发送内容。",
+      "重新準備草稿儲存失敗或帳號已變更。未傳送內容。",
+    ],
+  "This draft attempt is stale or already active. Nothing was sent.": [
+    "此草稿操作已过期或正在执行。未发送内容。",
+    "此草稿操作已過期或正在執行。未傳送內容。",
+  ],
+  "The remote draft changed or is no longer available. Resume its current revision before saving; your local writing is retained.":
+    [
+      "论坛草稿已变更或不可用。保存前请继续编辑其当前版本；本地写作内容已保留。",
+      "論壇草稿已變更或無法使用。儲存前請繼續編輯其目前版本；本機寫作內容已保留。",
+    ],
+  "The account changed before draft saving. Nothing was sent.": [
+    "保存草稿前账号已变更。未发送内容。",
+    "儲存草稿前帳號已變更。未傳送內容。",
+  ],
+  "The current draft form changed. Your writing is retained; nothing was sent.":
+    [
+      "当前草稿表单已变更。写作内容已保留；未发送内容。",
+      "目前草稿表單已變更。寫作內容已保留；未傳送內容。",
+    ],
+  "The current attachment references changed before saving. Nothing was sent; original source and metadata are retained.":
+    [
+      "保存前当前附件引用已变更。未发送内容；原来源及元数据已保留。",
+      "儲存前目前附件參照已變更。未傳送內容；原來源及中繼資料已保留。",
+    ],
+  "The current native draft-save controls are unsupported. Nothing was sent.": [
+    "不支持当前原版草稿保存控件。未发送内容。",
+    "不支援目前原版草稿儲存控制項。未傳送內容。",
+  ],
+  "The account changed during saving. Possible effects and original writing are retained.":
+    [
+      "保存期间账号已变更。可能产生的影响及原写作内容已保留。",
+      "儲存期間帳號已變更。可能產生的影響及原寫作內容已保留。",
+    ],
+  "The forum rejected draft saving. Your writing is retained.": [
+    "论坛拒绝保存草稿。写作内容已保留。",
+    "論壇拒絕儲存草稿。寫作內容已保留。",
+  ],
+  "Draft saving may have succeeded. Check the original attempt before saving again; your writing is retained.":
+    [
+      "保存草稿可能已成功。再次保存前请核对原操作；写作内容已保留。",
+      "儲存草稿可能已成功。再次儲存前請核對原操作；寫作內容已保留。",
+    ],
+  "Draft preparation failed. Nothing was sent and writing is retained.": [
+    "准备草稿失败。未发送内容，写作内容已保留。",
+    "準備草稿失敗。未傳送內容，寫作內容已保留。",
+  ],
+  "The draft resend proposal changed. Review the current action, account and revision again. Nothing was sent.":
+    [
+      "草稿重新发送方案已变更。请重新检查当前操作、账号及版本。未发送内容。",
+      "草稿重新傳送方案已變更。請重新檢查目前操作、帳號及版本。未傳送內容。",
+    ],
+  "Pending draft publication restored as uncertain. Nothing was replayed.": [
+    "待处理的草稿发布已恢复为结果未知。未重放操作。",
+    "待處理的草稿發佈已恢復為結果未知。未重播操作。",
+  ],
+  "Saving forum draft…": ["正在保存论坛草稿…", "正在儲存論壇草稿…"],
+  "Publishing the confirmed saved forum draft…": [
+    "正在发布已确认保存的论坛草稿…",
+    "正在發佈已確認儲存的論壇草稿…",
+  ],
+  "Pending draft save restored as uncertain. Nothing was replayed.": [
+    "待处理草稿操作已恢复为结果不确定。未重放任何操作。",
+    "待處理草稿操作已還原為結果不確定。未重播任何操作。",
+  ],
+  "Writing changed while the draft was loading. Your current writing is retained.":
+    [
+      "载入草稿时写作内容发生变更。当前写作内容已保留。",
+      "載入草稿時寫作內容發生變更。目前寫作內容已保留。",
+    ],
+  "Writing changed during draft-save preparation. Nothing was sent.": [
+    "准备保存草稿时写作内容发生变更。未发送内容。",
+    "準備儲存草稿時寫作內容發生變更。未傳送內容。",
+  ],
+  "An earlier draft save may have succeeded. Check its original result before another save.":
+    [
+      "较早的草稿保存可能已成功。再次保存前请核对原结果。",
+      "較早的草稿儲存可能已成功。再次儲存前請核對原結果。",
+    ],
+  "Draft saving was not sent because the acknowledged revision changed.": [
+    "已确认保留的版本发生变更，因此未发送草稿保存。",
+    "已確認保留的版本發生變更，因此未傳送草稿儲存。",
+  ],
+  "An earlier draft operation remains unresolved or already published. Check the original result; no action was repeated.":
+    [
+      "较早的草稿操作仍未确定或已发布。请核对原结果；未重复操作。",
+      "較早的草稿操作仍未確定或已發佈。請核對原結果；未重複操作。",
+    ],
+  "Draft publication was not sent because the acknowledged revision changed.": [
+    "已确认保留的版本发生变更，因此未发送草稿发布。",
+    "已確認保留的版本發生變更，因此未傳送草稿發佈。",
+  ],
+  "This context has a forum draft or unresolved save. It cannot create a separate new thread. Use the explicit draft publication workflow.":
+    [
+      "此写作内容已有论坛草稿或未确定的保存结果，不能另建新主题。请使用明确的草稿发布操作。",
+      "此寫作內容已有論壇草稿或未確定的儲存結果，不能另建新主題。請使用明確的草稿發佈操作。",
     ],
 
   "The forum reports pending moderation. Public stored source has not been confirmed.":
@@ -1628,6 +1998,22 @@ export function description(
     return language === "zh-CN"
       ? `已确认储存回复：主题 ${reply[1]}、帖子 ${reply[2]}，提交版本 ${reply[3]}。`
       : `已確認儲存回覆：主題 ${reply[1]}、帖子 ${reply[2]}，提交版本 ${reply[3]}。`;
+  const draftSave =
+    /^Confirmed forum draft (\d+), submitted revision (\d+)\. Later changes remain unsaved\.$/.exec(
+      value,
+    );
+  if (draftSave)
+    return language === "zh-CN"
+      ? `已确认论坛草稿 ${draftSave[1]} 的提交版本 ${draftSave[2]}。之后的修改尚未保存。`
+      : `已確認論壇草稿 ${draftSave[1]} 的提交版本 ${draftSave[2]}。之後的修改尚未儲存。`;
+  const draftPublish =
+    /^Confirmed publication of forum draft (\d+), post (\d+)\. The draft list no longer contains this record\.$/.exec(
+      value,
+    );
+  if (draftPublish)
+    return language === "zh-CN"
+      ? `已确认论坛草稿 ${draftPublish[1]} 发布为帖子 ${draftPublish[2]}。草稿列表已不含此记录。`
+      : `已確認論壇草稿 ${draftPublish[1]} 發佈為帖子 ${draftPublish[2]}。草稿清單已不含此紀錄。`;
   const publication =
     /^Confirmed stored thread (\d+), post (\d+), submitted revision (\d+)\.$/.exec(
       value,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, type DeepReadonly } from "vue";
 import PostEditor from "./PostEditor.vue";
 import type { Workspace } from "../workspace";
 import { strings, insert, description } from "../layouts/strings";
@@ -11,6 +11,41 @@ const text = computed(() =>
 );
 const unresolved = props.workspace.writing.unresolvedAttachments;
 const mentionQuery = ref("");
+const currentOptions = computed(
+  () =>
+    state.value.context?.options.filter(
+      (option) =>
+        !state.value.context?.draft ||
+        !["addfeed", "adddynamic", "adddynamic_doing"].includes(option.name),
+    ) ?? [],
+);
+
+const resendDraftAttempt = computed(() =>
+  state.value.context?.draftAttempts?.find(
+    (a) => a.id === state.value.draftResend?.id,
+  ),
+);
+function draftSummary(
+  attempt: DeepReadonly<import("../forum-client").DraftAttempt>,
+  revision = attempt.submission.revision,
+) {
+  const writing = attempt.submission.writing;
+  const target = writing.draft
+    ? text.value.draftAttemptTarget
+        .replace("{thread}", writing.draft.threadId)
+        .replace("{post}", writing.draft.postId)
+    : text.value.newThread;
+  return insert(
+    text.value.draftAttemptDetails,
+    attempt.operation === "publish"
+      ? text.value.publishSavedDraft
+      : text.value.saveForumDraft,
+  )
+    .replace("{account}", `${writing.account.name} (${writing.account.id})`)
+    .replace("{board}", writing.board.id)
+    .replace("{target}", target)
+    .replace("{revision}", String(revision));
+}
 const candidateURLs = ref<Record<string, string>>({});
 function effectLabel(
   options: readonly { name: string; label: string }[],
@@ -74,7 +109,10 @@ function updateOption(option: WritingOption, event: Event) {
           ? insert(text.editPost, state.context.editTarget?.postId ?? "")
           : state.context.replyTarget
             ? insert(text.replyIn, state.context.replyTarget.threadId)
-            : insert(text.newThreadIn, state.context.board.label)
+            : insert(
+                state.context.draft ? text.draftIn : text.newThreadIn,
+                state.context.board.label,
+              )
       }}
     </h1>
     <p v-if="state.context.replyTarget?.postId">
@@ -86,6 +124,9 @@ function updateOption(option: WritingOption, event: Event) {
       }}
     </p>
     <p v-if="state.context.replyTarget">{{ text.replyDeliveryUnknown }}</p>
+    <p v-if="state.context.draft">
+      {{ insert(text.draftIdentity, state.context.draft.threadId) }}
+    </p>
     <p>
       {{ insert(text.writingAs, state.context.account.name) }} ·
       {{ insert(text.writingBoard, state.context.board.id) }}
@@ -130,7 +171,72 @@ function updateOption(option: WritingOption, event: Event) {
         {{ text.replaceTextCopy }}
       </button>
     </section>
-    <p v-if="!state.context.attempts?.length">{{ text.localWriting }}</p>
+    <button
+      v-if="state.context.draftSaveAvailable"
+      :disabled="state.preparing || state.publishing"
+      @click="workspace.writing.saveDraft()"
+    >
+      {{ text.saveForumDraft }}
+    </button>
+    <button
+      v-if="state.context.draft"
+      :disabled="state.preparing || state.publishing"
+      @click="workspace.writing.publishDraft()"
+    >
+      {{ text.publishSavedDraft }}
+    </button>
+    <section
+      v-for="attempt in state.context.draftAttempts"
+      :key="attempt.id"
+      role="status"
+    >
+      <p>{{ draftSummary(attempt) }}</p>
+      <p>
+        {{
+          description(
+            attempt.message,
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </p>
+      <button
+        v-if="['uncertain', 'moderation'].includes(attempt.status)"
+        :aria-label="insert(text.checkOriginalDraft, attempt.id)"
+        :disabled="state.publishing || state.preparing"
+        @click="workspace.writing.checkDraft(attempt.id)"
+      >
+        {{ text.checkThreadResult }}
+      </button>
+      <button
+        v-if="workspace.writing.canResendDraft(attempt.id)"
+        :aria-label="insert(text.reviewDraftResend, attempt.id)"
+        @click="workspace.writing.warnDraftResend(attempt.id)"
+      >
+        {{ text.prepareAnotherAttempt }}
+      </button>
+    </section>
+    <section v-if="state.draftResend && resendDraftAttempt" role="alert">
+      <p>{{ text.draftResendWarning }}</p>
+      <p>{{ draftSummary(resendDraftAttempt, state.draftResend.revision) }}</p>
+      <button @click="workspace.writing.cancelDraftResend()">
+        {{ text.cancelDraftResend }}
+      </button>
+      <button
+        :disabled="state.publishing || state.preparing || state.composing"
+        @click="workspace.writing.confirmDraftResend()"
+      >
+        {{ text.confirmDraftResend }}
+      </button>
+    </section>
+    <p
+      v-if="
+        !state.context.draft &&
+        !state.context.attempts?.length &&
+        !state.context.draftAttempts?.length
+      "
+    >
+      {{ text.localWriting }}
+    </p>
     <section
       v-for="attempt in state.context.attempts"
       :key="attempt.id"
@@ -302,6 +408,7 @@ function updateOption(option: WritingOption, event: Event) {
     </section>
     <div class="writing-actions">
       <button
+        v-if="!state.context.draft"
         :disabled="state.preparing || state.publishing"
         @click="workspace.writing.reviewPublication()"
       >
@@ -410,9 +517,19 @@ function updateOption(option: WritingOption, event: Event) {
       </select></label
     >
     <PostEditor :key="state.context.id" :workspace="workspace" />
+    <p
+      v-if="
+        state.context.draft &&
+        state.context.options.some((o) =>
+          ['addfeed', 'adddynamic', 'adddynamic_doing'].includes(o.name),
+        )
+      "
+    >
+      {{ text.draftCreationInstructions }}
+    </p>
     <fieldset>
       <legend>{{ text.currentFormOptions }}</legend>
-      <label v-for="option in state.context.options" :key="option.name">
+      <label v-for="option in currentOptions" :key="option.name">
         <template v-if="option.kind === 'checkbox'"
           ><input
             type="checkbox"

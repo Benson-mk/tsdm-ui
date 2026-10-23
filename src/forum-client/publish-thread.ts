@@ -92,6 +92,7 @@ export function compatible(
 export function successful(
   response: HostResponse,
   writing: PreparedWriting,
+  draftSave: false | "save" | "publish" = false,
 ): { url: string; body: string } | null {
   const doc = document(response),
     form = byId(doc, "postform");
@@ -102,7 +103,9 @@ export function successful(
     ["input", "textarea", "select", "button"].includes(n.tagName),
   );
   const attachmentControls =
-    writing.action === "edit-post" ? editAttachmentControls(doc, form) : [];
+    writing.action === "edit-post" || (draftSave && writing.draft)
+      ? editAttachmentControls(doc, form)
+      : [];
   if (!attachmentControls) return null;
   for (const attachment of attachmentControls)
     if (!controls.includes(attachment)) controls.push(attachment);
@@ -124,7 +127,8 @@ export function successful(
     return null;
   const pairs: [string, string][] = [];
   const submitName =
-    writing.action === "edit-post"
+    writing.action === "edit-post" ||
+    (draftSave && new URL(target).searchParams.get("action") === "edit")
       ? "editsubmit"
       : writing.replyTarget
         ? "replysubmit"
@@ -145,6 +149,16 @@ export function successful(
     return null;
   if (submitters.length)
     pairs.push([submitName, attr(submitters[0]!, "value")]);
+  if (draftSave) {
+    const saves = controls.filter((n) => attr(n, "name") === "save");
+    if (
+      saves.length !== 1 ||
+      attr(saves[0]!, "type") !== "hidden" ||
+      attr(saves[0]!, "id") !== "postsave" ||
+      controlDisabled(saves[0]!)
+    )
+      return null;
+  }
   const inactiveRush = [
     "rushreplyfrom",
     "rushreplyto",
@@ -180,7 +194,7 @@ export function successful(
     if (
       (["special", "save"].includes(name) &&
         !["", "0"].includes(attr(node, "value"))) ||
-      (writing.action === "edit-post" &&
+      ((writing.action === "edit-post" || draftSave) &&
         name === "delattachop" &&
         attr(node, "value") !== "0")
     )
@@ -192,27 +206,31 @@ export function successful(
     )
       continue;
     const value =
-      name === "subject"
-        ? writing.title
-        : name === "message"
-          ? writing.source
-          : supplied
-            ? supplied.value
-            : attachmentControls.includes(node)
-              ? editAttachmentFields([node])[0]!.value
-              : node.tagName === "textarea"
-                ? text(node)
-                : node.tagName === "select"
-                  ? attr(
-                      descendants(
-                        node,
-                        (n) => n.tagName === "option" && has(n, "selected"),
-                      )[0] ??
-                        descendants(node, (n) => n.tagName === "option")[0] ??
-                        node,
-                      "value",
-                    )
-                  : attr(node, "value");
+      draftSave && name === "save"
+        ? draftSave === "save"
+          ? "1"
+          : ""
+        : name === "subject"
+          ? writing.title
+          : name === "message"
+            ? writing.source
+            : supplied
+              ? supplied.value
+              : attachmentControls.includes(node)
+                ? editAttachmentFields([node])[0]!.value
+                : node.tagName === "textarea"
+                  ? text(node)
+                  : node.tagName === "select"
+                    ? attr(
+                        descendants(
+                          node,
+                          (n) => n.tagName === "option" && has(n, "selected"),
+                        )[0] ??
+                          descendants(node, (n) => n.tagName === "option")[0] ??
+                          node,
+                        "value",
+                      )
+                    : attr(node, "value");
     if (
       (has(node, "required") && !value.trim()) ||
       (/^\d+$/.test(attr(node, "maxlength")) &&
@@ -222,6 +240,12 @@ export function successful(
     // Unknown interactive controls need an interpretation before they can be sent.
     if (
       !supplied &&
+      !(
+        draftSave &&
+        (/^attachnew\[[1-9]\d*\]\[[a-z_]+\]$/.test(name) ||
+          (["fid", "tid", "pid", "page", "delattachop"].includes(name) &&
+            type === "hidden"))
+      ) &&
       ![
         "subject",
         "message",
@@ -604,6 +628,7 @@ export function createThreadPublisher(config: {
         (submission.writing.action !== "new-thread" &&
           (!submission.writing.replyTarget ||
             !/^[1-9]\d*$/.test(submission.writing.replyTarget.threadId))) ||
+        submission.writing.draft !== undefined ||
         !/^[1-9]\d*$/.test(submission.writing.board.id) ||
         (submission.writing.action === "new-thread" &&
           !submission.writing.title.trim()) ||

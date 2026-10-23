@@ -245,6 +245,20 @@ export interface Search {
   results: SearchResults | null;
 }
 export interface ForumClient {
+  resumeDraft(
+    row: DraftRow,
+    expectedAccount: Account,
+  ): Promise<PrepareWritingResult>;
+  prepareDraftSave(attempt: DraftAttempt): Promise<DraftAttempt>;
+  saveDraft(attempt: DraftAttempt): Promise<DraftAttempt>;
+  publishDraft(attempt: DraftAttempt): Promise<DraftAttempt>;
+  checkDraft(attempt: DraftAttempt, row?: DraftRow): Promise<DraftAttempt>;
+
+  readDrafts(
+    destination?: string,
+    prior?: DraftList,
+    expectedAccount?: Account,
+  ): Promise<DraftListResult>;
   readNotices(
     destination: string,
     prior?: Notices,
@@ -343,6 +357,8 @@ export interface PreparedWriting {
     threadURL: string;
     baseline: WritingBaseline;
   };
+  draftSaveAvailable?: boolean;
+  draft?: DraftIdentity;
   board: { id: string; label: string; url: string };
   account: Extract<Account, { kind: "member" }>;
   title: string;
@@ -445,4 +461,48 @@ export interface ThreadAttempt {
     /** Absent only on compatible legacy confirmations. New readbacks supply it. */
     verification?: ThreadVerification;
   } | null;
+}
+
+export interface DraftRow {
+  threadId: string;
+  boardId: string;
+  title: string;
+  url: string;
+}
+export interface DraftList {
+  url: string;
+  rows: DraftRow[];
+  pages: Pagination;
+  empty: string;
+}
+export type DraftListResult = (
+  { kind: "drafts"; drafts: DraftList } | { kind: FailureKind; message: string }
+) & { account: Account; generation: number; sourceURL: string };
+
+export interface DraftIdentity {
+  threadId: string;
+  postId: string;
+  url: string;
+  version: string;
+}
+export interface DraftAttempt {
+  checked?: boolean;
+  resendOf?: string;
+  priorDraftIds?: string[];
+  operation?: "save" | "publish";
+  publishedURL?: string;
+  id: string;
+  generation: number;
+  submission: ThreadSubmission;
+  status:
+    | "pending"
+    | "uncertain"
+    | "rejected"
+    | "not-sent"
+    | "confirmed"
+    | "published"
+    | "remaining-draft"
+    | "moderation";
+  message: string;
+  result: DraftIdentity | null;
 }

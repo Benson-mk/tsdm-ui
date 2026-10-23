@@ -610,8 +610,18 @@ function boardIdFrom(url: string) {
         <button @click="workspace.writing.replaceWithEdit()">
           {{ text.discardAndEdit }}
         </button>
+        <button
+          v-if="writing.context?.draftSaveAvailable"
+          :disabled="writing.preparing || writing.publishing"
+          @click="workspace.writing.saveDraft(true)"
+        >
+          {{ text.saveDraftContinue }}
+        </button>
       </section>
-      <section v-if="writing.replacement" role="alert">
+      <section
+        v-if="writing.replacement || writing.draftReplacement"
+        role="alert"
+      >
         <p>{{ text.replaceWritingWarning }}</p>
         <button @click="workspace.writing.show()">
           {{ text.returnOriginal }}</button
@@ -619,7 +629,18 @@ function boardIdFrom(url: string) {
           :disabled="writing.preparing"
           @click="workspace.writing.discardAndPrepare()"
         >
-          {{ text.discardPrepare }}
+          {{
+            writing.draftReplacement
+              ? text.discardResumeDraft
+              : text.discardPrepare
+          }}
+        </button>
+        <button
+          v-if="writing.context?.draftSaveAvailable"
+          :disabled="writing.preparing || writing.publishing"
+          @click="workspace.writing.saveDraft(true)"
+        >
+          {{ text.saveDraftContinue }}
         </button>
       </section>
     </div>
@@ -797,6 +818,86 @@ function boardIdFrom(url: string) {
         <h1>{{ sectionInfo.title }}</h1>
         <h2>{{ sectionInfo.heading }}</h2>
         <p>{{ sectionInfo.description }}</p>
+        <template v-if="state.section === 'drafts'">
+          <button
+            :disabled="workspace.drafts.value.loading"
+            @click="workspace.loadDrafts()"
+          >
+            {{ text.loadDrafts }}
+          </button>
+          <p
+            v-if="
+              workspace.drafts.value.result &&
+              workspace.drafts.value.result.kind !== 'drafts'
+            "
+            role="alert"
+          >
+            {{
+              description(
+                workspace.drafts.value.result.message,
+                workspace.preferences.state.value.language,
+              )
+            }}
+          </p>
+          <template v-if="workspace.drafts.value.result?.kind === 'drafts'">
+            <p>{{ workspace.drafts.value.result.drafts.empty }}</p>
+            <ul>
+              <li
+                v-for="draft in workspace.drafts.value.result.drafts.rows"
+                :key="draft.threadId"
+              >
+                <button
+                  :aria-label="insert(text.resumeDraft, draft.title)"
+                  @click="
+                    workspace.writing.resumeDraft(
+                      draft as import('../forum-client').DraftRow,
+                      workspace.drafts.value.result!.account,
+                    )
+                  "
+                >
+                  {{ draft.title }}
+                </button>
+                · {{ insert(text.writingBoard, draft.boardId) }}
+                <div
+                  v-for="attempt in writing.context?.draftAttempts?.filter(
+                    (a) =>
+                      a.status === 'uncertain' &&
+                      a.operation !== 'publish' &&
+                      !a.submission.writing.draft,
+                  )"
+                  :key="attempt.id"
+                  role="group"
+                  :aria-label="insert(text.draftAttempt, attempt.id)"
+                >
+                  <span>{{ insert(text.draftAttempt, attempt.id) }}</span>
+                  <button
+                    :aria-label="insert(text.checkDraftRevision, draft.title)"
+                    :disabled="writing.publishing || writing.preparing"
+                    @click="
+                      workspace.writing.checkDraft(
+                        attempt.id,
+                        draft as import('../forum-client').DraftRow,
+                      )
+                    "
+                  >
+                    {{ text.checkDraftSave }}
+                  </button>
+                </div>
+              </li>
+            </ul>
+            <nav :aria-label="text.draftPages">
+              <button
+                v-for="link in workspace.drafts.value.result.drafts.pages.links"
+                :key="link.url"
+                :aria-label="insert(text.draftPage, link.label)"
+                :disabled="workspace.drafts.value.loading"
+                @click="workspace.loadDrafts(link.url)"
+              >
+                {{ link.label }}
+              </button>
+            </nav>
+          </template>
+        </template>
         <a :href="nativeDestination(sectionInfo.nativeURL)">{{
           text.native
         }}</a>

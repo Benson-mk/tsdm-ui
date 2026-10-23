@@ -32,19 +32,27 @@ export async function findMention(
     return fail("Enter a person name or UID to resolve.");
   if (writing.action === "edit-post" && !writing.editTarget)
     return fail("The original edit target is unavailable.");
+  const editTarget =
+    writing.action === "edit-post"
+      ? writing.editTarget
+      : writing.action === "new-thread"
+        ? writing.draft
+        : undefined;
+  if (
+    editTarget &&
+    ![editTarget.threadId, editTarget.postId].every((id) =>
+      /^[1-9]\d*$/.test(id),
+    )
+  )
+    return fail("The original edit target is unavailable.");
   const generation = config.generation(),
     formURL = new URL("/forum.php", config.origin);
   Object.entries({
     mod: "post",
-    action:
-      writing.action === "edit-post"
-        ? "edit"
-        : writing.replyTarget
-          ? "reply"
-          : "newthread",
+    action: editTarget ? "edit" : writing.replyTarget ? "reply" : "newthread",
     fid: writing.board.id,
-    ...(writing.action === "edit-post" && writing.editTarget
-      ? { tid: writing.editTarget.threadId, pid: writing.editTarget.postId }
+    ...(editTarget
+      ? { tid: editTarget.threadId, pid: editTarget.postId }
       : writing.replyTarget
         ? {
             tid: writing.replyTarget.threadId,
@@ -64,7 +72,7 @@ export async function findMention(
       response,
       formURL.href,
       writing.board.id,
-      writing.editTarget,
+      editTarget,
       writing.replyTarget,
     );
     config.observe(decoded.account);

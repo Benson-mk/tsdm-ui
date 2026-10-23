@@ -8,11 +8,13 @@ import {
   type ForumClient,
   type PreparedWriting,
   type ThreadAttempt,
+  type DraftAttempt,
   type ThreadPublication,
   type ReplyTarget,
   type MentionIdentity,
 } from "../forum-client";
 export interface WritingContext extends PreparedWriting {
+  draftAttempts?: import("../forum-client").DraftAttempt[];
   id: string;
   revision: number;
   editorUnresolved?: boolean;
@@ -27,6 +29,7 @@ export function createWriting(
   client: ForumClient,
   changed: () => Promise<boolean>,
   accountObserved: (account: Account) => void,
+  publishedDraft?: (url: string) => Promise<void>,
 ) {
   const state = shallowRef<{
     context: WritingContext | null;
@@ -38,6 +41,10 @@ export function createWriting(
     conflict: PreparedWriting | null;
     reloadWarning: boolean;
     overwriteWarning: boolean;
+    draftReplacement: {
+      row: import("../forum-client").DraftRow;
+      account: Account;
+    } | null;
     acknowledged: number;
     recoveryAvailable: boolean | null;
     accountVerified: boolean;
@@ -49,6 +56,12 @@ export function createWriting(
     publication: ThreadPublication | null;
     publishing: boolean;
     resend: string | null;
+    draftResend: {
+      id: string;
+      contextId: string;
+      revision: number;
+      generation: number;
+    } | null;
     copy: {
       prepared: PreparedWriting;
       generation: number;
@@ -64,6 +77,7 @@ export function createWriting(
     conflict: null,
     reloadWarning: false,
     overwriteWarning: false,
+    draftReplacement: null,
     acknowledged: 0,
     recoveryAvailable: null,
     accountVerified: false,
@@ -76,6 +90,7 @@ export function createWriting(
     publication: null,
     publishing: false,
     resend: null,
+    draftResend: null,
   });
   let editorSession: EditorSession | null = null;
   let editorContext = "";
@@ -233,6 +248,12 @@ export function createWriting(
         revision: 1,
         selection: { start: 0, end: 0, direction: "none" },
         ...(existing?.attempts?.length ? { attempts: existing.attempts } : {}),
+        ...(existing?.draftAttempts?.length
+          ? { draftAttempts: existing.draftAttempts }
+          : {}),
+        ...(existing?.draftAttempts?.length
+          ? { draftAttempts: existing.draftAttempts }
+          : {}),
       },
       preparing: false,
       visible: true,
@@ -312,6 +333,9 @@ export function createWriting(
         revision: 1,
         selection: { start: 0, end: 0, direction: "none" },
         ...(existing?.attempts?.length ? { attempts: existing.attempts } : {}),
+        ...(existing?.draftAttempts?.length
+          ? { draftAttempts: existing.draftAttempts }
+          : {}),
       },
       preparing: false,
       visible: true,
@@ -368,6 +392,135 @@ export function createWriting(
     void changed();
     if (mode === "overwrite") void reviewPublication();
   }
+  async function resumeDraft(
+    row: import("../forum-client").DraftRow,
+    account: Account,
+    replace = false,
+  ) {
+    if (
+      deferViewChange(() => {
+        void resumeDraft(row, account, replace);
+      })
+    )
+      return;
+    const existing = state.value.context;
+    if (state.value.publishing || state.value.preparing) return;
+    if (
+      existing?.draft?.threadId === row.threadId &&
+      existing.account.id === (account.kind === "member" ? account.id : null) &&
+      !replace
+    ) {
+      showExisting();
+      return;
+    }
+    if (existing && !replace) {
+      state.value = {
+        ...state.value,
+        draftReplacement: { row, account },
+        replacement: null,
+      };
+      return;
+    }
+    const current = ++sequence;
+    state.value = { ...state.value, preparing: true, message: "" };
+    const result = await client.resumeDraft(row, account);
+    accountObserved(result.account);
+    observe(result.account, result.kind === "prepared");
+    if (current !== sequence) return;
+    if (result.kind !== "prepared") {
+      state.value = {
+        ...state.value,
+        preparing: false,
+        message: result.message,
+      };
+      return;
+    }
+    if (
+      existing &&
+      (state.value.context?.id !== existing.id ||
+        state.value.context.revision !== existing.revision ||
+        state.value.composing)
+    ) {
+      state.value = {
+        ...state.value,
+        preparing: false,
+        message:
+          "Writing changed while the draft was loading. Your current writing is retained.",
+      };
+      return;
+    }
+    state.value = {
+      ...state.value,
+      context: {
+        ...result.prepared,
+        id: crypto.randomUUID(),
+        revision: 1,
+        selection: { start: 0, end: 0, direction: "none" },
+        ...(existing?.attempts ? { attempts: existing.attempts } : {}),
+        ...(existing?.draftAttempts
+          ? { draftAttempts: existing.draftAttempts }
+          : {}),
+      },
+      preparing: false,
+      visible: true,
+      replacement: null,
+      draftReplacement: null,
+      message: "",
+      acknowledged: 0,
+      accountVerified: true,
+      publication: null,
+    };
+    await changed();
+  }
+  function showExisting() {
+    state.value = {
+      ...state.value,
+      visible: true,
+      replacement: null,
+      draftReplacement: null,
+    };
+  }
+  async function checkDraft(
+    id: string,
+    row?: import("../forum-client").DraftRow,
+  ) {
+    const context = state.value.context,
+      attempt = context?.draftAttempts?.find((a) => a.id === id);
+    if (
+      !context ||
+      !attempt ||
+      !["uncertain", "moderation"].includes(attempt.status) ||
+      state.value.publishing ||
+      state.value.preparing
+    )
+      return;
+    state.value = { ...state.value, publishing: true };
+    const result = await client.checkDraft(attempt, row);
+    accountObserved(client.account);
+    observe(client.account);
+    const current = state.value.context;
+    if (current?.id === context.id)
+      state.value = {
+        ...state.value,
+        publishing: false,
+        message: result.status === "published" ? result.message : "",
+        context: {
+          ...current,
+          ...(result.status === "confirmed" &&
+          result.result &&
+          attempt.submission.contextId === current.id
+            ? { draft: result.result }
+            : {}),
+          draftAttempts: (current.draftAttempts ?? []).map((a) =>
+            a.id === result.id ? result : a,
+          ),
+        },
+      };
+    else state.value = { ...state.value, publishing: false };
+    await changed();
+    if (result.status === "published" && result.publishedURL)
+      await publishedDraft?.(result.publishedURL);
+  }
   function edit(
     patch: Partial<
       Pick<
@@ -407,9 +560,10 @@ export function createWriting(
       selection: _selection,
       attempts: _attempts,
       editorUnresolved: _editorUnresolved,
+      draftAttempts: _draftAttempts,
       ...content
     } = context;
-    void [_selection, _attempts, _editorUnresolved];
+    void [_selection, _attempts, _editorUnresolved, _draftAttempts];
     return { contextId: id, revision, writing: content };
   }
   function updateAttempt(attempt: ThreadAttempt) {
@@ -455,8 +609,358 @@ export function createWriting(
       },
     };
   }
+  function sameDraftContext(attempt: DraftAttempt, context: WritingContext) {
+    const original = attempt.submission.writing;
+    // A first Save can acquire a verified target without rewriting its immutable
+    // submission. Only that same observed draft participates in this lineage.
+    const target = original.draft;
+    return (
+      attempt.submission.contextId === context.id &&
+      original.account.id === context.account.id &&
+      original.action === context.action &&
+      context.action === "new-thread" &&
+      original.board.id === context.board.id &&
+      target?.threadId === context.draft?.threadId &&
+      target?.postId === context.draft?.postId
+    );
+  }
+  function canResendDraft(id: string) {
+    const context = state.value.context,
+      attempt = context?.draftAttempts?.find((a) => a.id === id);
+    return (
+      !!context &&
+      !!attempt &&
+      attempt.status === "uncertain" &&
+      attempt.checked === true &&
+      sameDraftContext(attempt, context) &&
+      !context.editorUnresolved &&
+      !state.value.composing &&
+      !state.value.preparing &&
+      !state.value.publishing
+    );
+  }
+  function blocksDraft(
+    attempt: DraftAttempt,
+    context: WritingContext,
+    resendId?: string,
+  ) {
+    // Explicit resend waives only its original unknown lineage, never another
+    // unresolved operation or a confirmed publication of this target.
+    const lineage = new Set<string>();
+    let id = resendId;
+    while (id && !lineage.has(id)) {
+      const original = context.draftAttempts?.find((a) => a.id === id);
+      if (!original || !sameDraftContext(original, context)) break;
+      lineage.add(id);
+      id = original.resendOf;
+    }
+    const confirmedResend = context.draftAttempts?.some((result) => {
+      if (
+        !result.resendOf ||
+        !["confirmed", "published"].includes(result.status) ||
+        result.submission.contextId !== context.id ||
+        result.submission.writing.account.id !== context.account.id ||
+        !context.draft ||
+        result.result?.threadId !== context.draft.threadId
+      )
+        return false;
+      const visited = new Set<string>();
+      let parent: string | undefined = result.resendOf;
+      while (parent && !visited.has(parent)) {
+        if (parent === attempt.id) return true;
+        visited.add(parent);
+        parent = context.draftAttempts?.find((a) => a.id === parent)?.resendOf;
+      }
+      return false;
+    });
+    return (
+      (["pending", "uncertain", "moderation"].includes(attempt.status) &&
+        !(
+          attempt.status === "uncertain" &&
+          (lineage.has(attempt.id) || confirmedResend)
+        )) ||
+      (attempt.status === "published" &&
+        (attempt.submission.contextId === context.id ||
+          (!!context.draft &&
+            attempt.submission.writing.draft?.threadId ===
+              context.draft.threadId)))
+    );
+  }
+  function warnDraftResend(id: string) {
+    const context = state.value.context;
+    if (!context || !canResendDraft(id)) return;
+    state.value = {
+      ...state.value,
+      draftResend: {
+        id,
+        contextId: context.id,
+        revision: context.revision,
+        generation: client.generation,
+      },
+    };
+  }
+  async function confirmDraftResend() {
+    const proposal = state.value.draftResend,
+      context = state.value.context;
+    state.value = { ...state.value, draftResend: null };
+    if (!proposal || !context) return;
+    if (
+      proposal.contextId !== context.id ||
+      proposal.revision !== context.revision ||
+      proposal.generation !== client.generation ||
+      !canResendDraft(proposal.id)
+    ) {
+      state.value = {
+        ...state.value,
+        message:
+          "The draft resend proposal changed. Review the current action, account and revision again. Nothing was sent.",
+      };
+      return;
+    }
+    const attempt = context.draftAttempts!.find((a) => a.id === proposal.id)!;
+    if (attempt.operation === "publish") await publishDraft(proposal.id);
+    else await saveDraft(false, proposal.id);
+  }
+  async function saveDraft(continueAfter = false, resendId?: string) {
+    const context = state.value.context;
+    if (
+      !context ||
+      state.value.preparing ||
+      state.value.publishing ||
+      state.value.composing
+    )
+      return;
+    if (context.editorUnresolved) {
+      state.value = {
+        ...state.value,
+        message:
+          "Review the complete source and resolve its interpretation before publication.",
+      };
+      return;
+    }
+    if (!state.value.accountVerified) {
+      await check();
+      if (
+        !state.value.accountVerified ||
+        state.value.context?.id !== context.id ||
+        state.value.context.revision !== context.revision
+      )
+        return;
+    }
+    if (
+      (resendId && !canResendDraft(resendId)) ||
+      context.draftAttempts?.some((a) => blocksDraft(a, context, resendId))
+    ) {
+      state.value = {
+        ...state.value,
+        message:
+          "An earlier draft save may have succeeded. Check its original result before another save.",
+      };
+      return;
+    }
+    const proposal: import("../forum-client").DraftAttempt = {
+      id: crypto.randomUUID(),
+      generation: client.generation,
+      submission: submission(context),
+      status: "pending",
+      checked: false,
+      ...(resendId ? { resendOf: resendId } : {}),
+      message: "Saving forum draft…",
+      result: null,
+    };
+    state.value = { ...state.value, publishing: true, publication: null };
+    const attempt = await client.prepareDraftSave(proposal);
+    accountObserved(client.account);
+    observe(client.account);
+    const beforeSend = state.value.context;
+    if (
+      beforeSend?.id !== context.id ||
+      beforeSend.revision !== context.revision
+    ) {
+      state.value = {
+        ...state.value,
+        publishing: false,
+        message:
+          "Writing changed during draft-save preparation. Nothing was sent.",
+      };
+      return;
+    }
+    state.value = {
+      ...state.value,
+      publishing: true,
+      publication: null,
+      context: {
+        ...beforeSend,
+        draftAttempts: [...(beforeSend.draftAttempts ?? []), attempt],
+      },
+    };
+    const retained = await changed();
+    const result =
+      attempt.status === "pending" &&
+      retained &&
+      state.value.context?.id === context.id &&
+      state.value.context.revision === context.revision
+        ? await client.saveDraft(attempt)
+        : attempt.status === "not-sent"
+          ? attempt
+          : {
+              ...attempt,
+              status: "not-sent" as const,
+              message:
+                "Draft saving was not sent because the acknowledged revision changed.",
+            };
+    accountObserved(client.account);
+    observe(client.account);
+    const current = state.value.context;
+    if (current?.id === context.id)
+      state.value = {
+        ...state.value,
+        publishing: false,
+        context: {
+          ...current,
+          ...(result.status === "confirmed" && result.result
+            ? { draft: result.result }
+            : {}),
+          draftAttempts: [
+            ...(current.draftAttempts ?? []).filter((a) => a.id !== result.id),
+            result,
+          ],
+        },
+      };
+    else state.value = { ...state.value, publishing: false };
+    await changed();
+    if (
+      continueAfter &&
+      result.status === "confirmed" &&
+      state.value.context?.id === context.id &&
+      state.value.context.revision === context.revision &&
+      !state.value.composing
+    ) {
+      if (state.value.editReplacement)
+        await prepareEdit(
+          state.value.editReplacement.threadURL,
+          state.value.editReplacement.postId,
+          true,
+        );
+      else if (state.value.draftReplacement)
+        await resumeDraft(
+          state.value.draftReplacement.row,
+          state.value.draftReplacement.account,
+          true,
+        );
+      else if (state.value.replacement)
+        await prepare(
+          state.value.replacement.boardId,
+          true,
+          state.value.replacement.replyTarget,
+        );
+    }
+  }
+  async function publishDraft(resendId?: string) {
+    const context = state.value.context;
+    if (
+      !context?.draft ||
+      state.value.preparing ||
+      state.value.publishing ||
+      state.value.composing
+    )
+      return;
+    if (context.editorUnresolved) {
+      state.value = {
+        ...state.value,
+        message:
+          "Review the complete source and resolve its interpretation before publication.",
+      };
+      return;
+    }
+    if (!state.value.accountVerified) {
+      await check();
+      if (
+        !state.value.accountVerified ||
+        state.value.context?.id !== context.id ||
+        state.value.context.revision !== context.revision
+      )
+        return;
+    }
+    if (
+      (resendId && !canResendDraft(resendId)) ||
+      context.draftAttempts?.some((a) => blocksDraft(a, context, resendId))
+    ) {
+      state.value = {
+        ...state.value,
+        message:
+          "An earlier draft operation remains unresolved or already published. Check the original result; no action was repeated.",
+      };
+      return;
+    }
+    const attempt: import("../forum-client").DraftAttempt = {
+      id: crypto.randomUUID(),
+      generation: client.generation,
+      operation: "publish",
+      submission: submission(context),
+      status: "pending",
+      checked: false,
+      ...(resendId ? { resendOf: resendId } : {}),
+      message: "Publishing the confirmed saved forum draft…",
+      result: null,
+    };
+    state.value = {
+      ...state.value,
+      publishing: true,
+      publication: null,
+      context: {
+        ...context,
+        draftAttempts: [...(context.draftAttempts ?? []), attempt],
+      },
+    };
+    const retained = await changed();
+    const result =
+      retained &&
+      state.value.context?.id === context.id &&
+      state.value.context.revision === context.revision
+        ? await client.publishDraft(attempt)
+        : {
+            ...attempt,
+            status: "not-sent" as const,
+            message:
+              "Draft publication was not sent because the acknowledged revision changed.",
+          };
+    accountObserved(client.account);
+    observe(client.account);
+    const current = state.value.context;
+    if (current?.id === context.id)
+      state.value = {
+        ...state.value,
+        publishing: false,
+        message: result.message,
+        context: {
+          ...current,
+          draftAttempts: (current.draftAttempts ?? []).map((a) =>
+            a.id === result.id ? result : a,
+          ),
+        },
+      };
+    else state.value = { ...state.value, publishing: false };
+    await changed();
+    if (result.status === "published" && result.publishedURL)
+      await publishedDraft?.(result.publishedURL);
+  }
   async function reviewPublication(resendId?: string) {
     const context = state.value.context;
+    if (
+      context?.action === "new-thread" &&
+      (context.draft ||
+        context.draftAttempts?.some(
+          (a) => a.status === "uncertain" || a.status === "pending",
+        ))
+    ) {
+      state.value = {
+        ...state.value,
+        message:
+          "This context has a forum draft or unresolved save. It cannot create a separate new thread. Use the explicit draft publication workflow.",
+      };
+      return;
+    }
     if (
       !context ||
       state.value.preparing ||
@@ -679,9 +1183,19 @@ export function createWriting(
             original.editTarget.threadURL,
             original.editTarget.postId,
           )
-        : await (original.replyTarget
-            ? client.prepareReply(original.board.id, original.replyTarget)
-            : client.prepareNewThread(original.board.id));
+        : original.replyTarget
+          ? await client.prepareReply(original.board.id, original.replyTarget)
+          : original.draft && !copyText
+            ? await client.resumeDraft(
+                {
+                  threadId: original.draft.threadId,
+                  boardId: original.board.id,
+                  title: original.title,
+                  url: original.draft.url,
+                },
+                original.account,
+              )
+            : await client.prepareNewThread(original.board.id);
     if (result.kind !== "stale") {
       accountObserved(result.account);
       observe(result.account, result.kind === "prepared");
@@ -698,6 +1212,12 @@ export function createWriting(
     state.value = {
       ...state.value,
       preparing: false,
+      message:
+        original.draft &&
+        !copyText &&
+        result.prepared.draft?.version !== original.draft.version
+          ? "The remote draft changed or is no longer available. Resume its current revision before saving; your local writing is retained."
+          : "",
       copy: copyText
         ? {
             prepared: result.prepared,
@@ -743,6 +1263,9 @@ export function createWriting(
         revision: 1,
         selection: { ...original.selection },
         ...(original.attempts?.length ? { attempts: original.attempts } : {}),
+        ...(original.draftAttempts?.length
+          ? { draftAttempts: original.draftAttempts }
+          : {}),
       },
       copy: null,
       acknowledged: 0,
@@ -796,6 +1319,16 @@ export function createWriting(
     searchMention,
     insertMention,
     reviewPublication,
+    resumeDraft,
+    checkDraft,
+    canResendDraft,
+    warnDraftResend,
+    confirmDraftResend,
+    cancelDraftResend: () => {
+      state.value = { ...state.value, draftResend: null };
+    },
+    saveDraft,
+    publishDraft,
     publish,
     checkResult,
     warnResend: (id: string) => {
@@ -819,6 +1352,23 @@ export function createWriting(
     },
     snapshot: () => state.value.context,
     restore: (context: WritingContext | null) => {
+      if (context?.draftAttempts)
+        context = {
+          ...context,
+          draftAttempts: context.draftAttempts.map((attempt) =>
+            attempt.status === "pending"
+              ? {
+                  ...attempt,
+                  status: "uncertain",
+                  message:
+                    attempt.operation === "publish"
+                      ? "Pending draft publication restored as uncertain. Nothing was replayed."
+                      : "Pending draft save restored as uncertain. Nothing was replayed.",
+                  checked: false,
+                }
+              : attempt,
+          ),
+        };
       const pending = context?.attempts?.some(
         (attempt) => attempt.status === "pending",
       );
@@ -851,6 +1401,7 @@ export function createWriting(
         publication: null,
         publishing: false,
         resend: null,
+        draftResend: null,
       };
       if (pending) void changed();
     },
@@ -880,6 +1431,7 @@ export function createWriting(
           ...state.value,
           visible: true,
           replacement: null,
+          draftReplacement: null,
           preparing: false,
         };
       };
@@ -892,9 +1444,13 @@ export function createWriting(
       if (!deferViewChange(hide)) hide();
     },
     discardAndPrepare: () => {
-      const replacement = state.value.replacement;
-      if (replacement)
-        void prepare(replacement.boardId, true, replacement.replyTarget);
+      const draft = state.value.draftReplacement;
+      if (draft) void resumeDraft(draft.row, draft.account, true);
+      else {
+        const replacement = state.value.replacement;
+        if (replacement)
+          void prepare(replacement.boardId, true, replacement.replyTarget);
+      }
     },
   };
 }
@@ -904,6 +1460,23 @@ const object = (value: unknown): value is Record<string, unknown> =>
 const string = (value: unknown): value is string => typeof value === "string";
 const integer = (value: unknown): value is number =>
   typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+function validAttachmentFields(fields: unknown, edit: boolean): boolean {
+  return (
+    fields === undefined ||
+    (Array.isArray(fields) &&
+      fields.every(
+        (field) =>
+          object(field) &&
+          string(field.name) &&
+          string(field.value) &&
+          typeof field.disabled === "boolean" &&
+          (edit
+            ? /^(?:attachnew\[[1-9]\d*\]\[(?:description|readperm|price)\]|attachupdate\[[1-9]\d*\])$/
+            : /^attachnew\[[1-9]\d*\]\[[a-z_]+\]$/
+          ).test(field.name),
+      ))
+  );
+}
 export function isWritingContext(value: unknown): value is WritingContext {
   if (
     !object(value) ||
@@ -963,6 +1536,13 @@ export function isWritingContext(value: unknown): value is WritingContext {
       typeof value.editorUnresolved !== "boolean")
   )
     return false;
+  if (
+    !validAttachmentFields(
+      value.attachmentFields,
+      value.action === "edit-post" || value.draft !== undefined,
+    )
+  )
+    return false;
   if (value.action === "edit-post") {
     const target = value.editTarget;
     if (
@@ -974,13 +1554,15 @@ export function isWritingContext(value: unknown): value is WritingContext {
       !safeThreadURL(target.threadURL) ||
       new URL(target.threadURL as string).searchParams.get("tid") !==
         target.threadId ||
-      !object(target.baseline)
+      !object(target.baseline) ||
+      !validAttachmentFields(target.baseline.attachmentFields, true)
     )
       return false;
     if (
       !isWritingContext({
         ...value,
         ...target.baseline,
+        attachmentFields: undefined,
         action: "new-thread",
         editTarget: undefined,
         attempts: undefined,
@@ -1020,24 +1602,75 @@ export function isWritingContext(value: unknown): value is WritingContext {
     );
   const selection = value.selection;
   const attempts = value.attempts;
+  if (
+    value.draftSaveAvailable !== undefined &&
+    typeof value.draftSaveAvailable !== "boolean"
+  )
+    return false;
+  if (value.draft !== undefined && !isDraftIdentity(value.draft)) return false;
+  if (
+    value.draftAttempts !== undefined &&
+    (!Array.isArray(value.draftAttempts) ||
+      !value.draftAttempts.every((attempt) => {
+        if (
+          !object(attempt) ||
+          !string(attempt.id) ||
+          !integer(attempt.generation) ||
+          ![
+            "pending",
+            "uncertain",
+            "rejected",
+            "not-sent",
+            "confirmed",
+            "published",
+            "remaining-draft",
+            "moderation",
+          ].includes(String(attempt.status)) ||
+          !string(attempt.message) ||
+          !object(attempt.submission) ||
+          !object(attempt.submission.writing) ||
+          (attempt.checked !== undefined &&
+            typeof attempt.checked !== "boolean") ||
+          (attempt.resendOf !== undefined &&
+            (!string(attempt.resendOf) || !attempt.resendOf)) ||
+          !(attempt.result === null || isDraftIdentity(attempt.result))
+        )
+          return false;
+        if (
+          attempt.priorDraftIds !== undefined &&
+          (!Array.isArray(attempt.priorDraftIds) ||
+            !attempt.priorDraftIds.every(
+              (id) => string(id) && /^[1-9]\d*$/.test(id),
+            ))
+        )
+          return false;
+        if (
+          attempt.operation !== undefined &&
+          !["save", "publish"].includes(String(attempt.operation))
+        )
+          return false;
+        if (
+          attempt.publishedURL !== undefined &&
+          !safeThreadURL(attempt.publishedURL)
+        )
+          return false;
+        return isWritingContext({
+          ...attempt.submission.writing,
+          id: attempt.submission.contextId,
+          revision: attempt.submission.revision,
+          selection: { start: 0, end: 0, direction: "none" },
+          attempts: undefined,
+          draftAttempts: undefined,
+        });
+      }))
+  )
+    return false;
   return (
     (attempts === undefined ||
       (Array.isArray(attempts) && attempts.every(isAttempt))) &&
     (value.category === null || option(value.category)) &&
     Array.isArray(value.options) &&
     value.options.every(option) &&
-    (value.attachmentFields === undefined ||
-      (Array.isArray(value.attachmentFields) &&
-        value.attachmentFields.every(
-          (field) =>
-            object(field) &&
-            string(field.name) &&
-            /^(?:attachnew\[[1-9]\d*\]\[(?:description|readperm|price)\]|attachupdate\[[1-9]\d*\])$/.test(
-              field.name,
-            ) &&
-            string(field.value) &&
-            typeof field.disabled === "boolean",
-        ))) &&
     Array.isArray(value.uploadedReferences) &&
     value.uploadedReferences.every(
       (id) => string(id) && /^[1-9]\d*$/.test(id),
@@ -1179,4 +1812,18 @@ function safeThreadURL(value: unknown): boolean {
   } catch {
     return false;
   }
+}
+
+function isDraftIdentity(value: unknown): boolean {
+  return (
+    object(value) &&
+    string(value.threadId) &&
+    /^[1-9]\d*$/.test(value.threadId) &&
+    string(value.postId) &&
+    /^[1-9]\d*$/.test(value.postId) &&
+    string(value.version) &&
+    value.version.length > 0 &&
+    safeThreadURL(value.url) &&
+    new URL(String(value.url)).searchParams.get("tid") === value.threadId
+  );
 }

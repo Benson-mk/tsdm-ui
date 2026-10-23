@@ -356,6 +356,20 @@ export function decodeWriting(
     prepared: {
       action: reply ? (reply.postId ? "quick-quote" : "reply") : "new-thread",
       ...(reply ? { replyTarget: reply } : {}),
+      draftSaveAvailable:
+        !reply &&
+        named("save").length === 1 &&
+        attr(named("save")[0]!, "type") === "hidden" &&
+        attr(named("save")[0]!, "id") === "postsave" &&
+        !controlDisabled(named("save")[0]!) &&
+        descendants(
+          form,
+          (n) =>
+            n.tagName === "button" &&
+            attr(n, "type") === "button" &&
+            !controlDisabled(n) &&
+            /postsave.*value\s*=\s*1/.test(attr(n, "onclick")),
+        ).length === 1,
       board: {
         id: boardId,
         label: label(board) || `Board ${boardId}`,
@@ -368,7 +382,17 @@ export function decodeWriting(
       category: category ? option(category, "Category") : null,
       options,
       uploadedReferences: references,
-      ...(edit ? { attachmentFields: editAttachmentFields(attachments) } : {}),
+      attachmentFields: edit
+        ? editAttachmentFields(attachments)
+        : controls
+            .filter((n) =>
+              /^attachnew\[[1-9]\d*\]\[[a-z_]+\]$/.test(attr(n, "name")),
+            )
+            .map((n) => ({
+              name: attr(n, "name"),
+              value: n.tagName === "textarea" ? text(n) : attr(n, "value"),
+              disabled: controlDisabled(n),
+            })),
     },
   };
 }

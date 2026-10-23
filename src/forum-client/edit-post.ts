@@ -86,6 +86,7 @@ export function createPostEditor(config: {
     const latest: PreparedWriting = {
       ...decoded.prepared,
       action: "edit-post",
+      draftSaveAvailable: false,
       editTarget: {
         ...w.editTarget!,
         baseline: editBaseline(decoded.prepared),
@@ -142,6 +143,7 @@ export function createPostEditor(config: {
         return fail("Only the current account's own post can be edited.");
       const base: PreparedWriting = {
         action: "edit-post",
+        draftSaveAvailable: false,
         title: "",
         source: "",
         category: null,

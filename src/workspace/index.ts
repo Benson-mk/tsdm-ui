@@ -7,6 +7,7 @@ import {
   type Account,
   type ForumClient,
   type ReadResult,
+  type DraftListResult,
 } from "../forum-client";
 import type {
   NavigationEntry,
@@ -55,6 +56,26 @@ export function createWorkspace(
   downloads?: DownloadHost,
 ) {
   const preferences = createPreferences(preferenceHost);
+  const drafts = shallowRef<{
+    loading: boolean;
+    result: DraftListResult | null;
+  }>({ loading: false, result: null });
+  let draftSequence = 0;
+  async function loadDrafts(url?: string) {
+    if (drafts.value.loading) return;
+    const prior = drafts.value.result;
+    const current = ++draftSequence;
+    drafts.value = { ...drafts.value, loading: true };
+    const result = await client.readDrafts(
+      url,
+      url && prior?.kind === "drafts" ? prior.drafts : undefined,
+      url ? prior?.account : undefined,
+    );
+    observeAccount(result.account);
+    writing.observe(result.account);
+    if (current === draftSequence) drafts.value = { loading: false, result };
+  }
+
   const writing = createWriting(
     client,
     () => {
@@ -63,6 +84,10 @@ export function createWorkspace(
     },
     (account) => {
       if (observeAccount(account)) void persist();
+    },
+    async (url) => {
+      await loadDrafts();
+      await openThread(url);
     },
   );
   const state = shallowRef<WorkspaceState>({
@@ -292,6 +317,13 @@ export function createWorkspace(
   function observeAccount(account: Account) {
     let invalidated = false;
     const observed = accountKey(account);
+    if (
+      drafts.value.result &&
+      (!observed || accountKey(drafts.value.result.account) !== observed)
+    ) {
+      draftSequence++;
+      drafts.value = { loading: false, result: null };
+    }
     if (account.kind === "unknown") {
       for (const entry of Object.values(record.entries))
         if (entry.result?.kind === "notices") {
@@ -731,6 +763,8 @@ export function createWorkspace(
   }
   return {
     preferences,
+    drafts: readonly(drafts),
+    loadDrafts,
     openSection,
     loadNotices,
     writing,

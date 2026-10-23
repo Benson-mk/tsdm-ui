@@ -1,4 +1,6 @@
 import { findMention } from "./mentions.js";
+import { createDraftOperations } from "./draft-operations.js";
+import { decodeDraftList, draftListPath, draftListURL } from "./drafts.js";
 import { fileFailure } from "./download.js";
 import { decodeNotices } from "./notices.js";
 import {
@@ -35,7 +37,7 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.6.0";
+export const FORUM_CLIENT_VERSION = "0.7.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -44,6 +46,17 @@ export function createForumClient(options: {
   let generation = 0;
   let sequence = 0;
   let downloadSequence = 0;
+  const drafts = createDraftOperations({
+    ...options,
+    account: () => account,
+    generation: () => generation,
+    observe: (observed) => {
+      if (actor(observed) !== actor(account)) {
+        account = observed;
+        generation++;
+      }
+    },
+  });
   const publisher = createThreadPublisher({
     ...options,
     account: () => account,
@@ -87,6 +100,78 @@ export function createForumClient(options: {
     prepareEditPublication: editor.prepare,
     savePostEdit: editor.save,
     checkEditResult: editor.check,
+    resumeDraft: drafts.resume,
+    prepareDraftSave: drafts.prepareSave,
+    saveDraft: drafts.save,
+    publishDraft: drafts.publish,
+    checkDraft: drafts.check,
+    async readDrafts(
+      destination = new URL(draftListPath, options.origin).href,
+      prior,
+      expectedAccount,
+    ) {
+      const current = ++sequence;
+      const fail = (
+        kind: "invalid" | "network" | "stale",
+        message: string,
+      ) => ({ kind, message, account, generation, sourceURL: destination });
+      const url = draftListURL(destination, options.origin);
+      if (
+        !url ||
+        (prior &&
+          ![prior.url, ...prior.pages.links.map((link) => link.url)].includes(
+            url.href,
+          ))
+      )
+        return fail(
+          "invalid",
+          "This draft page was not offered by the current list.",
+        );
+      url.searchParams.set("tsdmapp", "json");
+      try {
+        const response = await options.transport.request(url.href, {
+          fresh: true,
+        });
+        if (current !== sequence)
+          return fail("stale", "A newer request replaced this draft list.");
+        const decoded = decodeDraftList(response, destination);
+        if (actor(decoded.account) !== actor(account)) {
+          account = decoded.account;
+          generation++;
+        }
+        if (
+          expectedAccount &&
+          actor(decoded.account) !== actor(expectedAccount)
+        )
+          return fail(
+            "stale",
+            "The account changed while loading drafts. Load the current account's list explicitly.",
+          );
+        if (decoded.kind === "drafts" && decoded.drafts)
+          return {
+            kind: "drafts",
+            drafts: decoded.drafts,
+            account,
+            generation,
+            sourceURL: destination,
+          };
+        return {
+          kind: decoded.kind === "drafts" ? "invalid" : decoded.kind,
+          message:
+            "message" in decoded
+              ? String(decoded.message)
+              : "The draft list is incomplete.",
+          account,
+          generation,
+          sourceURL: destination,
+        };
+      } catch {
+        return fail(
+          current !== sequence ? "stale" : "network",
+          "The forum draft list could not be reached.",
+        );
+      }
+    },
     prepareThreadPublication: publisher.prepare,
     publishThread: publisher.publish,
     checkThreadResult: publisher.check,

@@ -849,7 +849,14 @@ test("J5.uploaded-references: current-form uploaded identities survive recovery 
   );
   expect(JSON.parse(raw).writing.uploadedReferences).toEqual(["321"]);
   expect(raw).not.toContain("SECRET-TOKEN");
-  expect(raw).not.toContain("Already uploaded");
+  // Issue 25 preserves existing reference metadata; it is source data, not a form secret.
+  expect(JSON.parse(raw).writing.attachmentFields).toEqual([
+    {
+      name: "attachnew[321][description]",
+      value: "Already uploaded",
+      disabled: false,
+    },
+  ]);
 });
 test("J5.legacy-navigation: navigation-only recovery migrates without losing cached results", async ({
   page,

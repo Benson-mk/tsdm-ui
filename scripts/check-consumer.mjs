@@ -45,7 +45,7 @@ try {
   const source =
     `import assert from 'node:assert/strict';
 import { createForumClient, FORUM_CLIENT_VERSION, unresolvedWritingAttachments } from '@tsdm/forum-client';
-assert.equal(FORUM_CLIENT_VERSION, '0.6.0');
+assert.equal(FORUM_CLIENT_VERSION, '0.7.0');
 const origin = 'https://fixture.example';
 const threadURL = origin + '/forum.php?mod=viewthread&tid=42';
 const attachmentURL = origin + '/forum.php?mod=attachment&aid=authored-token';
@@ -178,13 +178,15 @@ assert.equal(noticeRequests.length, 6);
     readFileSync(resolve(root, "tests/consumer/replies.mjs"), "utf8") +
     "\n" +
     readFileSync(resolve(root, "tests/consumer/editing.mjs"), "utf8") +
+    "\n" +
+    readFileSync(resolve(root, "tests/consumer/drafts.mjs"), "utf8") +
     `
-console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases }));
+console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases }));
 `;
   writeFileSync(join(consumer, "consume.mjs"), source);
   writeFileSync(
     join(consumer, "consume.ts"),
-    `import { createForumClient, editBaseline, unresolvedWritingAttachments, type ForumClient, type ReadResult, type SearchForm, type SearchCriteria, type AttachmentRequest, type PrepareWritingResult, type Account, type Notice, type Notices, type ThreadSubmission, type ThreadAttempt, type PublicationPreparationResult, type ThreadVerification, type PreparedWriting, type WritingBaseline } from '@tsdm/forum-client';
+    `import { createForumClient, editBaseline, unresolvedWritingAttachments, type ForumClient, type ReadResult, type SearchForm, type SearchCriteria, type AttachmentRequest, type PrepareWritingResult, type Account, type Notice, type Notices, type ThreadSubmission, type ThreadAttempt, type PublicationPreparationResult, type ThreadVerification, type PreparedWriting, type WritingBaseline, type DraftList, type DraftListResult, type DraftRow, type DraftAttempt } from '@tsdm/forum-client';
 const client: ForumClient = createForumClient({ origin: 'https://fixture.example', transport: { async request(url) { return { status: 200, url, contentType: 'text/html', body: '' }; } } });
 const result: ReadResult = await client.readThread('https://fixture.example/forum.php?mod=viewthread&tid=42');
 const serialized: string = JSON.stringify(result);
@@ -210,6 +212,11 @@ void [search, returnedPage, attachment, notices, notice, publication, publish, c
 const verification: ThreadVerification = { stored: 'verified', normalizations: [{ name: 'price', submitted: '', stored: '0' }], creationEffects: [{ name: 'addfeed', requested: true, included: false, outcome: 'unknown' }] };
 const evidence = (attempt: ThreadAttempt): ThreadVerification | undefined => attempt.result?.verification;
 void [verification, evidence];
+const drafts: Promise<DraftListResult> = client.readDrafts();
+const resume = (row: DraftRow, account: Account) => client.resumeDraft(row, account);
+const prepareSave = (attempt: DraftAttempt): Promise<DraftAttempt> => client.prepareDraftSave(attempt);
+const draftRows = (list: DraftList) => list.rows;
+void [drafts, resume, prepareSave, draftRows];
 `,
   );
   writeFileSync(
@@ -245,9 +252,9 @@ void [verification, evidence];
       "utf8",
     ),
   );
-  if (installed.version !== "0.6.0")
+  if (installed.version !== "0.7.0")
     throw new Error(
-      "Expected the edit-capable public package contract version 0.6.0.",
+      "Expected the draft-capable public package contract version 0.7.0.",
     );
   if (
     Object.keys(installed.dependencies ?? {}).length ||
@@ -284,6 +291,7 @@ void [verification, evidence];
       portableWritingReferences: "passed",
       deliberateCompleteNotices: "passed",
       completePublicationBindingAndRecovery: "passed",
+      ordinaryDraftPublicFlow: "passed",
       replyFullSourceAndMergedReadOnlyRecovery: "passed",
       ownedEditSourceConflictAndIndependentReferenceReadback: "passed",
       noRuntimeDependencies: "passed",
@@ -300,7 +308,7 @@ void [verification, evidence];
   );
   writeFileSync(
     `${directory}/report.md`,
-    "# Clean public consumer\n\nPassed clean local package installation, public ESM import, strict declarations without DOM types, populated read, explicit search, returned-identity page, freshly checked attachment and exact binary bytes, complete deliberate notices with returned category/page targets and account generations, ordinary replies and full merged-source GET-only recovery, owned-edit source/conflict/save/reference readback, plus JSON serialization on pinned Node LTS. No runtime package dependencies. See receipt.json and consume.mjs.\n",
+    "# Clean public consumer\n\nPassed clean local package installation, public ESM import, strict declarations without DOM types, populated read, explicit search, returned-identity page, freshly checked attachment and exact binary bytes, complete deliberate notices with returned category/page targets and account generations, ordinary replies and full merged-source GET-only recovery, owned-edit source/conflict/save/reference readback, ordinary same-record draft save/resume/publication, plus JSON serialization on pinned Node LTS. No runtime package dependencies. See receipt.json and consume.mjs.\n",
   );
   const manifest = Object.fromEntries(
     ["consume.mjs", "receipt.json", "report.md"].map((file) => [
