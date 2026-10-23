@@ -2,6 +2,7 @@ import { computed, readonly, shallowRef } from "vue";
 import { isThreadVerification } from "../forum-client/thread-verification";
 import {
   unresolvedWritingAttachments,
+  editBaseline,
   type Account,
   type ForumClient,
   type PreparedWriting,
@@ -31,6 +32,10 @@ export function createWriting(
     preparing: boolean;
     message: string;
     replacement: { boardId: string; replyTarget?: ReplyTarget } | null;
+    editReplacement: { threadURL: string; postId: string } | null;
+    conflict: PreparedWriting | null;
+    reloadWarning: boolean;
+    overwriteWarning: boolean;
     acknowledged: number;
     recoveryAvailable: boolean | null;
     accountVerified: boolean;
@@ -53,6 +58,10 @@ export function createWriting(
     preparing: false,
     message: "",
     replacement: null,
+    editReplacement: null,
+    conflict: null,
+    reloadWarning: false,
+    overwriteWarning: false,
     acknowledged: 0,
     recoveryAvailable: null,
     accountVerified: false,
@@ -97,6 +106,7 @@ export function createWriting(
       return;
     const existing = state.value.context;
     const sameAction =
+      existing?.action !== "edit-post" &&
       existing?.board.id === boardId &&
       JSON.stringify(existing?.replyTarget) === JSON.stringify(replyTarget);
     if (state.value.publishing && (replace || !sameAction)) {
@@ -169,8 +179,129 @@ export function createWriting(
       findingMention: false,
       accountVerified: true,
       copy: null,
+      publication: null,
+      conflict: null,
+      editReplacement: null,
+      reloadWarning: false,
+      overwriteWarning: false,
     };
     changed();
+  }
+  async function prepareEdit(
+    threadURL: string,
+    postId: string,
+    replace = false,
+  ) {
+    if (
+      deferViewChange(() => {
+        void prepareEdit(threadURL, postId, replace);
+      })
+    )
+      return;
+    if (state.value.publishing || state.value.preparing) return;
+    const existing = state.value.context;
+    if (existing && !replace) {
+      if (
+        existing.action === "edit-post" &&
+        existing.editTarget?.postId === postId
+      ) {
+        state.value = { ...state.value, visible: true };
+        return;
+      }
+      state.value = { ...state.value, editReplacement: { threadURL, postId } };
+      return;
+    }
+    const current = ++sequence;
+    state.value = { ...state.value, preparing: true, message: "" };
+    const result = await client.preparePostEdit(threadURL, postId);
+    accountObserved(result.account);
+    observe(result.account, result.kind === "prepared");
+    if (current !== sequence) return;
+    if (result.kind !== "prepared") {
+      state.value = {
+        ...state.value,
+        preparing: false,
+        message: result.message,
+      };
+      return;
+    }
+    if (
+      existing &&
+      (state.value.context?.id !== existing.id ||
+        state.value.context.revision !== existing.revision ||
+        state.value.composing)
+    ) {
+      state.value = {
+        ...state.value,
+        preparing: false,
+        message:
+          "Local writing changed while loading the edit. Review replacement again.",
+      };
+      return;
+    }
+    state.value = {
+      ...state.value,
+      context: {
+        ...result.prepared,
+        id: crypto.randomUUID(),
+        revision: 1,
+        selection: { start: 0, end: 0, direction: "none" },
+        ...(existing?.attempts?.length ? { attempts: existing.attempts } : {}),
+      },
+      preparing: false,
+      visible: true,
+      editReplacement: null,
+      conflict: null,
+      reloadWarning: false,
+      publication: null,
+      acknowledged: 0,
+      accountVerified: true,
+    };
+    await changed();
+  }
+  function reconcileEdit(mode: "manual" | "overwrite" | "reload") {
+    if (deferViewChange(() => reconcileEdit(mode))) return;
+    const latest = state.value.conflict,
+      context = state.value.context;
+    if (
+      !latest?.editTarget ||
+      !context?.editTarget ||
+      state.value.preparing ||
+      state.value.publishing ||
+      latest.account.id !== context.account.id ||
+      !state.value.accountVerified
+    )
+      return;
+    const next =
+      mode === "reload"
+        ? {
+            ...context,
+            ...latest,
+            selection: { start: 0, end: 0, direction: "none" as const },
+          }
+        : {
+            ...context,
+            ...(mode === "manual"
+              ? { category: latest.category, options: latest.options }
+              : {}),
+            editTarget: latest.editTarget,
+            uploadedReferences: latest.uploadedReferences,
+            attachmentFields: latest.attachmentFields ?? [],
+          };
+    state.value = {
+      ...state.value,
+      context: { ...next, revision: context.revision + 1 },
+      conflict: null,
+      reloadWarning: false,
+      overwriteWarning: false,
+      publication: null,
+      message:
+        mode === "manual"
+          ? "Reconcile your local source and options with the latest server version, then review the edit again."
+          : "",
+    };
+    void changed();
+    if (mode === "overwrite") void reviewPublication();
   }
   function edit(
     patch: Partial<
@@ -221,6 +352,30 @@ export function createWriting(
       ...state.value,
       context: {
         ...context,
+        ...(attempt.status === "confirmed" &&
+        context.id === attempt.publication.submission.contextId &&
+        context.editTarget &&
+        attempt.publication.submission.writing.editTarget
+          ? {
+              editTarget: {
+                ...context.editTarget,
+                baseline: editBaseline({
+                  ...attempt.publication.submission.writing,
+                  options: attempt.publication.submission.writing.options.map(
+                    (option) => {
+                      const normalization =
+                        attempt.result?.verification?.normalizations.find(
+                          (item) => item.name === option.name,
+                        );
+                      return normalization
+                        ? { ...option, value: normalization.stored }
+                        : option;
+                    },
+                  ),
+                }),
+              },
+            }
+          : {}),
         attempts: [
           ...(context.attempts ?? []).filter((item) => item.id !== attempt.id),
           attempt,
@@ -263,9 +418,15 @@ export function createWriting(
       publication: null,
       message: "",
     };
-    const result = await client.prepareThreadPublication(submission(context));
+    const result =
+      context.action === "edit-post"
+        ? await client.prepareEditPublication(submission(context))
+        : await client.prepareThreadPublication(submission(context));
     accountObserved(result.account);
-    observe(result.account, result.kind === "ready");
+    observe(
+      result.account,
+      result.kind === "ready" || result.kind === "conflict",
+    );
     if (
       state.value.context?.id !== context.id ||
       state.value.context.revision !== context.revision
@@ -282,6 +443,8 @@ export function createWriting(
       ...state.value,
       preparing: false,
       publication: result.kind === "ready" ? result.publication : null,
+      conflict:
+        result.kind === "conflict" ? result.latest : state.value.conflict,
       message: result.kind === "ready" ? "" : result.message,
     };
   }
@@ -321,7 +484,11 @@ export function createWriting(
         message:
           "Publication was not sent because recovery, writing or the account changed before send. Your source is retained.",
       };
-    else result = await client.publishThread(attempt);
+    else
+      result =
+        context.action === "edit-post"
+          ? await client.savePostEdit(attempt)
+          : await client.publishThread(attempt);
     accountObserved(client.account);
     observe(client.account);
     updateAttempt(result);
@@ -334,7 +501,10 @@ export function createWriting(
     );
     if (!attempt || state.value.publishing || state.value.preparing) return;
     state.value = { ...state.value, publishing: true, publication: null };
-    const result = await client.checkThreadResult(attempt, url);
+    const result =
+      attempt.publication.submission.writing.action === "edit-post"
+        ? await client.checkEditResult(attempt)
+        : await client.checkThreadResult(attempt, url);
     accountObserved(client.account);
     observe(client.account);
     updateAttempt(result);
@@ -412,9 +582,15 @@ export function createWriting(
     if (!original || state.value.publishing) return;
     const current = ++sequence;
     state.value = { ...state.value, preparing: true, copy: null, message: "" };
-    const result = await (original.replyTarget
-      ? client.prepareReply(original.board.id, original.replyTarget)
-      : client.prepareNewThread(original.board.id));
+    const result =
+      original.action === "edit-post" && !copyText && original.editTarget
+        ? await client.preparePostEdit(
+            original.editTarget.threadURL,
+            original.editTarget.postId,
+          )
+        : await (original.replyTarget
+            ? client.prepareReply(original.board.id, original.replyTarget)
+            : client.prepareNewThread(original.board.id));
     if (result.kind !== "stale") {
       accountObserved(result.account);
       observe(result.account, result.kind === "prepared");
@@ -486,6 +662,36 @@ export function createWriting(
     changed();
   }
   return {
+    prepareEdit,
+    warnReload: () => {
+      state.value = {
+        ...state.value,
+        reloadWarning: true,
+        overwriteWarning: false,
+      };
+    },
+    warnOverwrite: () => {
+      state.value = {
+        ...state.value,
+        overwriteWarning: true,
+        reloadWarning: false,
+      };
+    },
+    cancelConflictWarning: () => {
+      state.value = {
+        ...state.value,
+        reloadWarning: false,
+        overwriteWarning: false,
+      };
+    },
+    reconcileEdit,
+    cancelEditReplacement: () => {
+      state.value = { ...state.value, editReplacement: null };
+    },
+    replaceWithEdit: () => {
+      const target = state.value.editReplacement;
+      if (target) void prepareEdit(target.threadURL, target.postId, true);
+    },
     deferViewChange,
     startComposition: () => {
       state.value = { ...state.value, composing: true };
@@ -610,7 +816,9 @@ export function isWritingContext(value: unknown): value is WritingContext {
     !string(value.id) ||
     !integer(value.revision) ||
     value.revision < 1 ||
-    !["new-thread", "reply", "quick-quote"].includes(String(value.action)) ||
+    !["new-thread", "reply", "quick-quote", "edit-post"].includes(
+      String(value.action),
+    ) ||
     (value.action === "new-thread" && value.replyTarget !== undefined) ||
     (value.action === "reply" &&
       (!object(value.replyTarget) || value.replyTarget.postId !== null)) ||
@@ -618,7 +826,7 @@ export function isWritingContext(value: unknown): value is WritingContext {
       (!object(value.replyTarget) ||
         !string(value.replyTarget.postId) ||
         !/^[1-9]\d*$/.test(value.replyTarget.postId))) ||
-    (value.action !== "new-thread" &&
+    (["reply", "quick-quote"].includes(String(value.action)) &&
       (!object(value.replyTarget) ||
         !string(value.replyTarget.threadId) ||
         !/^[1-9]\d*$/.test(value.replyTarget.threadId) ||
@@ -652,9 +860,39 @@ export function isWritingContext(value: unknown): value is WritingContext {
             !/[\r\n\u2063\u2064]/.test(p.name),
         ))) ||
     !string(value.title) ||
+    !(
+      value.titleAvailable === undefined ||
+      typeof value.titleAvailable === "boolean"
+    ) ||
     !string(value.source)
   )
     return false;
+  if (value.action === "edit-post") {
+    const target = value.editTarget;
+    if (
+      !object(target) ||
+      !string(target.threadId) ||
+      !/^[1-9]\d*$/.test(target.threadId) ||
+      !string(target.postId) ||
+      !/^[1-9]\d*$/.test(target.postId) ||
+      !safeThreadURL(target.threadURL) ||
+      new URL(target.threadURL as string).searchParams.get("tid") !==
+        target.threadId ||
+      !object(target.baseline)
+    )
+      return false;
+    if (
+      !isWritingContext({
+        ...value,
+        ...target.baseline,
+        action: "new-thread",
+        editTarget: undefined,
+        attempts: undefined,
+        selection: { start: 0, end: 0, direction: "none" },
+      })
+    )
+      return false;
+  }
   try {
     const url = new URL(value.board.url);
     if (
@@ -692,6 +930,18 @@ export function isWritingContext(value: unknown): value is WritingContext {
     (value.category === null || option(value.category)) &&
     Array.isArray(value.options) &&
     value.options.every(option) &&
+    (value.attachmentFields === undefined ||
+      (Array.isArray(value.attachmentFields) &&
+        value.attachmentFields.every(
+          (field) =>
+            object(field) &&
+            string(field.name) &&
+            /^(?:attachnew\[[1-9]\d*\]\[(?:description|readperm|price)\]|attachupdate\[[1-9]\d*\])$/.test(
+              field.name,
+            ) &&
+            string(field.value) &&
+            typeof field.disabled === "boolean",
+        ))) &&
     Array.isArray(value.uploadedReferences) &&
     value.uploadedReferences.every(
       (id) => string(id) && /^[1-9]\d*$/.test(id),

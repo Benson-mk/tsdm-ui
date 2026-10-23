@@ -602,6 +602,15 @@ function boardIdFrom(url: string) {
           )
         }}
       </p>
+      <section v-if="writing.editReplacement" role="alert">
+        <p>{{ text.replaceEditWarning }}</p>
+        <button @click="workspace.writing.cancelEditReplacement()">
+          {{ text.keepCurrentWriting }}
+        </button>
+        <button @click="workspace.writing.replaceWithEdit()">
+          {{ text.discardAndEdit }}
+        </button>
+      </section>
       <section v-if="writing.replacement" role="alert">
         <p>{{ text.replaceWritingWarning }}</p>
         <button @click="workspace.writing.show()">
@@ -1028,6 +1037,17 @@ function boardIdFrom(url: string) {
             "
           >
             {{ text.quickQuote }}
+          </button>
+          <button
+            v-if="
+              state.result.account.kind === 'member' &&
+              post.authorId === state.result.account.id
+            "
+            @click="
+              workspace.writing.prepareEdit(state.result.thread.url, post.id)
+            "
+          >
+            {{ insert(text.editPost, post.id) }}
           </button>
           <ContentView
             :nodes="post.content"

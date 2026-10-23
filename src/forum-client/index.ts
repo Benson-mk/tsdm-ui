@@ -7,7 +7,9 @@ import {
   decodeSearchResults,
 } from "./search.js";
 import { decodeWriting } from "./prepare-writing.js";
+import { createPostEditor } from "./edit-post.js";
 import { createThreadPublisher } from "./publish-thread.js";
+export { editBaseline } from "./edit-post.js";
 export { unresolvedWritingAttachments } from "./prepare-writing.js";
 import { decodeThread } from "./read-thread.js";
 import { decodeBoard } from "./read-board.js";
@@ -33,7 +35,7 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.5.0";
+export const FORUM_CLIENT_VERSION = "0.6.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -43,6 +45,17 @@ export function createForumClient(options: {
   let sequence = 0;
   let downloadSequence = 0;
   const publisher = createThreadPublisher({
+    ...options,
+    account: () => account,
+    generation: () => generation,
+    observe: (observed) => {
+      if (actor(observed) !== actor(account)) {
+        account = observed;
+        generation++;
+      }
+    },
+  });
+  const editor = createPostEditor({
     ...options,
     account: () => account,
     generation: () => generation,
@@ -70,6 +83,10 @@ export function createForumClient(options: {
         writing,
         query,
       ),
+    preparePostEdit: editor.load,
+    prepareEditPublication: editor.prepare,
+    savePostEdit: editor.save,
+    checkEditResult: editor.check,
     prepareThreadPublication: publisher.prepare,
     publishThread: publisher.publish,
     checkThreadResult: publisher.check,

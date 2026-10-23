@@ -1,5 +1,40 @@
 import type { Preferences } from "../workspace/preferences";
 const english = {
+  editPost: "Edit post {value}",
+  reviewEdit: "Review edit",
+  saveEditedPost: "Save edited post",
+  editReview:
+    "Review revision {value} for post {post} as {account}. Saving changes this existing post, including its selected options.",
+  editRepeatWarning:
+    "The earlier save remains unknown. Saving again may repeat effects and overwrite intervening changes. It cannot undo the original attempt.",
+  latestServerVersion: "Latest server version",
+  editCompare:
+    "Local writing is retained. Compare complete source, options and attachment references. The forum provides no atomic conflict lock.",
+  latestServerSource: "Latest server source",
+  attachmentReferences: "Attachment references",
+  attachmentDescription: "Description",
+  attachmentReadPermission: "Read permission",
+  attachmentPrice: "Price",
+  attachmentAssociation: "Existing association",
+  reloadLatest: "Reload latest",
+  reconcileManually: "Reconcile manually",
+  manualEditExplanation:
+    "Manual reconciliation keeps your local title and source, and adopts the latest server options and attachment metadata. Review editable options again before saving.",
+  saveMyVersion: "Save my version",
+  reloadEditWarning:
+    "Reloading discards your current local source and options. Forum content and attachments are not deleted.",
+  keepLocalWriting: "Keep local writing",
+  discardReloadLatest: "Discard local changes and reload latest",
+  overwriteEditWarning:
+    "Saving your version may overwrite the latest server changes. Changes after this review may still race with save; no atomic conflict prevention is guaranteed.",
+  acceptOverwriteReview: "Accept overwrite and review",
+  replaceEditWarning:
+    "Editing this post replaces the retained writing context. Discarding local writing does not delete forum content or attachments.",
+  discardAndEdit: "Discard local writing and edit post",
+  keepCurrentWriting: "Keep current writing",
+  disabledOption: "disabled",
+  noReferences: "None",
+
   searchOverviewLabel: "Search overview",
   searchExplanation:
     "Search threads or authors. Editing criteria does not run a search.",
@@ -219,6 +254,41 @@ const english = {
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
+  editPost: "编辑帖子 {value}",
+  reviewEdit: "检查编辑",
+  saveEditedPost: "保存编辑",
+  editReview:
+    "以 {account} 检查帖子 {post} 的修订 {value}。保存将更改现有帖子及所选选项。",
+  editRepeatWarning:
+    "上次保存结果仍未知。再次保存可能重复产生效果并覆盖期间的更改，无法撤销原尝试。",
+  latestServerVersion: "服务器最新版本",
+  editCompare:
+    "本地内容已保留。请比较完整源码、选项及附件引用。论坛无法提供原子冲突锁定。",
+  latestServerSource: "服务器最新源码",
+  attachmentReferences: "附件引用",
+  attachmentDescription: "说明",
+  attachmentReadPermission: "阅读权限",
+  attachmentPrice: "价格",
+  attachmentAssociation: "现有关联",
+  reloadLatest: "重新加载最新版本",
+  reconcileManually: "手动整合",
+  manualEditExplanation:
+    "手动整合保留本地标题和源码，并采用服务器最新选项及附件信息。保存前请再次检查可编辑选项。",
+  saveMyVersion: "保存我的版本",
+  reloadEditWarning:
+    "重新加载将丢弃当前本地源码和选项，不会删除论坛内容或附件。",
+  keepLocalWriting: "保留本地内容",
+  discardReloadLatest: "丢弃本地更改并加载最新版本",
+  overwriteEditWarning:
+    "保存你的版本可能覆盖服务器最新更改。检查后仍可能发生并发更改，无法保证原子冲突防护。",
+  acceptOverwriteReview: "接受覆盖并检查",
+  replaceEditWarning:
+    "编辑此帖将替换保留的写作内容。丢弃本地内容不会删除论坛内容或附件。",
+  discardAndEdit: "丢弃本地内容并编辑帖子",
+  keepCurrentWriting: "保留当前内容",
+  disabledOption: "已禁用",
+  noReferences: "无",
+
   searchOverviewLabel: "搜索总览",
   searchExplanation: "搜索主题或作者。编辑条件不会执行搜索。",
   searchEffects: "每次主动搜索都可能消耗论坛积分或额度。系统不会自动重复搜索。",
@@ -424,6 +494,41 @@ const simplified: Strings = {
     "无法读取浏览器页面会话存储。当前内容仍可使用；刷新恢复不可用。",
 };
 const traditional: Strings = {
+  editPost: "編輯貼文 {value}",
+  reviewEdit: "檢查編輯",
+  saveEditedPost: "儲存編輯",
+  editReview:
+    "以 {account} 檢查貼文 {post} 的修訂 {value}。儲存將更改現有貼文及所選選項。",
+  editRepeatWarning:
+    "上次儲存結果仍未知。再次儲存可能重複產生效果並覆蓋期間的更改，無法撤銷原嘗試。",
+  latestServerVersion: "伺服器最新版本",
+  editCompare:
+    "本機內容已保留。請比較完整原始碼、選項及附件參照。論壇無法提供原子衝突鎖定。",
+  latestServerSource: "伺服器最新原始碼",
+  attachmentReferences: "附件參照",
+  attachmentDescription: "說明",
+  attachmentReadPermission: "閱讀權限",
+  attachmentPrice: "價格",
+  attachmentAssociation: "現有關聯",
+  reloadLatest: "重新載入最新版本",
+  reconcileManually: "手動整合",
+  manualEditExplanation:
+    "手動整合保留本機標題和原始碼，並採用伺服器最新選項及附件資訊。儲存前請再次檢查可編輯選項。",
+  saveMyVersion: "儲存我的版本",
+  reloadEditWarning:
+    "重新載入將捨棄目前本機原始碼和選項，不會刪除論壇內容或附件。",
+  keepLocalWriting: "保留本機內容",
+  discardReloadLatest: "捨棄本機更改並載入最新版本",
+  overwriteEditWarning:
+    "儲存你的版本可能覆蓋伺服器最新更改。檢查後仍可能發生並行更改，無法保證原子衝突防護。",
+  acceptOverwriteReview: "接受覆蓋並檢查",
+  replaceEditWarning:
+    "編輯此貼文將取代保留的寫作內容。捨棄本機內容不會刪除論壇內容或附件。",
+  discardAndEdit: "捨棄本機內容並編輯貼文",
+  keepCurrentWriting: "保留目前內容",
+  disabledOption: "已停用",
+  noReferences: "無",
+
   searchOverviewLabel: "搜尋總覽",
   searchExplanation: "搜尋主題或作者。編輯條件不會執行搜尋。",
   searchEffects: "每次主動搜尋都可能消耗論壇積分或額度。系統不會自動重複搜尋。",
@@ -704,6 +809,126 @@ const descriptions: Record<string, readonly [string, string]> = {
     [
       "当前论坛提及服务无法确认这个用户。已保留原文。",
       "目前論壇提及服務無法確認這個用戶。已保留原文。",
+    ],
+  "A valid owned-post destination is required.": [
+    "需要有效的本人帖子目标。",
+    "需要有效的本人貼文目標。",
+  ],
+  "A newer account request replaced this edit preparation.": [
+    "较新的账号请求替代了此次编辑准备。",
+    "較新的帳號請求取代了此次編輯準備。",
+  ],
+  "The owned post could not be established. Your writing is retained.": [
+    "无法确认本人帖子。写作内容已保留。",
+    "無法確認本人貼文。寫作內容已保留。",
+  ],
+  "Only the current account's own post can be edited.": [
+    "只能编辑当前账号自己的帖子。",
+    "只能編輯目前帳號自己的貼文。",
+  ],
+  "Actual editable source and current options are unavailable. Rendered content cannot replace complete source.":
+    [
+      "无法获取实际可编辑源码和当前选项。渲染内容不能替代完整源码。",
+      "無法取得實際可編輯原始碼和目前選項。呈現內容不能取代完整原始碼。",
+    ],
+  "The editable source could not be reached. Your writing is retained.": [
+    "无法获取可编辑源码。写作内容已保留。",
+    "無法取得可編輯原始碼。寫作內容已保留。",
+  ],
+  "A complete owned-post edit revision is required.": [
+    "需要完整的本人帖子编辑版本。",
+    "需要完整的本人貼文編輯版本。",
+  ],
+  "Actual current source, options or original account are unavailable. Editing remains paused.":
+    [
+      "无法获取实际当前源码、选项或原账号。编辑继续暂停。",
+      "無法取得實際目前原始碼、選項或原帳號。編輯繼續暫停。",
+    ],
+  "The server post changed. Review latest source, options and attachments before saving your version.":
+    [
+      "服务器帖子已更改。保存你的版本前请检查最新源码、选项和附件。",
+      "伺服器貼文已更改。儲存你的版本前請檢查最新原始碼、選項和附件。",
+    ],
+  "Required current form content or attachment references cannot be preserved. Nothing was sent.":
+    [
+      "无法保留所需的当前表单内容或附件引用。未发送任何内容。",
+      "無法保留所需的目前表單內容或附件參照。未傳送任何內容。",
+    ],
+  "Fresh edit preparation failed. Local writing is retained.": [
+    "重新准备编辑失败。本地写作内容已保留。",
+    "重新準備編輯失敗。本機寫作內容已保留。",
+  ],
+  "The original edit target is unavailable.": [
+    "原编辑目标不可用。",
+    "原編輯目標無法使用。",
+  ],
+  "The account changed while checking the saved post.": [
+    "检查已保存帖子期间账号发生更改。",
+    "檢查已儲存貼文期間帳號發生更改。",
+  ],
+  "Saved actor or post could not be independently established.": [
+    "无法独立确认已保存的作者或帖子。",
+    "無法獨立確認已儲存的作者或貼文。",
+  ],
+  "Complete saved source, options or attachment references are unavailable or differ. No confirmation is claimed.":
+    [
+      "完整的已保存源码、选项或附件引用不可用或不一致。尚未确认保存。",
+      "完整的已儲存原始碼、選項或附件參照無法取得或不一致。尚未確認儲存。",
+    ],
+  "Moderation remains pending. Saved source matches, but the existing public post does not prove this edited revision was released.":
+    [
+      "审核仍在等待中。已保存源码相符，但现有公开帖子不能证明此编辑版本已发布。",
+      "審核仍在等待中。已儲存原始碼相符，但現有公開貼文不能證明此編輯版本已發佈。",
+    ],
+  "Saved post readback failed. Check this original attempt; nothing was repeated.":
+    [
+      "读取已保存帖子失败。请检查原尝试；未重复发送。",
+      "讀取已儲存貼文失敗。請檢查原嘗試；未重複傳送。",
+    ],
+  "This edit preparation is stale or already active. Nothing was sent.": [
+    "此次编辑准备已过期或正在进行。未发送任何内容。",
+    "此次編輯準備已過期或正在進行。未傳送任何內容。",
+  ],
+  "Current source or original account changed before save. Review again.": [
+    "保存前当前源码或原账号已更改。请重新检查。",
+    "儲存前目前原始碼或原帳號已更改。請重新檢查。",
+  ],
+  "The server post changed before save. Review latest source again; nothing was sent.":
+    [
+      "保存前服务器帖子已更改。请重新检查最新源码；未发送任何内容。",
+      "儲存前伺服器貼文已更改。請重新檢查最新原始碼；未傳送任何內容。",
+    ],
+  "Required current form content cannot be preserved. Nothing was sent.": [
+    "无法保留所需的当前表单内容。未发送任何内容。",
+    "無法保留所需的目前表單內容。未傳送任何內容。",
+  ],
+  "The account changed during save. The edit may have been accepted; no rollback is guaranteed.":
+    [
+      "保存期间账号已更改。编辑可能已被接受；无法保证回滚。",
+      "儲存期間帳號已更改。編輯可能已被接受；無法保證回復。",
+    ],
+  "The edit response was lost. Check the original saved post; nothing was repeated.":
+    [
+      "编辑响应丢失。请检查原已保存帖子；未重复发送。",
+      "編輯回應遺失。請檢查原已儲存貼文；未重複傳送。",
+    ],
+  "Fresh edit preflight failed. Your source remains retained.": [
+    "保存前重新检查失败。源码仍已保留。",
+    "儲存前重新檢查失敗。原始碼仍已保留。",
+  ],
+  "Local writing changed while loading the edit. Review replacement again.": [
+    "加载编辑期间本地内容已更改。请重新检查替换操作。",
+    "載入編輯期間本機內容已更改。請重新檢查取代操作。",
+  ],
+  "Reconcile your local source and options with the latest server version, then review the edit again.":
+    [
+      "请将本地源码和选项与服务器最新版本手动整合，然后重新检查编辑。",
+      "請將本機原始碼和選項與伺服器最新版本手動整合，然後重新檢查編輯。",
+    ],
+  "Existing attachment controls are unavailable or cannot be preserved safely.":
+    [
+      "现有附件控件不可用或无法安全保留。",
+      "現有附件控制項無法取得或無法安全保留。",
     ],
 
   "The forum reports pending moderation. Public stored source has not been confirmed.":
@@ -1414,6 +1639,14 @@ export function description(
       (nativeText === null ? description(suffix, language) : suffix)
     );
   }
+  const editConfirmation =
+    /^Confirmed saved post (\d+), submitted revision (\d+)\.$/.exec(value);
+  if (editConfirmation)
+    return language === "zh-CN"
+      ? `已确认保存帖子 ${editConfirmation[1]}，提交修订 ${editConfirmation[2]}。`
+      : `已確認儲存貼文 ${editConfirmation[1]}，提交修訂 ${editConfirmation[2]}。`;
+  if (value.startsWith("Moderation remains pending. "))
+    return `${language === "zh-CN" ? "审核仍在等待中。" : "審核仍在等待中。"}${description(value.slice("Moderation remains pending. ".length), language)}`;
   const restriction =
     /^The current (.+) restriction does not allow this value\. Review your criteria\.$/.exec(
       value,

@@ -21,6 +21,18 @@ function effectLabel(
     props.workspace.preferences.state.value.language,
   );
 }
+function attachmentLabel(name: string) {
+  const match =
+    /^attach(?:new|update)\[([1-9]\d*)\](?:\[(description|readperm|price)\])?$/.exec(
+      name,
+    );
+  const labels = {
+    description: text.value.attachmentDescription,
+    readperm: text.value.attachmentReadPermission,
+    price: text.value.attachmentPrice,
+  };
+  return `${text.value.attachments} ${match?.[1] ?? ""} · ${match?.[2] ? labels[match[2] as keyof typeof labels] : text.value.attachmentAssociation}`;
+}
 function selection() {
   const element = editor.value;
   if (element)
@@ -86,9 +98,11 @@ function updateOption(option: WritingOption, event: Event) {
     </p>
     <h1>
       {{
-        state.context.replyTarget
-          ? insert(text.replyIn, state.context.replyTarget.threadId)
-          : insert(text.newThreadIn, state.context.board.label)
+        state.context.action === "edit-post"
+          ? insert(text.editPost, state.context.editTarget?.postId ?? "")
+          : state.context.replyTarget
+            ? insert(text.replyIn, state.context.replyTarget.threadId)
+            : insert(text.newThreadIn, state.context.board.label)
       }}
     </h1>
     <p v-if="state.context.replyTarget?.postId">
@@ -217,7 +231,7 @@ function updateOption(option: WritingOption, event: Event) {
       <template
         v-if="attempt.status === 'uncertain' || attempt.status === 'moderation'"
       >
-        <label
+        <label v-if="state.context.action !== 'edit-post'"
           >{{ text.candidateThreadURL
           }}<input
             v-model="candidateURLs[attempt.id]"
@@ -242,7 +256,13 @@ function updateOption(option: WritingOption, event: Event) {
       </template>
     </section>
     <section v-if="state.resend" role="alert">
-      <p>{{ text.duplicatePublicationWarning }}</p>
+      <p>
+        {{
+          state.context.action === "edit-post"
+            ? text.editRepeatWarning
+            : text.duplicatePublicationWarning
+        }}
+      </p>
       <button @click="workspace.writing.cancelResend()">
         {{ text.keepOriginalAttempt }}
       </button>
@@ -250,15 +270,84 @@ function updateOption(option: WritingOption, event: Event) {
         {{ text.acceptDuplicateReview }}
       </button>
     </section>
+    <section v-if="state.conflict" role="alert">
+      <h2>{{ text.latestServerVersion }}</h2>
+      <p>{{ text.editCompare }}</p>
+      <p>{{ text.writingTitle }}: {{ state.conflict.title }}</p>
+      <label
+        >{{ text.latestServerSource
+        }}<textarea readonly :value="state.conflict.source" rows="8" />
+      </label>
+      <ul>
+        <li
+          v-for="option in [
+            ...(state.conflict.category ? [state.conflict.category] : []),
+            ...state.conflict.options,
+          ]"
+          :key="option.name"
+        >
+          {{ option.label }}:
+          {{ option.kind === "checkbox" ? option.checked : option.value
+          }}{{ option.disabled ? ` (${text.disabledOption})` : "" }}
+        </li>
+      </ul>
+      <p>
+        {{ text.attachmentReferences }}:
+        {{ state.conflict.uploadedReferences.join(", ") || text.noReferences }}
+      </p>
+      <ul>
+        <li v-for="field in state.conflict.attachmentFields" :key="field.name">
+          {{ attachmentLabel(field.name) }}: {{ field.value
+          }}{{ field.disabled ? ` (${text.disabledOption})` : "" }}
+        </li>
+      </ul>
+      <button @click="workspace.writing.warnReload()">
+        {{ text.reloadLatest }}
+      </button>
+      <p>{{ text.manualEditExplanation }}</p>
+      <button @click="workspace.writing.reconcileEdit('manual')">
+        {{ text.reconcileManually }}
+      </button>
+      <button @click="workspace.writing.warnOverwrite()">
+        {{ text.saveMyVersion }}
+      </button>
+      <section v-if="state.reloadWarning">
+        <p>{{ text.reloadEditWarning }}</p>
+        <button @click="workspace.writing.cancelConflictWarning()">
+          {{ text.keepLocalWriting }}</button
+        ><button @click="workspace.writing.reconcileEdit('reload')">
+          {{ text.discardReloadLatest }}
+        </button>
+      </section>
+      <section v-if="state.overwriteWarning">
+        <p>{{ text.overwriteEditWarning }}</p>
+        <button @click="workspace.writing.cancelConflictWarning()">
+          {{ text.keepLocalWriting }}</button
+        ><button @click="workspace.writing.reconcileEdit('overwrite')">
+          {{ text.acceptOverwriteReview }}
+        </button>
+      </section>
+    </section>
     <div class="writing-actions">
       <button
         :disabled="state.preparing || state.publishing"
         @click="workspace.writing.reviewPublication()"
       >
-        {{ text.reviewPublication }}
+        {{
+          state.context.action === "edit-post"
+            ? text.reviewEdit
+            : text.reviewPublication
+        }}
       </button>
       <section v-if="state.publication" role="alert">
-        <p>
+        <p v-if="state.context.action === 'edit-post'">
+          {{
+            insert(text.editReview, state.publication.submission.revision)
+              .replace("{post}", state.context.editTarget?.postId ?? "")
+              .replace("{account}", state.context.account.name)
+          }}
+        </p>
+        <p v-else>
           {{
             insert(
               state.publication.submission.writing.replyTarget
@@ -279,7 +368,13 @@ function updateOption(option: WritingOption, event: Event) {
           :disabled="state.publishing"
           @click="workspace.writing.publish()"
         >
-          {{ state.context.replyTarget ? text.sendReply : text.publishThread }}
+          {{
+            state.context.action === "edit-post"
+              ? text.saveEditedPost
+              : state.context.replyTarget
+                ? text.sendReply
+                : text.publishThread
+          }}
         </button>
       </section>
     </div>
@@ -315,7 +410,10 @@ function updateOption(option: WritingOption, event: Event) {
         {{ insert(text.mentionPerson, person.name).replace("{id}", person.id) }}
       </button>
     </section>
-    <label v-if="!state.context.replyTarget"
+    <label
+      v-if="
+        !state.context.replyTarget && state.context.titleAvailable !== false
+      "
       >{{ text.writingTitle
       }}<input
         :value="state.context.title"

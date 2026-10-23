@@ -11,6 +11,10 @@ import {
   type Element,
   type Node,
 } from "./html.js";
+import {
+  editAttachmentControls,
+  editAttachmentFields,
+} from "./edit-attachments.js";
 import { accountFrom } from "./read-thread.js";
 import type {
   Account,
@@ -205,10 +209,18 @@ export function decodeWriting(
   const controls = descendants(form, (n) =>
     ["input", "select", "textarea"].includes(n.tagName),
   );
+  const attachments = edit ? editAttachmentControls(doc, form) : [];
+  if (!attachments)
+    return fail(
+      "invalid",
+      "Existing attachment controls are unavailable or cannot be preserved safely.",
+    );
+  for (const attachment of attachments)
+    if (!controls.includes(attachment)) controls.push(attachment);
   const named = (name: string) =>
     controls.filter((n) => attr(n, "name") === name);
   if (
-    named("subject").length !== 1 ||
+    (edit ? named("subject").length > 1 : named("subject").length !== 1) ||
     named("message").length !== 1 ||
     named("message")[0]?.tagName !== "textarea" ||
     ["subject", "message", "typeid", ...Object.keys(optionLabels)].some(
@@ -350,11 +362,13 @@ export function decodeWriting(
         url: `${target.origin}/forum.php?mod=forumdisplay&fid=${boardId}`,
       },
       account,
-      title: attr(named("subject")[0]!, "value"),
+      title: named("subject")[0] ? attr(named("subject")[0]!, "value") : "",
+      ...(edit && !named("subject").length ? { titleAvailable: false } : {}),
       source: text(named("message")[0]),
       category: category ? option(category, "Category") : null,
       options,
       uploadedReferences: references,
+      ...(edit ? { attachmentFields: editAttachmentFields(attachments) } : {}),
     },
   };
 }

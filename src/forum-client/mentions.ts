@@ -30,20 +30,29 @@ export async function findMention(
   });
   if (!query.trim() || query.length > 100)
     return fail("Enter a person name or UID to resolve.");
+  if (writing.action === "edit-post" && !writing.editTarget)
+    return fail("The original edit target is unavailable.");
   const generation = config.generation(),
     formURL = new URL("/forum.php", config.origin);
   Object.entries({
     mod: "post",
-    action: writing.replyTarget ? "reply" : "newthread",
+    action:
+      writing.action === "edit-post"
+        ? "edit"
+        : writing.replyTarget
+          ? "reply"
+          : "newthread",
     fid: writing.board.id,
-    ...(writing.replyTarget
-      ? {
-          tid: writing.replyTarget.threadId,
-          ...(writing.replyTarget.postId
-            ? { reppost: writing.replyTarget.postId }
-            : {}),
-        }
-      : {}),
+    ...(writing.action === "edit-post" && writing.editTarget
+      ? { tid: writing.editTarget.threadId, pid: writing.editTarget.postId }
+      : writing.replyTarget
+        ? {
+            tid: writing.replyTarget.threadId,
+            ...(writing.replyTarget.postId
+              ? { reppost: writing.replyTarget.postId }
+              : {}),
+          }
+        : {}),
     tsdmapp: "json",
   }).forEach(([k, v]) => formURL.searchParams.set(k, v));
   async function current() {
@@ -55,7 +64,7 @@ export async function findMention(
       response,
       formURL.href,
       writing.board.id,
-      undefined,
+      writing.editTarget,
       writing.replyTarget,
     );
     config.observe(decoded.account);
@@ -163,4 +172,22 @@ export async function findMention(
       error instanceof Error && error.message === "stale" ? "stale" : "network",
     );
   }
+}
+
+export async function mentionsCurrent(
+  config: MentionConfig,
+  writing: PreparedWriting,
+): Promise<boolean> {
+  for (const selected of writing.mentions ?? []) {
+    if (!writing.source.includes(`@\u2063${selected.name}\u2063`)) continue;
+    const found = await findMention(config, writing, selected.name);
+    if (
+      found.kind !== "people" ||
+      !found.people.some(
+        (person) => person.id === selected.id && person.name === selected.name,
+      )
+    )
+      return false;
+  }
+  return true;
 }

@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "issue": 22,
+  "date": "2026-10-23",
+  "timezone": "Asia/Hong_Kong",
+  "mode": "authored-installed-development-summary",
+  "status": "development-feature-acceptance-verified",
+  "candidate": {
+    "version": "0.4.0",
+    "forumClientVersion": "0.6.0",
+    "bytes": 965429,
+    "sha256": "8d7f55b7f177b18c30c10ac5357bbd8f2ba2854eff032381b93c9ed5334a6970",
+    "publicEntry": {
+      "bytes": 281785,
+      "sha256": "2de2a0405871eae1d932115f804cec7c014788f2ab8cf79f96c41dae3bcf416f"
+    },
+    "node": "24.22.0",
+    "npm": "11.21.1",
+    "lockSha256": "134506a7905d81a213431f508e42a9e66995cc861b09b2caa2fb8b03dbcad709"
+  },
+  "environment": {
+    "os": "macOS 15.6.0",
+    "architecture": "arm",
+    "edge": "155.0.4283.62",
+    "chrome": "156.0.8078.48",
+    "tampermonkeyEdge": "BETA 5.6.6242",
+    "tampermonkeyChrome": "BETA 5.6.6242",
+    "provenance": "Browser versions: current client hints. Edge manager: dashboard observation. Chrome agent-test manager: direct user attestation, not automated dashboard observation.",
+    "stableOrOtherOSReleaseQualified": false
+  },
+  "applicationE2E": {
+    "run": "2026-10-23T02-58-28.911Z",
+    "status": "passed",
+    "cases": 231,
+    "retries": 0,
+    "editingCases": 33,
+    "replyCases": 64,
+    "publicationAndWritingCases": 134,
+    "manifestFilesVerified": 230
+  },
+  "cleanConsumer": {
+    "run": "consumer-2026-10-23T02-58-38.786Z",
+    "status": "passed",
+    "packageSha256": "3537b014afdbd53f56d8cb0584ab89d9b88a4e0113fde8b320ef63063b73c3b2",
+    "publicBaselineHelper": "runtime import, independent snapshot and DOM-free declarations passed"
+  },
+  "installedChecks": [
+    {
+      "alias": "installed-A",
+      "browser": "edge",
+      "exactManagerSource": true,
+      "exactRuntimeOccurrences": 1,
+      "completeUntruncatedCapture": true,
+      "completeSourceOptionsReferences": true,
+      "protectedReloadManualAndWarnedOverwrite": true,
+      "mainSequenceSyntheticEditPosts": 2,
+      "newerTextAndImmutableAttemptsSurviveReload": true,
+      "unavailableAndAccountChangesBlockAdditionalPosts": true,
+      "lostOriginalAttempt": "uncertain -> confirmed, unchanged publication, one total synthetic edit POST, no resend",
+      "moderationOriginalAttempt": "moderation -> moderation, unchanged publication, one total synthetic edit POST, no resend",
+      "editMention": "actual edit capability; UID drift blocks; matching exact source confirms; missing capability blocks",
+      "implicitAttachmentSelect": "posted/stored read permission10",
+      "currentNative": "complete source/options/reference match, actual edit-form person lookup and fresh review",
+      "currentNativeForumPostCount": 0
+    },
+    {
+      "alias": "installed-B",
+      "browser": "chrome",
+      "exactManagerSource": true,
+      "exactRuntimeOccurrences": 1,
+      "completeUntruncatedCapture": true,
+      "completeSourceOptionsReferences": true,
+      "protectedReloadManualAndWarnedOverwrite": true,
+      "mainSequenceSyntheticEditPosts": 2,
+      "newerTextAndImmutableAttemptsSurviveReload": true,
+      "unavailableAndAccountChangesBlockAdditionalPosts": true,
+      "lostOriginalAttempt": "uncertain -> confirmed, unchanged publication, one total synthetic edit POST, no resend",
+      "moderationOriginalAttempt": "moderation -> moderation, unchanged publication, one total synthetic edit POST, no resend",
+      "editMention": "actual edit capability; UID drift blocks; matching exact source confirms; missing capability blocks",
+      "implicitAttachmentSelect": "posted/stored read permission10",
+      "currentNative": "complete source/options/reference match, actual edit-form person lookup and fresh review",
+      "currentNativeForumPostCount": 0
+    }
+  ],
+  "historicalNative": {
+    "candidateBytes": 1580482,
+    "candidateSha256": "92ea81520c66ba866e3b2ce6b1df434996ce065b094d4fa85aa784873791da39",
+    "verifiedInputHashes": 117,
+    "fixture": "One sequential previously authorized attachment-bearing fixture across both browsers",
+    "transport": "Captured application/x-www-form-urlencoded edits despite multipart form declaration",
+    "originalAttemptChecks": "Each browser uncertain then same immutable attempt confirmed via two GETs and no resend, while its submitted revision was current",
+    "nativeReadback": "Complete source, actor/post, category/current options and existing attachment/reference metadata independently matched",
+    "threadReadPermission": "Not exposed in sampled native form; disabled/nonzero coverage is synthetic",
+    "attribution": "Historical candidate evidence only; not relabeled as a final-candidate live write"
+  },
+  "review": {
+    "standardsAndSpec": "completed",
+    "BDFL": "all three validated findings repaired and final delta cleared",
+    "findings": [
+      "attachment select absent versus explicit-empty value",
+      "edit-form mention resolution and selected identity revalidation",
+      "public baseline entry and closed declarations"
+    ]
+  },
+  "privateEvidenceAudit": {
+    "result": "PASS",
+    "currentArtifactHashesVerified": 60,
+    "retentionDirectory": "evidence/runs/issue-22-completion-retained",
+    "auditSummaryIdentity": {
+      "bytes": 7510,
+      "sha256": "eff6d9f4c9208473672734e258b1e3b9d9b0d22bbf7145872c3dc3b758269050"
+    },
+    "historicalAuditSummaryIdentity": {
+      "bytes": 27079,
+      "sha256": "866e1f3371bceba3069e98213c1e4616fa1b33b20a5c6e47dba1b7374084ad72"
+    }
+  },
+  "privateInputIdentities": {
+    "installed-A-executing-source": {
+      "bytes": 966054,
+      "sha256": "1d1dc67a3c0d2d9232db51e9511d55bc2885675bebc9d58391da87a526cc65bb"
+    },
+    "installed-A-executing-source-capture": {
+      "bytes": 90317,
+      "sha256": "0e7729085559dd289807cd2206232cb3aa4597e2881c52616f40b01b8682e625"
+    },
+    "installed-A-submitted-and-later-revision": {
+      "bytes": 92942,
+      "sha256": "bbaaa86b992d8a06ec17b42bef24b9cd6bfce8d61d6ebdbd71818d739d29b044"
+    },
+    "installed-A-original-lost-result": {
+      "bytes": 52218,
+      "sha256": "fab10902d106500820f75db8b165d7deda2b7383d25f27185c0668e50e2c2e4b"
+    },
+    "installed-A-original-moderated-result": {
+      "bytes": 52215,
+      "sha256": "1f1aa3f26be068486a6208bff021291339dbdee25862912c2754c5c271c9b1af"
+    },
+    "installed-A-edit-identity-and-implicit-select": {
+      "bytes": 107045,
+      "sha256": "e3ac88044185fd4cb9dd35cf71388bfb0a641981548cd1c8da76c425a7ba03e7"
+    },
+    "installed-A-unavailable-edit-identity": {
+      "bytes": 115196,
+      "sha256": "6c3d8a1870f1158a5ac793f39d7a4706ab23b60fc0c8b8af9178308cc66c6785"
+    },
+    "installed-A-current-native-form-and-lookup": {
+      "bytes": 47122,
+      "sha256": "b9bd4b0a41d726ba78661993f30bc0aac625fb0c61da7f9b3424fad484f68c62"
+    },
+    "installed-B-executing-source": {
+      "bytes": 966053,
+      "sha256": "e58d5d1bbf5897041d8830093924944e8f2dd425b21a0b8e956b4139c07c852e"
+    },
+    "installed-B-executing-source-capture": {
+      "bytes": 90405,
+      "sha256": "9104a6b4801d1290d7eb50c3f01c7529bbba07f2a48a549e77cd7219776ba49d"
+    },
+    "installed-B-submitted-and-later-revision": {
+      "bytes": 89837,
+      "sha256": "76f7bf6ad8c7190aec253d06e4b9cf656311a29c73da37cc2bff43875859de19"
+    },
+    "installed-B-original-lost-result": {
+      "bytes": 50634,
+      "sha256": "c73e350692149c3a49f844b3a8dcb0d2ab0f30f6a0c458e7aa84c55eeadda1f2"
+    },
+    "installed-B-original-moderated-result": {
+      "bytes": 50575,
+      "sha256": "04a8cb6349006d800bf0d06285c62560ee32adc18ab1cd6c6800dd5455720479"
+    },
+    "installed-B-edit-identity-and-implicit-select": {
+      "bytes": 103159,
+      "sha256": "fb19ecbd06b37310dae0c9001119be2288509c040a5ca25f61315b2d3c2967e0"
+    },
+    "installed-B-unavailable-edit-identity": {
+      "bytes": 110977,
+      "sha256": "de2bb663a90e478a270b99a67ef7876ee81cc34c4c6c1b78d829e49bedf14d0c"
+    },
+    "installed-B-current-native-form-and-lookup": {
+      "bytes": 46613,
+      "sha256": "442db49045f3abbb39e7080b83a40ea6615f6611e2f2de7b5829ef8ad279bae0"
+    },
+    "manager-source-readbacks": {
+      "bytes": 841,
+      "sha256": "03fa637794c2b687a1e95db8dcc0716213bd9e6459b165a6ec1331ce7f8658bf"
+    }
+  },
+  "limits": [
+    "No new live forum edit/post submission in this acceptance session; synthetic edits intercepted at external HTTP boundary.",
+    "Current native person search uses semantic read-only plugin POSTs; forum-edit POST count is zero.",
+    "New edit-marker conversion remains uncertain without native normalization evidence; stored URLs and literal at-text preserved.",
+    "Held synthetic responses update fake-server state before delivery; no atomic conflict guarantee.",
+    "Moderation remains pending until independently established; no notification-delivery claim.",
+    "macOS BETA feature acceptance; full stable-manager/Windows/frozen-release matrix remains subsequent work.",
+    "Raw authenticated source, URLs, original IDs and member screenshots remain private."
+  ]
+}

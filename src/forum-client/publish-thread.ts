@@ -1,4 +1,4 @@
-import { findMention } from "./mentions.js";
+import { mentionsCurrent } from "./mentions.js";
 import {
   attr,
   byId,
@@ -10,6 +10,10 @@ import {
   type Element,
   type Node,
 } from "./html.js";
+import {
+  editAttachmentControls,
+  editAttachmentFields,
+} from "./edit-attachments.js";
 import { postCallback } from "./post-response.js";
 import { decodeWriting } from "./prepare-writing.js";
 import { decodeThread } from "./read-thread.js";
@@ -56,7 +60,7 @@ function document(response: HostResponse): Node {
 function options(writing: PreparedWriting): WritingOption[] {
   return [...(writing.category ? [writing.category] : []), ...writing.options];
 }
-function compatible(
+export function compatible(
   original: PreparedWriting,
   current: PreparedWriting,
 ): boolean {
@@ -85,7 +89,7 @@ function compatible(
     })
   );
 }
-function successful(
+export function successful(
   response: HostResponse,
   writing: PreparedWriting,
 ): { url: string; body: string } | null {
@@ -97,6 +101,11 @@ function successful(
   const controls = descendants(form, (n) =>
     ["input", "textarea", "select", "button"].includes(n.tagName),
   );
+  const attachmentControls =
+    writing.action === "edit-post" ? editAttachmentControls(doc, form) : [];
+  if (!attachmentControls) return null;
+  for (const attachment of attachmentControls)
+    if (!controls.includes(attachment)) controls.push(attachment);
   if (
     descendants(doc, (n) => attr(n, "form") === "postform").length ||
     controls.some((n) => attr(n, "form"))
@@ -114,7 +123,12 @@ function successful(
   )
     return null;
   const pairs: [string, string][] = [];
-  const submitName = writing.replyTarget ? "replysubmit" : "topicsubmit";
+  const submitName =
+    writing.action === "edit-post"
+      ? "editsubmit"
+      : writing.replyTarget
+        ? "replysubmit"
+        : "topicsubmit";
   const submitters = controls.filter(
     (n) =>
       attr(n, "name") === submitName &&
@@ -164,8 +178,11 @@ function successful(
       continue;
     }
     if (
-      ["special", "save"].includes(name) &&
-      !["", "0"].includes(attr(node, "value"))
+      (["special", "save"].includes(name) &&
+        !["", "0"].includes(attr(node, "value"))) ||
+      (writing.action === "edit-post" &&
+        name === "delattachop" &&
+        attr(node, "value") !== "0")
     )
       return null;
     const supplied = options(writing).find((o) => o.name === name);
@@ -181,19 +198,21 @@ function successful(
           ? writing.source
           : supplied
             ? supplied.value
-            : node.tagName === "textarea"
-              ? text(node)
-              : node.tagName === "select"
-                ? attr(
-                    descendants(
-                      node,
-                      (n) => n.tagName === "option" && has(n, "selected"),
-                    )[0] ??
-                      descendants(node, (n) => n.tagName === "option")[0] ??
-                      node,
-                    "value",
-                  )
-                : attr(node, "value");
+            : attachmentControls.includes(node)
+              ? editAttachmentFields([node])[0]!.value
+              : node.tagName === "textarea"
+                ? text(node)
+                : node.tagName === "select"
+                  ? attr(
+                      descendants(
+                        node,
+                        (n) => n.tagName === "option" && has(n, "selected"),
+                      )[0] ??
+                        descendants(node, (n) => n.tagName === "option")[0] ??
+                        node,
+                      "value",
+                    )
+                  : attr(node, "value");
     if (
       (has(node, "required") && !value.trim()) ||
       (/^\d+$/.test(attr(node, "maxlength")) &&
@@ -227,6 +246,17 @@ function successful(
               ]
             : []),
         ].includes(name) && type === "hidden"
+      ) &&
+      !attachmentControls.includes(node) &&
+      !(
+        writing.action === "edit-post" &&
+        type === "hidden" &&
+        (["fid", "tid", "pid", "page", "wysiwyg", "delattachop"].includes(
+          name,
+        ) ||
+          /^attachnew\[[1-9]\d*\]\[(?:description|readperm|price)\]$/.test(
+            name,
+          ))
       )
     )
       return null;
@@ -273,7 +303,7 @@ function candidate(value: string, origin: string): string | null {
   return url.href;
 }
 /** Parse a literal callback as data; no forum script is executed. */
-function outcome(
+export function outcome(
   response: HostResponse,
   origin: string,
 ): {
@@ -394,21 +424,6 @@ export function createThreadPublisher(config: {
       postIds: page.thread.posts.map((post) => post.id),
       owned,
     };
-  }
-  async function mentionsCurrent(writing: PreparedWriting): Promise<boolean> {
-    for (const selected of writing.mentions ?? []) {
-      if (!writing.source.includes(`@\u2063${selected.name}\u2063`)) continue;
-      const found = await findMention(config, writing, selected.name);
-      if (
-        found.kind !== "people" ||
-        !found.people.some(
-          (person) =>
-            person.id === selected.id && person.name === selected.name,
-        )
-      )
-        return false;
-    }
-    return true;
   }
   async function verify(
     attempt: ThreadAttempt,
@@ -648,7 +663,7 @@ export function createThreadPublisher(config: {
             "stale",
           );
         if (decoded.kind !== "prepared") return fail(decoded.message);
-        if (!(await mentionsCurrent(writing)))
+        if (!(await mentionsCurrent(config, writing)))
           return fail(
             "A selected mention identity changed or could not be revalidated. Resolve the person again.",
           );
@@ -737,7 +752,7 @@ export function createThreadPublisher(config: {
           tsdmapp: "json",
         }))
           checkURL.searchParams.set(key, value);
-        if (!(await mentionsCurrent(writing)))
+        if (!(await mentionsCurrent(config, writing)))
           return notSent(
             "A selected mention identity changed before send. Nothing was sent.",
           );

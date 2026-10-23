@@ -263,6 +263,15 @@ export interface ForumClient {
     expectedAccount: Account,
   ): Promise<ReadResult>;
   findMention(writing: PreparedWriting, query: string): Promise<MentionResult>;
+  preparePostEdit(
+    threadURL: string,
+    postId: string,
+  ): Promise<PrepareWritingResult>;
+  prepareEditPublication(
+    submission: ThreadSubmission,
+  ): Promise<PublicationPreparationResult>;
+  savePostEdit(attempt: ThreadAttempt): Promise<ThreadAttempt>;
+  checkEditResult(attempt: ThreadAttempt): Promise<ThreadAttempt>;
   prepareNewThread(boardId: string): Promise<PrepareWritingResult>;
   prepareReply(
     boardId: string,
@@ -315,17 +324,34 @@ export interface ReplyTarget {
   author: string;
   authorId: string | null;
 }
-export interface PreparedWriting {
-  action: "new-thread" | "reply" | "quick-quote";
-  replyTarget?: ReplyTarget;
-  mentions?: MentionIdentity[];
-  board: { id: string; label: string; url: string };
-  account: Extract<Account, { kind: "member" }>;
+export interface WritingBaseline {
   title: string;
+  titleAvailable?: boolean;
   source: string;
   category: WritingOption | null;
   options: WritingOption[];
   uploadedReferences: string[];
+  attachmentFields?: { name: string; value: string; disabled: boolean }[];
+}
+export interface PreparedWriting {
+  action: "new-thread" | "reply" | "quick-quote" | "edit-post";
+  replyTarget?: ReplyTarget;
+  mentions?: MentionIdentity[];
+  editTarget?: {
+    threadId: string;
+    postId: string;
+    threadURL: string;
+    baseline: WritingBaseline;
+  };
+  board: { id: string; label: string; url: string };
+  account: Extract<Account, { kind: "member" }>;
+  title: string;
+  titleAvailable?: boolean;
+  source: string;
+  category: WritingOption | null;
+  options: WritingOption[];
+  uploadedReferences: string[];
+  attachmentFields?: { name: string; value: string; disabled: boolean }[];
 }
 export type PrepareWritingResult =
   | {
@@ -365,6 +391,13 @@ export type PublicationPreparationResult =
   | {
       kind: "ready";
       publication: ThreadPublication;
+      account: Account;
+      generation: number;
+    }
+  | {
+      kind: "conflict";
+      latest: PreparedWriting;
+      message: string;
       account: Account;
       generation: number;
     }
