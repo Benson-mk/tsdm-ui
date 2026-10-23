@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
+import PostEditor from "./PostEditor.vue";
 import type { Workspace } from "../workspace";
 import { strings, insert, description } from "../layouts/strings";
 import type { WritingOption } from "../forum-client";
@@ -9,7 +10,6 @@ const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
 const unresolved = props.workspace.writing.unresolvedAttachments;
-const editor = ref<HTMLTextAreaElement | null>(null);
 const mentionQuery = ref("");
 const candidateURLs = ref<Record<string, string>>({});
 function effectLabel(
@@ -33,35 +33,7 @@ function attachmentLabel(name: string) {
   };
   return `${text.value.attachments} ${match?.[1] ?? ""} · ${match?.[2] ? labels[match[2] as keyof typeof labels] : text.value.attachmentAssociation}`;
 }
-function selection() {
-  const element = editor.value;
-  if (element)
-    props.workspace.writing.edit({
-      selection: {
-        start: element.selectionStart,
-        end: element.selectionEnd,
-        direction: element.selectionDirection,
-      },
-    });
-}
-function editSource(event: Event) {
-  const element = event.target as HTMLTextAreaElement;
-  props.workspace.writing.edit({
-    source: element.value,
-    selection: {
-      start: element.selectionStart,
-      end: element.selectionEnd,
-      direction: element.selectionDirection,
-    },
-  });
-}
-onMounted(() => {
-  const range = state.value.context?.selection;
-  if (editor.value && range) {
-    editor.value.focus();
-    editor.value.setSelectionRange(range.start, range.end, range.direction);
-  }
-});
+
 function value(event: Event) {
   return (event.target as HTMLInputElement).value;
 }
@@ -437,20 +409,7 @@ function updateOption(option: WritingOption, event: Event) {
         </option>
       </select></label
     >
-    <label
-      >{{ text.completeSource
-      }}<textarea
-        ref="editor"
-        :value="state.context.source"
-        rows="14"
-        spellcheck="false"
-        @select="selection"
-        @keyup="selection"
-        @click="selection"
-        @blur="selection"
-        @input="editSource"
-      />
-    </label>
+    <PostEditor :key="state.context.id" :workspace="workspace" />
     <fieldset>
       <legend>{{ text.currentFormOptions }}</legend>
       <label v-for="option in state.context.options" :key="option.name">

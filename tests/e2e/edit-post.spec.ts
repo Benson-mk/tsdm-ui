@@ -790,3 +790,47 @@ test("J11.edit-mention-lookup-account: a changed session during initial lookup r
     contentType: "image/png",
   });
 });
+
+test("J5.editor-shared-edit: ordinary visual formatting preserves owned unknown source, references and disabled settings through independent save", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  await open(page);
+  const complete = page.getByLabel("Complete source", { exact: true });
+  await complete.fill(original + " formatted");
+  await complete.evaluate((element) => {
+    const field = element as HTMLTextAreaElement;
+    field.setSelectionRange(field.value.length - 9, field.value.length);
+    field.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await page
+    .getByRole("button", { name: "Apply formatting", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("textbox", { name: "Visual post content", exact: true })
+      .getByText("formatted", { exact: true }),
+  ).toHaveCSS("font-weight", "700");
+  await page
+    .getByRole("button", { name: "Source editor", exact: true })
+    .click();
+  const expected = original + " [b]formatted[/b]";
+  await expect(complete).toHaveValue(expected);
+  await review(page);
+  await save(page);
+  await expect(page.getByText(/Confirmed saved post 101/)).toBeVisible();
+  expect(state.posts).toHaveLength(1);
+  expect(state.source).toBe(expected);
+  expect(state.posts[0]!.get("attachnew[77][description]")).toBe(
+    "Unchanged attachment",
+  );
+  expect(state.posts[0]!.has("price")).toBe(false);
+  expect(state.price).toBe("3");
+  expect(
+    state.reads.filter((value) => value.includes("action=edit")).length,
+  ).toBeGreaterThanOrEqual(4);
+  await info.attach("shared-editor-edit.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});

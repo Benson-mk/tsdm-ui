@@ -794,6 +794,16 @@ test("J5.appearance-resize-context: viewport transitions preserve the visible pa
   const anchor = article.locator(".post-content > p").nth(2);
   const identity = await article.elementHandle();
   await anchor.evaluate((node) => node.scrollIntoView({ block: "start" }));
+  const anchorOffset = await anchor.evaluate(
+    (node) =>
+      node.getBoundingClientRect().top -
+      node.closest(".reading-pane")!.getBoundingClientRect().top,
+  );
+  const rowOffset = await row.evaluate(
+    (node) =>
+      node.getBoundingClientRect().top -
+      node.closest(".results-pane")!.getBoundingClientRect().top,
+  );
   const before = await page.evaluate(() => ({
     length: history.length,
     url: location.href,
@@ -806,23 +816,28 @@ test("J5.appearance-resize-context: viewport transitions preserve the visible pa
     await page.setViewportSize({ width, height: 900 });
     await expect
       .poll(() =>
-        anchor.evaluate((node) => {
+        anchor.evaluate((node, offset) => {
           const pane = node.closest(".reading-pane")!;
           return Math.abs(
-            node.getBoundingClientRect().top - pane.getBoundingClientRect().top,
+            node.getBoundingClientRect().top -
+              pane.getBoundingClientRect().top -
+              offset,
           );
-        }),
+        }, anchorOffset),
       )
       .toBeLessThanOrEqual(1);
     expect(await identity?.evaluate((node) => node.isConnected)).toBe(true);
     if (width >= 960)
       await expect
         .poll(() =>
-          row.evaluate((node) =>
-            Math.abs(
-              node.getBoundingClientRect().top -
-                node.closest(".results-pane")!.getBoundingClientRect().top,
-            ),
+          row.evaluate(
+            (node, offset) =>
+              Math.abs(
+                node.getBoundingClientRect().top -
+                  node.closest(".results-pane")!.getBoundingClientRect().top -
+                  offset,
+              ),
+            rowOffset,
           ),
         )
         .toBeLessThanOrEqual(1);

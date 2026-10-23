@@ -1167,3 +1167,78 @@ for (const locale of [
         contentType: "image/png",
       });
     });
+
+for (const addressed of [false, true])
+  test(`J5.editor-shared-${addressed ? "quote" : "reply"}: ordinary visual formatting preserves source and selected reply target through saved readback`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    if (addressed)
+      await page
+        .getByRole("article", { name: "Post 101", exact: true })
+        .getByRole("button", { name: "Quick Quote", exact: true })
+        .click();
+    else
+      await page
+        .getByRole("button", { name: "Reply to thread", exact: true })
+        .click();
+    const complete = page.getByLabel("Complete source", { exact: true });
+    await complete.fill(source + " formatted");
+    await complete.evaluate((element) => {
+      const field = element as HTMLTextAreaElement;
+      field.setSelectionRange(field.value.length - 9, field.value.length);
+      field.dispatchEvent(new Event("select", { bubbles: true }));
+    });
+    await page
+      .getByRole("button", { name: "Apply formatting", exact: true })
+      .click();
+    await expect(
+      page
+        .getByRole("textbox", { name: "Visual post content", exact: true })
+        .getByText("formatted", { exact: true }),
+    ).toHaveCSS("font-weight", "700");
+    await page
+      .getByRole("button", { name: "Source editor", exact: true })
+      .click();
+    const expected = source + " [b]formatted[/b]";
+    await expect(complete).toHaveValue(expected);
+    await page
+      .getByRole("button", { name: "Return to reading", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Return to writing", exact: true })
+      .click();
+    await expect(complete).toHaveValue(expected);
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Send reply", exact: true }).click();
+    await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+    expect(state.posts).toHaveLength(1);
+    expect(state.posts[0]!.get("message")).toBe(expected);
+    expect(state.posts[0]!.get("reppost")).toBe(addressed ? "101" : null);
+    expect(state.posts[0]!.get("noticeauthor")).toBe(
+      addressed ? "OPAQUE-AUTHOR-8" : null,
+    );
+    expect(
+      state.requests.some(
+        (request) =>
+          new URL(request.url).searchParams.get("action") === "edit" &&
+          new URL(request.url).searchParams.get("pid") === "303",
+      ),
+    ).toBe(true);
+    await info.attach("shared-editor-reply.json", {
+      body: Buffer.from(
+        JSON.stringify({
+          addressed,
+          posts: state.posts.map((post) => [...post]),
+          requests: state.requests,
+        }),
+      ),
+      contentType: "application/json",
+    });
+    await info.attach("shared-editor-reply.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });

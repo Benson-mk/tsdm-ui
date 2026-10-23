@@ -1,3 +1,4 @@
+import { createEditorSession, type EditorSession } from "../editor/session.js";
 import { computed, readonly, shallowRef } from "vue";
 import { isThreadVerification } from "../forum-client/thread-verification";
 import {
@@ -14,6 +15,7 @@ import {
 export interface WritingContext extends PreparedWriting {
   id: string;
   revision: number;
+  editorUnresolved?: boolean;
   attempts?: ThreadAttempt[];
   selection: {
     start: number;
@@ -75,6 +77,69 @@ export function createWriting(
     publishing: false,
     resend: null,
   });
+  let editorSession: EditorSession | null = null;
+  let editorContext = "";
+  let recoveredInterpretation = false;
+  function editor() {
+    const context = state.value.context;
+    if (!context) throw new Error("No writing context.");
+    if (editorContext !== context.id || !editorSession) {
+      editorSession?.dispose();
+      editorContext = context.id;
+      recoveredInterpretation = context.editorUnresolved === true;
+      let initialized = false;
+      editorSession = createEditorSession({
+        source: context.source,
+        compositionId: context.id,
+        onChange: (snapshot) => {
+          if (!initialized) return;
+          const unresolved =
+            recoveredInterpretation || !snapshot.readiness.ready;
+          const current = state.value.context;
+          if (!current) return;
+          const range = editorSession?.recoverySelection;
+          edit({
+            source: snapshot.source,
+            ...(unresolved || current.editorUnresolved !== undefined
+              ? { editorUnresolved: unresolved }
+              : {}),
+            selection: range
+              ? {
+                  start: range.from,
+                  end: range.to,
+                  direction: range.direction,
+                }
+              : {
+                  ...current.selection,
+                  start: Math.min(
+                    current.selection.start,
+                    snapshot.source.length,
+                  ),
+                  end: Math.min(current.selection.end, snapshot.source.length),
+                },
+          });
+        },
+      });
+      editorSession.setMode("source");
+      editorSession.setSourceSelection(
+        context.selection.start,
+        context.selection.end,
+        context.selection.direction,
+      );
+      initialized = true;
+    }
+    return editorSession;
+  }
+  function interpretEditorSource() {
+    const session = editor();
+    if (state.value.composing) return;
+    recoveredInterpretation = false;
+    for (const range of session.state.literalRanges)
+      session.resolveLiteral(range.id, "bbcode");
+    for (const range of session.state.representationRanges)
+      session.resolveRepresentation(range.id);
+    edit({ editorUnresolved: !session.state.readiness.ready });
+  }
   let sequence = 0;
   let deferred: (() => void) | null = null;
   function deferViewChange(action: () => void) {
@@ -307,7 +372,13 @@ export function createWriting(
     patch: Partial<
       Pick<
         WritingContext,
-        "title" | "source" | "category" | "options" | "selection" | "mentions"
+        | "title"
+        | "source"
+        | "category"
+        | "options"
+        | "selection"
+        | "mentions"
+        | "editorUnresolved"
       >
     >,
   ) {
@@ -335,9 +406,10 @@ export function createWriting(
       revision,
       selection: _selection,
       attempts: _attempts,
+      editorUnresolved: _editorUnresolved,
       ...content
     } = context;
-    void [_selection, _attempts];
+    void [_selection, _attempts, _editorUnresolved];
     return { contextId: id, revision, writing: content };
   }
   function updateAttempt(attempt: ThreadAttempt) {
@@ -392,6 +464,14 @@ export function createWriting(
       state.value.composing
     )
       return;
+    if (context.editorUnresolved) {
+      state.value = {
+        ...state.value,
+        message:
+          "Review the complete source and resolve its interpretation before publication.",
+      };
+      return;
+    }
     const unresolved =
       context.attempts?.filter((attempt) =>
         ["pending", "uncertain", "moderation"].includes(attempt.status),
@@ -646,6 +726,7 @@ export function createWriting(
         ...candidate.prepared,
         title: original.title,
         source: original.source,
+        ...(original.editorUnresolved ? { editorUnresolved: true } : {}),
         uploadedReferences: [],
         id: crypto.randomUUID(),
         revision: 1,
@@ -692,6 +773,8 @@ export function createWriting(
       const target = state.value.editReplacement;
       if (target) void prepareEdit(target.threadURL, target.postId, true);
     },
+    editor,
+    interpretEditorSource,
     deferViewChange,
     startComposition: () => {
       state.value = { ...state.value, composing: true };
@@ -864,7 +947,9 @@ export function isWritingContext(value: unknown): value is WritingContext {
       value.titleAvailable === undefined ||
       typeof value.titleAvailable === "boolean"
     ) ||
-    !string(value.source)
+    !string(value.source) ||
+    (value.editorUnresolved !== undefined &&
+      typeof value.editorUnresolved !== "boolean")
   )
     return false;
   if (value.action === "edit-post") {

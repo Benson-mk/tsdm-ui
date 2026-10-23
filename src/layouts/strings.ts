@@ -746,6 +746,11 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "Review the complete source and resolve its interpretation before publication.":
+    [
+      "请检查完整源码，并在发布前明确其解释方式。",
+      "請檢查完整原始碼，並在發佈前明確指定其解讀方式。",
+    ],
   "A supported ordinary thread target is required.": [
     "需要支持的普通主题目标。",
     "需要支援的普通主題目標。",

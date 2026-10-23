@@ -873,3 +873,46 @@ select {
   padding: 8px 16px;
   gap: 8px;
 }
+
+.post-editor {
+  display: grid;
+  gap: var(--space-3, 12px);
+}
+.editor-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.visual-editor .ProseMirror {
+  min-height: 14em;
+  padding: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  font-size: calc(1.125rem * var(--text-scale, 1));
+}
+.visual-editor p {
+  margin: 0;
+}
+.visual-editor blockquote {
+  border-inline-start: 3px solid currentColor;
+  margin-inline: 12px;
+  padding-inline-start: 12px;
+}
+.visual-editor blockquote[aria-label]::before {
+  content: attr(aria-label);
+  display: block;
+  opacity: 0.75;
+}
+.visual-editor pre {
+  white-space: pre-wrap;
+}
+.editor-protected {
+  border: 1px dashed currentColor;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+.editor-literal {
+  text-decoration: underline wavy;
+}
