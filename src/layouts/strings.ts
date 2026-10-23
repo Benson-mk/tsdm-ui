@@ -129,6 +129,24 @@ const english = {
   searchScope: "Thread and author criteria",
   noticesScope: "Reply, mention, system and activity notices",
   draftsScope: "Saved forum drafts",
+  replyComparison: "Reply source comparison",
+  replyBeforeSource: "Complete source before sending",
+  replyObservedSource: "Complete observed result source",
+  replyComparisonLimits:
+    "Known before and current source are observations, not proof of a merge rule or notification delivery. Your submitted source is kept separately.",
+  replyBeforeUnknown: "No source baseline was observed for this returned post.",
+  mentions: "Mentions",
+  findMentionPerson: "Find a person to mention",
+  findMention: "Find mention",
+  mentionPerson: "Mention {value} (UID {id})",
+  quickQuote: "Quick Quote",
+  addressedTo: "Addressed to {value} · Post {post}",
+  replyDeliveryUnknown:
+    "Quoted source does not change the addressed post. Quote and mention notification delivery is unverified.",
+  replyToThread: "Reply to thread",
+  replyIn: "Reply in thread {value}",
+  sendReply: "Send reply",
+  openConfirmedPost: "Open confirmed post",
   newThread: "New thread",
   returnWriting: "Return to writing",
   preparingForm: "Preparing current form…",
@@ -184,6 +202,8 @@ const english = {
   reviewPublication: "Review publication",
   publicationReview:
     "Review revision {value} for {account} in {board}. Publishing may create a public thread with the selected price and read permission.",
+  replyPublicationReview:
+    "Review reply revision {value} for {account} in thread {thread} ({board}). Sending may add a reply or merge it into an existing post.",
   publishThread: "Publish thread",
   incompatibleRecovery:
     "Stored recovery data is incompatible or malformed. It is retained without overwriting; new changes cannot be recovered until you resolve it.",
@@ -319,6 +339,24 @@ const simplified: Strings = {
   searchScope: "主题与作者条件",
   noticesScope: "回复、提及、系统与动态通知",
   draftsScope: "已保存的论坛草稿",
+  replyComparison: "回复源码比较",
+  replyBeforeSource: "发送前的完整源码",
+  replyObservedSource: "结果的完整实测源码",
+  replyComparisonLimits:
+    "已知的先前内容和当前源码只是观察结果，不代表已确认合并规则或通知送达。提交的源码单独保留。",
+  replyBeforeUnknown: "未观察到这个返回帖子的先前源码。",
+  mentions: "提及",
+  findMentionPerson: "查找要提及的用户",
+  findMention: "查找用户",
+  mentionPerson: "提及 {value}（UID {id}）",
+  quickQuote: "快速引用",
+  addressedTo: "回复对象：{value} · 帖子 {post}",
+  replyDeliveryUnknown:
+    "引用源码不会更改回复对象。引用和提及的通知送达状态未确认。",
+  replyToThread: "回复主题",
+  replyIn: "回复主题 {value}",
+  sendReply: "发送回复",
+  openConfirmedPost: "打开已确认的帖子",
   newThread: "新主题",
   returnWriting: "返回写作",
   preparingForm: "正在准备当前表单…",
@@ -370,6 +408,8 @@ const simplified: Strings = {
   reviewPublication: "检查发布",
   publicationReview:
     "检查 {account} 在 {board} 的第 {value} 版。发布可能建立公开主题，并采用所选售价和阅读权限。",
+  replyPublicationReview:
+    "检查 {account} 在 {board} 版块主题 {thread} 中的回复修订 {value}。发送可能新增回复，也可能合并到已有帖子。",
   publishThread: "发布主题",
   incompatibleRecovery:
     "存储的恢复数据不兼容或格式错误。数据将保留而不被覆盖；解决前无法恢复新的更改。",
@@ -505,6 +545,24 @@ const traditional: Strings = {
   searchScope: "主題與作者條件",
   noticesScope: "回覆、提及、系統與動態通知",
   draftsScope: "已儲存的論壇草稿",
+  replyComparison: "回覆原始碼比較",
+  replyBeforeSource: "傳送前的完整原始碼",
+  replyObservedSource: "結果的完整實測原始碼",
+  replyComparisonLimits:
+    "已知的先前內容和目前原始碼只是觀察結果，不代表已確認合併規則或通知送達。提交的原始碼另外保留。",
+  replyBeforeUnknown: "未觀察到這個返回帖子的先前原始碼。",
+  mentions: "提及",
+  findMentionPerson: "尋找要提及的用戶",
+  findMention: "尋找用戶",
+  mentionPerson: "提及 {value}（UID {id}）",
+  quickQuote: "快速引用",
+  addressedTo: "回覆對象：{value} · 帖子 {post}",
+  replyDeliveryUnknown:
+    "引用原始碼不會更改回覆對象。引用和提及的通知送達狀態未確認。",
+  replyToThread: "回覆主題",
+  replyIn: "回覆主題 {value}",
+  sendReply: "傳送回覆",
+  openConfirmedPost: "開啟已確認的帖子",
   newThread: "新主題",
   returnWriting: "返回寫作",
   preparingForm: "正在準備目前表單…",
@@ -556,6 +614,8 @@ const traditional: Strings = {
   reviewPublication: "檢查發佈",
   publicationReview:
     "檢查 {account} 在 {board} 的第 {value} 版。發佈可能建立公開主題，並採用所選售價和閱讀權限。",
+  replyPublicationReview:
+    "檢查 {account} 在 {board} 版塊主題 {thread} 中的回覆修訂 {value}。傳送可能新增回覆，也可能合併到已有帖子。",
   publishThread: "發佈主題",
   incompatibleRecovery:
     "儲存的復原資料不相容或格式錯誤。資料將保留而不被覆寫；解決前無法復原新的變更。",
@@ -581,6 +641,71 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "A supported ordinary thread target is required.": [
+    "需要支持的普通主题目标。",
+    "需要支援的普通主題目標。",
+  ],
+  "A newer action replaced reply preparation.": [
+    "较新的操作已替代回复准备。",
+    "較新的操作已取代回覆準備。",
+  ],
+  "The reply form could not be reached. Your writing is retained.": [
+    "无法获取回复表单。已保留写作内容。",
+    "無法取得回覆表單。已保留寫作內容。",
+  ],
+  "The reply target controls are ambiguous or unsupported.": [
+    "回复对象控件不明确或不受支持。",
+    "回覆對象控制項不明確或不受支援。",
+  ],
+  "The native addressed target did not match the selected post.": [
+    "原生回复对象与所选帖子不符。",
+    "原生回覆對象與所選帖子不符。",
+  ],
+  "An ordinary reply unexpectedly contains an addressed target.": [
+    "普通回复意外包含特定回复对象。",
+    "普通回覆意外包含特定回覆對象。",
+  ],
+  "A selected mention identity changed or could not be revalidated. Resolve the person again.":
+    [
+      "所选提及身份已改变或无法重新验证。请重新查找用户。",
+      "所選提及身分已變更或無法重新驗證。請重新尋找用戶。",
+    ],
+  "A selected mention identity changed before send. Nothing was sent.": [
+    "所选提及身份在发送前已改变。未发送任何内容。",
+    "所選提及身分在傳送前已變更。未傳送任何內容。",
+  ],
+  "The account or preparation changed during prior-source observation.": [
+    "读取先前源码时，账号或准备状态已改变。",
+    "讀取先前原始碼時，帳號或準備狀態已變更。",
+  ],
+  "A previously observed post changed before send. Review the current reply again; nothing was sent.":
+    [
+      "先前观察的帖子在发送前已改变。请重新检查当前回复；未发送任何内容。",
+      "先前觀察的帖子在傳送前已變更。請重新檢查目前回覆；未傳送任何內容。",
+    ],
+  "The account changed before send. Nothing was sent.": [
+    "账号在发送前已改变。未发送任何内容。",
+    "帳號在傳送前已變更。未傳送任何內容。",
+  ],
+  "The returned post existed before sending. Complete before and observed source are retained for comparison; a merged result has not been confirmed.":
+    [
+      "返回的帖子在发送前已存在。已保留完整的先前及实测源码以供比较；尚未确认合并结果。",
+      "返回的帖子在傳送前已存在。已保留完整的先前及實測原始碼以供比較；尚未確認合併結果。",
+    ],
+  "Enter a person name or UID to resolve.": [
+    "请输入用户名或 UID。",
+    "請輸入用戶名稱或 UID。",
+  ],
+  "The account changed during mention lookup. Resolve the person again.": [
+    "查找提及用户时账号已改变。请重新查找。",
+    "尋找提及用戶時帳號已變更。請重新尋找。",
+  ],
+  "The current forum mention service could not resolve this person. Plain text was preserved.":
+    [
+      "当前论坛提及服务无法确认这个用户。已保留原文。",
+      "目前論壇提及服務無法確認這個用戶。已保留原文。",
+    ],
+
   "The forum reports pending moderation. Public stored source has not been confirmed.":
     [
       "论坛报告正在等待审核。尚未确认公开储存的源码。",
@@ -1265,6 +1390,14 @@ export function description(
     );
   const localized = descriptions[value];
   if (localized) return localized[language === "zh-CN" ? 0 : 1];
+  const reply =
+    /^Confirmed stored reply in thread (\d+), post (\d+), submitted revision (\d+)\.$/.exec(
+      value,
+    );
+  if (reply)
+    return language === "zh-CN"
+      ? `已确认储存回复：主题 ${reply[1]}、帖子 ${reply[2]}，提交版本 ${reply[3]}。`
+      : `已確認儲存回覆：主題 ${reply[1]}、帖子 ${reply[2]}，提交版本 ${reply[3]}。`;
   const publication =
     /^Confirmed stored thread (\d+), post (\d+), submitted revision (\d+)\.$/.exec(
       value,

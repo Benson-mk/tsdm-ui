@@ -16,6 +16,7 @@ import type {
   Account,
   HostResponse,
   PrepareWritingResult,
+  ReplyTarget,
   WritingOption,
 } from "./types.js";
 type Decoded = PrepareWritingResult extends infer R
@@ -75,6 +76,7 @@ export function decodeWriting(
   requested: string,
   boardId: string,
   edit?: { threadId: string; postId: string },
+  reply?: ReplyTarget,
 ): Decoded {
   let account: Account = { kind: "unknown" };
   const fail = (
@@ -171,8 +173,13 @@ export function decodeWriting(
     target.origin !== new URL(requested).origin ||
     target.pathname !== "/forum.php" ||
     target.searchParams.get("mod") !== "post" ||
-    target.searchParams.get("action") !== (edit ? "edit" : "newthread") ||
+    target.searchParams.get("action") !==
+      (edit ? "edit" : reply ? "reply" : "newthread") ||
     (!edit && target.searchParams.get("fid") !== boardId) ||
+    (reply &&
+      !edit &&
+      (target.searchParams.getAll("tid").length !== 1 ||
+        target.searchParams.get("tid") !== reply.threadId)) ||
     (edit &&
       ["fid", "tid", "pid"].some((key) => {
         const expected =
@@ -212,6 +219,59 @@ export function decodeWriting(
       "invalid",
       "The native form does not provide unambiguous complete source and options.",
     );
+  if (reply && !edit) {
+    const privateNames = [
+      "reppid",
+      "reppost",
+      "noticeauthor",
+      "noticeauthormsg",
+      "noticetrimstr",
+    ];
+    if (
+      privateNames.some(
+        (name) =>
+          named(name).length > 1 ||
+          named(name).some(
+            (n) =>
+              n.tagName !== "input" ||
+              attr(n, "type") !== "hidden" ||
+              controlDisabled(n),
+          ),
+      )
+    )
+      return fail(
+        "invalid",
+        "The reply target controls are ambiguous or unsupported.",
+      );
+    if (reply.postId) {
+      if (
+        !["reppid", "reppost"].every(
+          (name) =>
+            named(name).length === 1 &&
+            attr(named(name)[0]!, "value") === reply.postId,
+        ) ||
+        !["noticeauthor", "noticeauthormsg"].every(
+          (name) => named(name).length === 1 && attr(named(name)[0]!, "value"),
+        ) ||
+        named("noticetrimstr").length !== 1 ||
+        attr(named("noticetrimstr")[0]!, "value") !== ""
+      )
+        return fail(
+          "invalid",
+          "The native addressed target did not match the selected post.",
+        );
+    } else if (
+      named("reppid").length ||
+      named("reppost").length ||
+      privateNames.some((name) =>
+        named(name).some((n) => attr(n, "value") !== ""),
+      )
+    )
+      return fail(
+        "invalid",
+        "An ordinary reply unexpectedly contains an addressed target.",
+      );
+  }
   function option(node: Element, fallback: string): WritingOption {
     const choices =
       node.tagName === "select"
@@ -282,7 +342,8 @@ export function decodeWriting(
     account,
     sourceURL: requested,
     prepared: {
-      action: "new-thread",
+      action: reply ? (reply.postId ? "quick-quote" : "reply") : "new-thread",
+      ...(reply ? { replyTarget: reply } : {}),
       board: {
         id: boardId,
         label: label(board) || `Board ${boardId}`,

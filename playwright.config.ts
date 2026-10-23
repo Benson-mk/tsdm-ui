@@ -5,7 +5,7 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"], ["./tests/evidence-reporter.ts"]],
   use: {
-    channel: "chrome",
+    channel: "msedge",
     // Routed cases must fail closed if a redirect escapes HTTP interception.
     // The real-302 fixture uses a separate context behind a local-only proxy.
     offline: true,

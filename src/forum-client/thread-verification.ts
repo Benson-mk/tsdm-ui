@@ -79,6 +79,78 @@ export function verifyStoredWriting(
     creationEffects: creationEffects(submitted),
   };
 }
+/** Bounded native reply source observations; never a general BBCode normalizer. */
+export function verifyStoredReply(
+  submitted: PreparedWriting,
+  before: PreparedWriting | null,
+  stored: PreparedWriting,
+): ThreadVerification | null {
+  if (
+    !submitted.replyTarget ||
+    !["reply", "quick-quote"].includes(submitted.action) ||
+    (before &&
+      (before.account.id !== submitted.account.id ||
+        before.account.name !== submitted.account.name ||
+        before.board.id !== submitted.board.id ||
+        JSON.stringify(before.replyTarget) !==
+          JSON.stringify(submitted.replyTarget))) ||
+    stored.account.id !== submitted.account.id ||
+    stored.account.name !== submitted.account.name ||
+    stored.board.id !== submitted.board.id ||
+    JSON.stringify(stored.replyTarget) !== JSON.stringify(submitted.replyTarget)
+  )
+    return null;
+
+  let appended = submitted.source;
+  const names = new Set<string>();
+  for (const person of submitted.mentions ?? []) {
+    // A marker can only name one selected identity. Unsafe BBCode names and
+    // incomplete/unselected markers have no qualified stored representation.
+    if (
+      names.has(person.name) ||
+      !/^[1-9]\d*$/.test(person.id) ||
+      !person.name ||
+      /[[\]\r\n\u2063\u2064]/.test(person.name)
+    )
+      return null;
+    names.add(person.name);
+    appended = appended.replaceAll(
+      `@\u2063${person.name}\u2063`,
+      `[url=home.php?mod=space&uid=${person.id}]@${person.name}[/url]`,
+    );
+  }
+  if (/[\u2063\u2064]/.test(appended)) return null;
+
+  if (!before)
+    return verifyStoredWriting({ ...submitted, source: appended }, stored);
+
+  const prefix = `${before.source}\n\n[hr]\n[b]${submitted.account.name} 补充了以下内容 (`;
+  if (!stored.source.startsWith(prefix)) return null;
+  const remainder = stored.source.slice(prefix.length);
+  const date = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})\)\[\/b\]\n/.exec(
+    remainder,
+  );
+  if (!date) return null;
+  const [year, month, day, hour, minute] = date.slice(1).map(Number);
+  const calendar = new Date(Date.UTC(year!, month! - 1, day!, hour!, minute!));
+  if (
+    year! < 1000 ||
+    calendar.getUTCFullYear() !== year ||
+    calendar.getUTCMonth() + 1 !== month ||
+    calendar.getUTCDate() !== day ||
+    calendar.getUTCHours() !== hour ||
+    calendar.getUTCMinutes() !== minute ||
+    remainder.slice(date[0].length) !== appended
+  )
+    return null;
+
+  // Existing post options must remain intact, and requested options must also
+  // match. Creation effects retain their existing explicitly unknown outcome.
+  if (!verifyStoredWriting({ ...before, source: stored.source }, stored))
+    return null;
+  return verifyStoredWriting({ ...submitted, source: stored.source }, stored);
+}
+
 const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 const keys = (value: Record<string, unknown>, names: string[]) =>

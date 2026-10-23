@@ -1,3 +1,4 @@
+import { findMention } from "./mentions.js";
 import { fileFailure } from "./download.js";
 import { decodeNotices } from "./notices.js";
 import {
@@ -32,7 +33,7 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.4.0";
+export const FORUM_CLIENT_VERSION = "0.5.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -53,6 +54,22 @@ export function createForumClient(options: {
     },
   });
   return {
+    findMention: (writing, query) =>
+      findMention(
+        {
+          ...options,
+          account: () => account,
+          generation: () => generation,
+          observe: (observed) => {
+            if (actor(observed) !== actor(account)) {
+              account = observed;
+              generation++;
+            }
+          },
+        },
+        writing,
+        query,
+      ),
     prepareThreadPublication: publisher.prepare,
     publishThread: publisher.publish,
     checkThreadResult: publisher.check,
@@ -111,6 +128,65 @@ export function createForumClient(options: {
           "The notice request failed. It may still have marked notices read. Retry only deliberately.",
           current !== sequence ? "stale" : "network",
         );
+      }
+    },
+    async prepareReply(boardId, target) {
+      const current = ++sequence;
+      const url = new URL("/forum.php", options.origin);
+      for (const [key, value] of Object.entries({
+        mod: "post",
+        action: "reply",
+        fid: boardId,
+        tid: target.threadId,
+        tsdmapp: "json",
+      }))
+        url.searchParams.set(key, value);
+      if (
+        !/^[1-9]\d*$/.test(boardId) ||
+        !/^[1-9]\d*$/.test(target.threadId) ||
+        (target.postId !== null && !/^[1-9]\d*$/.test(target.postId))
+      )
+        return {
+          kind: "invalid",
+          message: "A supported ordinary thread target is required.",
+          account,
+          generation,
+          sourceURL: url.href,
+        };
+      if (target.postId) url.searchParams.set("reppost", target.postId);
+      try {
+        const response = await options.transport.request(url.href, {
+          fresh: true,
+        });
+        if (current !== sequence)
+          return {
+            kind: "stale",
+            message: "A newer action replaced reply preparation.",
+            account,
+            generation,
+            sourceURL: url.href,
+          };
+        const result = decodeWriting(
+          response,
+          url.href,
+          boardId,
+          undefined,
+          target,
+        );
+        if (actor(result.account) !== actor(account)) {
+          account = result.account;
+          generation++;
+        }
+        return { ...result, generation };
+      } catch {
+        return {
+          kind: "network",
+          message:
+            "The reply form could not be reached. Your writing is retained.",
+          account,
+          generation,
+          sourceURL: url.href,
+        };
       }
     },
     async prepareNewThread(boardId) {

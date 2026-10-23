@@ -2,7 +2,7 @@ import { writeFileSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 const metadata = {
   name: "@tsdm/forum-client",
-  version: "0.4.0",
+  version: "0.5.0",
   type: "module",
   engines: { node: ">=24" },
   exports: { ".": { types: "./index.d.ts", import: "./index.js" } },
@@ -21,7 +21,7 @@ writeFileSync(
 );
 writeFileSync(
   "dist/forum-client/README.md",
-  "# TSDM forum client 0.4.0\n\nPortable directory, board and thread reads, current-form writing preparation, account-bound ordinary publication, accessible attachment downloads and explicit search. Confirmation means independently verified stored publication; typed result.verification separately retains qualified normalization and unknown/not-requested creation effects. Compatible legacy results may lack verification; new results supply it. Requested creation delivery is not confirmed by a callback. Import createForumClient and supply a transport with optional POST/body support; no browser globals or UI dependencies. Search submission may consume forum credits or quota and must be deliberate. Breaking changes require a version update. This package is an unpublished local artifact.\n",
+  "# TSDM forum client 0.5.0\n\nPortable directory, board and thread reads, current-form writing preparation, account-bound ordinary publication, replies and one addressed Quick Quote, accessible attachment downloads and explicit search. Confirmation means independently verified stored publication; typed result.verification separately retains qualified normalization and unknown/not-requested creation effects. Compatible legacy results may lack verification; new results supply it. Requested creation delivery is not confirmed by a callback. Import createForumClient and supply a transport with optional POST/body support; no browser globals or UI dependencies. Search submission may consume forum credits or quota and must be deliberate. Version 0.5.0 widens PreparedWriting.action to new-thread | reply | quick-quote and adds prepareReply/findMention to ForumClient. Exhaustive action consumers and structural client implementations must handle the added cases/methods; pin this exact contract. The userscript application remains independently versioned at 0.4.0. Breaking changes require a version update. This package is an unpublished local artifact.\n",
 );
 const script = readFileSync("dist/tsdm-workspace.user.js", "utf8");
 if (/^\/\/\s+@(?:require|resource|updateURL|downloadURL)\b/m.test(script))
@@ -31,6 +31,7 @@ writeFileSync(
   JSON.stringify(
     {
       version: "0.4.0",
+      forumClientVersion: metadata.version,
       node: process.version,
       userscript: {
         file: "tsdm-workspace.user.js",

@@ -103,7 +103,7 @@ export default class EvidenceReporter implements Reporter {
       mode: "application-synthetic",
       preconditions: [
         "Built self-contained userscript",
-        "Isolated Chrome context",
+        "Isolated Edge context",
         "Only external HTTP responses replaced",
       ],
       runtime: {

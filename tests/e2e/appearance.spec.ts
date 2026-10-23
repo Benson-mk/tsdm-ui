@@ -381,7 +381,7 @@ test("J5.appearance-blocked-storage: browser-disabled local storage retains live
 }, info) => {
   expect(browserName).toBe("chromium");
   const browser = await chromium.launch({
-    channel: "chrome",
+    channel: "msedge",
     args: ["--disable-local-storage"],
   });
   const context = await browser.newContext({ offline: true });
@@ -485,7 +485,7 @@ test("J5.appearance-browser-font: a real larger Chromium default composes with t
 }, info) => {
   expect(browserName).toBe("chromium");
   const browser = await chromium.launch({
-    channel: "chrome",
+    channel: "msedge",
     args: ["--blink-settings=defaultFontSize=20"],
   });
   const context = await browser.newContext({ offline: true });

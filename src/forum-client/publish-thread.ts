@@ -1,3 +1,4 @@
+import { findMention } from "./mentions.js";
 import {
   attr,
   byId,
@@ -12,7 +13,10 @@ import {
 import { postCallback } from "./post-response.js";
 import { decodeWriting } from "./prepare-writing.js";
 import { decodeThread } from "./read-thread.js";
-import { verifyStoredWriting } from "./thread-verification.js";
+import {
+  verifyStoredWriting,
+  verifyStoredReply,
+} from "./thread-verification.js";
 import type {
   Account,
   ForumTransport,
@@ -23,6 +27,7 @@ import type {
   ThreadPublication,
   ThreadSubmission,
   WritingOption,
+  ReplyBefore,
 } from "./types.js";
 const same = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -109,9 +114,10 @@ function successful(
   )
     return null;
   const pairs: [string, string][] = [];
+  const submitName = writing.replyTarget ? "replysubmit" : "topicsubmit";
   const submitters = controls.filter(
     (n) =>
-      attr(n, "name") === "topicsubmit" &&
+      attr(n, "name") === submitName &&
       !controlDisabled(n) &&
       ((n.tagName === "button" && ["", "submit"].includes(attr(n, "type"))) ||
         (n.tagName === "input" && attr(n, "type") === "submit")),
@@ -120,11 +126,11 @@ function successful(
     submitters.length > 1 ||
     submitters.some((n) => !["yes", "true"].includes(attr(n, "value"))) ||
     (!submitters.length &&
-      new URL(target).searchParams.get("topicsubmit") !== "yes")
+      new URL(target).searchParams.get(submitName) !== "yes")
   )
     return null;
   if (submitters.length)
-    pairs.push(["topicsubmit", attr(submitters[0]!, "value")]);
+    pairs.push([submitName, attr(submitters[0]!, "value")]);
   const inactiveRush = [
     "rushreplyfrom",
     "rushreplyto",
@@ -205,8 +211,22 @@ function successful(
         ...inactiveRush,
       ].includes(name) &&
       !(
-        ["formhash", "posttime", "wysiwyg", "save"].includes(name) &&
-        type === "hidden"
+        [
+          "formhash",
+          "posttime",
+          "wysiwyg",
+          "save",
+          ...(writing.replyTarget
+            ? [
+                "reppid",
+                "reppost",
+                "noticeauthor",
+                "noticeauthormsg",
+                "noticetrimstr",
+                "handlekey",
+              ]
+            : []),
+        ].includes(name) && type === "hidden"
       )
     )
       return null;
@@ -228,12 +248,28 @@ function candidate(value: string, origin: string): string | null {
     !/^[1-9]\d*$/.test(url.searchParams.get("tid") ?? "") ||
     [...url.searchParams.keys()].some(
       (key) =>
-        !["mod", "tid", "extra"].includes(key) ||
+        !["mod", "tid", "pid", "page", "extra"].includes(key) ||
         url.searchParams.getAll(key).length !== 1,
     )
   )
     return null;
-  url.hash = "";
+  const postId =
+    url.searchParams.get("pid") || /^#pid([1-9]\d*)$/.exec(url.hash)?.[1];
+  if (
+    (url.searchParams.has("pid") &&
+      !/^[1-9]\d*$/.test(url.searchParams.get("pid")!)) ||
+    (url.searchParams.has("page") &&
+      !/^[1-9]\d*$/.test(url.searchParams.get("page")!))
+  )
+    return null;
+  if (
+    url.hash &&
+    (!/^#pid[1-9]\d*$/.test(url.hash) ||
+      (postId && url.hash !== `#pid${postId}`))
+  )
+    return null;
+  url.searchParams.delete("pid");
+  url.hash = postId ? `pid${postId}` : "";
   return url.href;
 }
 /** Parse a literal callback as data; no forum script is executed. */
@@ -296,6 +332,84 @@ export function createThreadPublisher(config: {
   const reviews = new Map<string, string>();
   const used = new Set<string>(),
     pending = new Set<string>();
+  async function replyBefore(
+    writing: PreparedWriting,
+  ): Promise<ReplyBefore | null> {
+    if (!writing.replyTarget) return null;
+    const generation = config.generation(),
+      url = new URL("/forum.php", config.origin);
+    for (const [key, value] of Object.entries({
+      mod: "viewthread",
+      tid: writing.replyTarget.threadId,
+      tsdmapp: "json",
+    }))
+      url.searchParams.set(key, value);
+    const response = await config.transport.request(url.href, { fresh: true });
+    if (config.generation() !== generation) throw Error("stale");
+    const page = decodeThread(response, url.href);
+    config.observe(page.account);
+    if (
+      config.generation() !== generation ||
+      member(page.account) !== writing.account.id ||
+      page.kind !== "thread" ||
+      !page.thread.parent ||
+      new URL(page.thread.parent.url).searchParams.get("fid") !==
+        writing.board.id
+    )
+      throw Error("invalid");
+    const owned: ReplyBefore["owned"] = [];
+    for (const post of page.thread.posts.filter(
+      (post) => post.authorId === writing.account.id,
+    )) {
+      const edit = new URL("/forum.php", config.origin);
+      for (const [key, value] of Object.entries({
+        mod: "post",
+        action: "edit",
+        fid: writing.board.id,
+        tid: writing.replyTarget.threadId,
+        pid: post.id,
+        tsdmapp: "json",
+      }))
+        edit.searchParams.set(key, value);
+      const source = await config.transport.request(edit.href, { fresh: true });
+      if (config.generation() !== generation) throw Error("stale");
+      const decoded = decodeWriting(
+        source,
+        edit.href,
+        writing.board.id,
+        { threadId: writing.replyTarget.threadId, postId: post.id },
+        writing.replyTarget,
+      );
+      config.observe(decoded.account);
+      if (
+        config.generation() !== generation ||
+        member(decoded.account) !== writing.account.id ||
+        decoded.kind !== "prepared"
+      )
+        throw Error("invalid");
+      owned.push({ postId: post.id, writing: decoded.prepared });
+    }
+    return {
+      pageURL: url.href,
+      postIds: page.thread.posts.map((post) => post.id),
+      owned,
+    };
+  }
+  async function mentionsCurrent(writing: PreparedWriting): Promise<boolean> {
+    for (const selected of writing.mentions ?? []) {
+      if (!writing.source.includes(`@\u2063${selected.name}\u2063`)) continue;
+      const found = await findMention(config, writing, selected.name);
+      if (
+        found.kind !== "people" ||
+        !found.people.some(
+          (person) =>
+            person.id === selected.id && person.name === selected.name,
+        )
+      )
+        return false;
+    }
+    return true;
+  }
   async function verify(
     attempt: ThreadAttempt,
     destination: string,
@@ -317,7 +431,11 @@ export function createThreadPublisher(config: {
     const url = candidate(destination, config.origin),
       submitted = attempt.publication.submission,
       writing = submitted.writing;
-    if (!url)
+    if (
+      !url ||
+      (writing.replyTarget &&
+        new URL(url).searchParams.get("tid") !== writing.replyTarget.threadId)
+    )
       return uncertain(
         "No supported candidate thread URL is available. Enter its thread URL to check this original attempt.",
       );
@@ -339,12 +457,19 @@ export function createThreadPublisher(config: {
           "The candidate thread could not be independently read. Publication remains uncertain.",
         );
       const thread = decoded.thread,
-        opening = thread.posts.filter((post) => /^1\s*#?$/.test(post.floor));
+        opening = writing.replyTarget
+          ? thread.posts.filter(
+              (post) =>
+                post.id ===
+                (new URL(url).searchParams.get("pid") ||
+                  new URL(url).hash.slice(4)),
+            )
+          : thread.posts.filter((post) => /^1\s*#?$/.test(post.floor));
       if (
         opening.length !== 1 ||
-        opening[0] !== thread.posts[0] ||
+        (!writing.replyTarget && opening[0] !== thread.posts[0]) ||
         opening[0]!.authorId !== writing.account.id ||
-        thread.title !== writing.title ||
+        (!writing.replyTarget && thread.title !== writing.title) ||
         !thread.parent ||
         new URL(thread.parent.url).searchParams.get("fid") !== writing.board.id
       )
@@ -370,10 +495,16 @@ export function createThreadPublisher(config: {
         return uncertain(
           "The account changed during stored-source readback. Possible publication remains uncertain.",
         );
-      const observed = decodeWriting(source, editURL.href, writing.board.id, {
-        threadId: thread.id,
-        postId: post.id,
-      });
+      const observed = decodeWriting(
+        source,
+        editURL.href,
+        writing.board.id,
+        {
+          threadId: thread.id,
+          postId: post.id,
+        },
+        writing.replyTarget,
+      );
       config.observe(observed.account);
       if (
         config.generation() !== beforeSource ||
@@ -382,9 +513,29 @@ export function createThreadPublisher(config: {
         return uncertain(
           "The account changed during stored-source readback. Possible publication remains uncertain.",
         );
+      let supplement = null;
+      if (writing.replyTarget && observed.kind === "prepared") {
+        const before =
+          attempt.publication.replyBefore?.owned.find(
+            (prior) => prior.postId === post.id,
+          )?.writing ?? null;
+        attempt = {
+          ...attempt,
+          replyComparison: {
+            postId: post.id,
+            before,
+            observed: clone(observed.prepared),
+          },
+        };
+        supplement = verifyStoredReply(writing, before, observed.prepared);
+        if (before && !supplement)
+          return uncertain(
+            "The returned post existed before sending. Complete before and observed source are retained for comparison; a merged result has not been confirmed.",
+          );
+      }
       const verification =
         observed.kind === "prepared"
-          ? verifyStoredWriting(writing, observed.prepared)
+          ? (supplement ?? verifyStoredWriting(writing, observed.prepared))
           : null;
       if (!verification)
         return uncertain(
@@ -395,11 +546,11 @@ export function createThreadPublisher(config: {
         status: "confirmed",
         checked: true,
         candidateURL: url,
-        message: `Confirmed stored thread ${thread.id}, post ${post.id}, submitted revision ${submitted.revision}.`,
+        message: `Confirmed stored ${writing.replyTarget ? "reply in thread" : "thread"} ${thread.id}, post ${post.id}, submitted revision ${submitted.revision}.`,
         result: {
           threadId: thread.id,
           postId: post.id,
-          url: `${url}#pid${post.id}`,
+          url: `${url.split("#")[0]}#pid${post.id}`,
           verification,
         },
       };
@@ -426,9 +577,21 @@ export function createThreadPublisher(config: {
         !submission.contextId ||
         !Number.isSafeInteger(submission.revision) ||
         submission.revision < 1 ||
-        submission.writing.action !== "new-thread" ||
+        !["new-thread", "reply", "quick-quote"].includes(
+          submission.writing.action,
+        ) ||
+        (submission.writing.action === "new-thread" &&
+          Boolean(submission.writing.replyTarget)) ||
+        (submission.writing.action === "reply" &&
+          submission.writing.replyTarget?.postId !== null) ||
+        (submission.writing.action === "quick-quote" &&
+          !/^[1-9]\d*$/.test(submission.writing.replyTarget?.postId ?? "")) ||
+        (submission.writing.action !== "new-thread" &&
+          (!submission.writing.replyTarget ||
+            !/^[1-9]\d*$/.test(submission.writing.replyTarget.threadId))) ||
         !/^[1-9]\d*$/.test(submission.writing.board.id) ||
-        !submission.writing.title.trim() ||
+        (submission.writing.action === "new-thread" &&
+          !submission.writing.title.trim()) ||
         !submission.writing.source.trim() ||
         /[\r\n]/.test(submission.writing.title)
       )
@@ -445,7 +608,15 @@ export function createThreadPublisher(config: {
         url = new URL("/forum.php", config.origin);
       for (const [key, value] of Object.entries({
         mod: "post",
-        action: "newthread",
+        action: writing.replyTarget ? "reply" : "newthread",
+        ...(writing.replyTarget
+          ? {
+              tid: writing.replyTarget.threadId,
+              ...(writing.replyTarget.postId
+                ? { reppost: writing.replyTarget.postId }
+                : {}),
+            }
+          : {}),
         fid: writing.board.id,
         tsdmapp: "json",
       }))
@@ -463,7 +634,13 @@ export function createThreadPublisher(config: {
             "The account changed or expired during preparation. Original writing remains paused.",
             "stale",
           );
-        const decoded = decodeWriting(response, url.href, writing.board.id);
+        const decoded = decodeWriting(
+          response,
+          url.href,
+          writing.board.id,
+          undefined,
+          writing.replyTarget,
+        );
         config.observe(decoded.account);
         if (member(decoded.account) !== writing.account.id)
           return fail(
@@ -471,6 +648,11 @@ export function createThreadPublisher(config: {
             "stale",
           );
         if (decoded.kind !== "prepared") return fail(decoded.message);
+        if (!(await mentionsCurrent(writing)))
+          return fail(
+            "A selected mention identity changed or could not be revalidated. Resolve the person again.",
+          );
+
         if (!compatible(writing, decoded.prepared))
           return fail(
             "The current native options changed or are unavailable. Review the current form before publication; no values were reset.",
@@ -480,10 +662,21 @@ export function createThreadPublisher(config: {
           return fail(
             "The current native successful controls or required values are unsupported. Nothing was sent.",
           );
+        const beforeGeneration = config.generation();
+        const before = await replyBefore(writing);
+        if (
+          config.generation() !== beforeGeneration ||
+          reviews.get(submission.contextId) !== id
+        )
+          return fail(
+            "The account or preparation changed during prior-source observation.",
+            "stale",
+          );
         const publication: ThreadPublication = {
           id,
           generation: config.generation(),
           submission: clone(submission),
+          ...(before ? { replyBefore: before } : {}),
         };
         forms.set(publication.id, { publication: clone(publication), request });
         return {
@@ -531,11 +724,23 @@ export function createThreadPublisher(config: {
         const checkURL = new URL("/forum.php", config.origin);
         for (const [key, value] of Object.entries({
           mod: "post",
-          action: "newthread",
+          action: writing.replyTarget ? "reply" : "newthread",
+          ...(writing.replyTarget
+            ? {
+                tid: writing.replyTarget.threadId,
+                ...(writing.replyTarget.postId
+                  ? { reppost: writing.replyTarget.postId }
+                  : {}),
+              }
+            : {}),
           fid: writing.board.id,
           tsdmapp: "json",
         }))
           checkURL.searchParams.set(key, value);
+        if (!(await mentionsCurrent(writing)))
+          return notSent(
+            "A selected mention identity changed before send. Nothing was sent.",
+          );
         const current = await config.transport.request(checkURL.href, {
           fresh: true,
         });
@@ -543,7 +748,13 @@ export function createThreadPublisher(config: {
           return notSent(
             "The account changed or expired before send. Original writing remains retained and paused.",
           );
-        const checked = decodeWriting(current, checkURL.href, writing.board.id);
+        const checked = decodeWriting(
+          current,
+          checkURL.href,
+          writing.board.id,
+          undefined,
+          writing.replyTarget,
+        );
         config.observe(checked.account);
         if (
           config.generation() !== known.publication.generation ||
@@ -564,6 +775,17 @@ export function createThreadPublisher(config: {
           return notSent(
             "The current successful controls changed before send. Nothing was sent.",
           );
+        if (writing.replyTarget) {
+          const before = await replyBefore(writing);
+          if (!same(before, known.publication.replyBefore))
+            return notSent(
+              "A previously observed post changed before send. Review the current reply again; nothing was sent.",
+            );
+          if (config.generation() !== known.publication.generation)
+            return notSent(
+              "The account changed before send. Nothing was sent.",
+            );
+        }
         sent = true;
         const response = await config.transport.request(request.url, {
           method: "POST",

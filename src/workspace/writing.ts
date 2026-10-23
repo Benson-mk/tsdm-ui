@@ -7,6 +7,8 @@ import {
   type PreparedWriting,
   type ThreadAttempt,
   type ThreadPublication,
+  type ReplyTarget,
+  type MentionIdentity,
 } from "../forum-client";
 export interface WritingContext extends PreparedWriting {
   id: string;
@@ -28,12 +30,15 @@ export function createWriting(
     visible: boolean;
     preparing: boolean;
     message: string;
-    replacement: string | null;
+    replacement: { boardId: string; replyTarget?: ReplyTarget } | null;
     acknowledged: number;
     recoveryAvailable: boolean | null;
     accountVerified: boolean;
     composing: boolean;
     compositionDeferred: boolean;
+    mentionPeople: MentionIdentity[];
+    mentionGeneration: number;
+    findingMention: boolean;
     publication: ThreadPublication | null;
     publishing: boolean;
     resend: string | null;
@@ -54,6 +59,9 @@ export function createWriting(
     copy: null,
     composing: false,
     compositionDeferred: false,
+    mentionPeople: [],
+    mentionGeneration: -1,
+    findingMention: false,
     publication: null,
     publishing: false,
     resend: null,
@@ -76,15 +84,22 @@ export function createWriting(
       action?.();
     }, 0);
   }
-  async function prepare(boardId: string, replace = false) {
+  async function prepare(
+    boardId: string,
+    replace = false,
+    replyTarget?: ReplyTarget,
+  ) {
     if (
       deferViewChange(() => {
-        void prepare(boardId, replace);
+        void prepare(boardId, replace, replyTarget);
       })
     )
       return;
     const existing = state.value.context;
-    if (state.value.publishing && (replace || existing?.board.id !== boardId)) {
+    const sameAction =
+      existing?.board.id === boardId &&
+      JSON.stringify(existing?.replyTarget) === JSON.stringify(replyTarget);
+    if (state.value.publishing && (replace || !sameAction)) {
       state.value = {
         ...state.value,
         message:
@@ -93,16 +108,21 @@ export function createWriting(
       return;
     }
     if (existing && !replace) {
-      if (existing.board.id === boardId) {
+      if (sameAction) {
         state.value = { ...state.value, visible: true, replacement: null };
         return;
       }
-      state.value = { ...state.value, replacement: boardId };
+      state.value = {
+        ...state.value,
+        replacement: { boardId, ...(replyTarget ? { replyTarget } : {}) },
+      };
       return;
     }
     const current = ++sequence;
     state.value = { ...state.value, preparing: true, message: "" };
-    const result = await client.prepareNewThread(boardId);
+    const result = await (replyTarget
+      ? client.prepareReply(boardId, replyTarget)
+      : client.prepareNewThread(boardId));
     if (result.kind !== "stale") {
       accountObserved(result.account);
       observe(result.account, result.kind === "prepared");
@@ -144,6 +164,9 @@ export function createWriting(
       replacement: null,
       message: "",
       acknowledged: 0,
+      mentionPeople: [],
+      mentionGeneration: -1,
+      findingMention: false,
       accountVerified: true,
       copy: null,
     };
@@ -153,7 +176,7 @@ export function createWriting(
     patch: Partial<
       Pick<
         WritingContext,
-        "title" | "source" | "category" | "options" | "selection"
+        "title" | "source" | "category" | "options" | "selection" | "mentions"
       >
     >,
   ) {
@@ -318,6 +341,56 @@ export function createWriting(
     state.value = { ...state.value, publishing: false };
     await changed();
   }
+  async function searchMention(query: string) {
+    const context = state.value.context;
+    if (!context || state.value.findingMention) return;
+    state.value = {
+      ...state.value,
+      findingMention: true,
+      mentionPeople: [],
+      message: "",
+    };
+    const found = await client.findMention(submission(context).writing, query);
+    accountObserved(found.account);
+    observe(found.account, found.kind === "people");
+    if (state.value.context?.id !== context.id) return;
+    state.value = {
+      ...state.value,
+      findingMention: false,
+      mentionPeople: found.kind === "people" ? [...found.people] : [],
+      mentionGeneration: found.generation,
+      message: found.kind === "people" ? "" : found.message,
+    };
+  }
+  function insertMention(id: string) {
+    const context = state.value.context,
+      person = state.value.mentionPeople.find((p) => p.id === id);
+    if (
+      !context ||
+      !person ||
+      state.value.composing ||
+      client.generation !== state.value.mentionGeneration ||
+      client.account.kind !== "member" ||
+      client.account.id !== context.account.id
+    )
+      return;
+    const { start, end } = context.selection,
+      insert = `@\u2063${person.name}\u2063 `;
+    edit({
+      source:
+        context.source.slice(0, start) + insert + context.source.slice(end),
+      selection: {
+        start: start + insert.length,
+        end: start + insert.length,
+        direction: "none",
+      },
+      mentions: [
+        ...(context.mentions ?? []).filter((p) => p.id !== id),
+        person,
+      ],
+    });
+    state.value = { ...state.value, mentionPeople: [] };
+  }
   function observe(account: Account, verified = true) {
     state.value = {
       ...state.value,
@@ -339,7 +412,9 @@ export function createWriting(
     if (!original || state.value.publishing) return;
     const current = ++sequence;
     state.value = { ...state.value, preparing: true, copy: null, message: "" };
-    const result = await client.prepareNewThread(original.board.id);
+    const result = await (original.replyTarget
+      ? client.prepareReply(original.board.id, original.replyTarget)
+      : client.prepareNewThread(original.board.id));
     if (result.kind !== "stale") {
       accountObserved(result.account);
       observe(result.account, result.kind === "prepared");
@@ -403,6 +478,9 @@ export function createWriting(
       },
       copy: null,
       acknowledged: 0,
+      mentionPeople: [],
+      mentionGeneration: -1,
+      findingMention: false,
       accountVerified: true,
     };
     changed();
@@ -415,6 +493,8 @@ export function createWriting(
     endComposition,
     observe,
     check,
+    searchMention,
+    insertMention,
     reviewPublication,
     publish,
     checkResult,
@@ -462,6 +542,9 @@ export function createWriting(
         context,
         visible: context !== null,
         acknowledged: context?.revision ?? 0,
+        mentionPeople: [],
+        mentionGeneration: -1,
+        findingMention: false,
         recoveryAvailable: true,
         accountVerified: false,
         copy: null,
@@ -487,6 +570,8 @@ export function createWriting(
     }),
     state: readonly(state),
     prepare,
+    prepareReply: (boardId: string, target: ReplyTarget) =>
+      prepare(boardId, false, target),
     edit,
     show: () => {
       const show = () => {
@@ -507,8 +592,9 @@ export function createWriting(
       if (!deferViewChange(hide)) hide();
     },
     discardAndPrepare: () => {
-      const boardId = state.value.replacement;
-      if (boardId) void prepare(boardId, true);
+      const replacement = state.value.replacement;
+      if (replacement)
+        void prepare(replacement.boardId, true, replacement.replyTarget);
     },
   };
 }
@@ -524,7 +610,26 @@ export function isWritingContext(value: unknown): value is WritingContext {
     !string(value.id) ||
     !integer(value.revision) ||
     value.revision < 1 ||
-    value.action !== "new-thread" ||
+    !["new-thread", "reply", "quick-quote"].includes(String(value.action)) ||
+    (value.action === "new-thread" && value.replyTarget !== undefined) ||
+    (value.action === "reply" &&
+      (!object(value.replyTarget) || value.replyTarget.postId !== null)) ||
+    (value.action === "quick-quote" &&
+      (!object(value.replyTarget) ||
+        !string(value.replyTarget.postId) ||
+        !/^[1-9]\d*$/.test(value.replyTarget.postId))) ||
+    (value.action !== "new-thread" &&
+      (!object(value.replyTarget) ||
+        !string(value.replyTarget.threadId) ||
+        !/^[1-9]\d*$/.test(value.replyTarget.threadId) ||
+        (value.replyTarget.postId !== null &&
+          (!string(value.replyTarget.postId) ||
+            !/^[1-9]\d*$/.test(value.replyTarget.postId))) ||
+        !string(value.replyTarget.author) ||
+        !(
+          value.replyTarget.authorId === null ||
+          string(value.replyTarget.authorId)
+        ))) ||
     !object(value.board) ||
     !string(value.board.id) ||
     !/^[1-9]\d*$/.test(value.board.id) ||
@@ -535,6 +640,17 @@ export function isWritingContext(value: unknown): value is WritingContext {
     !string(value.account.id) ||
     !/^[1-9]\d*$/.test(value.account.id) ||
     !string(value.account.name) ||
+    (value.mentions !== undefined &&
+      (!Array.isArray(value.mentions) ||
+        !value.mentions.every(
+          (p) =>
+            object(p) &&
+            string(p.id) &&
+            /^[1-9]\d*$/.test(p.id) &&
+            string(p.name) &&
+            p.name.length > 0 &&
+            !/[\r\n\u2063\u2064]/.test(p.name),
+        ))) ||
     !string(value.title) ||
     !string(value.source)
   )
@@ -623,6 +739,67 @@ function isAttempt(value: unknown): value is ThreadAttempt {
     attempts: undefined,
   };
   if (!isWritingContext(submittedWriting)) return false;
+  const snapshot = (candidate: unknown) =>
+    object(candidate) &&
+    isWritingContext({
+      ...candidate,
+      id: "observed",
+      revision: 1,
+      selection: { start: 0, end: 0, direction: "none" },
+      attempts: undefined,
+    }) &&
+    object(candidate.account) &&
+    candidate.account.id === submittedWriting.account.id &&
+    object(candidate.board) &&
+    candidate.board.id === submittedWriting.board.id &&
+    JSON.stringify(candidate.replyTarget) ===
+      JSON.stringify(submittedWriting.replyTarget);
+  const before = value.publication.replyBefore;
+  if (
+    before !== undefined &&
+    (!object(before) ||
+      !safeThreadURL(before.pageURL) ||
+      !submittedWriting.replyTarget ||
+      new URL(String(before.pageURL)).searchParams.get("tid") !==
+        submittedWriting.replyTarget.threadId ||
+      !Array.isArray(before.postIds) ||
+      !before.postIds.every((id) => string(id) && /^[1-9]\d*$/.test(id)) ||
+      new Set(before.postIds).size !== before.postIds.length ||
+      !Array.isArray(before.owned) ||
+      !before.owned.every(
+        (post) =>
+          object(post) &&
+          string(post.postId) &&
+          before.postIds instanceof Array &&
+          before.postIds.includes(post.postId) &&
+          snapshot(post.writing),
+      ))
+  )
+    return false;
+  const comparison = value.replyComparison;
+  if (
+    comparison !== undefined &&
+    (!object(comparison) ||
+      !string(comparison.postId) ||
+      !/^[1-9]\d*$/.test(comparison.postId) ||
+      !snapshot(comparison.observed) ||
+      !(comparison.before === null || snapshot(comparison.before)))
+  )
+    return false;
+
+  if (object(comparison)) {
+    const prior =
+      object(before) && Array.isArray(before.owned)
+        ? before.owned.find(
+            (post) => object(post) && post.postId === comparison.postId,
+          )
+        : null;
+    if (
+      JSON.stringify(comparison.before) !==
+      JSON.stringify(object(prior) ? prior.writing : null)
+    )
+      return false;
+  }
   return (
     (value.result === null && value.status !== "confirmed") ||
     (object(value.result) &&

@@ -16,7 +16,7 @@ Confirm consequential writes through fresh authoritative server observations ind
 
 ## Development verification cadence
 
-Use one declared primary browser for routine development iterations. The observed agreement between Edge and Chrome supports reducing duplicate checks; it does not establish browser equivalence or remove either browser from acceptance and release qualification.
+Use Microsoft Edge as the declared primary browser for routine development iterations (user selection on 2026-10-22). The observed agreement between Edge and Chrome supports reducing duplicate checks; it does not establish browser equivalence or remove either browser from acceptance and release qualification.
 
 | Stage | Required verification |
 | --- | --- |

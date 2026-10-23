@@ -449,6 +449,9 @@ const accountLabel = computed(() => {
       ? text.value.guest
       : text.value.accountUnknown;
 });
+function boardIdFrom(url: string) {
+  return new URL(url).searchParams.get("fid") ?? "";
+}
 </script>
 <template>
   <div class="workspace" @click="navigate">
@@ -980,6 +983,22 @@ const accountLabel = computed(() => {
         >
           {{ notice }}
         </p>
+        <button
+          v-if="state.result.thread.parent"
+          @click="
+            workspace.writing.prepareReply(
+              boardIdFrom(state.result.thread.parent.url),
+              {
+                threadId: state.result.thread.id,
+                postId: null,
+                author: '',
+                authorId: null,
+              },
+            )
+          "
+        >
+          {{ text.replyToThread }}
+        </button>
         <article
           v-for="post in state.result.thread.posts"
           :id="`pid${post.id}`"
@@ -994,6 +1013,22 @@ const accountLabel = computed(() => {
             ><time>{{ post.date }}</time
             ><a :href="post.url">{{ text.post }} {{ post.id }}</a>
           </header>
+          <button
+            v-if="state.result.thread.parent"
+            @click="
+              workspace.writing.prepareReply(
+                boardIdFrom(state.result.thread.parent.url),
+                {
+                  threadId: state.result.thread.id,
+                  postId: post.id,
+                  author: post.author,
+                  authorId: post.authorId,
+                },
+              )
+            "
+          >
+            {{ text.quickQuote }}
+          </button>
           <ContentView
             :nodes="post.content"
             :language="workspace.preferences.state.value.language"

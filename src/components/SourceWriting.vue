@@ -10,6 +10,7 @@ const text = computed(() =>
 );
 const unresolved = props.workspace.writing.unresolvedAttachments;
 const editor = ref<HTMLTextAreaElement | null>(null);
+const mentionQuery = ref("");
 const candidateURLs = ref<Record<string, string>>({});
 function effectLabel(
   options: readonly { name: string; label: string }[],
@@ -83,7 +84,22 @@ function updateOption(option: WritingOption, event: Event) {
     <p v-if="state.compositionDeferred" role="status">
       {{ text.finishComposition }}
     </p>
-    <h1>{{ insert(text.newThreadIn, state.context.board.label) }}</h1>
+    <h1>
+      {{
+        state.context.replyTarget
+          ? insert(text.replyIn, state.context.replyTarget.threadId)
+          : insert(text.newThreadIn, state.context.board.label)
+      }}
+    </h1>
+    <p v-if="state.context.replyTarget?.postId">
+      {{
+        insert(text.addressedTo, state.context.replyTarget.author).replace(
+          "{post}",
+          state.context.replyTarget.postId,
+        )
+      }}
+    </p>
+    <p v-if="state.context.replyTarget">{{ text.replyDeliveryUnknown }}</p>
     <p>
       {{ insert(text.writingAs, state.context.account.name) }} ·
       {{ insert(text.writingBoard, state.context.board.id) }}
@@ -142,6 +158,22 @@ function updateOption(option: WritingOption, event: Event) {
           )
         }}
       </p>
+      <details v-if="attempt.replyComparison" open>
+        <summary>{{ text.replyComparison }}</summary>
+        <p>{{ text.replyComparisonLimits }}</p>
+        <label v-if="attempt.replyComparison.before"
+          >{{ text.replyBeforeSource
+          }}<textarea readonly :value="attempt.replyComparison.before.source" />
+        </label>
+        <p v-else>{{ text.replyBeforeUnknown }}</p>
+        <label
+          >{{ text.replyObservedSource
+          }}<textarea
+            readonly
+            :value="attempt.replyComparison.observed.source"
+          />
+        </label>
+      </details>
       <template v-if="attempt.result?.verification">
         <p
           v-for="normalization in attempt.result.verification.normalizations"
@@ -176,7 +208,11 @@ function updateOption(option: WritingOption, event: Event) {
         v-if="attempt.result"
         :href="attempt.result.url"
         @click.prevent="workspace.openThread(attempt.result.url)"
-        >{{ text.openConfirmedThread }}</a
+        >{{
+          attempt.publication.submission.writing.replyTarget
+            ? text.openConfirmedPost
+            : text.openConfirmedThread
+        }}</a
       >
       <template
         v-if="attempt.status === 'uncertain' || attempt.status === 'moderation'"
@@ -225,9 +261,16 @@ function updateOption(option: WritingOption, event: Event) {
         <p>
           {{
             insert(
-              text.publicationReview,
+              state.publication.submission.writing.replyTarget
+                ? text.replyPublicationReview
+                : text.publicationReview,
               state.publication.submission.revision,
             )
+              .replace(
+                "{thread}",
+                state.publication.submission.writing.replyTarget?.threadId ??
+                  "",
+              )
               .replace("{account}", state.context.account.name)
               .replace("{board}", state.context.board.label)
           }}
@@ -236,7 +279,7 @@ function updateOption(option: WritingOption, event: Event) {
           :disabled="state.publishing"
           @click="workspace.writing.publish()"
         >
-          {{ text.publishThread }}
+          {{ state.context.replyTarget ? text.sendReply : text.publishThread }}
         </button>
       </section>
     </div>
@@ -254,7 +297,25 @@ function updateOption(option: WritingOption, event: Event) {
         )
       }}
     </p>
-    <label
+    <section :aria-label="text.mentions">
+      <label
+        >{{ text.findMentionPerson }}<input v-model="mentionQuery"
+      /></label>
+      <button
+        :disabled="state.findingMention || state.publishing"
+        @click="workspace.writing.searchMention(mentionQuery)"
+      >
+        {{ text.findMention }}
+      </button>
+      <button
+        v-for="person in state.mentionPeople"
+        :key="person.id"
+        @click="workspace.writing.insertMention(person.id)"
+      >
+        {{ insert(text.mentionPerson, person.name).replace("{id}", person.id) }}
+      </button>
+    </section>
+    <label v-if="!state.context.replyTarget"
       >{{ text.writingTitle
       }}<input
         :value="state.context.title"

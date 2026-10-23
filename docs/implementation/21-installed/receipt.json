@@ -1,0 +1,196 @@
+{
+  "schema": 1,
+  "issue": 21,
+  "date": "2026-10-23",
+  "timezone": "Asia/Hong_Kong",
+  "mode": "authored-installed-development-summary",
+  "status": "development-feature-acceptance-verified",
+  "candidate": {
+    "version": "0.4.0",
+    "forumClientVersion": "0.5.0",
+    "bytes": 925120,
+    "sha256": "409c25e3b34e02f99426d9835b1cfa357cabcb1c49a609625412e23302e81c68",
+    "node": "24.22.0",
+    "npm": "11.21.1",
+    "lockSha256": "134506a7905d81a213431f508e42a9e66995cc861b09b2caa2fb8b03dbcad709",
+    "publicEntry": {
+      "bytes": 269499,
+      "sha256": "ced10cb3d32f15233f375a9faea18916635791051d46012499a7f1f4d1e273fe"
+    }
+  },
+  "environment": {
+    "os": "macOS 15.6.0",
+    "architecture": "arm",
+    "edge": "155.0.4283.62",
+    "tampermonkeyEdge": "BETA 5.6.6242",
+    "chrome": "156.0.8078.48",
+    "tampermonkeyChrome": "BETA 5.6.6242",
+    "versionProvenance": "Both browser versions are current client-hints captures; Edge manager version is a current dashboard observation; Chrome agent-test manager version is directly user-attested on 2026-10-23, not an automated dashboard observation.",
+    "stableOrOtherOSReleaseQualified": false
+  },
+  "cleanConsumer": {
+    "run": "consumer-2026-10-23T02-13-39.319Z",
+    "version": "0.5.0",
+    "packageSha256": "a87ae631fb61f686468b70de382ac787faf37cb1b2ca321d0967d6db4e8bb4bd",
+    "status": "passed"
+  },
+  "completedReview": {
+    "standardsFinding": "public contract version expansion",
+    "specFindings": 0,
+    "BDFLDisposition": "bounded P2 confirmed; library-only 0.5.0 correction verified, userscript unchanged"
+  },
+  "managerIdentity": {
+    "completeStoredSourceExactBoth": "retained-exact-byte-readback-receipt",
+    "singleFinalCandidateRuntimeBoth": "independently-checked-export",
+    "chromeDuplicateDevelopmentLoader": "removed before final runtime observation; earlier capture excluded"
+  },
+  "mergedChecks": [
+    {
+      "alias": "installed-A",
+      "browser": "edge",
+      "mode": "installed-manager-with-authored-external-HTTP",
+      "originalOutcome": "uncertain",
+      "checkedOutcome": "confirmed",
+      "originalAttemptIdentityUnchanged": true,
+      "immutablePublicationUnchanged": true,
+      "completePriorAndQualifiedAppendedSourceEqual": true,
+      "selectedPersonCount": 1,
+      "totalSyntheticReplyPosts": 1,
+      "explicitCheckMethods": ["GET", "GET"],
+      "allDeclaredScopesComplete": true,
+      "truncatedBatchCount": 0,
+      "newerWritingPreserved": "coordinator-observed",
+      "exactCandidateOccurrencesInFinalRuntimeExport": 1
+    },
+    {
+      "alias": "installed-B",
+      "browser": "chrome",
+      "mode": "installed-manager-with-authored-external-HTTP",
+      "originalOutcome": "uncertain",
+      "checkedOutcome": "confirmed",
+      "originalAttemptIdentityUnchanged": true,
+      "immutablePublicationUnchanged": true,
+      "completePriorAndQualifiedAppendedSourceEqual": true,
+      "selectedPersonCount": 1,
+      "totalSyntheticReplyPosts": 1,
+      "explicitCheckMethods": ["GET", "GET"],
+      "allDeclaredScopesComplete": true,
+      "truncatedBatchCount": 0,
+      "newerWritingPreserved": "coordinator-observed",
+      "exactCandidateOccurrencesInFinalRuntimeExport": 1
+    }
+  ],
+  "otherObservedCases": [
+    {
+      "alias": "installed-A-addressed",
+      "outcome": "addressed target, additional literal source and current options retained"
+    },
+    {
+      "alias": "installed-A-refused",
+      "outcome": "explicit refusal remains unconfirmed"
+    },
+    {
+      "alias": "installed-A-moderated",
+      "outcome": "pending moderation remains distinct from confirmed public source"
+    },
+    {
+      "alias": "installed-B-ordinary",
+      "outcome": "later local writing survives delayed response"
+    }
+  ],
+  "privateInputIdentities": {
+    "installed-A-merge": {
+      "bytes": 71846,
+      "sha256": "655907dbb4a6a8e19ec9ca951c1f3ba1b93bd2b02bd293066206433681af1cd9"
+    },
+    "installed-A-runtime": {
+      "bytes": 925744,
+      "sha256": "45522e8a7a3052c089b978969e14a8ba638c737f4f2b480bec3fccc39ebb24fc"
+    },
+    "installed-B-merge": {
+      "bytes": 69475,
+      "sha256": "20a7dd58dccab2ed9ab66e5047adb48b68bea299d6ab9605d3b4a2657eab9019"
+    },
+    "installed-B-runtime": {
+      "bytes": 925745,
+      "sha256": "61d39bdcc327b4d5e6b0e388efb2aaa8425dbf2c93e5677d67cba548a28de86d"
+    },
+    "installed-A-addressed-refused-moderated": {
+      "bytes": 8102,
+      "sha256": "72890d61a2b67ec94baef04f301c8cb4feb1c61f91337fc5fb44f13558cd51ee"
+    },
+    "installed-B-ordinary-later-writing": {
+      "bytes": 40995,
+      "sha256": "1ec46ce4c3541cf92c158bf4352b745538cd274821013b3967aa5942ec5f6ff7"
+    },
+    "installed-A-environment": {
+      "bytes": 754,
+      "sha256": "f31f9b638e0cfbfd1d33d6d4efb366a744e3cb626864e9c17dfc607558717166"
+    },
+    "installed-A-manager": {
+      "bytes": 6886,
+      "sha256": "48b18c090f05a4f80d4b2e33deacf7354d495d084298355e7af4a741b720fb7a"
+    },
+    "installed-A-current-native-ordinary.txt": {
+      "bytes": 13392,
+      "sha256": "dfa9f63f5a9ee31c0af110594a7ab0f86f8118e633b04bfbe8846001dfe2cb00"
+    },
+    "installed-A-current-native-addressed.txt": {
+      "bytes": 13547,
+      "sha256": "22b96811c67e031be02aa403e72c29a3742e51efff42026f4871efb195b6d538"
+    },
+    "installed-A-native-review.txt": {
+      "bytes": 13655,
+      "sha256": "5a356b4ca99c43e6e5820eda410a43c3839b47a37d7c6b7c7720de3c932f57c8"
+    },
+    "installed-A-final-version.json": {
+      "bytes": 754,
+      "sha256": "f31f9b638e0cfbfd1d33d6d4efb366a744e3cb626864e9c17dfc607558717166"
+    },
+    "installed-B-current-native-ordinary.txt": {
+      "bytes": 13289,
+      "sha256": "534ff35c7f496bc261a541010f6eea40ca77be0e61183951566442d129ebb811"
+    },
+    "installed-B-current-native-addressed.txt": {
+      "bytes": 13444,
+      "sha256": "a4fb3c9f586abddbed86a96a8aa537ffc2c1d7b5a4ce3ee15fd499cc31794872"
+    },
+    "installed-B-native-review.txt": {
+      "bytes": 13552,
+      "sha256": "0015830d3fa788bb49e634c76fa96d5728450ee409ebabfe7f6ad6d73373ba2f"
+    },
+    "installed-B-final-version.json": {
+      "bytes": 750,
+      "sha256": "99716a71a9b47e430d239902477bfdc48372292d14cecb623e4930b6bbd1a91f"
+    },
+    "manager-source-readbacks": {
+      "bytes": 407,
+      "sha256": "4b4c986c251fce0828c8313d294a8200a1d01edff617ab974c19e8cd4819d76d"
+    }
+  },
+  "freshNativeChecks": {
+    "browsers": ["edge", "chrome"],
+    "candidateSha256": "409c25e3b34e02f99426d9835b1cfa357cabcb1c49a609625412e23302e81c68",
+    "ordinaryPreparation": "observed",
+    "addressedOpeningPostPreparation": "observed",
+    "explicitPersonUIDSelection": "observed",
+    "freshReplyReview": "observed",
+    "operations": "GET forms and semantic read-only person-search POST; no reply submission"
+  },
+  "returnedPostNavigation": {
+    "browsers": ["edge", "chrome"],
+    "result": "coordinator observed Open confirmed post navigates to returned actual synthetic post"
+  },
+  "historicalNativeProvenance": [
+    "../21-native-comparison.md",
+    "../21-replies.md"
+  ],
+  "limits": [
+    "No new live forum submissions in these installed controlled journeys.",
+    "Historical native inputs retain their original candidate and observation scope.",
+    "Notification delivery, complete merge grammar and atomic account isolation are not established.",
+    "Completed Standards/Spec/BDFL review accepted the evidence map; the confirmed library-version finding is corrected and verified by a new clean consumer.",
+    "No stable-manager, Windows or complete release qualification.",
+    "Raw DOM, original IDs, request captures and screenshots remain private."
+  ]
+}

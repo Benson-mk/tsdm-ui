@@ -262,7 +262,12 @@ export interface ForumClient {
     form: SearchForm,
     expectedAccount: Account,
   ): Promise<ReadResult>;
+  findMention(writing: PreparedWriting, query: string): Promise<MentionResult>;
   prepareNewThread(boardId: string): Promise<PrepareWritingResult>;
+  prepareReply(
+    boardId: string,
+    target: ReplyTarget,
+  ): Promise<PrepareWritingResult>;
   prepareThreadPublication(
     submission: ThreadSubmission,
   ): Promise<PublicationPreparationResult>;
@@ -287,8 +292,33 @@ export interface WritingOption {
   choices: { value: string; label: string; disabled: boolean }[];
   maxLength: number | null;
 }
+export interface MentionIdentity {
+  id: string;
+  name: string;
+}
+export type MentionResult =
+  | {
+      kind: "people";
+      people: MentionIdentity[];
+      generation: number;
+      account: Account;
+    }
+  | {
+      kind: FailureKind;
+      message: string;
+      generation: number;
+      account: Account;
+    };
+export interface ReplyTarget {
+  threadId: string;
+  postId: string | null;
+  author: string;
+  authorId: string | null;
+}
 export interface PreparedWriting {
-  action: "new-thread";
+  action: "new-thread" | "reply" | "quick-quote";
+  replyTarget?: ReplyTarget;
+  mentions?: MentionIdentity[];
   board: { id: string; label: string; url: string };
   account: Extract<Account, { kind: "member" }>;
   title: string;
@@ -319,10 +349,17 @@ export interface ThreadSubmission {
   revision: number;
   writing: PreparedWriting;
 }
+export interface ReplyBefore {
+  /** Observed page only; this is not a complete census or a predicted merge target. */
+  pageURL: string;
+  postIds: string[];
+  owned: { postId: string; writing: PreparedWriting }[];
+}
 export interface ThreadPublication {
   id: string;
   generation: number;
   submission: ThreadSubmission;
+  replyBefore?: ReplyBefore;
 }
 export type PublicationPreparationResult =
   | {
@@ -363,6 +400,11 @@ export interface ThreadAttempt {
   message: string;
   checked: boolean;
   candidateURL: string | null;
+  replyComparison?: {
+    postId: string;
+    before: PreparedWriting | null;
+    observed: PreparedWriting;
+  };
   result: {
     threadId: string;
     postId: string;
