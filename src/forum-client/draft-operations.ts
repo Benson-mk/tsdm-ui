@@ -12,7 +12,8 @@ import {
   type Element,
   type Node,
 } from "./html.js";
-import { decodeWriting } from "./prepare-writing.js";
+import { decodeWriting, draftVersion as version } from "./prepare-writing.js";
+import { validateUploadFields } from "./upload-authoring.js";
 import { compatible, successful } from "./publish-thread.js";
 import { decodeThread } from "./read-thread.js";
 import { decodeDraftList, draftListPath } from "./drafts.js";
@@ -37,19 +38,45 @@ function document(response: HostResponse) {
   }
   return documentFrom(source);
 }
-function version(writing: PreparedWriting) {
-  return JSON.stringify([
-    writing.title,
-    writing.source,
-    writing.category && [
-      writing.category.name,
-      writing.category.value,
-      writing.category.checked,
-    ],
-    writing.options.map((o) => [o.name, o.value, o.checked]),
-    writing.uploadedReferences,
-    writing.attachmentFields ?? [],
-  ]);
+function associationFields(fields: PreparedWriting["attachmentFields"]) {
+  // Empty attachupdate is the native no-replacement sentinel, not new metadata.
+  return (fields ?? []).filter(
+    (f) =>
+      !(
+        /^attachupdate\[[1-9]\d*\]$/.test(f.name) &&
+        f.value === "" &&
+        !f.disabled
+      ),
+  );
+}
+function verifyAssociationFields(
+  submitted: PreparedWriting["attachmentFields"],
+  stored: PreparedWriting["attachmentFields"],
+): NonNullable<DraftAttempt["observation"]>["attachmentNormalizations"] | null {
+  const before = associationFields(submitted),
+    after = associationFields(stored);
+  const normalizations: NonNullable<
+    NonNullable<DraftAttempt["observation"]>["attachmentNormalizations"]
+  > = [];
+  if (before.length !== after.length) return null;
+  for (let i = 0; i < before.length; i++) {
+    const field = before[i]!,
+      observed = after[i]!;
+    if (field.name !== observed.name || field.disabled !== observed.disabled)
+      return null;
+    if (field.value === observed.value) continue;
+    // Native draft readback stores an enabled blank attachment price as free.
+    // Keep the direction and literal values bounded; conflict versions stay raw.
+    if (
+      !field.disabled &&
+      /^attachnew\[[1-9]\d*\]\[price\]$/.test(field.name) &&
+      field.value === "" &&
+      observed.value === "0"
+    )
+      normalizations.push({ name: field.name, submitted: "", stored: "0" });
+    else return null;
+  }
+  return normalizations;
 }
 function ancestor(node: Node, predicate: (node: Element) => boolean): boolean {
   for (
@@ -340,32 +367,49 @@ export function createDraftOperations(config: {
         status: "uncertain",
         message:
           "This record predates this save, differs from its original target, or the pre-send list was not retained. It cannot confirm this original attempt. No save was repeated.",
-        result: null,
+        result: attempt.result,
       };
     const result = await observe(row, writing.account);
-    if (
-      result.kind !== "prepared" ||
-      !result.prepared.draft ||
-      !verifyStoredWriting(writing, result.prepared) ||
-      JSON.stringify(writing.uploadedReferences) !==
-        JSON.stringify(result.prepared.uploadedReferences) ||
-      JSON.stringify(writing.attachmentFields ?? []) !==
-        JSON.stringify(result.prepared.attachmentFields ?? [])
-    )
+    if (result.kind !== "prepared" || !result.prepared.draft)
       return {
         ...attempt,
         status: "uncertain",
         message:
           "The same draft's complete saved revision could not be confirmed. No save was repeated.",
-        result: null,
+        result: attempt.result,
       };
+    const stored = result.prepared;
+    const content = !!verifyStoredWriting(
+      { ...writing, uploadedReferences: [], attachmentFields: [] },
+      { ...stored, uploadedReferences: [], attachmentFields: [] },
+    );
+    const attachmentNormalizations = verifyAssociationFields(
+      writing.attachmentFields,
+      stored.attachmentFields,
+    );
+    const attachments =
+      JSON.stringify(writing.uploadedReferences) ===
+        JSON.stringify(stored.uploadedReferences) &&
+      attachmentNormalizations !== null;
     return {
       ...attempt,
-      status: "confirmed",
-      message: `Confirmed forum draft ${row.threadId}, submitted revision ${attempt.submission.revision}. Later changes remain unsaved.`,
-      result: result.prepared.draft,
+      observation: {
+        state: "draft",
+        content: content ? "confirmed" : "unknown",
+        attachments: attachments ? "confirmed" : "unknown",
+        ...(attachments && attachmentNormalizations?.length
+          ? { attachmentNormalizations }
+          : {}),
+      },
+      status: content && attachments ? "confirmed" : "uncertain",
+      message:
+        content && attachments
+          ? `Confirmed forum draft ${row.threadId}, submitted revision ${attempt.submission.revision}. Later changes remain unsaved.`
+          : `Draft ${row.threadId} observed; submitted content ${content ? "confirmed" : "unconfirmed"}; attachment associations ${attachments ? "confirmed" : "unconfirmed"}. No save was repeated.`,
+      result: stored.draft!,
     };
   }
+
   async function checkPublication(
     attempt: DraftAttempt,
   ): Promise<DraftAttempt> {
@@ -481,18 +525,39 @@ export function createDraftOperations(config: {
       if (
         config.generation() !== generation ||
         member(prepared.account) !== writing.account.id ||
-        prepared.kind !== "prepared" ||
-        !verifyStoredWriting(writing, prepared.prepared) ||
-        JSON.stringify(writing.attachmentFields ?? []) !==
-          JSON.stringify(prepared.prepared.attachmentFields ?? [])
+        prepared.kind !== "prepared"
       )
         return uncertain(
           "The complete published source or account could not be confirmed. No publication was repeated.",
         );
+      const stored = prepared.prepared;
+      const content = !!verifyStoredWriting(
+        { ...writing, uploadedReferences: [], attachmentFields: [] },
+        { ...stored, uploadedReferences: [], attachmentFields: [] },
+      );
+      const attachmentNormalizations = verifyAssociationFields(
+        writing.attachmentFields,
+        stored.attachmentFields,
+      );
+      const attachments =
+        JSON.stringify(writing.uploadedReferences) ===
+          JSON.stringify(stored.uploadedReferences) &&
+        attachmentNormalizations !== null;
       return {
         ...attempt,
-        status: "published",
-        message: `Confirmed publication of forum draft ${draft.threadId}, post ${draft.postId}. The draft list no longer contains this record.`,
+        observation: {
+          state: "published",
+          content: content ? "confirmed" : "unknown",
+          attachments: attachments ? "confirmed" : "unknown",
+          ...(attachments && attachmentNormalizations?.length
+            ? { attachmentNormalizations }
+            : {}),
+        },
+        status: content && attachments ? "published" : "uncertain",
+        message:
+          content && attachments
+            ? `Confirmed publication of forum draft ${draft.threadId}, post ${draft.postId}. The draft list no longer contains this record.`
+            : `Published thread ${draft.threadId} observed; submitted content ${content ? "confirmed" : "unconfirmed"}; attachment associations ${attachments ? "confirmed" : "unconfirmed"}. No publication was repeated.`,
         result: { ...draft, url: threadURL },
         publishedURL: `${threadURL}#pid${draft.postId}`,
       };
@@ -552,9 +617,14 @@ export function createDraftOperations(config: {
       if (
         prepared.kind !== "prepared" ||
         prepared.prepared.draft?.version !== draft.version ||
-        !verifyStoredWriting(writing, prepared.prepared) ||
-        JSON.stringify(writing.attachmentFields ?? []) !==
-          JSON.stringify(prepared.prepared.attachmentFields ?? []) ||
+        !verifyStoredWriting(
+          { ...writing, attachmentFields: [] },
+          { ...prepared.prepared, attachmentFields: [] },
+        ) ||
+        verifyAssociationFields(
+          writing.attachmentFields,
+          prepared.prepared.attachmentFields,
+        ) === null ||
         config.generation() !== attempt.generation
       )
         return notSent(
@@ -779,16 +849,65 @@ export function createDraftOperations(config: {
         return notSent(
           "The current draft form changed. Your writing is retained; nothing was sent.",
         );
+      const uploadFields = await validateUploadFields(
+        config.transport,
+        writing,
+        response,
+      );
       if (
-        JSON.stringify(writing.uploadedReferences) !==
-          JSON.stringify(prepared.prepared.uploadedReferences) ||
-        JSON.stringify(writing.attachmentFields ?? []) !==
-          JSON.stringify(prepared.prepared.attachmentFields ?? [])
+        config.generation() !== attempt.generation ||
+        member(config.account()) !== writing.account.id
+      )
+        return notSent(
+          "The account changed during attachment validation. Nothing was sent.",
+        );
+      const newIds = (writing.uploads ?? [])
+        .filter((u) => u.status === "uploaded")
+        .map((u) => u.serverId);
+      if (
+        !uploadFields ||
+        JSON.stringify(
+          writing.uploadedReferences.filter((id) => !newIds.includes(id)),
+        ) !== JSON.stringify(prepared.prepared.uploadedReferences) ||
+        verifyAssociationFields(
+          associationFields(writing.attachmentFields).filter(
+            (f) => !newIds.some((id) => f.name.startsWith(`attachnew[${id}]`)),
+          ),
+          prepared.prepared.attachmentFields,
+        ) === null
       )
         return notSent(
           "The current attachment references changed before saving. Nothing was sent; original source and metadata are retained.",
         );
-      const request = successful(response, writing, "save");
+      // Pending-list responses do not identify the current account. Reobserve
+      // the form after those awaits and keep the original saved-version guard.
+      const finalResponse = uploadFields.length
+        ? await config.transport.request(url, { fresh: true })
+        : response;
+      const finalPrepared = decodeWriting(
+        finalResponse,
+        url,
+        writing.board.id,
+        writing.draft
+          ? { threadId: writing.draft.threadId, postId: writing.draft.postId }
+          : undefined,
+      );
+      config.observe(finalPrepared.account);
+      if (
+        config.generation() !== attempt.generation ||
+        member(finalPrepared.account) !== writing.account.id
+      )
+        return notSent(
+          "The account changed during attachment validation. Nothing was sent.",
+        );
+      if (
+        finalPrepared.kind !== "prepared" ||
+        version(finalPrepared.prepared) !== version(prepared.prepared)
+      )
+        return notSent(
+          "The current draft changed during attachment validation. Nothing was sent.",
+        );
+      const request = successful(finalResponse, writing, "save", uploadFields);
       if (!request)
         return notSent(
           "The current native draft-save controls are unsupported. Nothing was sent.",

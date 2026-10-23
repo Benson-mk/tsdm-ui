@@ -796,7 +796,7 @@ test("J8.draft-upload-boundary: draft save refuses new local attachment state be
     .click();
   await expect(
     page.getByText(
-      "New attachment authoring is not available for forum drafts yet. Keep this writing or remove local selections before saving a draft.",
+      "Finish uploads or explicitly remove pending selections before saving or publishing a draft.",
       { exact: true },
     ),
   ).toBeVisible();
@@ -1590,8 +1590,8 @@ for (const language of ["zh-CN", "zh-TW"] as const) {
           ? "请完成上传或明确移除待处理的选择后再提交。"
           : "請完成上傳或明確移除待處理的選擇後再提交。",
         "draft-blocker": simple
-          ? "论坛草稿暂不支持新附件编辑。请保留当前编辑，或移除本地选择后再保存草稿。"
-          : "論壇草稿暫不支援新附件編輯。請保留目前編輯，或移除本機選擇後再儲存草稿。",
+          ? "请完成上传或明确移除待处理的选择后再保存或发布草稿。"
+          : "請完成上傳或明確移除待處理的選擇後再儲存或發佈草稿。",
         "upload-recovery": simple
           ? "上传可能已存储在论坛。未重放任何上传。"
           : "上傳可能已儲存在論壇。未重播任何上傳。",

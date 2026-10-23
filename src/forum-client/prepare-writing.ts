@@ -20,6 +20,7 @@ import type {
   Account,
   HostResponse,
   PrepareWritingResult,
+  PreparedWriting,
   ReplyTarget,
   WritingOption,
 } from "./types.js";
@@ -429,4 +430,46 @@ export function unresolvedWritingAttachments(writing: {
       ].map((match) => match[1]!),
     ),
   ].filter((id) => !writing.uploadedReferences.includes(id));
+}
+
+export function draftVersion(writing: PreparedWriting) {
+  return JSON.stringify([
+    writing.title,
+    writing.source,
+    writing.category && [
+      writing.category.name,
+      writing.category.value,
+      writing.category.checked,
+    ],
+    writing.options.map((o) => [o.name, o.value, o.checked]),
+    writing.uploadedReferences,
+    writing.attachmentFields ?? [],
+  ]);
+}
+
+/** Remove only the verified file from the original saved-version conflict token. */
+export function draftWithoutAttachment(
+  draft: import("./types.js").DraftIdentity,
+  id: string,
+) {
+  try {
+    const parts: unknown = JSON.parse(draft.version);
+    if (
+      !Array.isArray(parts) ||
+      parts.length !== 6 ||
+      !Array.isArray(parts[4]) ||
+      !Array.isArray(parts[5])
+    )
+      return draft;
+    parts[4] = parts[4].filter((value) => value !== id);
+    parts[5] = parts[5].filter(
+      (field: { name?: unknown }) =>
+        typeof field?.name !== "string" ||
+        (!field.name.startsWith(`attachnew[${id}]`) &&
+          !field.name.startsWith(`attachupdate[${id}]`)),
+    );
+    return { ...draft, version: JSON.stringify(parts) };
+  } catch {
+    return draft;
+  }
 }

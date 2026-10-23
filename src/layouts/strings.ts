@@ -837,10 +837,10 @@ const descriptions: Record<string, readonly [string, string]> = {
     "無法讀取所選檔案。請重新選擇。",
   ],
 
-  "New attachment authoring is not available for forum drafts yet. Keep this writing or remove local selections before saving a draft.":
+  "Finish uploads or explicitly remove pending selections before saving or publishing a draft.":
     [
-      "论坛草稿暂不支持新附件编辑。请保留当前编辑，或移除本地选择后再保存草稿。",
-      "論壇草稿暫不支援新附件編輯。請保留目前編輯，或移除本機選擇後再儲存草稿。",
+      "请完成上传或明确移除待处理的选择后再保存或发布草稿。",
+      "請完成上傳或明確移除待處理的選擇後再儲存或發佈草稿。",
     ],
   "Finish uploads or explicitly remove pending selections before submitting.": [
     "请完成上传或明确移除待处理的选择后再提交。",
@@ -850,6 +850,24 @@ const descriptions: Record<string, readonly [string, string]> = {
     [
       "已移除本地选择。未删除远程文件；中断的上传可能仍保留在论坛。",
       "已移除本機選擇。未刪除遠端檔案；中斷的上傳可能仍保留在論壇。",
+    ],
+  "The account changed during attachment validation. Nothing was sent.": [
+    "验证附件期间账号已更改。未发送任何内容。",
+    "驗證附件期間帳號已更改。未傳送任何內容。",
+  ],
+  "The current draft changed during attachment validation. Nothing was sent.": [
+    "验证附件期间当前草稿已更改。未发送任何内容。",
+    "驗證附件期間目前草稿已更改。未傳送任何內容。",
+  ],
+  "Current attachment association is unconfirmed. Check the original draft attempt before saving again.":
+    [
+      "当前附件关联未确认。再次保存前请检查原草稿尝试。",
+      "目前附件關聯未確認。再次儲存前請檢查原草稿嘗試。",
+    ],
+  "The observed draft content differs from the original submission. Resume its current revision before saving; no resend was sent.":
+    [
+      "观察到的草稿内容与原提交不同。保存前请恢复当前版本；未重新发送。",
+      "觀察到的草稿內容與原提交不同。儲存前請恢復目前版本；未重新傳送。",
     ],
   "The account changed during attachment validation. Review again; nothing was sent.":
     [
@@ -2042,6 +2060,18 @@ export function description(
     return language === "zh-CN"
       ? `已确认储存回复：主题 ${reply[1]}、帖子 ${reply[2]}，提交版本 ${reply[3]}。`
       : `已確認儲存回覆：主題 ${reply[1]}、帖子 ${reply[2]}，提交版本 ${reply[3]}。`;
+  const partialDraft =
+    /^(Draft|Published thread) (\d+) observed; submitted content (confirmed|unconfirmed); attachment associations (confirmed|unconfirmed)\. No (save|publication) was repeated\.$/.exec(
+      value,
+    );
+  if (partialDraft) {
+    const published = partialDraft[1] === "Published thread";
+    const content = partialDraft[3] === "confirmed";
+    const attachments = partialDraft[4] === "confirmed";
+    return language === "zh-CN"
+      ? `已观察到${published ? "已发布主题" : "草稿"} ${partialDraft[2]}；提交内容${content ? "已确认" : "未确认"}；附件关联${attachments ? "已确认" : "未确认"}。未重复${published ? "发布" : "保存"}。`
+      : `已觀察到${published ? "已發佈主題" : "草稿"} ${partialDraft[2]}；提交內容${content ? "已確認" : "未確認"}；附件關聯${attachments ? "已確認" : "未確認"}。未重複${published ? "發佈" : "儲存"}。`;
+  }
   const draftSave =
     /^Confirmed forum draft (\d+), submitted revision (\d+)\. Later changes remain unsaved\.$/.exec(
       value,

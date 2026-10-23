@@ -106,3 +106,5 @@ The [#22 owned-post editing implementation](docs/implementation/22-editing.md) p
 The [#25 ordinary forum drafts implementation](docs/implementation/25-drafts.md) separates explicit forum saves from local recovery, resumes and revises the same record, and independently checks publication. [Acceptance](docs/implementation/25-acceptance.md) distinguishes deterministic evidence from installed/native gates.
 
 Ordinary attachment authoring is exposed by portable client 0.8.0; see [migration and operation boundaries](docs/implementation/26-public-contract.md). Upload success, inline source, saved association and immediate file removal have separate outcomes.
+
+Forum client 0.9.0 carries attachments through the same draft save/resume/publication identity. See [draft lifecycle and independent observation semantics](docs/implementation/27-uploaded-drafts.md).

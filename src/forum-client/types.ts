@@ -561,6 +561,17 @@ export interface DraftIdentity {
   version: string;
 }
 export interface DraftAttempt {
+  observation?: {
+    state: "draft" | "published";
+    content: "confirmed" | "unknown";
+    attachments: "confirmed" | "unknown";
+    /** Independently observed native free-price defaults; submission stays exact. */
+    attachmentNormalizations?: {
+      name: string;
+      submitted: "";
+      stored: "0";
+    }[];
+  };
   checked?: boolean;
   resendOf?: string;
   priorDraftIds?: string[];

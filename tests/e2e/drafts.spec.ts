@@ -1432,7 +1432,10 @@ test("J6.mention-stored-normalization: unqualified forum rewriting of a selected
     .getByRole("button", { name: "Save forum draft", exact: true })
     .click();
   await expect(
-    page.getByText(/complete saved revision could not be confirmed/),
+    page.getByText(
+      "Draft 42 observed; submitted content unconfirmed; attachment associations confirmed. No save was repeated.",
+      { exact: true },
+    ),
   ).toBeVisible();
   await expect(page.getByText(/Confirmed forum draft 42/)).toHaveCount(0);
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
@@ -1451,7 +1454,7 @@ test("J6.mention-stored-normalization: unqualified forum rewriting of a selected
   });
 });
 
-test("J8.draft-reference-boundary: resumed existing references remain preserved without enabling the separate draft file-removal lifecycle", async ({
+test("J8.draft-reference-boundary: resumed existing references remain preserved while enabled removal still requires an explicit action", async ({
   page,
 }, info) => {
   const state = await lifecycle(page);
@@ -1487,13 +1490,13 @@ test("J8.draft-reference-boundary: resumed existing references remain preserved 
   );
   await expect(
     page.getByLabel("Select attachments", { exact: true }),
-  ).toBeDisabled();
+  ).toBeEnabled();
   await expect(
     page.getByRole("button", {
       name: "Remove server file Attachment 88",
       exact: true,
     }),
-  ).toBeDisabled();
+  ).toBeEnabled();
   await page
     .getByRole("button", { name: "Save forum draft", exact: true })
     .click();

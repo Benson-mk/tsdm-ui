@@ -542,13 +542,6 @@ function updateOption(option: WritingOption, event: Event) {
       </button>
     </section>
     <section :aria-label="attachment('Attachment authoring')">
-      <p v-if="state.context.draft">
-        {{
-          attachment(
-            "New uploads and server-file removal for drafts are not available yet. Existing references remain preserved when saving.",
-          )
-        }}
-      </p>
       <div v-if="removeUpload" role="alert">
         <p>
           {{
@@ -574,9 +567,7 @@ function updateOption(option: WritingOption, event: Event) {
         }}<input
           type="file"
           multiple
-          :disabled="
-            !state.accountVerified || state.publishing || !!state.context.draft
-          "
+          :disabled="!state.accountVerified || state.publishing"
           @change="selectAttachments"
       /></label>
       <ul>
@@ -596,7 +587,6 @@ function updateOption(option: WritingOption, event: Event) {
           <button
             v-if="['uploaded', 'associated'].includes(upload.status)"
             :aria-label="`${attachment('Remove server file')} ${upload.name}`"
-            :disabled="!!state.context.draft"
             @click="removeUpload = upload.key"
           >
             {{ attachment("Remove server file") }}

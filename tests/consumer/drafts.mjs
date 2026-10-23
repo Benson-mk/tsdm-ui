@@ -31,9 +31,7 @@ const draftCases = [];
     transport: {
       async upload(url, fields, file) {
         draftState.uploads.push({ url, fields, name: file.name });
-        throw new Error(
-          "Draft uploads are outside ordinary attachment authoring",
-        );
+        throw new Error("This fixture supplies no native upload policy");
       },
       async request(url, request) {
         draftState.requests.push({ url, method: request?.method ?? "GET" });
@@ -113,9 +111,14 @@ const draftCases = [];
   draftAssert.equal(draftUpload.kind, "not-sent");
   draftAssert.equal(
     draftState.requests.length,
-    beforeDraftAttachmentCalls,
-    "Draft upload must refuse before preparing the wrong ordinary form",
+    beforeDraftAttachmentCalls + 1,
+    "Draft upload reads the owned native draft form before refusing absent policy",
   );
+  const uploadForm = new DraftURL(draftState.requests.at(-1).url);
+  draftAssert.equal(uploadForm.searchParams.get("action"), "edit");
+  draftAssert.equal(uploadForm.searchParams.get("tid"), "42");
+  draftAssert.equal(uploadForm.searchParams.get("pid"), "101");
+  draftAssert.equal(uploadForm.searchParams.has("tsdmapp"), false);
   const draftRemoval = await draftClient.removeUploadedAttachment(
     {
       ...resumedDraft.prepared,
@@ -135,10 +138,17 @@ const draftCases = [];
     "88",
   );
   draftAssert.equal(draftRemoval.kind, "not-sent");
-  draftAssert.equal(
-    draftState.requests.length,
-    beforeDraftAttachmentCalls,
-    "Draft removal must not call an ordinary form or effect endpoint",
+  draftAssert.ok(
+    draftState.requests.slice(beforeDraftAttachmentCalls).every(({ url }) => {
+      const target = new DraftURL(url);
+      return (
+        target.searchParams.get("action") === "attachlist" ||
+        (target.searchParams.get("action") === "edit" &&
+          target.searchParams.get("tid") === "42" &&
+          target.searchParams.get("pid") === "101")
+      );
+    }),
+    "Missing file evidence permits only owned draft form and attachment-list reads, never deletion",
   );
   draftAssert.deepEqual(draftState.uploads, []);
 

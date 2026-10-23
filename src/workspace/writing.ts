@@ -129,7 +129,6 @@ export function createWriting(
           generation !== client.generation ||
           client.account.kind !== "member" ||
           client.account.id !== origin.account.id ||
-          current.draft ||
           !state.value.accountVerified ||
           state.value.publishing
         ) {
@@ -154,8 +153,7 @@ export function createWriting(
   }
   function selectAttachments(files: import("../forum-client").UploadFile[]) {
     const c = state.value.context;
-    if (!c || c.draft || !state.value.accountVerified || state.value.publishing)
-      return;
+    if (!c || !state.value.accountVerified || state.value.publishing) return;
     const rows = files.map((file) => {
       const key = crypto.randomUUID();
       uploadBytes.set(key, { ...file, bytes: new Uint8Array(file.bytes) });
@@ -706,11 +704,7 @@ export function createWriting(
         message: result.status === "published" ? result.message : "",
         context: {
           ...current,
-          ...(result.status === "confirmed" &&
-          result.result &&
-          attempt.submission.contextId === current.id
-            ? { draft: result.result }
-            : {}),
+          ...draftResult(current, result),
           draftAttempts: (current.draftAttempts ?? []).map((a) =>
             a.id === result.id ? result : a,
           ),
@@ -832,11 +826,84 @@ export function createWriting(
       },
     };
   }
+  function draftResult(
+    context: WritingContext,
+    result: DraftAttempt,
+  ): Partial<WritingContext> {
+    if (!result.result || result.submission.contextId !== context.id) return {};
+    const canonicalFields = (fields: PreparedWriting["attachmentFields"]) =>
+      (fields ?? []).map((field) =>
+        result.observation?.attachmentNormalizations?.some(
+          (normalization) =>
+            normalization.name === field.name &&
+            !field.disabled &&
+            field.value === normalization.submitted &&
+            result.submission.writing.attachmentFields?.some(
+              (original) =>
+                original.name === field.name &&
+                !original.disabled &&
+                original.value === normalization.submitted,
+            ),
+        )
+          ? { ...field, value: "0" }
+          : field,
+      );
+    return {
+      // An observed partial result is not consent to replace the original
+      // conflict baseline with another session's newer content.
+      draft:
+        context.draft && !["confirmed", "published"].includes(result.status)
+          ? context.draft
+          : result.result,
+      ...(result.observation?.attachments === "unknown"
+        ? {
+            uploads: (context.uploads ?? []).map((u) =>
+              u.serverId &&
+              result.submission.writing.uploadedReferences.includes(
+                u.serverId,
+              ) &&
+              u.status === "associated"
+                ? {
+                    ...u,
+                    status: "uploaded" as const,
+                    message:
+                      "Current attachment association is unconfirmed. Check the original draft attempt before saving again.",
+                  }
+                : u,
+            ),
+          }
+        : {}),
+      ...(["confirmed", "published"].includes(result.status)
+        ? {
+            attachmentFields: canonicalFields(context.attachmentFields),
+            uploads: (context.uploads ?? []).map((u) =>
+              u.serverId &&
+              result.submission.writing.uploadedReferences.includes(
+                u.serverId,
+              ) &&
+              ["uploaded", "associated"].includes(u.status)
+                ? {
+                    ...u,
+                    status: "associated" as const,
+                    fields: canonicalFields(u.fields),
+                    storedPost: {
+                      threadURL: result.result!.url,
+                      postId: result.result!.postId,
+                    },
+                  }
+                : u,
+            ),
+          }
+        : {}),
+    };
+  }
   function sameDraftContext(attempt: DraftAttempt, context: WritingContext) {
     const original = attempt.submission.writing;
     // A first Save can acquire a verified target without rewriting its immutable
     // submission. Only that same observed draft participates in this lineage.
-    const target = original.draft;
+    const target =
+      original.draft ??
+      (attempt.observation?.state === "draft" ? attempt.result : null);
     return (
       attempt.submission.contextId === context.id &&
       original.account.id === context.account.id &&
@@ -941,6 +1008,18 @@ export function createWriting(
       return;
     }
     const attempt = context.draftAttempts!.find((a) => a.id === proposal.id)!;
+    if (
+      !attempt.submission.writing.draft &&
+      attempt.result &&
+      attempt.observation?.content !== "confirmed"
+    ) {
+      state.value = {
+        ...state.value,
+        message:
+          "The observed draft content differs from the original submission. Resume its current revision before saving; no resend was sent.",
+      };
+      return;
+    }
     if (attempt.operation === "publish") await publishDraft(proposal.id);
     else await saveDraft(false, proposal.id);
   }
@@ -955,13 +1034,13 @@ export function createWriting(
       return;
     if (
       context.uploads?.some(
-        (u) => !["associated", "removed"].includes(u.status),
+        (u) => !["uploaded", "associated", "removed"].includes(u.status),
       )
     ) {
       state.value = {
         ...state.value,
         message:
-          "New attachment authoring is not available for forum drafts yet. Keep this writing or remove local selections before saving a draft.",
+          "Finish uploads or explicitly remove pending selections before saving or publishing a draft.",
       };
       return;
     }
@@ -1053,9 +1132,7 @@ export function createWriting(
         publishing: false,
         context: {
           ...current,
-          ...(result.status === "confirmed" && result.result
-            ? { draft: result.result }
-            : {}),
+          ...draftResult(current, result),
           draftAttempts: [
             ...(current.draftAttempts ?? []).filter((a) => a.id !== result.id),
             result,
@@ -1102,13 +1179,13 @@ export function createWriting(
       return;
     if (
       context.uploads?.some(
-        (u) => !["associated", "removed"].includes(u.status),
+        (u) => !["uploaded", "associated", "removed"].includes(u.status),
       )
     ) {
       state.value = {
         ...state.value,
         message:
-          "New attachment authoring is not available for forum drafts yet. Keep this writing or remove local selections before saving a draft.",
+          "Finish uploads or explicitly remove pending selections before saving or publishing a draft.",
       };
       return;
     }
@@ -1182,6 +1259,7 @@ export function createWriting(
         message: result.message,
         context: {
           ...current,
+          ...draftResult(current, result),
           draftAttempts: (current.draftAttempts ?? []).map((a) =>
             a.id === result.id ? result : a,
           ),
@@ -1750,7 +1828,6 @@ export function createWriting(
         u = c?.uploads?.find((v) => v.key === key);
       if (
         !c ||
-        !!c.draft ||
         !u?.serverId ||
         state.value.publishing ||
         !state.value.accountVerified ||
@@ -1801,6 +1878,11 @@ export function createWriting(
                 ? { ...v, status: "removed", message: result.message }
                 : v,
             ),
+            ...(now.draft && result.latest?.draft
+              ? {
+                  draft: { ...now.draft, version: result.latest.draft.version },
+                }
+              : {}),
             ...(now.editTarget && result.latest
               ? {
                   editTarget: {
@@ -2127,6 +2209,30 @@ export function isWritingContext(value: unknown): value is WritingContext {
           (attempt.resendOf !== undefined &&
             (!string(attempt.resendOf) || !attempt.resendOf)) ||
           !(attempt.result === null || isDraftIdentity(attempt.result))
+        )
+          return false;
+        if (
+          attempt.observation !== undefined &&
+          (!object(attempt.observation) ||
+            !["draft", "published"].includes(
+              String(attempt.observation.state),
+            ) ||
+            !["confirmed", "unknown"].includes(
+              String(attempt.observation.content),
+            ) ||
+            !["confirmed", "unknown"].includes(
+              String(attempt.observation.attachments),
+            ) ||
+            (attempt.observation.attachmentNormalizations !== undefined &&
+              (!Array.isArray(attempt.observation.attachmentNormalizations) ||
+                !attempt.observation.attachmentNormalizations.every(
+                  (n) =>
+                    object(n) &&
+                    string(n.name) &&
+                    /^attachnew\[[1-9]\d*\]\[price\]$/.test(n.name) &&
+                    n.submitted === "" &&
+                    n.stored === "0",
+                ))))
         )
           return false;
         if (

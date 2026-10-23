@@ -6,7 +6,7 @@ import {
   text,
   type Node,
 } from "./html.js";
-import { decodeWriting } from "./prepare-writing.js";
+import { decodeWriting, draftWithoutAttachment } from "./prepare-writing.js";
 import type {
   ForumTransport,
   HostResponse,
@@ -247,11 +247,15 @@ function formURL(
   const u = new URL("/forum.php", origin);
   for (const [k, v] of Object.entries({
     mod: "post",
-    action: w.editTarget ? "edit" : w.replyTarget ? "reply" : "newthread",
+    action:
+      w.editTarget || w.draft ? "edit" : w.replyTarget ? "reply" : "newthread",
     fid: w.board.id,
     ...(representation === "json" ? { tsdmapp: "json" } : {}),
-    ...(w.editTarget
-      ? { tid: w.editTarget.threadId, pid: w.editTarget.postId }
+    ...(w.editTarget || w.draft
+      ? {
+          tid: (w.editTarget ?? w.draft)!.threadId,
+          pid: (w.editTarget ?? w.draft)!.postId,
+        }
       : w.replyTarget
         ? {
             tid: w.replyTarget.threadId,
@@ -397,10 +401,6 @@ export function createUploadAuthoring(config: {
       kind: sent ? "uncertain" : "not-sent",
       message,
     });
-    if (w.draft)
-      return fail(
-        "New attachment authoring is not available for forum drafts yet.",
-      );
     if (!config.transport.upload) return fail("This host cannot upload files.");
     const bytes = new Uint8Array(file.bytes);
     if (
@@ -421,7 +421,7 @@ export function createUploadAuthoring(config: {
           response,
           url,
           w.board.id,
-          w.editTarget,
+          w.editTarget ?? w.draft,
           w.replyTarget,
         );
       config.observe(decoded.account);
@@ -515,7 +515,7 @@ export function createUploadAuthoring(config: {
           after,
           url,
           w.board.id,
-          w.editTarget,
+          w.editTarget ?? w.draft,
           w.replyTarget,
         );
       config.observe(current.account);
@@ -565,11 +565,6 @@ export function createAttachmentRemoval(config: {
       kind: sent || checkOnly ? "uncertain" : "not-sent",
       message,
     });
-    if (w.draft)
-      return {
-        kind: "not-sent",
-        message: "Server file removal for forum drafts is not available yet.",
-      };
     const key = w.account.id + ":" + id;
     if (
       !/^[1-9]\d*$/.test(id) ||
@@ -583,7 +578,13 @@ export function createAttachmentRemoval(config: {
     try {
       const url = formURL(w, config.origin),
         r = await config.transport.request(url, { fresh: true }),
-        d = decodeWriting(r, url, w.board.id, w.editTarget, w.replyTarget);
+        d = decodeWriting(
+          r,
+          url,
+          w.board.id,
+          w.editTarget ?? w.draft,
+          w.replyTarget,
+        );
       config.observe(d.account);
       if (
         generation !== config.generation() ||
@@ -625,8 +626,8 @@ export function createAttachmentRemoval(config: {
           action: "deleteattach",
           inajax: "yes",
           formhash: attr(tokens[0]!, "value"),
-          tid: w.editTarget?.threadId ?? "0",
-          pid: w.editTarget?.postId ?? "0",
+          tid: (w.editTarget ?? w.draft)?.threadId ?? "0",
+          pid: (w.editTarget ?? w.draft)?.postId ?? "0",
           "aids[]": id,
         }))
           remove.searchParams.set(k, v);
@@ -643,7 +644,7 @@ export function createAttachmentRemoval(config: {
           after,
           url,
           w.board.id,
-          w.editTarget,
+          w.editTarget ?? w.draft,
           w.replyTarget,
         );
       config.observe(latest.account);
@@ -683,7 +684,10 @@ export function createAttachmentRemoval(config: {
         kind: "removed",
         message:
           "Server file removal verified. Source references are separate; remove any remaining tag before saving.",
-        latest: latest.prepared,
+        latest: {
+          ...latest.prepared,
+          ...(w.draft ? { draft: draftWithoutAttachment(w.draft, id) } : {}),
+        },
       };
     } catch {
       return unknown("Removal check was interrupted. No removal was repeated.");
