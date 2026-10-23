@@ -916,3 +916,39 @@ select {
 .editor-literal {
   text-decoration: underline wavy;
 }
+
+.visual-editor {
+  min-width: 0;
+  overflow-x: auto;
+}
+.visual-editor table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: 12em;
+}
+.visual-editor td,
+.visual-editor th {
+  border: 1px solid currentColor;
+  min-width: 3em;
+  padding: 0.4em;
+  position: relative;
+  vertical-align: top;
+}
+.visual-editor .selectedCell {
+  background: color-mix(in srgb, var(--accent, #5588cc) 25%, transparent);
+}
+.editor-tools input[type="number"] {
+  width: 5em;
+}
+
+.visual-editor [data-editor-section] {
+  border: 1px dashed currentColor;
+  padding: 0.5em;
+  margin-block: 0.5em;
+}
+.visual-editor [data-editor-section]::before {
+  content: attr(data-editor-label);
+  display: block;
+  font-weight: 600;
+  opacity: 0.75;
+}

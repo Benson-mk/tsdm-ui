@@ -624,16 +624,27 @@ export function createWriting(
       client.account.id !== context.account.id
     )
       return;
-    const { start, end } = context.selection,
+    const session = editor(),
       insert = `@\u2063${person.name}\u2063 `;
+    // Use the active editor selection, including cell selections and the
+    // textarea's displayed-to-raw CRLF mapping. Raw source slicing cannot
+    // safely represent a visual structural selection.
+    const { from, to } = session.sourceSelection;
+    const applied =
+      session.state.mode === "visual"
+        ? session.command("paste", { text: insert })
+        : session.updateSource({
+            from,
+            to,
+            text: insert,
+            selection: {
+              from: from + insert.length,
+              to: from + insert.length,
+              direction: "none",
+            },
+          });
+    if (!applied) return;
     edit({
-      source:
-        context.source.slice(0, start) + insert + context.source.slice(end),
-      selection: {
-        start: start + insert.length,
-        end: start + insert.length,
-        direction: "none",
-      },
       mentions: [
         ...(context.mentions ?? []).filter((p) => p.id !== id),
         person,

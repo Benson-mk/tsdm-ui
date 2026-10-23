@@ -8,14 +8,20 @@ import {
   shallowRef,
   watch,
 } from "vue";
-import { DOMSerializer, type DOMOutputSpec } from "prosemirror-model";
+import {
+  DOMSerializer,
+  type DOMOutputSpec,
+  type Node as PMNode,
+} from "prosemirror-model";
 import { EditorView } from "prosemirror-view";
 import { baseKeymap } from "prosemirror-commands";
 import { keydownHandler } from "prosemirror-keymap";
 import type { Workspace } from "../workspace";
 import { clipboardText } from "../editor/model.js";
 import { editorNode, editorMark } from "./editor-dom";
-import type { EditorSnapshot } from "../editor/session.js";
+import { editorTableProps, type EditorSnapshot } from "../editor/session.js";
+import { Plugin } from "prosemirror-state";
+import { CellSelection } from "prosemirror-tables";
 import { editorText } from "./editor-strings";
 import { strings } from "../layouts/strings";
 const props = defineProps<{ workspace: Workspace }>();
@@ -34,6 +40,40 @@ const t = (value: string) =>
 const inputMessage = ref("");
 const argument = ref("");
 const tool = ref("b");
+const rows = ref(2);
+const columns = ref(2);
+const tableOperation = ref("rowAfter");
+const tableOperations = [
+  ["rowBefore", "Add row before"],
+  ["rowAfter", "Add row after"],
+  ["rowDelete", "Delete row"],
+  ["columnBefore", "Add column before"],
+  ["columnAfter", "Add column after"],
+  ["columnDelete", "Delete column"],
+  ["selectRow", "Select row"],
+  ["selectColumn", "Select column"],
+  ["selectTable", "Select table"],
+  ["mergeCells", "Merge cells"],
+  ["splitCell", "Split cell"],
+  ["tableDelete", "Delete table"],
+];
+function tableAction(insert = false) {
+  if (state.value.composing) return;
+  if (state.value.mode !== "visual") session.setMode("visual");
+  const name = tableOperation.value;
+  const applied = insert
+    ? session.command("table", {
+        rows: Number(rows.value),
+        columns: Number(columns.value),
+      })
+    : name.startsWith("select")
+      ? session.command("tableSelect", { kind: name.slice(6).toLowerCase() })
+      : session.command(name);
+  inputMessage.value = applied
+    ? ""
+    : "Select a table cell or a rectangular group of cells for this operation.";
+  focus();
+}
 const tools = [
   ["b", "Bold"],
   ["i", "Italic"],
@@ -56,6 +96,9 @@ const tools = [
   ["emoticon", "Emoticon code"],
   ["quote", "Named quote"],
   ["code", "Code"],
+  ["spoiler", "Spoiler"],
+  ["hide", "Reply-to-view hidden block"],
+  ["unwrap", "Unwrap block"],
 ];
 function focus() {
   void nextTick(() => {
@@ -115,6 +158,13 @@ function apply() {
     session.command(name === "listIndent" ? "listIndent" : "listOutdent");
   else if (name === "indent") session.command("section", { kind: "indent" });
   else if (name === "quote") session.command("quote", { author: value });
+  else if (name === "spoiler")
+    session.command("section", {
+      kind: "spoiler",
+      value: value || t("Spoiler"),
+    });
+  else if (name === "hide") session.command("section", { kind: "hide" });
+  else if (name === "unwrap") session.command("lift");
   else if (name === "code") session.command("code");
   else if (name === "align")
     session.command("section", { kind: "align", value });
@@ -143,15 +193,39 @@ function composition(value: boolean) {
 function interpret() {
   writing.interpretEditorSource();
 }
+const renderNode = (node: PMNode) =>
+  editorNode(node, {
+    hide: t("Reply-to-view hidden block"),
+    spoiler: t("Spoiler"),
+  });
 onMounted(() => {
   if (!mount.value) return;
   const nodes = Object.fromEntries(
     Object.keys(session.pmState.schema.nodes)
       .filter((name) => name !== "text" && name !== "doc")
-      .map((name) => [name, editorNode]),
+      .map((name) => [name, renderNode]),
   );
   view = new EditorView(mount.value, {
     state: session.pmState,
+    plugins: [
+      new Plugin({
+        props: {
+          ...editorTableProps,
+          // A table drag may retain its cell selection; ordinary text always uses
+          // the browser's native caret, including after source/visual switching.
+          createSelectionBetween(editor, anchor, head) {
+            return editor.state.selection instanceof CellSelection
+              ? (editorTableProps.createSelectionBetween?.call(
+                  this,
+                  editor,
+                  anchor,
+                  head,
+                ) ?? null)
+              : null;
+          },
+        },
+      }),
+    ],
     attributes: {
       role: "textbox",
       "aria-label": t("Visual post content"),
@@ -167,6 +241,15 @@ onMounted(() => {
         travel(event.shiftKey ? "redo" : "undo");
         return true;
       }
+      if (
+        event.key === "Tab" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !state.value.composing &&
+        session.command("nextCell", { direction: event.shiftKey ? -1 : 1 })
+      )
+        return true;
       return keydownHandler(baseKeymap)(editor, event);
     },
     handlePaste: (_view, event) => {
@@ -187,7 +270,7 @@ onMounted(() => {
       Object.fromEntries(
         Object.keys(session.pmState.schema.nodes)
           .filter((name) => name !== "doc" && name !== "text")
-          .map((name) => [name, (node) => editorNode(node) as DOMOutputSpec]),
+          .map((name) => [name, (node) => renderNode(node) as DOMOutputSpec]),
       ),
       {
         format: (mark) => editorMark(mark) as DOMOutputSpec,
@@ -216,14 +299,29 @@ onMounted(() => {
 });
 watch(
   () => props.workspace.preferences.state.value.language,
-  () =>
+  () => {
     view?.setProps({
       attributes: {
         role: "textbox",
         "aria-label": t("Visual post content"),
         "aria-multiline": "true",
       },
-    }),
+    });
+    // Refresh only presentation attributes: keep editable DOM and native selection.
+    for (const section of view?.dom.querySelectorAll<HTMLElement>(
+      "[data-editor-section]",
+    ) ?? []) {
+      const title = section.dataset.editorTitle;
+      const label =
+        t(
+          section.dataset.editorSection === "hide"
+            ? "Reply-to-view hidden block"
+            : "Spoiler",
+        ) + (title ? `: ${title}` : "");
+      section.dataset.editorLabel = label;
+      section.setAttribute("aria-label", label);
+    }
+  },
 );
 watch(
   () => writing.state.value.context?.source,
@@ -275,6 +373,35 @@ onBeforeUnmount(() => {
         {{ t("Apply formatting") }}
       </button>
     </div>
+    <fieldset class="editor-tools" :disabled="state.composing">
+      <legend>{{ t("Table") }}</legend>
+      <label
+        >{{ t("Table rows")
+        }}<input v-model="rows" type="number" min="1" max="20"
+      /></label>
+      <label
+        >{{ t("Table columns")
+        }}<input v-model="columns" type="number" min="1" max="20"
+      /></label>
+      <button @mousedown.prevent @click="tableAction(true)">
+        {{ t("Insert table") }}
+      </button>
+      <label
+        >{{ t("Table operation")
+        }}<select v-model="tableOperation" :aria-label="t('Table operation')">
+          <option
+            v-for="item in tableOperations"
+            :key="item[0]"
+            :value="item[0]"
+          >
+            {{ t(item[1] ?? "") }}
+          </option>
+        </select></label
+      >
+      <button @mousedown.prevent @click="tableAction()">
+        {{ t("Apply table operation") }}
+      </button>
+    </fieldset>
     <p
       v-if="state.issues.some((issue) => issue.kind === 'protected')"
       role="status"

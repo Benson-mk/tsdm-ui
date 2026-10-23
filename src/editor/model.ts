@@ -14,6 +14,7 @@ import type {
   PreservedRange,
   DocumentExport,
 } from "./types.js";
+import { TableMap } from "prosemirror-tables";
 import { Schema, type Node as PMNode, type Slice } from "prosemirror-model";
 import {
   parseBBCode,
@@ -405,10 +406,15 @@ export function importSource(
       if (!structure || !cells || cells.some((row) => !row))
         return paragraph([raw(node, "malformed-table")]);
       const span = (cell: TagNode, name: string) => {
-        const value = attributeValue(cell.open, name);
+        const argument = defaultArgument(cell.open).split(",");
+        const value =
+          attributeValue(cell.open, name) ??
+          (argument.length >= 2
+            ? (argument[name === "colspan" ? 0 : 1] ?? "")
+            : null);
         return value === null
           ? 1
-          : /^[1-9]\d{0,2}$/.test(value) && Number(value) <= 100
+          : /^[1-9]\d{0,2}$/.test(value) && Number(value) <= 99
             ? Number(value)
             : null;
       };
@@ -418,6 +424,10 @@ export function importSource(
           (row) =>
             row!.children.some(
               ({ node: cell }) =>
+                (defaultArgument(cell.open) !== "" &&
+                  !/^(?:\d{1,4}%?|[1-9]\d?,[1-9]\d?(?:,\d{1,4}%?)?)$/.test(
+                    defaultArgument(cell.open),
+                  )) ||
                 span(cell, "colspan") === null ||
                 span(cell, "rowspan") === null,
             ) ||
@@ -448,7 +458,10 @@ export function importSource(
           ),
         ),
       );
-      return make("table", { syntax: lexeme }, rows);
+      const table = make("table", { syntax: lexeme }, rows);
+      if (TableMap.get(table).problems?.length)
+        return paragraph([raw(node, "unsupported-table-grid")]);
+      return table;
     }
     return paragraph([raw(node, "structural-tag-outside-container")]);
   }

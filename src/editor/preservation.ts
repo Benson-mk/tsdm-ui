@@ -12,6 +12,7 @@ import {
   sourceId,
   safeBoundary,
   attributeValue,
+  defaultArgument,
   setAttribute,
 } from "./bbcode.js";
 import { exportDocument, newSyntax } from "./model.js";
@@ -154,16 +155,38 @@ export function preserveTransaction(
         attrs.boundary = "\n";
     }
     if (["table_cell", "table_header"].includes(node.type.name)) {
-      for (const field of ["colspan", "rowspan"]) {
-        const value = node.attrs[field];
-        if (!Number.isInteger(value) || value < 1 || value > 100)
-          throw new Error("Unsupported table span.");
-        const raw = attributeValue(lexical!.open, field);
-        if (value !== (raw === null ? 1 : Number(raw)))
-          lexical = {
-            ...lexical!,
-            open: setAttribute(lexical!.open, field, value),
-          };
+      const { colspan, rowspan } = node.attrs;
+      if (
+        ![colspan, rowspan].every(
+          (value) => Number.isInteger(value) && value >= 1 && value <= 99,
+        )
+      )
+        throw new Error("Unsupported table span.");
+      const argument = defaultArgument(lexical!.open).split(",");
+      if (
+        ["colspan", "rowspan"].some(
+          (field) => attributeValue(lexical!.open, field) !== null,
+        )
+      ) {
+        for (const field of ["colspan", "rowspan"]) {
+          const raw = attributeValue(lexical!.open, field);
+          if (node.attrs[field] !== (raw === null ? 1 : Number(raw)))
+            lexical = {
+              ...lexical!,
+              open: setAttribute(lexical!.open, field, node.attrs[field]),
+            };
+        }
+      } else {
+        const oldColumns = argument.length >= 2 ? Number(argument[0]) : 1;
+        const oldRows = argument.length >= 2 ? Number(argument[1]) : 1;
+        if (colspan !== oldColumns || rowspan !== oldRows) {
+          const width = argument.length >= 2 ? argument[2] : argument[0];
+          const value = `${colspan},${rowspan}${width ? `,${width}` : ""}`;
+          const open = /^\[[^=\]]+=/.test(lexical!.open)
+            ? lexical!.open.replace(/^(\[[^=\]]+=)[^\]]*/, `$1${value}`)
+            : lexical!.open.replace(/\]$/, `=${value}]`);
+          lexical = { ...lexical!, open };
+        }
       }
       attrs.syntax = lexical!;
     }

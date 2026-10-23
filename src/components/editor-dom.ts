@@ -3,7 +3,13 @@ import type { NodeView, MarkView } from "prosemirror-view";
 
 // Every source-derived value is inert text or a bounded CSS value. References
 // deliberately do not create URL-loading elements in a composition surface.
-export function editorNode(node: PMNode): NodeView {
+export function editorNode(
+  node: PMNode,
+  labels: { hide: string; spoiler: string } = {
+    hide: "Reply-to-view hidden block",
+    spoiler: "Spoiler",
+  },
+): NodeView {
   const names: Record<string, string> = {
     paragraph: "p",
     hard_break: "br",
@@ -35,9 +41,24 @@ export function editorNode(node: PMNode): NodeView {
           : `${node.attrs.syntax.open}${node.attrs.syntax.close}`;
     return { dom };
   }
+  if (["table_cell", "table_header"].includes(node.type.name)) {
+    dom.setAttribute("colspan", String(node.attrs.colspan));
+    dom.setAttribute("rowspan", String(node.attrs.rowspan));
+  }
   if (node.type.name === "hard_break") return { dom };
   if (node.type.name === "format_block") applyFrames(dom, [node.attrs.frame]);
   if (node.type.name === "section") {
+    if (node.attrs.kind === "hide" || node.attrs.kind === "spoiler") {
+      const kind: "hide" | "spoiler" = node.attrs.kind;
+      dom.dataset.editorSection = kind;
+      const title =
+        /^\[spoiler\s*=\s*(.*?)\]$/i.exec(node.attrs.syntax?.open ?? "")?.[1] ??
+        "";
+      dom.dataset.editorTitle = title;
+      dom.dataset.editorLabel = labels[kind] + (title ? `: ${title}` : "");
+      dom.setAttribute("role", "group");
+      dom.setAttribute("aria-label", dom.dataset.editorLabel);
+    }
     const match = /\[align\s*=\s*["']?(left|center|right|justify)/i.exec(
       node.attrs.syntax?.open ?? "",
     );

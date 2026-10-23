@@ -113,14 +113,15 @@ export function content(node: Node, base: string): ContentNode[] {
         (n) => hasClass(n, "spoilerbody") || hasClass(n, "spoiler_content"),
       )[0];
     if (spoilerBody) {
-      const control = descendants(
+      const controls = descendants(
         child,
         (n) =>
           hasClass(n, "spoilerbutton") ||
           hasClass(n, "spoiler_btn") ||
           hasClass(n, "spoilerheader") ||
           hasClass(n, "spoiler_control"),
-      )[0];
+      );
+      const control = controls.find((n) => attr(n, "value") || label(n));
       return [
         {
           kind: "element",
