@@ -382,6 +382,24 @@ export function decodeWriting(
       category: category ? option(category, "Category") : null,
       options,
       uploadedReferences: references,
+      ...(edit
+        ? {
+            uploads: references.map((id) => ({
+              key: `existing:${id}`,
+              serverId: id,
+              name: `Attachment ${id}`,
+              type: "",
+              size: 0,
+              loaded: 0,
+              status: "associated" as const,
+              message:
+                "Existing saved attachment. Removing its source tag does not remove the server file.",
+              fields: editAttachmentFields(attachments).filter((f) =>
+                f.name.startsWith(`attachnew[${id}]`),
+              ),
+            })),
+          }
+        : {}),
       attachmentFields: edit
         ? editAttachmentFields(attachments)
         : controls

@@ -827,6 +827,50 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "The writing context or account changed while reading files. Select them again for the current writing.":
+    [
+      "读取文件时编辑上下文或账号已改变。请为当前编辑重新选择文件。",
+      "讀取檔案時編輯內容或帳號已改變。請為目前編輯重新選擇檔案。",
+    ],
+  "The selected files could not be read. Select them again.": [
+    "无法读取所选文件。请重新选择。",
+    "無法讀取所選檔案。請重新選擇。",
+  ],
+
+  "New attachment authoring is not available for forum drafts yet. Keep this writing or remove local selections before saving a draft.":
+    [
+      "论坛草稿暂不支持新附件编辑。请保留当前编辑，或移除本地选择后再保存草稿。",
+      "論壇草稿暫不支援新附件編輯。請保留目前編輯，或移除本機選擇後再儲存草稿。",
+    ],
+  "Finish uploads or explicitly remove pending selections before submitting.": [
+    "请完成上传或明确移除待处理的选择后再提交。",
+    "請完成上傳或明確移除待處理的選擇後再提交。",
+  ],
+  "Local selection removed. No remote file was deleted; an interrupted upload may remain on the forum.":
+    [
+      "已移除本地选择。未删除远程文件；中断的上传可能仍保留在论坛。",
+      "已移除本機選擇。未刪除遠端檔案；中斷的上傳可能仍保留在論壇。",
+    ],
+  "The account changed during attachment validation. Review again; nothing was sent.":
+    [
+      "验证附件时账号已改变。请重新审核；未发送任何内容。",
+      "驗證附件時帳號已改變。請重新審核；未傳送任何內容。",
+    ],
+  "The account or preparation changed during attachment validation. Nothing was sent.":
+    [
+      "验证附件时账号或准备内容已改变。未发送任何内容。",
+      "驗證附件時帳號或準備內容已改變。未傳送任何內容。",
+    ],
+  "The account changed before save. Nothing was sent.": [
+    "保存前账号已改变。未发送任何内容。",
+    "儲存前帳號已改變。未傳送任何內容。",
+  ],
+  "Server file removal verified. Source references are separate; remove any remaining tag before saving.":
+    [
+      "已验证服务器文件移除。正文引用是独立内容；保存前请移除任何剩余标签。",
+      "已驗證伺服器檔案移除。正文引用是獨立內容；儲存前請移除任何剩餘標籤。",
+    ],
+
   "Review the complete source and resolve its interpretation before publication.":
     [
       "请检查完整源码，并在发布前明确其解释方式。",

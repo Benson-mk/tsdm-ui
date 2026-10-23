@@ -1450,3 +1450,74 @@ test("J6.mention-stored-normalization: unqualified forum rewriting of a selected
     contentType: "application/json",
   });
 });
+
+test("J8.draft-reference-boundary: resumed existing references remain preserved without enabling the separate draft file-removal lifecycle", async ({
+  page,
+}, info) => {
+  const state = await lifecycle(page);
+  state.saved = new URLSearchParams({
+    subject: "Reference boundary",
+    message: "Remote [attach]88[/attach]",
+    typeid: "3",
+    usesig: "1",
+    price: "0",
+    save: "1",
+  });
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Drafts", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Load forum drafts", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Resume Reference boundary", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Discard local changes and resume draft",
+      exact: true,
+    })
+    .click();
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    "Remote [attach]88[/attach]",
+  );
+  await expect(
+    page.getByLabel("Select attachments", { exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", {
+      name: "Remove server file Attachment 88",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Save forum draft", exact: true })
+    .click();
+  await expect(page.getByText(/Confirmed forum draft 42/)).toBeVisible();
+  expect(state.posts).toHaveLength(1);
+  expect(state.posts[0]!.get("attachnew[88][description]")).toBe(
+    "existing metadata",
+  );
+  expect(
+    state.reads.some(
+      (url) => new URL(url).searchParams.get("action") === "deleteattach",
+    ),
+  ).toBe(false);
+  await info.attach("draft-reference-boundary.json", {
+    body: Buffer.from(
+      JSON.stringify({
+        posts: state.posts.map((p) => Object.fromEntries(p)),
+        reads: state.reads,
+      }),
+    ),
+    contentType: "application/json",
+  });
+  await info.attach("draft-reference-boundary.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});

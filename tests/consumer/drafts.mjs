@@ -15,7 +15,13 @@ const draftCases = [];
   const draftList =
     draftOrigin +
     "/home.php?mod=space&do=thread&view=me&type=thread&filter=save";
-  const draftState = { saved: null, published: false, posts: [], requests: [] };
+  const draftState = {
+    saved: null,
+    published: false,
+    posts: [],
+    requests: [],
+    uploads: [],
+  };
   const draftActor =
     '<div id="um"><strong><a href="home.php?mod=space&uid=7">Writer 7</a></strong></div>';
   const draftForm = (edit) =>
@@ -23,6 +29,12 @@ const draftCases = [];
   const draftClient = createDraftClient({
     origin: draftOrigin,
     transport: {
+      async upload(url, fields, file) {
+        draftState.uploads.push({ url, fields, name: file.name });
+        throw new Error(
+          "Draft uploads are outside ordinary attachment authoring",
+        );
+      },
       async request(url, request) {
         draftState.requests.push({ url, method: request?.method ?? "GET" });
         const target = new DraftURL(url);
@@ -91,6 +103,45 @@ const draftCases = [];
   );
   draftAssert.equal(resumedDraft.kind, "prepared");
   draftAssert.equal(resumedDraft.prepared.source, "Complete portable source");
+  const beforeDraftAttachmentCalls = draftState.requests.length;
+  const draftUpload = await draftClient.uploadAttachment(
+    resumedDraft.prepared,
+    { name: "note.txt", type: "text/plain", bytes: new Uint8Array([65]) },
+    () => {},
+    { aborted: false, addEventListener() {}, removeEventListener() {} },
+  );
+  draftAssert.equal(draftUpload.kind, "not-sent");
+  draftAssert.equal(
+    draftState.requests.length,
+    beforeDraftAttachmentCalls,
+    "Draft upload must refuse before preparing the wrong ordinary form",
+  );
+  const draftRemoval = await draftClient.removeUploadedAttachment(
+    {
+      ...resumedDraft.prepared,
+      uploads: [
+        {
+          key: "existing:88",
+          name: "Attachment 88",
+          type: "",
+          size: 0,
+          loaded: 0,
+          status: "associated",
+          serverId: "88",
+          message: "",
+        },
+      ],
+    },
+    "88",
+  );
+  draftAssert.equal(draftRemoval.kind, "not-sent");
+  draftAssert.equal(
+    draftState.requests.length,
+    beforeDraftAttachmentCalls,
+    "Draft removal must not call an ordinary form or effect endpoint",
+  );
+  draftAssert.deepEqual(draftState.uploads, []);
+
   const invalidCreation = await draftClient.prepareThreadPublication({
     contextId: "portable-draft-context",
     revision: 2,

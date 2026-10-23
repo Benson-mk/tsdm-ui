@@ -92,6 +92,209 @@ export function createWriting(
     resend: null,
     draftResend: null,
   });
+  const uploadBytes = new Map<string, import("../forum-client").UploadFile>();
+  const uploadControllers = new Map<string, AbortController>();
+  function updateUpload(
+    key: string,
+    patch: Partial<import("../forum-client").WritingUpload>,
+  ) {
+    const c = state.value.context;
+    if (!c?.uploads?.some((u) => u.key === key)) return;
+    state.value = {
+      ...state.value,
+      publication: null,
+      context: {
+        ...c,
+        revision: c.revision + 1,
+        uploads: c.uploads.map((u) => (u.key === key ? { ...u, ...patch } : u)),
+      },
+    };
+    void changed();
+  }
+  function beginAttachmentSelection() {
+    const origin = state.value.context;
+    const generation = client.generation;
+    let delivered = false;
+    state.value = { ...state.value, message: "" };
+    return {
+      complete(files: import("../forum-client").UploadFile[]) {
+        const current = state.value.context;
+        if (delivered) return;
+        delivered = true;
+        if (
+          !origin ||
+          !current ||
+          origin.id !== current.id ||
+          origin.account.id !== current.account.id ||
+          generation !== client.generation ||
+          client.account.kind !== "member" ||
+          client.account.id !== origin.account.id ||
+          current.draft ||
+          !state.value.accountVerified ||
+          state.value.publishing
+        ) {
+          state.value = {
+            ...state.value,
+            message:
+              "The writing context or account changed while reading files. Select them again for the current writing.",
+          };
+          return;
+        }
+        selectAttachments(files);
+      },
+      fail() {
+        if (delivered) return;
+        delivered = true;
+        state.value = {
+          ...state.value,
+          message: "The selected files could not be read. Select them again.",
+        };
+      },
+    };
+  }
+  function selectAttachments(files: import("../forum-client").UploadFile[]) {
+    const c = state.value.context;
+    if (!c || c.draft || !state.value.accountVerified || state.value.publishing)
+      return;
+    const rows = files.map((file) => {
+      const key = crypto.randomUUID();
+      uploadBytes.set(key, { ...file, bytes: new Uint8Array(file.bytes) });
+      return {
+        key,
+        name: file.name,
+        type: file.type,
+        size: file.bytes.length,
+        status: "selected" as const,
+        message: "",
+        loaded: 0,
+      };
+    });
+    state.value = {
+      ...state.value,
+      publication: null,
+      context: {
+        ...c,
+        revision: c.revision + 1,
+        uploads: [...(c.uploads ?? []), ...rows],
+      },
+    };
+    void changed();
+  }
+  async function uploadAttachment(key: string) {
+    const c = state.value.context,
+      row = c?.uploads?.find((u) => u.key === key),
+      file = uploadBytes.get(key);
+    if (
+      !c ||
+      !row ||
+      row.status !== "selected" ||
+      !file ||
+      !state.value.accountVerified ||
+      state.value.publishing ||
+      uploadControllers.size
+    )
+      return;
+    const controller = new AbortController();
+    uploadControllers.set(key, controller);
+    updateUpload(key, {
+      status: "uploading",
+      message: "Uploading selected bytes…",
+    });
+    const saved = await changed();
+    if (!saved) {
+      uploadControllers.delete(key);
+      updateUpload(key, {
+        status: "selected",
+        message: "Refresh recovery must be available before upload.",
+      });
+      return;
+    }
+    const result = await client.uploadAttachment(
+      c,
+      file,
+      (loaded) => updateUpload(key, { loaded }),
+      controller.signal,
+    );
+    uploadControllers.delete(key);
+    accountObserved(client.account);
+    observe(client.account);
+    const current = state.value.context;
+    if (current?.id !== c.id || !current.uploads?.some((u) => u.key === key))
+      return;
+    if (result.kind === "uploaded") {
+      state.value = {
+        ...state.value,
+        publication: null,
+        context: {
+          ...current,
+          revision: current.revision + 1,
+          uploadedReferences: [...current.uploadedReferences, result.id],
+          attachmentFields: [
+            ...(current.attachmentFields ?? []),
+            ...result.fields,
+          ],
+          uploads: (current.uploads ?? []).map((u) =>
+            u.key === key
+              ? {
+                  ...u,
+                  status: "uploaded",
+                  serverId: result.id,
+                  referenceKind: result.referenceKind,
+                  originalSha256: result.sha256,
+                  fields: result.fields,
+                  loaded: u.size,
+                  message:
+                    "Original selected bytes sent. Upload success does not establish a saved association.",
+                }
+              : u,
+          ),
+        },
+      };
+      uploadBytes.delete(key);
+      void changed();
+    } else
+      updateUpload(key, {
+        status: result.kind === "uncertain" ? "uncertain" : "rejected",
+        message: result.message,
+        ...(result.kind === "uncertain" && result.id
+          ? { serverId: result.id }
+          : {}),
+      });
+  }
+  function insertAttachment(key: string) {
+    const c = state.value.context,
+      u = c?.uploads?.find((u) => u.key === key);
+    if (
+      !c ||
+      !u?.serverId ||
+      state.value.composing ||
+      !["uploaded", "associated"].includes(u.status)
+    )
+      return;
+    if (!u.referenceKind) {
+      updateUpload(key, {
+        message:
+          "This attachment has no verified insertion instruction. Continue in the native editor.",
+      });
+      return;
+    }
+    const tag = `[${u.referenceKind}]${u.serverId}[/${u.referenceKind}]`,
+      session = editor();
+    const { from, to } = session.sourceSelection;
+    if (session.state.mode === "visual")
+      session.command("reference", { kind: u.referenceKind, body: u.serverId });
+    else
+      session.updateSource({
+        from,
+        to,
+        text: tag,
+        selection: {
+          from: from + tag.length,
+          to: from + tag.length,
+          direction: "none",
+        },
+      });
+  }
   let editorSession: EditorSession | null = null;
   let editorContext = "";
   let recoveredInterpretation = false;
@@ -248,9 +451,6 @@ export function createWriting(
         revision: 1,
         selection: { start: 0, end: 0, direction: "none" },
         ...(existing?.attempts?.length ? { attempts: existing.attempts } : {}),
-        ...(existing?.draftAttempts?.length
-          ? { draftAttempts: existing.draftAttempts }
-          : {}),
         ...(existing?.draftAttempts?.length
           ? { draftAttempts: existing.draftAttempts }
           : {}),
@@ -602,6 +802,29 @@ export function createWriting(
               },
             }
           : {}),
+        ...(attempt.status === "confirmed"
+          ? {
+              uploads: (context.uploads ?? []).map((u) =>
+                u.serverId &&
+                attempt.publication.submission.writing.uploadedReferences.includes(
+                  u.serverId,
+                )
+                  ? {
+                      ...u,
+                      status: "associated" as const,
+                      ...(attempt.result
+                        ? {
+                            storedPost: {
+                              threadURL: attempt.result.url,
+                              postId: attempt.result.postId,
+                            },
+                          }
+                        : {}),
+                    }
+                  : u,
+              ),
+            }
+          : {}),
         attempts: [
           ...(context.attempts ?? []).filter((item) => item.id !== attempt.id),
           attempt,
@@ -730,6 +953,18 @@ export function createWriting(
       state.value.composing
     )
       return;
+    if (
+      context.uploads?.some(
+        (u) => !["associated", "removed"].includes(u.status),
+      )
+    ) {
+      state.value = {
+        ...state.value,
+        message:
+          "New attachment authoring is not available for forum drafts yet. Keep this writing or remove local selections before saving a draft.",
+      };
+      return;
+    }
     if (context.editorUnresolved) {
       state.value = {
         ...state.value,
@@ -865,6 +1100,18 @@ export function createWriting(
       state.value.composing
     )
       return;
+    if (
+      context.uploads?.some(
+        (u) => !["associated", "removed"].includes(u.status),
+      )
+    ) {
+      state.value = {
+        ...state.value,
+        message:
+          "New attachment authoring is not available for forum drafts yet. Keep this writing or remove local selections before saving a draft.",
+      };
+      return;
+    }
     if (context.editorUnresolved) {
       state.value = {
         ...state.value,
@@ -946,6 +1193,18 @@ export function createWriting(
       await publishedDraft?.(result.publishedURL);
   }
   async function reviewPublication(resendId?: string) {
+    if (
+      state.value.context?.uploads?.some(
+        (u) => !["uploaded", "associated", "removed"].includes(u.status),
+      )
+    ) {
+      state.value = {
+        ...state.value,
+        message:
+          "Finish uploads or explicitly remove pending selections before submitting.",
+      };
+      return;
+    }
     const context = state.value.context;
     if (
       context?.action === "new-thread" &&
@@ -1352,6 +1611,35 @@ export function createWriting(
     },
     snapshot: () => state.value.context,
     restore: (context: WritingContext | null) => {
+      uploadBytes.clear();
+      if (context?.uploads)
+        context = {
+          ...context,
+          uploads: context.uploads.map((u) =>
+            u.status === "selected"
+              ? {
+                  ...u,
+                  status: "reselect",
+                  message:
+                    "File bytes are not retained across refresh. Select the file again.",
+                }
+              : u.status === "removing"
+                ? {
+                    ...u,
+                    status: "removal-uncertain",
+                    message:
+                      "Removal may have happened. Check result; nothing was replayed.",
+                  }
+                : u.status === "uploading"
+                  ? {
+                      ...u,
+                      status: "uncertain",
+                      message:
+                        "Upload may already be stored. No upload was replayed.",
+                    }
+                  : u,
+          ),
+        };
       if (context?.draftAttempts)
         context = {
           ...context,
@@ -1415,6 +1703,169 @@ export function createWriting(
             : state.value.acknowledged,
       };
     },
+    checkStoredAttachment: async (key: string) => {
+      const c = state.value.context,
+        u = c?.uploads?.find((v) => v.key === key);
+      if (
+        !c ||
+        !u?.serverId ||
+        !u.storedPost ||
+        !u.originalSha256 ||
+        !state.value.accountVerified
+      )
+        return;
+      updateUpload(key, {
+        message: "Checking independently received file bytes…",
+      });
+      const result = await client.downloadAttachment({
+        threadURL: u.storedPost.threadURL,
+        postId: u.storedPost.postId,
+        attachmentId: u.serverId,
+        account: c.account,
+      });
+      accountObserved(client.account);
+      observe(client.account);
+      if (state.value.context?.id !== c.id) return;
+      if (result.kind !== "file") {
+        updateUpload(key, { message: result.message });
+        return;
+      }
+      const hash = Array.from(
+        new Uint8Array(
+          await crypto.subtle.digest("SHA-256", new Uint8Array(result.bytes)),
+        ),
+        (b) => b.toString(16).padStart(2, "0"),
+      ).join("");
+      updateUpload(key, {
+        message:
+          hash === u.originalSha256 &&
+          result.bytes.length === u.size &&
+          result.name === u.name
+            ? "Stored filename and bytes match the selected file."
+            : "Server file differs from selected bytes or filename. Server normalization is disclosed; original byte identity is not claimed.",
+      });
+    },
+    removeServerAttachment: async (key: string, checkOnly = false) => {
+      const c = state.value.context,
+        u = c?.uploads?.find((v) => v.key === key);
+      if (
+        !c ||
+        !!c.draft ||
+        !u?.serverId ||
+        state.value.publishing ||
+        !state.value.accountVerified ||
+        (!checkOnly &&
+          !["uploaded", "associated", "removed"].includes(u.status))
+      )
+        return;
+      updateUpload(key, {
+        status: "removing",
+        message:
+          "Immediate server-file removal pending. Local discard cannot undo it.",
+      });
+      const acknowledged = await changed();
+      if (!acknowledged) {
+        updateUpload(key, {
+          status: u.status,
+          message: "Recovery unavailable; removal was not sent.",
+        });
+        return;
+      }
+      const result = await client.removeUploadedAttachment(
+        c,
+        u.serverId,
+        checkOnly,
+      );
+      accountObserved(client.account);
+      observe(client.account);
+      const now = state.value.context;
+      if (now?.id !== c.id || !now.uploads?.some((v) => v.key === key)) return;
+      if (result.kind === "removed") {
+        state.value = {
+          ...state.value,
+          publication: null,
+          message: result.message,
+          context: {
+            ...now,
+            revision: now.revision + 1,
+            uploadedReferences: now.uploadedReferences.filter(
+              (id) => id !== u.serverId,
+            ),
+            attachmentFields: (now.attachmentFields ?? []).filter(
+              (f) =>
+                !f.name.startsWith(`attachnew[${u.serverId}]`) &&
+                !f.name.startsWith(`attachupdate[${u.serverId}]`),
+            ),
+            uploads: now.uploads.map((v) =>
+              v.key === key
+                ? { ...v, status: "removed", message: result.message }
+                : v,
+            ),
+            ...(now.editTarget && result.latest
+              ? {
+                  editTarget: {
+                    ...now.editTarget,
+                    baseline: {
+                      ...now.editTarget.baseline,
+                      uploadedReferences:
+                        now.editTarget.baseline.uploadedReferences.filter(
+                          (id) => id !== u.serverId,
+                        ),
+                      attachmentFields: (
+                        now.editTarget.baseline.attachmentFields ?? []
+                      ).filter(
+                        (f) =>
+                          !f.name.startsWith(`attachnew[${u.serverId}]`) &&
+                          !f.name.startsWith(`attachupdate[${u.serverId}]`),
+                      ),
+                    },
+                  },
+                }
+              : {}),
+          },
+        };
+        void changed();
+      } else
+        updateUpload(key, {
+          status: result.kind === "uncertain" ? "removal-uncertain" : u.status,
+          message: result.message,
+        });
+    },
+    removeLocalAttachment: (key: string) => {
+      const c = state.value.context,
+        u = c?.uploads?.find((v) => v.key === key);
+      if (
+        !c ||
+        !u ||
+        state.value.publishing ||
+        ![
+          "selected",
+          "uploading",
+          "rejected",
+          "reselect",
+          "uncertain",
+          "removed",
+        ].includes(u.status)
+      )
+        return;
+      uploadControllers.get(key)?.abort();
+      uploadBytes.delete(key);
+      state.value = {
+        ...state.value,
+        publication: null,
+        message:
+          "Local selection removed. No remote file was deleted; an interrupted upload may remain on the forum.",
+        context: {
+          ...c,
+          revision: c.revision + 1,
+          uploads: (c.uploads ?? []).filter((v) => v.key !== key),
+        },
+      };
+      void changed();
+    },
+    beginAttachmentSelection,
+    uploadAttachment,
+    insertAttachment,
     unresolvedAttachments: computed(() => {
       const context = state.value.context;
       return context ? unresolvedWritingAttachments(context) : [];
@@ -1534,6 +1985,48 @@ export function isWritingContext(value: unknown): value is WritingContext {
     !string(value.source) ||
     (value.editorUnresolved !== undefined &&
       typeof value.editorUnresolved !== "boolean")
+  )
+    return false;
+  if (
+    value.uploads !== undefined &&
+    (!Array.isArray(value.uploads) ||
+      value.uploads.length > 100 ||
+      !value.uploads.every(
+        (u) =>
+          object(u) &&
+          string(u.key) &&
+          string(u.name) &&
+          string(u.type) &&
+          integer(u.size) &&
+          integer(u.loaded) &&
+          string(u.message) &&
+          (u.originalSha256 === undefined ||
+            (string(u.originalSha256) &&
+              /^[a-f0-9]{64}$/.test(u.originalSha256))) &&
+          (u.storedPost === undefined ||
+            (object(u.storedPost) &&
+              safeThreadURL(u.storedPost.threadURL) &&
+              string(u.storedPost.postId) &&
+              /^[1-9]\d*$/.test(u.storedPost.postId))) &&
+          [
+            "selected",
+            "uploading",
+            "uploaded",
+            "uncertain",
+            "rejected",
+            "reselect",
+            "associated",
+            "removed",
+            "removing",
+            "removal-uncertain",
+          ].includes(String(u.status)) &&
+          (u.serverId === undefined ||
+            (string(u.serverId) && /^[1-9]\d*$/.test(u.serverId))) &&
+          (u.referenceKind === undefined ||
+            u.referenceKind === "attach" ||
+            u.referenceKind === "attachimg") &&
+          validAttachmentFields(u.fields, true),
+      ))
   )
     return false;
   if (

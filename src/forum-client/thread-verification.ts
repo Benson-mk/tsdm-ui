@@ -50,6 +50,23 @@ export function verifyStoredWriting(
 ): ThreadVerification | null {
   if (submitted.title !== stored.title || submitted.source !== stored.source)
     return null;
+  if (
+    submitted.uploadedReferences.some(
+      (id) => !stored.uploadedReferences.includes(id),
+    )
+  )
+    return null;
+  for (const field of submitted.attachmentFields ?? []) {
+    if (
+      !stored.attachmentFields?.some(
+        (f) =>
+          f.name === field.name &&
+          f.value === field.value &&
+          f.disabled === field.disabled,
+      )
+    )
+      return null;
+  }
   const normalizations: ThreadVerification["normalizations"] = [];
   for (const expected of options(submitted)) {
     if (creationName(expected)) continue;

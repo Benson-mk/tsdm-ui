@@ -1,4 +1,5 @@
 import { mentionsCurrent } from "./mentions.js";
+import { validateUploadFields } from "./upload-authoring.js";
 import {
   attr,
   byId,
@@ -93,6 +94,7 @@ export function successful(
   response: HostResponse,
   writing: PreparedWriting,
   draftSave: false | "save" | "publish" = false,
+  uploadFields: { name: string; value: string; disabled: boolean }[] = [],
 ): { url: string; body: string } | null {
   const doc = document(response),
     form = byId(doc, "postform");
@@ -285,6 +287,11 @@ export function successful(
     )
       return null;
     pairs.push([name, value]);
+  }
+  for (const field of uploadFields) {
+    if (pairs.some(([name]) => name === field.name) || field.disabled)
+      return null;
+    pairs.push([field.name, field.value]);
   }
   const url = new URL(target);
   url.searchParams.set("inajax", "1");
@@ -688,6 +695,7 @@ export function createThreadPublisher(config: {
             "stale",
           );
         if (decoded.kind !== "prepared") return fail(decoded.message);
+        const validationGeneration = config.generation();
         if (!(await mentionsCurrent(config, writing)))
           return fail(
             "A selected mention identity changed or could not be revalidated. Resolve the person again.",
@@ -697,7 +705,21 @@ export function createThreadPublisher(config: {
           return fail(
             "The current native options changed or are unavailable. Review the current form before publication; no values were reset.",
           );
-        const request = successful(response, writing);
+        const uploadFields = await validateUploadFields(
+          config.transport,
+          writing,
+          response,
+        );
+        if (
+          config.generation() !== validationGeneration ||
+          reviews.get(submission.contextId) !== id
+        )
+          return fail(
+            "The account or preparation changed during attachment validation. Nothing was sent.",
+            "stale",
+          );
+        const request =
+          uploadFields && successful(response, writing, false, uploadFields);
         if (!request)
           return fail(
             "The current native successful controls or required values are unsupported. Nothing was sent.",
@@ -810,7 +832,15 @@ export function createThreadPublisher(config: {
           return notSent(
             "The current form changed before send. Nothing was sent; review again.",
           );
-        const request = successful(current, writing);
+        const uploadFields = await validateUploadFields(
+          config.transport,
+          writing,
+          current,
+        );
+        if (config.generation() !== known.publication.generation)
+          return notSent("The account changed before send. Nothing was sent.");
+        const request =
+          uploadFields && successful(current, writing, false, uploadFields);
         if (!request)
           return notSent(
             "The current successful controls changed before send. Nothing was sent.",

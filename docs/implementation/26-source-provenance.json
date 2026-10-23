@@ -1,0 +1,49 @@
+{
+  "repository": "Benson-mk/tsdm-ui-experiment",
+  "commit": "c8348e6c4c4aaf0011f174394733be3d580f59e5",
+  "files": [
+    {
+      "path": "src/integration/live-attachments-upload-contract.js",
+      "gitBlob": "e1366e6a53091060eeb023b1d4ce599654e063dc",
+      "sha256": "773683226b633b2d72b58dd79c4699bdb094fcc967d64dcf5557311253486205",
+      "bytes": 36987
+    },
+    {
+      "path": "src/integration/live-attachments-upload.js",
+      "gitBlob": "75b7777c93f20fb4e7912d6ff1fb74f7b9c7ce5d",
+      "sha256": "6dcc66f1362677daa5b0df6436bf595a864e435da873cf41e13ec130ce570439",
+      "bytes": 13821
+    },
+    {
+      "path": "src/integration/live-attachments-pending.js",
+      "gitBlob": "516805593a5b9cd49542772ac1f8aa5dcb92fb87",
+      "sha256": "36831595934ed2d38cd4b8b73bdd3eb4be3aa7511dd74e71ce8379ba4016ec8c",
+      "bytes": 8678
+    },
+    {
+      "path": "src/integration/live-attachments-association.js",
+      "gitBlob": "ba3957fc1eec58c40146d83e02aa320b6e5b5b10",
+      "sha256": "fd54e513e663a71c611f75e6e0f300cef54662d374ae8977fabdaadc99597b0d",
+      "bytes": 46478
+    },
+    {
+      "path": "test/fixtures/attachment-native/forum_post.js",
+      "gitBlob": "c47e3eea0eacfd2c0818d01da5474e43250fc622",
+      "sha256": "d5a188a0cc13dbd634d22fff7acb4824ba8d60bb85b8dc4e952c47c93ebdefe6",
+      "bytes": 29882
+    },
+    {
+      "path": "test/fixtures/attachment-upload47/webuploader.js",
+      "gitBlob": "4b221ed6639d64d0108f3afdd59b9ebd2dc9f4e9",
+      "sha256": "06d314d853bff22139e6afa6361fd6c623682275ecf82c2d398e365036be4335",
+      "bytes": 32400
+    },
+    {
+      "path": "test/fixtures/attachments/fictional-baseline.jpg",
+      "gitBlob": "2e8afe46404eda0e490febe81aa4a60f5a5edff5",
+      "sha256": "f09ce4c1de8f9939ad8ff887c38c6daca9e5151aa3077175e6a4df510ba9f145",
+      "bytes": 707
+    }
+  ],
+  "qualification": "Historical research and synthetic image fixture only. No current native protocol or installed browser qualification."
+}

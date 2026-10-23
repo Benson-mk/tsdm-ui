@@ -1,0 +1,22 @@
+{
+  "file": 1,
+  "image": 1,
+  "exts": "torrent,gif,jpg,jpeg,PNG,rar,zip,txt",
+  "maxsize": 524288,
+  "today": 1,
+  "today_left": null,
+  "today_size_left": "2.9MB",
+  "setperm": 1,
+  "upload": {
+    "url": "misc.php?mod=swfupload&action=swfupload&operation=upload&fid=5",
+    "uid": 7,
+    "hash": "SYNTHETIC_UPLOAD",
+    "max_kb": 512,
+    "limit": 0,
+    "image": 1,
+    "file": 1,
+    "image_exts": "*.jpg;*.jpeg;*.gif",
+    "file_exts": "*.torrent;*.gif;*.jpg;*.jpeg;*.PNG;*.rar;*.zip;*.txt"
+  },
+  "list_shown": 1
+}

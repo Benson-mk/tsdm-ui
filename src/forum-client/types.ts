@@ -36,7 +36,65 @@ export interface AttachmentRequest {
   attachmentId: string;
   account: Account;
 }
+export interface UploadCancellation {
+  readonly aborted: boolean;
+  addEventListener(
+    type: "abort",
+    listener: () => void,
+    options?: { once?: boolean },
+  ): void;
+  removeEventListener(type: "abort", listener: () => void): void;
+}
+export interface UploadFile {
+  name: string;
+  type: string;
+  bytes: Uint8Array;
+}
+export interface WritingUpload {
+  key: string;
+  name: string;
+  type: string;
+  size: number;
+  status:
+    | "selected"
+    | "uploading"
+    | "uploaded"
+    | "uncertain"
+    | "rejected"
+    | "reselect"
+    | "associated"
+    | "removing"
+    | "removal-uncertain"
+    | "removed";
+  serverId?: string;
+  referenceKind?: "attach" | "attachimg";
+  originalSha256?: string;
+  storedPost?: { threadURL: string; postId: string };
+  fields?: { name: string; value: string; disabled: boolean }[];
+  message: string;
+  loaded: number;
+}
+export type UploadResult =
+  | {
+      kind: "uploaded";
+      referenceKind: "attach" | "attachimg";
+      sha256: string;
+      id: string;
+      fields: { name: string; value: string; disabled: boolean }[];
+    }
+  | {
+      kind: "not-sent" | "rejected" | "uncertain";
+      message: string;
+      id?: string;
+    };
 export interface ForumTransport {
+  upload?(
+    url: string,
+    fields: { name: string; value: string }[],
+    file: UploadFile,
+    progress: (loaded: number) => void,
+    signal: UploadCancellation,
+  ): Promise<HostResponse>;
   requestFile?(url: string): Promise<FileResponse>;
   request(
     url: string,
@@ -244,7 +302,23 @@ export interface Search {
   submitted: SearchCriteria | null;
   results: SearchResults | null;
 }
+export type AttachmentRemovalResult = {
+  kind: "removed" | "uncertain" | "not-sent";
+  message: string;
+  latest?: PreparedWriting;
+};
 export interface ForumClient {
+  removeUploadedAttachment(
+    writing: PreparedWriting,
+    id: string,
+    checkOnly?: boolean,
+  ): Promise<AttachmentRemovalResult>;
+  uploadAttachment(
+    writing: PreparedWriting,
+    file: UploadFile,
+    progress: (loaded: number) => void,
+    signal: UploadCancellation,
+  ): Promise<UploadResult>;
   resumeDraft(
     row: DraftRow,
     expectedAccount: Account,
@@ -348,6 +422,7 @@ export interface WritingBaseline {
   attachmentFields?: { name: string; value: string; disabled: boolean }[];
 }
 export interface PreparedWriting {
+  uploads?: WritingUpload[];
   action: "new-thread" | "reply" | "quick-quote" | "edit-post";
   replyTarget?: ReplyTarget;
   mentions?: MentionIdentity[];

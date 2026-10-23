@@ -104,3 +104,5 @@ Schema 2 retains legacy uncertain attempts unchanged, so an original saved attem
 The [#22 owned-post editing implementation](docs/implementation/22-editing.md) preserves actual source and current options/references, detects observed server changes, and verifies saved revisions independently. Its portable library contract is `0.6.0`; installed acceptance is recorded separately from deterministic application checks.
 
 The [#25 ordinary forum drafts implementation](docs/implementation/25-drafts.md) separates explicit forum saves from local recovery, resumes and revises the same record, and independently checks publication. [Acceptance](docs/implementation/25-acceptance.md) distinguishes deterministic evidence from installed/native gates.
+
+Ordinary attachment authoring is exposed by portable client 0.8.0; see [migration and operation boundaries](docs/implementation/26-public-contract.md). Upload success, inline source, saved association and immediate file removal have separate outcomes.

@@ -1,3 +1,7 @@
+import {
+  createAttachmentRemoval,
+  createUploadAuthoring,
+} from "./upload-authoring.js";
 import { findMention } from "./mentions.js";
 import { createDraftOperations } from "./draft-operations.js";
 import { decodeDraftList, draftListPath, draftListURL } from "./drafts.js";
@@ -37,7 +41,7 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.7.0";
+export const FORUM_CLIENT_VERSION = "0.8.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -80,6 +84,26 @@ export function createForumClient(options: {
     },
   });
   return {
+    removeUploadedAttachment: createAttachmentRemoval({
+      ...options,
+      generation: () => generation,
+      observe: (observed) => {
+        if (actor(observed) !== actor(account)) {
+          account = observed;
+          generation++;
+        }
+      },
+    }),
+    uploadAttachment: createUploadAuthoring({
+      ...options,
+      generation: () => generation,
+      observe: (observed) => {
+        if (actor(observed) !== actor(account)) {
+          account = observed;
+          generation++;
+        }
+      },
+    }),
     findMention: (writing, query) =>
       findMention(
         {

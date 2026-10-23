@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, type DeepReadonly } from "vue";
+import { attachmentText } from "./attachment-text";
 import PostEditor from "./PostEditor.vue";
 import type { Workspace } from "../workspace";
 import { strings, insert, description } from "../layouts/strings";
@@ -9,7 +10,58 @@ const state = props.workspace.writing.state;
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
+const attachment = (value: string) =>
+  attachmentText(
+    description(value, props.workspace.preferences.state.value.language),
+    props.workspace.preferences.state.value.language,
+  );
 const unresolved = props.workspace.writing.unresolvedAttachments;
+async function selectAttachments(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const files = Array.from(input.files ?? []);
+  input.value = "";
+  if (!files.length) return;
+  const selection = props.workspace.writing.beginAttachmentSelection();
+  try {
+    const selected = await Promise.all(
+      files.map(async (f) => ({
+        name: f.name,
+        type: f.type,
+        bytes: new Uint8Array(await f.arrayBuffer()),
+      })),
+    );
+    selection.complete(selected);
+  } catch {
+    selection.fail();
+  }
+}
+
+function uploadLabel(
+  upload: DeepReadonly<import("../forum-client").WritingUpload>,
+) {
+  const c = state.value.context;
+  const status =
+    upload.status === "uploaded" &&
+    upload.referenceKind &&
+    c?.source.includes(
+      `[${upload.referenceKind}]${upload.serverId}[/${upload.referenceKind}]`,
+    )
+      ? "Inline referenced"
+      : {
+          selected: "Selected",
+          uploading: "Uploading",
+          uploaded: "Uploaded, unassociated",
+          associated: "Saved association verified",
+          uncertain: "Upload outcome uncertain",
+          rejected: "Upload refused",
+          reselect: "Reselect file bytes",
+          removed: "Server file removed",
+          removing: "Removing server file",
+          "removal-uncertain": "Server removal uncertain",
+        }[upload.status];
+  return `${attachment(status)} · ${upload.name}`;
+}
+const removeUpload = ref<string | null>(null);
 const mentionQuery = ref("");
 const currentOptions = computed(
   () =>
@@ -488,6 +540,113 @@ function updateOption(option: WritingOption, event: Event) {
       >
         {{ insert(text.mentionPerson, person.name).replace("{id}", person.id) }}
       </button>
+    </section>
+    <section :aria-label="attachment('Attachment authoring')">
+      <p v-if="state.context.draft">
+        {{
+          attachment(
+            "New uploads and server-file removal for drafts are not available yet. Existing references remain preserved when saving.",
+          )
+        }}
+      </p>
+      <div v-if="removeUpload" role="alert">
+        <p>
+          {{
+            attachment(
+              "This removes the server file immediately and cannot be undone by discarding local writing. Body references are separate.",
+            )
+          }}
+        </p>
+        <button
+          @click="
+            workspace.writing.removeServerAttachment(removeUpload);
+            removeUpload = null;
+          "
+        >
+          {{ attachment("Confirm immediate file removal") }}
+        </button>
+        <button @click="removeUpload = null">
+          {{ attachment("Keep server file") }}
+        </button>
+      </div>
+      <label
+        >{{ attachment("Select attachments")
+        }}<input
+          type="file"
+          multiple
+          :disabled="
+            !state.accountVerified || state.publishing || !!state.context.draft
+          "
+          @change="selectAttachments"
+      /></label>
+      <ul>
+        <li v-for="upload in state.context.uploads ?? []" :key="upload.key">
+          <p>{{ uploadLabel(upload) }}</p>
+          <button
+            v-if="
+              upload.status === 'associated' &&
+              upload.originalSha256 &&
+              upload.storedPost
+            "
+            :aria-label="`${attachment('Check stored bytes')} ${upload.name}`"
+            @click="workspace.writing.checkStoredAttachment(upload.key)"
+          >
+            {{ attachment("Check stored bytes") }}
+          </button>
+          <button
+            v-if="['uploaded', 'associated'].includes(upload.status)"
+            :aria-label="`${attachment('Remove server file')} ${upload.name}`"
+            :disabled="!!state.context.draft"
+            @click="removeUpload = upload.key"
+          >
+            {{ attachment("Remove server file") }}
+          </button>
+          <button
+            v-if="upload.status === 'removal-uncertain'"
+            @click="workspace.writing.removeServerAttachment(upload.key, true)"
+          >
+            {{ attachment("Check file removal result") }}
+          </button>
+          <button
+            v-if="
+              [
+                'selected',
+                'uploading',
+                'rejected',
+                'reselect',
+                'uncertain',
+                'removed',
+              ].includes(upload.status)
+            "
+            :disabled="state.publishing"
+            :aria-label="`${attachment('Remove local selection')} ${upload.name}`"
+            @click="workspace.writing.removeLocalAttachment(upload.key)"
+          >
+            {{ attachment("Remove local selection") }}
+          </button>
+          <p>{{ attachment(upload.message) }}</p>
+          <progress
+            v-if="upload.status === 'uploading'"
+            :aria-label="attachment('Attachment upload progress')"
+            :value="upload.loaded"
+            :max="upload.size"
+          />
+          <button
+            v-if="upload.status === 'selected'"
+            :aria-label="`${attachment('Upload')} ${upload.name}`"
+            @click="workspace.writing.uploadAttachment(upload.key)"
+          >
+            {{ attachment("Upload") }}
+          </button>
+          <button
+            v-if="['uploaded', 'associated'].includes(upload.status)"
+            :aria-label="`${attachment('Insert')} ${upload.name}`"
+            @click="workspace.writing.insertAttachment(upload.key)"
+          >
+            {{ attachment("Insert") }}
+          </button>
+        </li>
+      </ul>
     </section>
     <label
       v-if="

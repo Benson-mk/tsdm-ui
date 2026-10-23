@@ -45,7 +45,7 @@ try {
   const source =
     `import assert from 'node:assert/strict';
 import { createForumClient, FORUM_CLIENT_VERSION, unresolvedWritingAttachments } from '@tsdm/forum-client';
-assert.equal(FORUM_CLIENT_VERSION, '0.7.0');
+assert.equal(FORUM_CLIENT_VERSION, '0.8.0');
 const origin = 'https://fixture.example';
 const threadURL = origin + '/forum.php?mod=viewthread&tid=42';
 const attachmentURL = origin + '/forum.php?mod=attachment&aid=authored-token';
@@ -186,7 +186,7 @@ console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, th
   writeFileSync(join(consumer, "consume.mjs"), source);
   writeFileSync(
     join(consumer, "consume.ts"),
-    `import { createForumClient, editBaseline, unresolvedWritingAttachments, type ForumClient, type ReadResult, type SearchForm, type SearchCriteria, type AttachmentRequest, type PrepareWritingResult, type Account, type Notice, type Notices, type ThreadSubmission, type ThreadAttempt, type PublicationPreparationResult, type ThreadVerification, type PreparedWriting, type WritingBaseline, type DraftList, type DraftListResult, type DraftRow, type DraftAttempt } from '@tsdm/forum-client';
+    `import { createForumClient, editBaseline, unresolvedWritingAttachments, type ForumClient, type ReadResult, type SearchForm, type SearchCriteria, type AttachmentRequest, type PrepareWritingResult, type Account, type Notice, type Notices, type ThreadSubmission, type ThreadAttempt, type PublicationPreparationResult, type ThreadVerification, type PreparedWriting, type WritingBaseline, type DraftList, type DraftListResult, type DraftRow, type DraftAttempt, type UploadFile, type UploadCancellation, type UploadResult, type AttachmentRemovalResult } from '@tsdm/forum-client';
 const client: ForumClient = createForumClient({ origin: 'https://fixture.example', transport: { async request(url) { return { status: 200, url, contentType: 'text/html', body: '' }; } } });
 const result: ReadResult = await client.readThread('https://fixture.example/forum.php?mod=viewthread&tid=42');
 const serialized: string = JSON.stringify(result);
@@ -217,6 +217,10 @@ const resume = (row: DraftRow, account: Account) => client.resumeDraft(row, acco
 const prepareSave = (attempt: DraftAttempt): Promise<DraftAttempt> => client.prepareDraftSave(attempt);
 const draftRows = (list: DraftList) => list.rows;
 void [drafts, resume, prepareSave, draftRows];
+const cancellation: UploadCancellation = { aborted: false, addEventListener() {}, removeEventListener() {} };
+const transfer: (writing: PreparedWriting, file: UploadFile, progress: (loaded: number) => void, signal: UploadCancellation) => Promise<UploadResult> = client.uploadAttachment;
+const removal: (writing: PreparedWriting, id: string, checkOnly?: boolean) => Promise<AttachmentRemovalResult> = client.removeUploadedAttachment;
+void [cancellation, transfer, removal];
 `,
   );
   writeFileSync(
@@ -252,9 +256,9 @@ void [drafts, resume, prepareSave, draftRows];
       "utf8",
     ),
   );
-  if (installed.version !== "0.7.0")
+  if (installed.version !== "0.8.0")
     throw new Error(
-      "Expected the draft-capable public package contract version 0.7.0.",
+      "Expected the attachment-authoring public package contract version 0.8.0.",
     );
   if (
     Object.keys(installed.dependencies ?? {}).length ||

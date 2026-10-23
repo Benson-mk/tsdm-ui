@@ -1,4 +1,5 @@
 import { mentionsCurrent } from "./mentions.js";
+import { validateUploadFields } from "./upload-authoring.js";
 import { decodeThread } from "./read-thread.js";
 import {
   decodeWriting,
@@ -28,7 +29,9 @@ export const editBaseline = (v: PreparedWriting): WritingBaseline =>
     category: v.category,
     options: v.options,
     uploadedReferences: v.uploadedReferences,
-    attachmentFields: v.attachmentFields ?? [],
+    attachmentFields: (v.attachmentFields ?? []).filter(
+      (f) => !/^attachupdate\[[1-9]\d*\]$/.test(f.name),
+    ),
   });
 export function createPostEditor(config: {
   origin: string;
@@ -240,12 +243,29 @@ export function createPostEditor(config: {
           account: config.account(),
           generation: config.generation(),
         };
+      const generation = config.generation();
+      const uploadFields = await validateUploadFields(
+        config.transport,
+        writing,
+        fresh.response,
+      );
+      if (config.generation() !== generation)
+        return fail(
+          "The account changed during attachment validation. Review again; nothing was sent.",
+        );
+      const newIds = (writing.uploads ?? [])
+        .filter((u) => u.status === "uploaded")
+        .map((u) => u.serverId);
       if (
         (fresh.latest.titleAvailable === false && writing.title !== "") ||
         unresolvedWritingAttachments(writing).length ||
         !compatible(writing, fresh.latest) ||
-        !equal(writing.uploadedReferences, fresh.latest.uploadedReferences) ||
-        !successful(fresh.response, writing)
+        !equal(
+          writing.uploadedReferences.filter((id) => !newIds.includes(id)),
+          fresh.latest.uploadedReferences,
+        ) ||
+        !uploadFields ||
+        !successful(fresh.response, writing, false, uploadFields)
       )
         return fail(
           "Required current form content or attachment references cannot be preserved. Nothing was sent.",
@@ -305,11 +325,7 @@ export function createPostEditor(config: {
       const fresh = await current(writing);
       const verification =
         fresh &&
-        equal(writing.uploadedReferences, fresh.latest.uploadedReferences) &&
-        equal(
-          writing.attachmentFields ?? [],
-          fresh.latest.attachmentFields ?? [],
-        )
+        equal(writing.uploadedReferences, fresh.latest.uploadedReferences)
           ? verifyStoredWriting(writing, fresh.latest)
           : null;
       if (!verification)
@@ -385,7 +401,15 @@ export function createPostEditor(config: {
         return notSent(
           "The server post changed before save. Review latest source again; nothing was sent.",
         );
-      const request = successful(fresh.response, w);
+      const uploadFields = await validateUploadFields(
+        config.transport,
+        w,
+        fresh.response,
+      );
+      if (config.generation() !== known.generation)
+        return notSent("The account changed before save. Nothing was sent.");
+      const request =
+        uploadFields && successful(fresh.response, w, false, uploadFields);
       if (!request)
         return notSent(
           "Required current form content cannot be preserved. Nothing was sent.",

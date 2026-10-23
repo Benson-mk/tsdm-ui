@@ -1,6 +1,52 @@
 import type { ForumTransport } from "../forum-client";
 export function createBrowserTransport(): ForumTransport {
   return {
+    upload(url, fields, file, progress, signal) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const body = new FormData();
+        for (const field of fields) body.append(field.name, field.value);
+        body.append(
+          "Filedata",
+          new Blob([new Uint8Array(file.bytes)], { type: file.type }),
+          file.name,
+        );
+        xhr.open("POST", url);
+        xhr.withCredentials = true;
+        const abort = () => xhr.abort();
+        signal.addEventListener("abort", abort, { once: true });
+        const finish = () => signal.removeEventListener("abort", abort);
+        xhr.upload.onprogress = (e) =>
+          progress(
+            e.lengthComputable
+              ? Math.floor((file.bytes.length * e.loaded) / e.total)
+              : 0,
+          );
+        xhr.onload = () => {
+          finish();
+          resolve({
+            status: xhr.status,
+            url: xhr.responseURL,
+            contentType: xhr.getResponseHeader("content-type") ?? "",
+            body: xhr.responseText,
+            redirect: xhr.responseURL === url ? "none" : "followed",
+          });
+        };
+        xhr.onerror =
+          xhr.onabort =
+          xhr.ontimeout =
+            () => {
+              finish();
+              reject(new Error("Upload interrupted"));
+            };
+        if (signal.aborted) {
+          finish();
+          reject(new Error("Cancelled"));
+          return;
+        }
+        xhr.send(body);
+      });
+    },
     async requestFile(url) {
       const response = await fetch(url, {
         credentials: "same-origin",
