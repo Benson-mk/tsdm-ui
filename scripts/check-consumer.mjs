@@ -1,4 +1,12 @@
-import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from "node:fs";
+import {
+  mkdtempSync,
+  writeFileSync,
+  readFileSync,
+  mkdirSync,
+  copyFileSync,
+  readdirSync,
+} from "node:fs";
+import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -12,9 +20,44 @@ function fileIdentity(path) {
 }
 const root = process.cwd();
 const npm = process.env.npm_execpath;
-if (!npm)
-  throw new Error("Run npm run test:consumer using the pinned runtime.");
 try {
+  if (!npm)
+    throw new Error("Run npm run test:consumer using the pinned runtime.");
+  const metadata = JSON.parse(readFileSync("package.json", "utf8"));
+  assert.equal(
+    process.version,
+    "v" + metadata.engines.node,
+    "Use the selected Node LTS runtime",
+  );
+  const inputFiles = [
+    "package.json",
+    "package-lock.json",
+    "vite.library.config.ts",
+    "tsconfig.library.json",
+    "tsconfig.json",
+    "scripts/package-library.mjs",
+    "scripts/check-consumer.mjs",
+    "scripts/replay-consumer.mjs",
+    ...readdirSync("tests/consumer")
+      .filter((name) => name.endsWith(".mjs") || name.endsWith(".txt"))
+      .sort()
+      .map((name) => "tests/consumer/" + name),
+    ...readdirSync("src/forum-client")
+      .filter((name) => name.endsWith(".ts"))
+      .map((name) => "src/forum-client/" + name),
+  ];
+  const inputs = Object.fromEntries(
+    inputFiles.map((file) => [file, fileIdentity(file)]),
+  );
+  const artifactFiles = readdirSync("dist/forum-client").filter(
+    (file) => !file.endsWith(".map"),
+  );
+  const artifact = Object.fromEntries(
+    artifactFiles.map((file) => [
+      file,
+      fileIdentity("dist/forum-client/" + file),
+    ]),
+  );
   const consumer = mkdtempSync(join(tmpdir(), "tsdm-public-consumer-"));
   const run = (args, cwd) =>
     execFileSync(process.execPath, [npm, ...args], {
@@ -22,6 +65,11 @@ try {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
+  assert.equal(
+    run(["--version"], consumer).trim(),
+    metadata.engines.npm,
+    "Use the selected npm runtime",
+  );
   const packed = JSON.parse(
     run(
       ["pack", "./dist/forum-client", "--pack-destination", consumer, "--json"],
@@ -36,10 +84,18 @@ try {
       version: "1.0.0",
       private: true,
       type: "module",
+      devDependencies: { typescript: metadata.devDependencies.typescript },
     }),
   );
   run(
-    ["install", tarball, "--ignore-scripts", "--no-audit", "--no-fund"],
+    [
+      "install",
+      "./" + packed.filename,
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      "--offline",
+    ],
     consumer,
   );
   const source =
@@ -173,6 +229,7 @@ assert.match(failedNotices.message, /may still have marked notices read/);
 assert.equal(noticeRequests.length, 6);
 
 ` +
+    readFileSync(resolve(root, "tests/consumer/package-boundary.mjs"), "utf8") +
     readFileSync(resolve(root, "tests/consumer/publication.mjs"), "utf8") +
     "\n" +
     readFileSync(resolve(root, "tests/consumer/replies.mjs"), "utf8") +
@@ -182,8 +239,10 @@ assert.equal(noticeRequests.length, 6);
     readFileSync(resolve(root, "tests/consumer/drafts.mjs"), "utf8") +
     "\n" +
     readFileSync(resolve(root, "tests/consumer/favorites.mjs"), "utf8") +
+    "\n" +
+    readFileSync(resolve(root, "tests/consumer/packets.mjs"), "utf8") +
     `
-console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases, favoriteCases }));
+console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases, favoriteCases, packetCases }));
 `;
   writeFileSync(join(consumer, "consume.mjs"), source);
   writeFileSync(
@@ -223,7 +282,7 @@ const cancellation: UploadCancellation = { aborted: false, addEventListener() {}
 const transfer: (writing: PreparedWriting, file: UploadFile, progress: (loaded: number) => void, signal: UploadCancellation) => Promise<UploadResult> = client.uploadAttachment;
 const removal: (writing: PreparedWriting, id: string, checkOnly?: boolean) => Promise<AttachmentRemovalResult> = client.removeUploadedAttachment;
 void [cancellation, transfer, removal];
-`,
+` + readFileSync(resolve(root, "tests/consumer/current-types.txt"), "utf8"),
   );
   writeFileSync(
     join(consumer, "tsconfig.json"),
@@ -249,7 +308,7 @@ void [cancellation, transfer, removal];
   );
   execFileSync(
     process.execPath,
-    [resolve(root, "node_modules/typescript/bin/tsc"), "-p", "tsconfig.json"],
+    ["node_modules/typescript/bin/tsc", "-p", "tsconfig.json"],
     { cwd: consumer, encoding: "utf8" },
   );
   const installed = JSON.parse(
@@ -264,15 +323,69 @@ void [cancellation, transfer, removal];
     );
   if (
     Object.keys(installed.dependencies ?? {}).length ||
-    Object.keys(installed.peerDependencies ?? {}).length
+    Object.keys(installed.peerDependencies ?? {}).length ||
+    Object.keys(installed.optionalDependencies ?? {}).length
   )
     throw new Error(
       "Public artifact unexpectedly requires runtime dependencies.",
     );
+  const typescript = JSON.parse(
+    readFileSync(
+      join(consumer, "node_modules/typescript/package.json"),
+      "utf8",
+    ),
+  ).version;
+  assert.equal(typescript, metadata.devDependencies.typescript);
+  assert.equal(installed.version, observed.version);
+  assert.deepEqual(installed.exports, {
+    ".": { types: "./index.d.ts", import: "./index.js" },
+  });
+  for (const file of packed.files) {
+    const expected = fileIdentity(join(root, "dist/forum-client", file.path));
+    assert.deepEqual(
+      fileIdentity(
+        join(consumer, "node_modules/@tsdm/forum-client", file.path),
+      ),
+      expected,
+      "Installed artifact bytes: " + file.path,
+    );
+  }
+  assert.deepEqual(
+    Object.fromEntries(inputFiles.map((file) => [file, fileIdentity(file)])),
+    inputs,
+    "Consumer inputs changed during qualification",
+  );
+  assert.deepEqual(
+    Object.fromEntries(
+      artifactFiles.map((file) => [
+        file,
+        fileIdentity("dist/forum-client/" + file),
+      ]),
+    ),
+    artifact,
+    "Built artifact changed during qualification",
+  );
   const stamp = new Date().toISOString();
   const directory = `evidence/runs/consumer-${stamp.replaceAll(":", "-")}`;
   mkdirSync(directory, { recursive: true });
-  writeFileSync(`${directory}/consume.mjs`, source);
+  const replayFiles = [
+    "consume.mjs",
+    "consume.ts",
+    "tsconfig.json",
+    "package.json",
+    "package-lock.json",
+    packed.filename,
+  ];
+  for (const file of replayFiles)
+    copyFileSync(join(consumer, file), join(directory, file));
+  copyFileSync(
+    "scripts/replay-consumer.mjs",
+    join(directory, "replay-consumer.mjs"),
+  );
+  writeFileSync(
+    join(directory, "inputs.json"),
+    JSON.stringify(inputs, null, 2) + "\n",
+  );
   const receipt = {
     schema: 1,
     runId: stamp,
@@ -282,7 +395,33 @@ void [cancellation, transfer, removal];
     runtime: {
       node: process.version,
       npm: run(["--version"], consumer).trim(),
+      typescript,
+      platform: process.platform,
+      arch: process.arch,
     },
+    package: {
+      name: installed.name,
+      version: installed.version,
+      file: packed.filename,
+      ...fileIdentity(tarball),
+    },
+    artifact: Object.fromEntries(
+      packed.files.map((file) => [
+        file.path,
+        fileIdentity(
+          join(consumer, "node_modules/@tsdm/forum-client", file.path),
+        ),
+      ]),
+    ),
+    caseInputs: {
+      consumer: fileIdentity(join(consumer, "consume.mjs")),
+      declarations: fileIdentity(join(consumer, "consume.ts")),
+    },
+    commands: [
+      "npm run build",
+      "npm run test:consumer",
+      "npm exec -- node replay-consumer.mjs .",
+    ],
     packageSha256: createHash("sha256")
       .update(readFileSync(tarball))
       .digest("hex"),
@@ -300,11 +439,17 @@ void [cancellation, transfer, removal];
       ordinaryDraftPublicFlow: "passed",
       replyFullSourceAndMergedReadOnlyRecovery: "passed",
       ownedEditSourceConflictAndIndependentReferenceReadback: "passed",
+      fundedAndDirectPacketConsentAndIndependentOutcomes: "passed",
+      favoriteOneUseAndUncertainAuthorization: "passed",
       noRuntimeDependencies: "passed",
+      privateSubpathsRejected: "passed",
+      isolatedCompiler: "passed",
+      exactInstalledArtifact: "passed",
+      inputsUnchangedDuringRun: "passed",
     },
     observed,
     limitations: [
-      "This consumer qualifies public imports, declarations and read/search/notices/download/current-form preparation contracts without browser globals; browser behavior is qualified by complete application E2Es.",
+      "This run qualifies the recorded artifact and existing public read/prepare/write/check-result contracts. Later integrated APIs require a final-candidate rerun; browser behavior is qualified separately.",
       "Synthetic transport is not live forum evidence.",
     ],
   };
@@ -314,13 +459,33 @@ void [cancellation, transfer, removal];
   );
   writeFileSync(
     `${directory}/report.md`,
-    "# Clean public consumer\n\nPassed clean local package installation, public ESM import, strict declarations without DOM types, populated read, explicit search, returned-identity page, freshly checked attachment and exact binary bytes, complete deliberate notices with returned category/page targets and account generations, ordinary replies and full merged-source GET-only recovery, owned-edit source/conflict/save/reference readback, ordinary same-record draft save/resume/publication, plus JSON serialization on pinned Node LTS. No runtime package dependencies. See receipt.json and consume.mjs.\n",
+    `# Clean public consumer
+
+Passed installation of the exact retained ${installed.name}@${installed.version} tarball, public ESM imports, rejected private subpaths, and strict declarations with no DOM types using an isolated TypeScript ${typescript} compiler. Existing populated read/search/notices/download/preparation, ${observed.replyCases.length} reply, ${observed.editingCases.length} owned edit, ${observed.draftCases.length} draft, ${observed.favoriteCases.length} favorite, ${observed.packetCases.length} direct/funded packet and ${observed.publicationCases.length} publication cases passed, including account changes, duplicate pending sends, lost responses, later revisions and raw source. No runtime or peer dependencies; no browser globals supplied.
+
+This is synthetic transport evidence for these artifact bytes. This run qualifies the current fully evolved API artifact. Later frozen-release artifacts and installed/live qualification still require their own checks.
+
+## Replay independently
+
+Copy this entire run directory outside the UI checkout. Use Node ${process.version} and npm ${metadata.engines.npm}, then run:
+
+\`\`\`sh
+npm exec -- node replay-consumer.mjs .
+\`\`\`
+
+The replay validates retained input hashes, installs from the exact local tarball and locked compiler into a new temporary directory, typechecks and reruns the public consumer. npm needs the locked TypeScript package available in its cache or configured registry. The original run installed from the existing cache with scripts disabled. The command writes a distinct sibling replay directory containing its receipt, report and manifest, including when verification fails.
+
+See receipt.json for runtime, package, case and installed-file identities; inputs.json for qualification source identities; manifest.json covers every retained file. This run checks inputs stayed stable during qualification, not that a separate earlier build used those exact source bytes.
+`,
   );
   const manifest = Object.fromEntries(
-    ["consume.mjs", "receipt.json", "report.md"].map((file) => [
-      file,
-      fileIdentity(`${directory}/${file}`),
-    ]),
+    [
+      ...replayFiles,
+      "replay-consumer.mjs",
+      "inputs.json",
+      "receipt.json",
+      "report.md",
+    ].map((file) => [file, fileIdentity(`${directory}/${file}`)]),
   );
   writeFileSync(
     `${directory}/manifest.json`,
