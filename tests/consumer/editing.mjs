@@ -111,7 +111,11 @@ const editingCases = [];
   );
   state.description = "Changed after save";
   const changed = await client.checkEditResult(saved);
-  editingAssert.equal(changed.status, "uncertain");
+  editingAssert.equal(changed.status, "confirmed");
+  editingAssert.deepEqual(changed.result, saved.result);
+  editingAssert.deepEqual(changed.publication, saved.publication);
+  editingAssert.match(changed.message, /Previous stored confirmation retained/);
+  editingAssert.match(changed.message, /unavailable or differ/);
   editingAssert.equal(state.posts.length, 1);
   editingCases.push({
     name: "owned-edit-complete-source-conflict-save-independent-readback-and-reference-change",

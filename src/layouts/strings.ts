@@ -958,6 +958,110 @@ const descriptions: Record<string, readonly [string, string]> = {
       "当前论坛提及服务无法确认这个用户。已保留原文。",
       "目前論壇提及服務無法確認這個用戶。已保留原文。",
     ],
+  "The forum refused validation; thread, packet and credit outcomes remain unconfirmed. Check the original attempt before considering another send.":
+    [
+      "论坛拒绝了验证；主题、红包和积分结果仍未确认。考虑再次发送前请检查原尝试。",
+      "論壇拒絕了驗證；主題、紅包和積分結果仍未確認。考慮再次傳送前請檢查原嘗試。",
+    ],
+  "New red packet": ["新红包", "新紅包"],
+  "Total credits": ["红包总额", "紅包總額"],
+  "Share count": ["份数", "份數"],
+  Split: ["分配方式", "分配方式"],
+  "Require a reply": ["须先回复", "須先回覆"],
+  Passphrase: ["口令", "口令"],
+  "Designated recipients": ["指定领取人", "指定領取人"],
+  Expiry: ["有效期", "有效期"],
+  Greeting: ["祝福语", "祝福語"],
+  "Publish red packet": ["发布红包", "發佈紅包"],
+  "Packet state:": ["红包状态：", "紅包狀態："],
+  "Publish red packet — deduct {amount} credits": [
+    "发布红包 — 扣除 {amount} 积分",
+    "發佈紅包 — 扣除 {amount} 積分",
+  ],
+  "Exact passphrase, recipients, total, shares and expiry deadline are not confirmed by presence flags.":
+    [
+      "存在标记不能确认具体口令、领取名单、总额、份数或到期时间。",
+      "存在標記不能確認具體口令、領取名單、總額、份數或到期時間。",
+    ],
+  "Observed credit rows (current returned page only)": [
+    "已观察到的积分记录（仅当前返回页）",
+    "已觀察到的積分紀錄（僅目前傳回頁）",
+  ],
+  "No packet-credit rows were observed on this page. This does not prove no debit or refund occurred.":
+    [
+      "本页未观察到红包积分记录。这不能证明没有扣款或退款。",
+      "本頁未觀察到紅包積分紀錄。這不能證明沒有扣款或退款。",
+    ],
+  "Credit ledger unavailable. No financial effect has been confirmed.": [
+    "积分记录不可用。尚未确认财务结果。",
+    "積分紀錄不可用。尚未確認財務結果。",
+  ],
+  "Credit attribution remains unknown. A thread or packet label does not establish a debit or refund.":
+    [
+      "积分归属仍未知。主题或红包标记不能证明扣款或退款。",
+      "積分歸屬仍未知。主題或紅包標記不能證明扣款或退款。",
+    ],
+  "If an expected refund is missing, contact a moderator for assistance. Refund conditions and timing have not been verified.":
+    [
+      "如果预期退款未到账，请联系版主协助。退款条件和时间尚未验证。",
+      "如果預期退款未到帳，請聯絡版主協助。退款條件和時間尚未驗證。",
+    ],
+  "A further red-packet attempt can deduct additional credits and create a duplicate thread or packet. The original unknown attempt remains unresolved.":
+    [
+      "再次尝试红包可能额外扣款并创建重复主题或红包。原先结果未知的尝试仍未解决。",
+      "再次嘗試紅包可能額外扣款並建立重複主題或紅包。原先結果未知的嘗試仍未解決。",
+    ],
+  "Credits may be deducted when sent. No top-ups or silent re-funding are supported.":
+    [
+      "发送时可能扣除积分。不支持追加金额或静默重新注资。",
+      "傳送時可能扣除積分。不支援追加金額或靜默重新注資。",
+    ],
+  "Existing red packet: content edits do not change its conditions, top up, refund or re-fund it. Packet and credit outcomes require separate checking.":
+    [
+      "现有红包：内容编辑不更改领取条件、不追加、退款或重新注资。红包和积分结果须分别检查。",
+      "現有紅包：內容編輯不更改領取條件、不追加、退款或重新注資。紅包和積分結果須分別檢查。",
+    ],
+  "Red-packet values do not satisfy the current native limits. Review the amount, shares and conditions.":
+    [
+      "红包设置不符合当前原版限制。请检查金额、份数和条件。",
+      "紅包設定不符合目前原版限制。請檢查金額、份數和條件。",
+    ],
+  "The complete native red-packet controls are unavailable.": [
+    "完整的原版红包控件不可用。",
+    "完整的原版紅包控制項不可用。",
+  ],
+  "The native red-packet split controls are unavailable or ambiguous.": [
+    "原版红包分配控件不可用或存在歧义。",
+    "原版紅包分配控制項不可用或存在歧義。",
+  ],
+  "A designated recipient could not be resolved from the current forum identity search.":
+    [
+      "无法通过当前论坛身份搜索确认指定领取人。",
+      "無法透過目前論壇身分搜尋確認指定領取人。",
+    ],
+  "An existing red-packet thread is already confirmed. Edit that thread or start a separate writing context; no re-funding was prepared.":
+    [
+      "已确认现有红包主题。请编辑该主题或另开写作上下文；未准备重新注资。",
+      "已確認現有紅包主題。請編輯該主題或另開寫作情境；未準備重新注資。",
+    ],
+  open: ["可领取", "可領取"],
+  claimed: ["当前用户已领取", "目前使用者已領取"],
+  done: ["已领完", "已領完"],
+  withdrawn: ["已撤回", "已撤回"],
+  expired: ["已到期", "已到期"],
+  closed: ["已关闭", "已關閉"],
+  absent: ["不存在", "不存在"],
+  unknown: ["未知", "未知"],
+  "present (not displayed)": ["已设置（不显示）", "已設定（不顯示）"],
+  none: ["无", "無"],
+  yes: ["是", "是"],
+  no: ["否", "否"],
+  random: ["随机", "隨機"],
+  equal: ["均分", "均分"],
+  "Reply required": ["须先回复", "須先回覆"],
+  "Passphrase present": ["已设置口令", "已設定口令"],
+  "Designated recipients present": ["已设置指定领取人", "已設定指定領取人"],
+
   "A valid owned-post destination is required.": [
     "需要有效的本人帖子目标。",
     "需要有效的本人貼文目標。",

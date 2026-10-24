@@ -304,6 +304,14 @@ export function decodeThread(
     return {
       id,
       attachments: attachments(wrapper, response.url),
+      ...(descendants(
+        body,
+        (n) =>
+          hasClass(n, "hb-entry") &&
+          attr(n, "data-tid") === requested.searchParams.get("tid"),
+      ).length === 1
+        ? { redPacketThreadId: requested.searchParams.get("tid")! }
+        : {}),
       author: label(author) || "Anonymous",
       authorId: authorURL ? new URL(authorURL).searchParams.get("uid") : null,
       floor: label(

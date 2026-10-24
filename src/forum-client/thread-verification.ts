@@ -69,7 +69,11 @@ export function verifyStoredWriting(
   }
   const normalizations: ThreadVerification["normalizations"] = [];
   for (const expected of options(submitted)) {
-    if (creationName(expected)) continue;
+    if (
+      creationName(expected) ||
+      (submitted.redPacket && expected.name.startsWith("hb_"))
+    )
+      continue;
     const actual = options(stored).find(
       (option) => option.name === expected.name,
     );

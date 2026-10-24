@@ -50,7 +50,7 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.10.0";
+export const FORUM_CLIENT_VERSION = "0.11.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -338,12 +338,13 @@ export function createForumClient(options: {
         };
       }
     },
-    async prepareNewThread(boardId) {
+    async prepareNewThread(boardId, redPacket = false) {
       const current = ++sequence;
       const url = new URL("/forum.php", options.origin);
       url.searchParams.set("mod", "post");
       url.searchParams.set("action", "newthread");
       url.searchParams.set("fid", boardId);
+      if (redPacket) url.searchParams.set("specialextra", "hongbao");
       url.searchParams.set("tsdmapp", "json");
       if (!/^[1-9]\d*$/.test(boardId))
         return {

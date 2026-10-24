@@ -1,0 +1,38 @@
+# Issue 32 completion and acceptance
+
+This is the final acceptance record for **Publish a red packet directly with separate thread, packet and credit results**. It supersedes the pending-gate status in the historical implementation-worker notes without relabelling their evidence. The candidate is based on accepted #30 commit `9a96e9468056982eb5096ee760505c0aed1f254d`; only #32 was selected, after its sole blocker #22 was closed.
+
+## Delivered behavior
+
+Direct packet publication exposes all eight current native settings and actual constraints, reviews amount and conditions, and revalidates the current form/account/revision before sending. Thread/source, packet state and current ledger observations remain independent. Partial success and unknown financial attribution are explicit. Allowed content editing preserves source, attachments and native hidden metadata without creation/funding fields. Unknown attempts require explicit checking and warned deliberate resend; confirmed contexts cannot silently fund another packet. Expiry/refund guidance describes observations and moderator assistance without invented timing guarantees.
+
+Completed review found and corrected one P2 issue: an inconclusive later check could erase an already verified content edit and expose a resend affordance. Historical confirmation now survives while current source freshness remains explicitly uncertain. Packet and ledger refresh independently. Two new complete-application failures preceded that narrow correction.
+
+## Acceptance criteria verified
+
+- [x] **Current controls, limits and final review.** All eight settings and actual field/cross-field constraints are covered by failure-first application cases and both installed browsers. The native review and independently captured single POST matched the authorized total, shares, split, reply requirement, passphrase, recipients, expiry and greeting. A fresh native form GET preceded submission.
+- [x] **Separate source, packet and credit outcomes.** Full/partial/malformed/lost-response fixtures verify separation. Live stored thread `1269635`, opening post `78249714`, submitted revision 14 and exact source were independently read back. Packet status reported open and exposed conditions. Current ledger included an HBS −10 row; exact debit attribution remains unknown because no immutable funding identity is exposed. Submission text alone was not used as confirmation.
+- [x] **Content-only edits preserve shared guarantees.** Application and packed-consumer checks plus both installed browser cases verify source/attachment behavior, preserved hidden metadata and zero `hb_*` funding fields on edit. Historical confirmation survives failed/changed-source rechecks. No native content edit was authorized or performed for this bounded publication.
+- [x] **Honest result checking, deliberate resend and expiry/refund guidance.** Deterministic cases retain the original unknown, disclose possible additional debit, prevent automatic replay, and cover expired/unavailable packet and missing-refund guidance. Both installed browsers verified lost response → reload → explicit read-only reconciliation with one creation command. Live Check result issued only four GETs and retained separate outcomes. Native expiry/refund enforcement and moderation timing remain unclaimed.
+- [x] **Full-setting/partial fixtures and authorized native publication.** All 25 corrected packet cases passed within the 162-case affected Edge run. Both installed browsers exercised exact corrected source. The user separately authorized one 10-credit native publication; exactly one POST occurred, with no resend, claim, withdrawal, edit or deletion.
+
+## Verification and provenance
+
+- Original transplanted full Edge baseline: **781/781**, zero retries, bound to pre-review userscript SHA-256 `6607714344a3ced2e938e3c2454a7c81bdf3aa4331d6979e3b671fcd585fbea4`.
+- Corrected affected Edge application run: **162/162**, zero retries, including all 25 packet cases and shared editing/attachment cases. Two new regression cases also have distinct red → green receipts. Passing clean packed Node consumer, typecheck, build, ESLint, formatting and diff-whitespace checks.
+- Corrected userscript: **1,677,237 bytes**, SHA-256 `bd8e8e2d1ad1d2a86efd94c2b7118def7e22ffee5426207a44e0c19e3c9c25be`. Corrected public JS: **352,253 bytes**, SHA-256 `94cee7a1dfae9032090832a708654101623e05fb7297b80cd49c1e2e77f83b8f`. Package/export contract 0.11.0; application 0.4.0.
+- Official manager readback and executing-source identity verified in Chrome agent-test and Edge Profile 1. External-HTTP-only installed cases cover full-setting publication, content edit, failed/changed-source checks, independent packet/ledger refresh, and lost-response recovery. Preferences were restored, interception cleared and synthetic tabs closed.
+- Native case: [TSDM UI direct packet verification 2026-10-24](https://www.tsdm39.com/forum.php?mod=viewthread&tid=1269635). Published by the authorized account in board 4, category 其他, one equal 10-credit share, reply and test passphrase required, no designated recipients, requested one-hour expiry, greeting TSDM Workspace verification, no attachments or broadcasts. Native status does not expose the exact saved secret, complete funding settings or expiry deadline; presence flags are not promoted to exact confirmation. The displayed HBS row is observed evidence, not an invented packet-to-ledger join.
+- Standards and Spec reviews have no remaining findings after the validated correction. Completed-work BDFL correction and installed audits accepted their evidence. Final whole-ticket acceptance is recorded in the retained advisor receipt.
+
+These observations use macOS Chrome/Edge with BETA Tampermonkey. They do not qualify stable-manager, Windows, update/rollback or release distribution. No release or push is included.
+
+## Repeatable evidence and preservation
+
+Retained artifacts live at `evidence/runs/issue-32-completion-retained/`: original/corrected development runs, red failures, installed source/runtime identity and scenarios, correction/review reports, emitted artifacts and authored native attestation. Run `python3 evidence/runs/issue-32-completion-retained/verify-retained.py` to verify its manifest. The README and original receipts specify pinned runtime and reproduction commands. Authenticated native response bodies, session values and unrelated member data remain private and are excluded from Git/public evidence.
+
+Existing root source and ignored evidence are preserved independently from the accepted candidate. The broader dirty root overlay is not qualified by this commit. Earlier unrelated native writing remains untouched. Native observation instrumentation was disabled after readback. The one-publication authorization is consumed and does not authorize future writes.
+
+## Complete distinct trade-off ledger
+
+All twelve actual implementation choices are reported once: items 1–9 in [32-hongbao.md](32-hongbao.md#actual-trade-offs), items 10–12 in [32-continuation.md](32-continuation.md#additional-distinct-trade-offs). Those records explain shared-command reuse, strict native capability interpretation, recipient lookup, bounded/unknown ledger attribution, fresh hidden metadata, confirmed-context publication guard, requested-versus-observed settings, uncertain refusal outcomes, dependency reuse, scoped transplantation, contract-version alignment, and historical confirmation versus current freshness. Completed reviews and bounded live execution introduced no additional distinct product trade-off. The inherited root-overlay preservation procedure retains its documented ref/index interruption risk and verification safeguards.

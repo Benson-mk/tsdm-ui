@@ -122,6 +122,7 @@ export type ContentNode =
       children: readonly ContentNode[];
     };
 export interface Post {
+  redPacketThreadId?: string;
   id: string;
   author: string;
   authorId: string | null;
@@ -391,7 +392,10 @@ export interface ForumClient {
   ): Promise<PublicationPreparationResult>;
   savePostEdit(attempt: ThreadAttempt): Promise<ThreadAttempt>;
   checkEditResult(attempt: ThreadAttempt): Promise<ThreadAttempt>;
-  prepareNewThread(boardId: string): Promise<PrepareWritingResult>;
+  prepareNewThread(
+    boardId: string,
+    redPacket?: boolean,
+  ): Promise<PrepareWritingResult>;
   prepareReply(
     boardId: string,
     target: ReplyTarget,
@@ -411,6 +415,9 @@ export interface ForumClient {
 }
 
 export interface WritingOption {
+  minimum?: string;
+  maximum?: string;
+  step?: string;
   name: string;
   label: string;
   kind: "checkbox" | "select" | "text";
@@ -457,6 +464,8 @@ export interface PreparedWriting {
   action: "new-thread" | "reply" | "quick-quote" | "edit-post";
   replyTarget?: ReplyTarget;
   mentions?: MentionIdentity[];
+  existingRedPacket?: boolean;
+  redPacket?: { hints: string[] };
   editTarget?: {
     threadId: string;
     postId: string;
@@ -542,7 +551,23 @@ export interface ThreadVerification {
   normalizations: { name: "price"; submitted: ""; stored: "0" }[];
   creationEffects: ThreadCreationEffect[];
 }
+export interface RedPacketLedger {
+  state: "observed" | "unavailable";
+  rows: {
+    operation: "HBS" | "HBR" | "HBG";
+    change: string;
+    details: string;
+    time: string;
+  }[];
+}
+export interface RedPacketObservation {
+  ledger?: RedPacketLedger;
+  state: string;
+  conditions: string[];
+  credit: "unknown";
+}
 export interface ThreadAttempt {
+  redPacket?: RedPacketObservation;
   id: string;
   publication: ThreadPublication;
   status:

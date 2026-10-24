@@ -326,6 +326,74 @@ export function decodeWriting(
         : null,
     };
   }
+  const packetNames: Record<string, string> = {
+    hb_total: "Total credits",
+    hb_shares: "Share count",
+    hb_split: "Split",
+    hb_cond: "Require a reply",
+    hb_password: "Passphrase",
+    hb_appoint: "Designated recipients",
+    hb_expire: "Expiry",
+    hb_blessing: "Greeting",
+  };
+  const redPacket =
+    !edit &&
+    !reply &&
+    new URL(requested).searchParams.get("specialextra") === "hongbao";
+  const packetOptions: WritingOption[] = [];
+  if (redPacket) {
+    if (
+      controls.some(
+        (n) =>
+          attr(n, "name").startsWith("hb_") &&
+          !Object.hasOwn(packetNames, attr(n, "name")),
+      )
+    )
+      return fail(
+        "invalid",
+        "The complete native red-packet controls are unavailable.",
+      );
+    for (const [name, caption] of Object.entries(packetNames)) {
+      const nodes = named(name);
+      if (name === "hb_split") {
+        if (
+          nodes.length !== 2 ||
+          nodes.some((n) => attr(n, "type") !== "radio") ||
+          nodes.filter((n) => has(n, "checked")).length !== 1
+        )
+          return fail(
+            "invalid",
+            "The native red-packet split controls are unavailable or ambiguous.",
+          );
+        const selected = nodes.find((n) => has(n, "checked"))!;
+        packetOptions.push({
+          ...option(selected, caption),
+          label: caption,
+          kind: "select",
+          checked: false,
+          choices: nodes.map((n) => ({
+            value: attr(n, "value"),
+            label: controlLabel(doc, n, attr(n, "value")),
+            disabled: controlDisabled(n),
+          })),
+        });
+      } else {
+        if (nodes.length !== 1)
+          return fail(
+            "invalid",
+            "The complete native red-packet controls are unavailable.",
+          );
+        const node = nodes[0]!;
+        packetOptions.push({
+          ...option(node, caption),
+          label: caption,
+          ...(attr(node, "min") ? { minimum: attr(node, "min") } : {}),
+          ...(attr(node, "max") ? { maximum: attr(node, "max") } : {}),
+          ...(attr(node, "step") ? { step: attr(node, "step") } : {}),
+        });
+      }
+    }
+  }
   const options = controls
     .filter((n) => Object.hasOwn(optionLabels, attr(n, "name")))
     .map((n) => option(n, optionLabels[attr(n, "name")]!));
@@ -359,6 +427,7 @@ export function decodeWriting(
       ...(reply ? { replyTarget: reply } : {}),
       draftSaveAvailable:
         !reply &&
+        !redPacket &&
         named("save").length === 1 &&
         attr(named("save")[0]!, "type") === "hidden" &&
         attr(named("save")[0]!, "id") === "postsave" &&
@@ -381,7 +450,16 @@ export function decodeWriting(
       ...(edit && !named("subject").length ? { titleAvailable: false } : {}),
       source: text(named("message")[0]),
       category: category ? option(category, "Category") : null,
-      options,
+      options: [...options, ...packetOptions],
+      ...(redPacket
+        ? {
+            redPacket: {
+              hints: descendants(form, (n) =>
+                attr(n, "class").split(/\s+/).includes("hb-hint"),
+              ).map(label),
+            },
+          }
+        : {}),
       uploadedReferences: references,
       ...(edit
         ? {

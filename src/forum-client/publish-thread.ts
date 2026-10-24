@@ -1,5 +1,10 @@
-import { mentionsCurrent } from "./mentions.js";
+import { findMention, mentionsCurrent } from "./mentions.js";
 import { validateUploadFields } from "./upload-authoring.js";
+import {
+  validRedPacket,
+  observeRedPacket,
+  observePacketLedger,
+} from "./hongbao.js";
 import {
   attr,
   byId,
@@ -66,6 +71,9 @@ export function compatible(
   current: PreparedWriting,
 ): boolean {
   return (
+    Boolean(original.existingRedPacket) ===
+      Boolean(current.existingRedPacket) &&
+    JSON.stringify(original.redPacket) === JSON.stringify(current.redPacket) &&
     options(original).length === options(current).length &&
     options(current).every((fresh) => {
       const previous = options(original).find((o) => o.name === fresh.name);
@@ -74,7 +82,10 @@ export function compatible(
         previous.kind !== fresh.kind ||
         previous.disabled !== fresh.disabled ||
         !same(previous.choices, fresh.choices) ||
-        previous.maxLength !== fresh.maxLength
+        previous.maxLength !== fresh.maxLength ||
+        previous.minimum !== fresh.minimum ||
+        previous.maximum !== fresh.maximum ||
+        previous.step !== fresh.step
       )
         return false;
       if (fresh.disabled)
@@ -96,6 +107,7 @@ export function successful(
   draftSave: false | "save" | "publish" = false,
   uploadFields: { name: string; value: string; disabled: boolean }[] = [],
 ): { url: string; body: string } | null {
+  if (!validRedPacket(writing)) return null;
   const doc = document(response),
     form = byId(doc, "postform");
   if (!form) return null;
@@ -195,7 +207,13 @@ export function successful(
     }
     if (
       (["special", "save"].includes(name) &&
-        !["", "0"].includes(attr(node, "value"))) ||
+        !["", "0"].includes(attr(node, "value")) &&
+        !(
+          name === "special" &&
+          type === "hidden" &&
+          (writing.redPacket ||
+            (writing.action === "edit-post" && writing.existingRedPacket))
+        )) ||
       ((writing.action === "edit-post" || draftSave) &&
         name === "delattachop" &&
         attr(node, "value") !== "0")
@@ -204,7 +222,11 @@ export function successful(
     const supplied = options(writing).find((o) => o.name === name);
     if (
       ["checkbox", "radio"].includes(type) &&
-      !(supplied ? supplied.checked : has(node, "checked"))
+      !(supplied
+        ? type === "radio" && supplied.kind === "select"
+          ? attr(node, "value") === supplied.value
+          : supplied.checked
+        : has(node, "checked"))
     )
       continue;
     const value =
@@ -258,6 +280,9 @@ export function successful(
       !(
         [
           "formhash",
+          ...(writing.redPacket || writing.existingRedPacket
+            ? ["special", "specialextra"]
+            : []),
           "posttime",
           "wysiwyg",
           "save",
@@ -456,7 +481,28 @@ export function createThreadPublisher(config: {
       owned,
     };
   }
-  async function verify(
+  async function recipientsCurrent(writing: PreparedWriting): Promise<boolean> {
+    if (!writing.redPacket) return true;
+    const input =
+      writing.options.find((o) => o.name === "hb_appoint")?.value ?? "";
+    if (!input.trim()) return true;
+    const names = input.split(",").map((n) => n.trim());
+    if (
+      names.some((n) => !n || /[\r\n]/.test(n)) ||
+      new Set(names).size !== names.length
+    )
+      return false;
+    for (const name of names) {
+      const found = await findMention(config, writing, name);
+      if (
+        found.kind !== "people" ||
+        found.people.filter((p) => p.name === name).length !== 1
+      )
+        return false;
+    }
+    return true;
+  }
+  async function verifyThread(
     attempt: ThreadAttempt,
     destination: string,
   ): Promise<ThreadAttempt> {
@@ -606,6 +652,43 @@ export function createThreadPublisher(config: {
       );
     }
   }
+  async function verify(
+    attempt: ThreadAttempt,
+    destination: string,
+  ): Promise<ThreadAttempt> {
+    const result = await verifyThread(attempt, destination);
+    if (!attempt.publication.submission.writing.redPacket) return result;
+    const accepted = candidate(destination, config.origin);
+    const threadId = accepted && new URL(accepted).searchParams.get("tid");
+    if (
+      !threadId ||
+      member(config.account()) !==
+        attempt.publication.submission.writing.account.id
+    )
+      return {
+        ...result,
+        redPacket: { state: "unknown", conditions: [], credit: "unknown" },
+      };
+    const generation = config.generation();
+    const observed = await observeRedPacket(
+      config.transport,
+      config.origin,
+      threadId,
+    );
+    const credits = await observePacketLedger(
+      config.transport,
+      config.origin,
+      attempt.publication.submission.writing.account.id,
+    );
+    if (credits.account.kind !== "unknown") config.observe(credits.account);
+    return {
+      ...result,
+      redPacket:
+        generation === config.generation()
+          ? { ...observed, ledger: credits.ledger }
+          : { state: "unknown", conditions: [], credit: "unknown" },
+    };
+  }
   return {
     async prepare(
       submission: ThreadSubmission,
@@ -645,6 +728,10 @@ export function createThreadPublisher(config: {
         return fail(
           "A title, complete source and valid ordinary new-thread revision are required.",
         );
+      if (!validRedPacket(submission.writing))
+        return fail(
+          "Red-packet values do not satisfy the current native limits. Review the amount, shares and conditions.",
+        );
       submission = clone(submission);
       const id = crypto.randomUUID();
       reviews.set(submission.contextId, id);
@@ -656,6 +743,7 @@ export function createThreadPublisher(config: {
       for (const [key, value] of Object.entries({
         mod: "post",
         action: writing.replyTarget ? "reply" : "newthread",
+        ...(writing.redPacket ? { specialextra: "hongbao" } : {}),
         ...(writing.replyTarget
           ? {
               tid: writing.replyTarget.threadId,
@@ -696,6 +784,10 @@ export function createThreadPublisher(config: {
           );
         if (decoded.kind !== "prepared") return fail(decoded.message);
         const validationGeneration = config.generation();
+        if (!(await recipientsCurrent(writing)))
+          return fail(
+            "A designated recipient could not be resolved from the current forum identity search.",
+          );
         if (!(await mentionsCurrent(config, writing)))
           return fail(
             "A selected mention identity changed or could not be revalidated. Resolve the person again.",
@@ -756,6 +848,11 @@ export function createThreadPublisher(config: {
     },
     async publish(attempt: ThreadAttempt): Promise<ThreadAttempt> {
       attempt = clone(attempt);
+      if (attempt.publication.submission.writing.redPacket)
+        attempt = {
+          ...attempt,
+          redPacket: { state: "unknown", conditions: [], credit: "unknown" },
+        };
       const known = forms.get(attempt.publication.id),
         contextId = attempt.publication.submission.contextId;
       const notSent = (message: string): ThreadAttempt => ({
@@ -787,6 +884,7 @@ export function createThreadPublisher(config: {
         for (const [key, value] of Object.entries({
           mod: "post",
           action: writing.replyTarget ? "reply" : "newthread",
+          ...(writing.redPacket ? { specialextra: "hongbao" } : {}),
           ...(writing.replyTarget
             ? {
                 tid: writing.replyTarget.threadId,
@@ -799,6 +897,10 @@ export function createThreadPublisher(config: {
           tsdmapp: "json",
         }))
           checkURL.searchParams.set(key, value);
+        if (!(await recipientsCurrent(writing)))
+          return notSent(
+            "A designated recipient could not be resolved from the current forum identity search.",
+          );
         if (!(await mentionsCurrent(config, writing)))
           return notSent(
             "A selected mention identity changed before send. Nothing was sent.",
@@ -881,8 +983,15 @@ export function createThreadPublisher(config: {
           );
         return {
           ...attempt,
-          status: result.kind === "unknown" ? "uncertain" : result.kind,
-          message: result.message,
+          status:
+            result.kind === "unknown" ||
+            (writing.redPacket && result.kind === "rejected")
+              ? "uncertain"
+              : result.kind,
+          message:
+            writing.redPacket && result.kind === "rejected"
+              ? "The forum refused validation; thread, packet and credit outcomes remain unconfirmed. Check the original attempt before considering another send."
+              : result.message,
         };
       } catch {
         return sent

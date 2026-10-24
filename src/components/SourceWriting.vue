@@ -121,6 +121,14 @@ function attachmentLabel(name: string) {
   return `${text.value.attachments} ${match?.[1] ?? ""} · ${match?.[2] ? labels[match[2] as keyof typeof labels] : text.value.attachmentAssociation}`;
 }
 
+function packetText(value: string) {
+  return description(value, props.workspace.preferences.state.value.language);
+}
+function optionCaption(option: WritingOption) {
+  return state.value.context?.redPacket && option.name.startsWith("hb_")
+    ? packetText(option.label)
+    : option.label;
+}
 function value(event: Event) {
   return (event.target as HTMLInputElement).value;
 }
@@ -302,6 +310,76 @@ function updateOption(option: WritingOption, event: Event) {
           )
         }}
       </p>
+      <section v-if="attempt.redPacket" aria-label="Red-packet result">
+        <p>
+          {{ packetText("Packet state:") }}
+          {{ packetText(attempt.redPacket.state) }}
+        </p>
+        <p v-for="condition in attempt.redPacket.conditions" :key="condition">
+          {{
+            condition.startsWith("Greeting: ")
+              ? packetText("Greeting") + ": " + condition.slice(10)
+              : condition.split(": ").map(packetText).join(": ")
+          }}
+        </p>
+        <p>
+          {{
+            packetText(
+              "Exact passphrase, recipients, total, shares and expiry deadline are not confirmed by presence flags.",
+            )
+          }}
+        </p>
+        <section v-if="attempt.redPacket.ledger?.state === 'observed'">
+          <p>
+            {{
+              packetText("Observed credit rows (current returned page only)")
+            }}
+          </p>
+          <ul>
+            <li
+              v-for="(row, index) in attempt.redPacket.ledger.rows"
+              :key="index"
+            >
+              {{ row.operation }} · {{ row.change }} · {{ row.details }} ·
+              {{ row.time }}
+            </li>
+          </ul>
+          <p v-if="!attempt.redPacket.ledger.rows.length">
+            {{
+              packetText(
+                "No packet-credit rows were observed on this page. This does not prove no debit or refund occurred.",
+              )
+            }}
+          </p>
+        </section>
+        <p v-else>
+          {{
+            packetText(
+              "Credit ledger unavailable. No financial effect has been confirmed.",
+            )
+          }}
+        </p>
+        <p>
+          {{
+            packetText(
+              "Credit attribution remains unknown. A thread or packet label does not establish a debit or refund.",
+            )
+          }}
+        </p>
+        <p
+          v-if="
+            ['expired', 'withdrawn', 'closed'].includes(
+              attempt.redPacket.state,
+            ) || attempt.status === 'moderation'
+          "
+        >
+          {{
+            packetText(
+              "If an expected refund is missing, contact a moderator for assistance. Refund conditions and timing have not been verified.",
+            )
+          }}
+        </p>
+      </section>
       <details v-if="attempt.replyComparison" open>
         <summary>{{ text.replyComparison }}</summary>
         <p>{{ text.replyComparisonLimits }}</p>
@@ -359,7 +437,11 @@ function updateOption(option: WritingOption, event: Event) {
         }}</a
       >
       <template
-        v-if="attempt.status === 'uncertain' || attempt.status === 'moderation'"
+        v-if="
+          attempt.status === 'uncertain' ||
+          attempt.status === 'moderation' ||
+          attempt.redPacket
+        "
       >
         <label v-if="state.context.action !== 'edit-post'"
           >{{ text.candidateThreadURL
@@ -386,6 +468,13 @@ function updateOption(option: WritingOption, event: Event) {
       </template>
     </section>
     <section v-if="state.resend" role="alert">
+      <p v-if="state.context.redPacket">
+        {{
+          packetText(
+            "A further red-packet attempt can deduct additional credits and create a duplicate thread or packet. The original unknown attempt remains unresolved.",
+          )
+        }}
+      </p>
       <p>
         {{
           state.context.action === "edit-post"
@@ -416,7 +505,7 @@ function updateOption(option: WritingOption, event: Event) {
           ]"
           :key="option.name"
         >
-          {{ option.label }}:
+          {{ optionCaption(option as WritingOption) }}:
           {{ option.kind === "checkbox" ? option.checked : option.value
           }}{{ option.disabled ? ` (${text.disabledOption})` : "" }}
         </li>
@@ -471,6 +560,47 @@ function updateOption(option: WritingOption, event: Event) {
         }}
       </button>
       <section v-if="state.publication" role="alert">
+        <template v-if="state.publication.submission.writing.redPacket">
+          <p>
+            {{
+              packetText(
+                "Publish red packet — deduct {amount} credits",
+              ).replace(
+                "{amount}",
+                state.publication.submission.writing.options.find(
+                  (o) => o.name === "hb_total",
+                )?.value ?? "",
+              )
+            }}
+          </p>
+          <ul>
+            <li
+              v-for="option in state.publication.submission.writing.options.filter(
+                (o) => o.name.startsWith('hb_'),
+              )"
+              :key="option.name"
+            >
+              {{ optionCaption(option as WritingOption) }}:
+              {{
+                option.name === "hb_password"
+                  ? packetText(
+                      option.value ? "present (not displayed)" : "none",
+                    )
+                  : option.kind === "checkbox"
+                    ? option.checked
+                    : (option.choices.find((c) => c.value === option.value)
+                        ?.label ?? option.value)
+              }}
+            </li>
+          </ul>
+          <p>
+            {{
+              packetText(
+                "Credits may be deducted when sent. No top-ups or silent re-funding are supported.",
+              )
+            }}
+          </p>
+        </template>
         <p v-if="state.context.action === 'edit-post'">
           {{
             insert(text.editReview, state.publication.submission.revision)
@@ -504,7 +634,9 @@ function updateOption(option: WritingOption, event: Event) {
               ? text.saveEditedPost
               : state.context.replyTarget
                 ? text.sendReply
-                : text.publishThread
+                : state.context.redPacket
+                  ? packetText("Publish red packet")
+                  : text.publishThread
           }}
         </button>
       </section>
@@ -676,6 +808,14 @@ function updateOption(option: WritingOption, event: Event) {
     >
       {{ text.draftCreationInstructions }}
     </p>
+    <p v-if="state.context.existingRedPacket">
+      {{
+        packetText(
+          "Existing red packet: content edits do not change its conditions, top up, refund or re-fund it. Packet and credit outcomes require separate checking.",
+        )
+      }}
+    </p>
+    <p v-for="hint in state.context.redPacket?.hints" :key="hint">{{ hint }}</p>
     <fieldset>
       <legend>{{ text.currentFormOptions }}</legend>
       <label v-for="option in currentOptions" :key="option.name">
@@ -686,13 +826,13 @@ function updateOption(option: WritingOption, event: Event) {
             :value="option.value"
             :disabled="option.disabled"
             @change="updateOption(option as WritingOption, $event)"
-          />{{ option.label }}</template
+          />{{ optionCaption(option as WritingOption) }}</template
         >
         <template v-else
-          >{{ option.label
+          >{{ optionCaption(option as WritingOption)
           }}<select
             v-if="option.kind === 'select'"
-            :aria-label="option.label"
+            :aria-label="optionCaption(option as WritingOption)"
             :value="option.value"
             :disabled="option.disabled"
             @change="updateOption(option as WritingOption, $event)"
@@ -710,6 +850,10 @@ function updateOption(option: WritingOption, event: Event) {
             :value="option.value"
             :disabled="option.disabled"
             :maxlength="option.maxLength ?? undefined"
+            :type="option.minimum !== undefined ? 'number' : 'text'"
+            :min="option.minimum"
+            :max="option.maximum"
+            :step="option.step"
             @input="updateOption(option as WritingOption, $event)"
         /></template>
       </label>

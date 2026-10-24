@@ -1,5 +1,6 @@
 import { mentionsCurrent } from "./mentions.js";
 import { validateUploadFields } from "./upload-authoring.js";
+import { observeRedPacket, observePacketLedger } from "./hongbao.js";
 import { decodeThread } from "./read-thread.js";
 import {
   decodeWriting,
@@ -90,6 +91,10 @@ export function createPostEditor(config: {
       ...decoded.prepared,
       action: "edit-post",
       draftSaveAvailable: false,
+      ...(ownership.thread.posts.find((p) => p.id === w.editTarget!.postId)
+        ?.redPacketThreadId === w.editTarget!.threadId
+        ? { existingRedPacket: true }
+        : {}),
       editTarget: {
         ...w.editTarget!,
         baseline: editBaseline(decoded.prepared),
@@ -286,20 +291,28 @@ export function createPostEditor(config: {
       return fail("Fresh edit preparation failed. Local writing is retained.");
     }
   }
-  async function check(attempt: ThreadAttempt): Promise<ThreadAttempt> {
+  async function checkContent(attempt: ThreadAttempt): Promise<ThreadAttempt> {
     attempt = copy(attempt);
     const writing = attempt.publication.submission.writing,
       target = writing.editTarget;
-    const uncertain = (message: string): ThreadAttempt => ({
-      ...attempt,
-      status: attempt.status === "moderation" ? "moderation" : "uncertain",
-      checked: true,
-      message:
-        attempt.status === "moderation"
-          ? `Moderation remains pending. ${message}`
-          : message,
-      result: null,
-    });
+    const uncertain = (message: string): ThreadAttempt =>
+      attempt.status === "confirmed" && attempt.result
+        ? {
+            ...attempt,
+            checked: true,
+            message: `Previous stored confirmation retained. This recheck did not verify the current result. ${message}`,
+          }
+        : {
+            ...attempt,
+            status:
+              attempt.status === "moderation" ? "moderation" : "uncertain",
+            checked: true,
+            message:
+              attempt.status === "moderation"
+                ? `Moderation remains pending. ${message}`
+                : message,
+            result: null,
+          };
     if (!target || writing.action !== "edit-post")
       return uncertain("The original edit target is unavailable.");
     try {
@@ -358,6 +371,35 @@ export function createPostEditor(config: {
         "Saved post readback failed. Check this original attempt; nothing was repeated.",
       );
     }
+  }
+  async function check(attempt: ThreadAttempt): Promise<ThreadAttempt> {
+    const result = await checkContent(attempt),
+      writing = attempt.publication.submission.writing;
+    if (
+      !writing.existingRedPacket ||
+      !writing.editTarget ||
+      config.account().kind !== "member"
+    )
+      return result;
+    const generation = config.generation();
+    const observed = await observeRedPacket(
+      config.transport,
+      config.origin,
+      writing.editTarget.threadId,
+    );
+    const credits = await observePacketLedger(
+      config.transport,
+      config.origin,
+      writing.account.id,
+    );
+    if (credits.account.kind !== "unknown") config.observe(credits.account);
+    return {
+      ...result,
+      redPacket:
+        generation === config.generation()
+          ? { ...observed, ledger: credits.ledger }
+          : { state: "unknown", conditions: [], credit: "unknown" },
+    };
   }
   async function save(attempt: ThreadAttempt): Promise<ThreadAttempt> {
     attempt = copy(attempt);

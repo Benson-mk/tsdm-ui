@@ -196,10 +196,10 @@ watch(download, async (value) => {
       ?.scrollIntoView({ block: "nearest" });
 });
 const writing = props.workspace.writing.state;
-function prepareWriting() {
+function prepareWriting(redPacket = false) {
   const url = pickerBoard.value?.url;
   const id = url && new URL(url).searchParams.get("fid");
-  if (id) void props.workspace.writing.prepare(id);
+  if (id) void props.workspace.writing.prepare(id, false, undefined, redPacket);
 }
 const boardContext = computed(() =>
   !["boards", "saved"].includes(state.value.section)
@@ -605,6 +605,18 @@ function boardIdFrom(url: string) {
         @click="prepareWriting()"
       >
         {{ text.newThread }}
+      </button>
+      <button
+        v-if="pickerBoard"
+        :disabled="writing.preparing"
+        @click="prepareWriting(true)"
+      >
+        {{
+          description(
+            "New red packet",
+            workspace.preferences.state.value.language,
+          )
+        }}
       </button>
       <button
         v-if="state.result?.kind === 'thread' || state.result?.kind === 'board'"

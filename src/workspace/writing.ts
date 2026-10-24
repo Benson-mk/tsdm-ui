@@ -36,7 +36,11 @@ export function createWriting(
     visible: boolean;
     preparing: boolean;
     message: string;
-    replacement: { boardId: string; replyTarget?: ReplyTarget } | null;
+    replacement: {
+      boardId: string;
+      replyTarget?: ReplyTarget;
+      redPacket?: boolean;
+    } | null;
     editReplacement: { threadURL: string; postId: string } | null;
     conflict: PreparedWriting | null;
     reloadWarning: boolean;
@@ -378,10 +382,11 @@ export function createWriting(
     boardId: string,
     replace = false,
     replyTarget?: ReplyTarget,
+    redPacket = false,
   ) {
     if (
       deferViewChange(() => {
-        void prepare(boardId, replace, replyTarget);
+        void prepare(boardId, replace, replyTarget, redPacket);
       })
     )
       return;
@@ -389,6 +394,7 @@ export function createWriting(
     const sameAction =
       existing?.action !== "edit-post" &&
       existing?.board.id === boardId &&
+      Boolean(existing?.redPacket) === redPacket &&
       JSON.stringify(existing?.replyTarget) === JSON.stringify(replyTarget);
     if (state.value.publishing && (replace || !sameAction)) {
       state.value = {
@@ -405,7 +411,11 @@ export function createWriting(
       }
       state.value = {
         ...state.value,
-        replacement: { boardId, ...(replyTarget ? { replyTarget } : {}) },
+        replacement: {
+          boardId,
+          redPacket,
+          ...(replyTarget ? { replyTarget } : {}),
+        },
       };
       return;
     }
@@ -413,7 +423,7 @@ export function createWriting(
     state.value = { ...state.value, preparing: true, message: "" };
     const result = await (replyTarget
       ? client.prepareReply(boardId, replyTarget)
-      : client.prepareNewThread(boardId));
+      : client.prepareNewThread(boardId, redPacket));
     if (result.kind !== "stale") {
       accountObserved(result.account);
       observe(result.account, result.kind === "prepared");
@@ -1313,6 +1323,17 @@ export function createWriting(
       };
       return;
     }
+    if (
+      context.redPacket &&
+      context.attempts?.some((a) => a.status === "confirmed" && a.result)
+    ) {
+      state.value = {
+        ...state.value,
+        message:
+          "An existing red-packet thread is already confirmed. Edit that thread or start a separate writing context; no re-funding was prepared.",
+      };
+      return;
+    }
     const unresolved =
       context.attempts?.filter((attempt) =>
         ["pending", "uncertain", "moderation"].includes(attempt.status),
@@ -1982,7 +2003,12 @@ export function createWriting(
       else {
         const replacement = state.value.replacement;
         if (replacement)
-          void prepare(replacement.boardId, true, replacement.replyTarget);
+          void prepare(
+            replacement.boardId,
+            true,
+            replacement.replyTarget,
+            replacement.redPacket,
+          );
       }
     },
   };
@@ -2064,6 +2090,13 @@ export function isWritingContext(value: unknown): value is WritingContext {
       value.titleAvailable === undefined ||
       typeof value.titleAvailable === "boolean"
     ) ||
+    (value.redPacket !== undefined &&
+      (!object(value.redPacket) ||
+        !Array.isArray(value.redPacket.hints) ||
+        !value.redPacket.hints.every(string) ||
+        value.action !== "new-thread")) ||
+    (value.existingRedPacket !== undefined &&
+      (value.existingRedPacket !== true || value.action !== "edit-post")) ||
     !string(value.source) ||
     (value.editorUnresolved !== undefined &&
       typeof value.editorUnresolved !== "boolean")
@@ -2139,6 +2172,7 @@ export function isWritingContext(value: unknown): value is WritingContext {
         ...target.baseline,
         attachmentFields: undefined,
         action: "new-thread",
+        existingRedPacket: undefined,
         editTarget: undefined,
         attempts: undefined,
         selection: { start: 0, end: 0, direction: "none" },
@@ -2162,6 +2196,9 @@ export function isWritingContext(value: unknown): value is WritingContext {
     object(o) &&
     string(o.name) &&
     string(o.label) &&
+    [o.minimum, o.maximum, o.step].every(
+      (v) => v === undefined || (string(v) && /^\d+$/.test(v)),
+    ) &&
     ["checkbox", "select", "text"].includes(String(o.kind)) &&
     string(o.value) &&
     typeof o.checked === "boolean" &&
@@ -2297,6 +2334,26 @@ function isAttempt(value: unknown): value is ThreadAttempt {
       "confirmed",
       "not-sent",
     ].includes(value.status) ||
+    (value.redPacket !== undefined &&
+      (!object(value.redPacket) ||
+        !string(value.redPacket.state) ||
+        !Array.isArray(value.redPacket.conditions) ||
+        !value.redPacket.conditions.every(string) ||
+        value.redPacket.credit !== "unknown" ||
+        (value.redPacket.ledger !== undefined &&
+          (!object(value.redPacket.ledger) ||
+            !["observed", "unavailable"].includes(
+              String(value.redPacket.ledger.state),
+            ) ||
+            !Array.isArray(value.redPacket.ledger.rows) ||
+            !value.redPacket.ledger.rows.every(
+              (row) =>
+                object(row) &&
+                ["HBS", "HBR", "HBG"].includes(String(row.operation)) &&
+                string(row.change) &&
+                string(row.details) &&
+                string(row.time),
+            ))))) ||
     !string(value.message) ||
     typeof value.checked !== "boolean" ||
     !(value.candidateURL === null || safeThreadURL(value.candidateURL)) ||
