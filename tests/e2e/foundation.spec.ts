@@ -537,3 +537,43 @@ test("J1.native-word-break: native universal styles do not split application con
     contentType: "image/png",
   });
 });
+
+// Measures complete emitted candidate entry, not a dependency-only probe or budget.
+test("J1.emitted-startup-measurement: populated current artifact enters and opens selected Reka dialog", async ({
+  page,
+}, info) => {
+  const started = performance.now();
+  const requests = await openThread(page);
+  await expect(
+    page.getByRole("heading", {
+      name: "Autumn listening 秋日聆聽",
+      exact: true,
+    }),
+  ).toBeVisible();
+  const readyMs = performance.now() - started;
+  const dialogStarted = performance.now();
+  await page
+    .getByRole("button", { name: "About this workspace", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "About this workspace", exact: true }),
+  ).toBeVisible();
+  expect(requests.filter((url) => url.includes("tsdmapp=json"))).toHaveLength(
+    1,
+  );
+  await info.attach("emitted-artifact-measurement.json", {
+    body: Buffer.from(
+      JSON.stringify({
+        readyMs,
+        dialogMs: performance.now() - dialogStarted,
+        requests,
+        executableBytes: Buffer.byteLength(
+          readFileSync("dist/tsdm-workspace.user.js"),
+        ),
+        scope:
+          "Actual full candidate in deterministic browser fixture; includes routing/automation overhead, no stable performance guarantee or budget.",
+      }),
+    ),
+    contentType: "application/json",
+  });
+});

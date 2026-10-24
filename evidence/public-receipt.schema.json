@@ -1,0 +1,379 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Benson-mk/tsdm-ui/evidence/public-receipt.schema.json",
+  "title": "TSDM authored public receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "runId",
+    "timestamp",
+    "timezone",
+    "status",
+    "candidate",
+    "source",
+    "lockSha256",
+    "tools",
+    "runtime",
+    "cases"
+  ],
+  "properties": {
+    "schema": {
+      "const": 3
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timezone": {
+      "const": "Asia/Hong_Kong"
+    },
+    "status": {
+      "enum": ["passed", "failed", "blocked", "not-run", "inconclusive"]
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["userscriptSha256"],
+      "properties": {
+        "userscriptSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "manifest"],
+      "properties": {
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "manifest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["file", "sha256"],
+          "properties": {
+            "file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "lockSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "version", "sha256"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "browser", "manager"],
+      "properties": {
+        "os": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "name", "version", "detail"],
+          "properties": {
+            "status": {
+              "enum": ["observed", "not-applicable", "unknown"]
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "detail": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "browser": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "name", "version", "detail"],
+          "properties": {
+            "status": {
+              "enum": ["observed", "not-applicable", "unknown"]
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "detail": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "manager": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "name", "version", "detail"],
+          "properties": {
+            "status": {
+              "enum": ["observed", "not-applicable", "unknown"]
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "detail": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "status",
+          "evidenceLevel",
+          "candidateSha256",
+          "installedSha256",
+          "reference",
+          "fixtures",
+          "capabilities",
+          "expected",
+          "observed",
+          "limits",
+          "readback",
+          "artifacts"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": ["passed", "failed", "blocked", "not-run", "inconclusive"]
+          },
+          "evidenceLevel": {
+            "enum": ["synthetic", "live", "installed", "clean-node-consumer"]
+          },
+          "candidateSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "installedSha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reference": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "file", "case", "sha256", "entry"],
+            "properties": {
+              "kind": {
+                "enum": ["playwright", "cli", "manual"]
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "case": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "entry": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "fixtures": {
+            "type": "array",
+            "minItems": 0,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["file", "sha256"],
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            }
+          },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "expected": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observed": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limits": {
+            "type": "array",
+            "minItems": 0,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "readback": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "artifact", "result"],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "independent-state",
+                  "authored-observation",
+                  "not-applicable"
+                ]
+              },
+              "artifact": {
+                "type": "string",
+                "minLength": 1
+              },
+              "result": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "artifacts": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import boundaryAssert from "node:assert/strict";
+const boundaryCases = [];
 // The public artifact must hide implementation paths even when their files ship.
 for (const specifier of [
   "@tsdm/forum-client/index.js",
@@ -24,3 +25,8 @@ for (const name of [
     name + " must not be supplied by the consumer",
   );
 }
+
+boundaryCases.push({
+  name: "public package hides private exports and needs no browser globals",
+  status: "passed",
+});

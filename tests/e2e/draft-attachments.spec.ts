@@ -1,3 +1,4 @@
+import { combinedSource, richRoundTrip } from "./combined-authoring";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -253,12 +254,20 @@ test("J6.J8.draft-upload-lifecycle: upload save resume revise resave publish pre
   page,
 }, info) => {
   const state = await fixture(page);
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(combinedSource);
   await upload(page);
   expect(state.associated).toEqual([]);
   expect(state.saved).toBeNull();
   await page
     .getByRole("button", { name: "Insert note.txt", exact: true })
     .click();
+  const combined = await page
+    .getByLabel("Complete source", { exact: true })
+    .inputValue();
+  await richRoundTrip(page, combined);
+  expect(state.commands).toHaveLength(0);
   const source = await page
     .getByLabel("Complete source", { exact: true })
     .inputValue();

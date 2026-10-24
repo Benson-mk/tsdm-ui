@@ -10,7 +10,7 @@ const escapeDraft = (value) =>
 // wrong actor, duplicate save, source mismatch and false publication while listed.
 // Only the external forum transport is substituted; calls use public exports.
 const draftCases = [];
-{
+for (const funded of [false, true]) {
   const draftOrigin = "https://fixture.example";
   const draftList =
     draftOrigin +
@@ -24,8 +24,10 @@ const draftCases = [];
   };
   const draftActor =
     '<div id="um"><strong><a href="home.php?mod=space&uid=7">Writer 7</a></strong></div>';
+  const packetFields =
+    '<div class="hb-postbox"><div class="hb-row"><label>總金額</label><input type="number" name="hb_total" min="1" step="1" value="20"></div><div class="hb-row"><label>份數</label><input type="number" name="hb_shares" min="1" max="100" step="1" value="2"><span class="hb-hint">最多 100 份;每份至少 10</span></div><label><input type="radio" name="hb_split" value="1" checked>拼手氣</label><label><input type="radio" name="hb_split" value="2">均分</label><label><input type="checkbox" name="hb_cond" value="1">必須回帖後才能搶</label><input name="hb_password" type="text" maxlength="64"><input name="hb_appoint" type="text" placeholder="會員名,可多個(逗號分隔)"><select name="hb_expire"><option value="6" selected>6 小時</option></select><input type="text" name="hb_blessing" maxlength="50" value="Authored greeting"><div class="hb-hint">紅包金額在扣款成功後才鎖定;發表後不可補塞、不可加碼。</div></div>';
   const draftForm = (edit) =>
-    `${draftActor}<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music</a></div><form id="postform" method="post" action="forum.php?mod=post&action=${edit ? "edit&tid=42&pid=101&editsubmit=yes" : "newthread&topicsubmit=yes"}&fid=5"><input type="hidden" name="formhash" value="AUTHORED-TOKEN"><input type="hidden" name="save" id="postsave" value=""><input name="subject" value="${escapeDraft(edit ? (draftState.saved?.get("subject") ?? "") : "Portable draft")}"><textarea name="message">${escapeDraft(edit ? (draftState.saved?.get("message") ?? "") : "Complete portable source")}</textarea><input name="price" value="0"><button name="${edit ? "editsubmit" : "topicsubmit"}" value="true">Publish</button><button type="button" onclick="$('postsave').value=1;$('postsubmit').click();">Save</button></form>`;
+    `${draftActor}<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music</a></div><form id="postform" method="post" action="forum.php?mod=post&action=${edit ? "edit&tid=42&pid=101&editsubmit=yes" : "newthread&topicsubmit=yes"}&fid=5"><input type="hidden" name="formhash" value="AUTHORED-TOKEN"><input type="hidden" name="save" id="postsave" value=""><input name="subject" value="${escapeDraft(edit ? (draftState.saved?.get("subject") ?? "") : "Portable draft")}"><textarea name="message">${escapeDraft(edit ? (draftState.saved?.get("message") ?? "") : "Complete portable source")}</textarea>${funded && !edit ? packetFields : ""}<input name="price" value="0"><button name="${edit ? "editsubmit" : "topicsubmit"}" value="true">Publish</button><button type="button" onclick="$('postsave').value=1;$('postsubmit').click();">Save</button></form>`;
   const draftClient = createDraftClient({
     origin: draftOrigin,
     transport: {
@@ -49,17 +51,39 @@ const draftCases = [];
             body: "<root><![CDATA[<script>succeedhandle_post('forum.php?mod=viewthread&tid=42','Stored',{});</script>]]></root>",
           };
         }
+        if (target.pathname === "/plugin.php")
+          return {
+            status: 200,
+            url,
+            contentType: "application/json",
+            body: JSON.stringify({
+              ok: true,
+              tid: 42,
+              state: "open",
+              cond: 0,
+              haspw: 0,
+              appoint: 0,
+              splitmode: 1,
+            }),
+          };
+        if (target.searchParams.get("ac") === "credit")
+          return {
+            status: 503,
+            url,
+            contentType: "text/plain",
+            body: "Unavailable",
+          };
         if (target.pathname === "/home.php")
           body = `${draftActor}<a class="a" href="${draftList}">草稿箱</a><form id="delform"><table><tbody>${draftState.saved && !draftState.published ? '<tr><th><a href="forum.php?mod=viewthread&tid=42">Portable draft</a></th><td><a href="forum.php?mod=forumdisplay&fid=5">Music</a></td></tr>' : '<tr><td><p class="emp">还没有相关的帖子</p></td></tr>'}</tbody></table></form>`;
         else if (target.searchParams.get("mod") === "post")
           body = draftForm(target.searchParams.get("action") === "edit");
         else
-          body = `${draftActor}<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music</a></div><div id="postlist"><h1><span id="thread_subject">Portable draft</span>${draftState.published ? "" : '<span class="xg1">(草稿)</span>'}</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=7">Writer 7</a></div><a id="postnum101">1#</a><div class="pcb"><p>Stored portable body</p></div><div class="po"><div class="pob">${draftState.published ? "" : '<a class="psave" href="forum.php?mod=misc&action=pubsave&tid=42">Publish</a>'}</div></div></div></div>`;
+          body = `${draftActor}<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music</a></div><div id="postlist"><h1><span id="thread_subject">Portable draft</span>${draftState.published ? "" : '<span class="xg1">(草稿)</span>'}</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=7">Writer 7</a></div><a id="postnum101">1#</a><div class="pcb"><p>Stored portable body</p>${funded ? '<div class="hb-entry" data-tid="42">Packet</div>' : ""}</div><div class="po"><div class="pob">${draftState.published ? "" : '<a class="psave" href="forum.php?mod=misc&action=pubsave&tid=42">Publish</a>'}</div></div></div></div>`;
         return { status: 200, url, contentType: "text/html", body };
       },
     },
   });
-  const preparedDraft = await draftClient.prepareNewThread("5");
+  const preparedDraft = await draftClient.prepareNewThread("5", funded);
   draftAssert.equal(preparedDraft.kind, "prepared");
   const draftAttempt = {
     id: "portable-save",
@@ -69,10 +93,25 @@ const draftCases = [];
       revision: 1,
       writing: preparedDraft.prepared,
     },
+    fundingReviewed: funded,
     status: "pending",
     message: "",
     result: null,
   };
+  if (funded) {
+    draftAssert.ok(preparedDraft.prepared.redPacket);
+    const refused = await draftClient.prepareDraftSave({
+      ...draftAttempt,
+      fundingReviewed: false,
+    });
+    draftAssert.equal(refused.status, "not-sent");
+    draftAssert.equal(draftState.posts.length, 0);
+    draftAssert.equal(
+      (await draftClient.saveDraft(refused)).status,
+      "not-sent",
+    );
+    draftAssert.equal(draftState.posts.length, 0);
+  }
   const supersededSave = await draftClient.prepareDraftSave({
     ...draftAttempt,
     id: "superseded-draft-save",
@@ -210,8 +249,17 @@ const draftCases = [];
       .every(({ url }) => new DraftURL(url).origin === draftOrigin),
     "Publication checks never request an external retained URL",
   );
+  if (funded) {
+    draftAssert.equal(
+      draftState.posts.filter((p) => p.has("hb_total")).length,
+      1,
+    );
+    draftAssert.equal(draftState.posts[0].get("hb_total"), "20");
+    draftAssert.equal(draftState.posts[1].has("hb_total"), false);
+    draftAssert.equal(savedDraft.redPacket.credit, "unknown");
+  }
   draftCases.push({
-    name: "packaged-client same-record save/resume/publication and operation isolation",
+    name: `packaged-client ${funded ? "funded" : "ordinary"} same-record save/resume/publication and operation isolation`,
     status: "passed",
     requests: draftState.requests,
     posts: draftState.posts.length,

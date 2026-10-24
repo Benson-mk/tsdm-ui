@@ -345,7 +345,7 @@ await publicationCase(
 );
 for (const phase of ["prepare", "preflight", "result", "source"])
   await publicationCase(
-    "delayed " + phase + " cannot overwrite a newer actor observation",
+    `delayed ${phase} cannot overwrite a newer actor observation`,
     async () => {
       const f = publicationFixture(),
         submission = await f.submission();
@@ -450,8 +450,7 @@ for (const [storedPrice, status] of [
   ["", "confirmed"],
 ])
   await publicationCase(
-    "disabled blank price omitted from command with stored " +
-      JSON.stringify(storedPrice),
+    `disabled blank price omitted from command with stored ${JSON.stringify(storedPrice)}`,
     async () => {
       const f = publicationFixture();
       f.state.formChange = (body, saved) =>
@@ -625,7 +624,7 @@ for (const [name, change] of [
   ],
 ])
   await publicationCase(
-    "stored normalization cannot hide " + name,
+    `stored normalization cannot hide ${name}`,
     async () => {
       const f = nativePublicationFixture();
       f.state.sourceChange = change;
@@ -677,7 +676,7 @@ for (const [name, response] of [
     ),
   ],
 ])
-  await publicationCase("callback refuses " + name, async () => {
+  await publicationCase(`callback refuses ${name}`, async () => {
     const f = nativePublicationFixture();
     f.state.response = response;
     const ready = await f.client.prepareThreadPublication(await f.submission());

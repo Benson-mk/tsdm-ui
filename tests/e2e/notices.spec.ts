@@ -28,7 +28,7 @@ function notices(url: URL, header = account()) {
   });
   const label = category?.label ?? "All standard notices";
   const categoryURL = inbox + (category?.query ?? "");
-  return `${header}<div id="ct"><div class="mn"><div class="nts"><dl notice="${page}1" id="notice_${page}1"><dt><span class="xg1"><span title="2026-10-20 21:35:42">just now</span></span><a href="home.php?mod=spacecp&ac=common&op=ignore&formhash=NEVER-STORE">Ignore</a></dt><dd class="ntc_body" style="font-weight:bold"><p>${label} page ${page}: full notice introduction.</p><p>${"Preserved body detail. ".repeat(80)}</p><p>${completeTail}</p><a href="forum.php?mod=redirect&goto=findpost&ptid=42&pid=202">Open exact reply</a><script>window.noticeExecuted=true</script><img src="javascript:alert(1)" onerror="window.noticeExecuted=true"></dd></dl></div><div class="pg"><strong>${page}</strong><a href="${categoryURL}&page=${page === "1" ? "2" : "1"}">${page === "1" ? "2" : "1"}</a></div></div><div class="appl"><div class="tbn"><ul><li class="${category ? "" : "a"}"><a href="${inbox}">All standard notices</a></li>${categoryLinks.map((item) => `<li class="${category === item ? "a" : ""}"><a href="${inbox}${item.query}">${item.label}</a></li>`).join("")}<li><a href="home.php?mod=space&do=pm">Private messages</a></li></ul></div></div></div>`;
+  return `${header}<div id="ct"><div class="mn"><div class="nts"><dl notice="${page}1" id="notice_${page}1"><dt><span class="xg1"><span title="2026-10-20 21:35:42">just now</span></span><a href="home.php?mod=spacecp&ac=common&op=ignore&formhash=SYNTHETIC_PUBLIC_FORM_TOKEN">Ignore</a></dt><dd class="ntc_body" style="font-weight:bold"><p>${label} page ${page}: full notice introduction.</p><p>${"Preserved body detail. ".repeat(80)}</p><p>${completeTail}</p><a href="forum.php?mod=redirect&goto=findpost&ptid=42&pid=202">Open exact reply</a><script>window.noticeExecuted=true</script><img src="javascript:alert(1)" onerror="window.noticeExecuted=true"></dd></dl></div><div class="pg"><strong>${page}</strong><a href="${categoryURL}&page=${page === "1" ? "2" : "1"}">${page === "1" ? "2" : "1"}</a></div></div><div class="appl"><div class="tbn"><ul><li class="${category ? "" : "a"}"><a href="${inbox}">All standard notices</a></li>${categoryLinks.map((item) => `<li class="${category === item ? "a" : ""}"><a href="${inbox}${item.query}">${item.label}</a></li>`).join("")}<li><a href="home.php?mod=space&do=pm">Private messages</a></li></ul></div></div></div>`;
 }
 const nativeAllPage2 = `${inbox}&view=all&type=&isread=1&page=2`;
 function nativePagerNotices(url: URL, query = "&view=all&type=&isread=1") {
@@ -349,7 +349,7 @@ test("J10.notices-deliberate-complete: overview does not preload or poll; delibe
   const snapshot = await page.evaluate(() =>
     sessionStorage.getItem("tsdm.workspace.recovery"),
   );
-  expect(snapshot).not.toContain("NEVER-STORE");
+  expect(snapshot).not.toContain("SYNTHETIC_PUBLIC_FORM_TOKEN");
   await page.clock.fastForward(61_000);
   expect(server.effects()).toBe(6);
   await artifact(page, info, server.ledger, "complete-notice-category-page");
@@ -985,7 +985,7 @@ test("J10.notices-native-body-targets: deferred PM/activity targets explicitly c
   const server = await open(page, (url) =>
     notices(url).replace(
       "</dd></dl>",
-      '<p><a href="home.php?mod=space&do=pm&subop=view&touid=9">Private message target</a><a href="home.php?mod=space&do=doing&id=99">Activity target</a><a href="home.php?mod=spacecp&ac=friend&op=add&uid=9&formhash=PRIVATE-CONTROL">Native control</a></p></dd></dl>',
+      '<p><a href="home.php?mod=space&do=pm&subop=view&touid=9">Private message target</a><a href="home.php?mod=space&do=doing&id=99">Activity target</a><a href="home.php?mod=spacecp&ac=friend&op=add&uid=9&formhash=SYNTHETIC_PUBLIC_FORM_TOKEN">Native control</a></p></dd></dl>',
     ),
   );
   await overview(page);
@@ -1020,7 +1020,7 @@ test("J10.notices-native-body-targets: deferred PM/activity targets explicitly c
     await page.evaluate(() =>
       sessionStorage.getItem("tsdm.workspace.recovery"),
     ),
-  ).not.toContain("PRIVATE-CONTROL");
+  ).not.toContain("SYNTHETIC_PUBLIC_FORM_TOKEN");
   expect(server.effects()).toBe(1);
   await page.reload();
   await expect(
@@ -1173,7 +1173,7 @@ test("J10.notices-returned-native-controls: repeated categories preserve their a
   const server = await open(
     page,
     () =>
-      `${account("7", '<a id="myprompt">提醒</a>')}<div id="ct"><div class="tb"><ul><li class="a"><a href="${inbox}">All standard notices</a></li><li><a href="${inbox}&view=interactive">Social activity</a></li></ul></div><div class="subsub"><a href="${inbox}">All standard notices</a></div><div class="nts"><dl class="cl" notice="73" id="pendingFriend_19"><dt><a class="d b" href="home.php?mod=spacecp&ac=common&op=ignore&formhash=NEVER-STORE">Ignore</a><span class="xg1 xw0"><span title="2026-10-20 21:40:00">just now</span></span></dt><dd class="ntc_body"><p>A complete authored friend request.</p><a href="home.php?mod=spacecp&ac=friend&op=add&uid=19&formhash=PRIVATE-CONTROL">Accept friend request</a></dd></dl></div></div>`,
+      `${account("7", '<a id="myprompt">提醒</a>')}<div id="ct"><div class="tb"><ul><li class="a"><a href="${inbox}">All standard notices</a></li><li><a href="${inbox}&view=interactive">Social activity</a></li></ul></div><div class="subsub"><a href="${inbox}">All standard notices</a></div><div class="nts"><dl class="cl" notice="73" id="pendingFriend_19"><dt><a class="d b" href="home.php?mod=spacecp&ac=common&op=ignore&formhash=SYNTHETIC_PUBLIC_FORM_TOKEN">Ignore</a><span class="xg1 xw0"><span title="2026-10-20 21:40:00">just now</span></span></dt><dd class="ntc_body"><p>A complete authored friend request.</p><a href="home.php?mod=spacecp&ac=friend&op=add&uid=19&formhash=SYNTHETIC_PUBLIC_FORM_TOKEN">Accept friend request</a></dd></dl></div></div>`,
   );
   await overview(page);
   await page.getByRole("button", { name: "Load notices", exact: true }).click();
@@ -1201,7 +1201,7 @@ test("J10.notices-returned-native-controls: repeated categories preserve their a
     await page.evaluate(() =>
       sessionStorage.getItem("tsdm.workspace.recovery"),
     ),
-  ).not.toContain("PRIVATE-CONTROL");
+  ).not.toContain("SYNTHETIC_PUBLIC_FORM_TOKEN");
   expect(server.effects()).toBe(1);
   await artifact(page, info, server.ledger, "returned-native-control-shapes");
 });

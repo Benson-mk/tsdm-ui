@@ -23,7 +23,7 @@ const source =
 function form(member = "7", saved?: URLSearchParams) {
   const value = (name: string, fallback = "") =>
     escape(saved?.get(name) ?? fallback);
-  return `${actor(member)}<div id="pt"><a href="${boardURL}">Music</a></div><form id="postform" method="post" action="forum.php?mod=post&action=${saved ? "edit&tid=42&pid=101" : "newthread"}&fid=5&topicsubmit=yes"><input type="hidden" name="formhash" value="SECRET-CURRENT"><input type="hidden" name="posttime" value="1792550000"><input type="hidden" name="wysiwyg" value="0"><input name="subject" value="${value("subject", "Native title")}"><select name="typeid"><option value="0">No category</option><option value="3"${value("typeid") === "3" ? " selected" : ""}>Listening</option></select><textarea name="message">${value("message")}</textarea><label><input type="checkbox" name="usesig" value="1"${saved && !saved.has("usesig") ? "" : " checked"}>Signature</label><label><input type="checkbox" name="bbcodeoff" value="1"${saved?.has("bbcodeoff") ? " checked" : ""}>Disable BBCode</label><label><input type="checkbox" name="htmlon" value="1" disabled>HTML</label><label>Thread price<input name="price" value="${value("price", "0")}"></label><label>Read permission<select name="readperm"><option value="0">Everyone</option><option value="10"${value("readperm") === "10" ? " selected" : ""}>Members</option></select></label><button type="submit" name="topicsubmit" value="yes">Publish</button></form>`;
+  return `${actor(member)}<div id="pt"><a href="${boardURL}">Music</a></div><form id="postform" method="post" action="forum.php?mod=post&action=${saved ? "edit&tid=42&pid=101" : "newthread"}&fid=5&topicsubmit=yes"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_FORM_TOKEN"><input type="hidden" name="posttime" value="1792550000"><input type="hidden" name="wysiwyg" value="0"><input name="subject" value="${value("subject", "Native title")}"><select name="typeid"><option value="0">No category</option><option value="3"${value("typeid") === "3" ? " selected" : ""}>Listening</option></select><textarea name="message">${value("message")}</textarea><label><input type="checkbox" name="usesig" value="1"${saved && !saved.has("usesig") ? "" : " checked"}>Signature</label><label><input type="checkbox" name="bbcodeoff" value="1"${saved?.has("bbcodeoff") ? " checked" : ""}>Disable BBCode</label><label><input type="checkbox" name="htmlon" value="1" disabled>HTML</label><label>Thread price<input name="price" value="${value("price", "0")}"></label><label>Read permission<select name="readperm"><option value="0">Everyone</option><option value="10"${value("readperm") === "10" ? " selected" : ""}>Members</option></select></label><button type="submit" name="topicsubmit" value="yes">Publish</button></form>`;
 }
 async function fixture(
   page: Page,
@@ -150,7 +150,7 @@ test("J4.publish-current: publish complete source/current options once and indep
     price: "2",
     readperm: "10",
     bbcodeoff: "1",
-    formhash: "SECRET-CURRENT",
+    formhash: "SYNTHETIC_PUBLIC_FORM_TOKEN",
     posttime: "1792550000",
     wysiwyg: "0",
   });
@@ -164,7 +164,7 @@ test("J4.publish-current: publish complete source/current options once and indep
   const stored = await page.evaluate(() =>
     sessionStorage.getItem("tsdm.workspace.recovery"),
   );
-  expect(stored).not.toContain("SECRET-CURRENT");
+  expect(stored).not.toContain("SYNTHETIC_PUBLIC_FORM_TOKEN");
   expect(stored).toContain('"status":"confirmed"');
   await info.attach("publication.png", {
     body: await page.screenshot(),

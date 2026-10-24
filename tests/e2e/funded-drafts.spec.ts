@@ -1,3 +1,4 @@
+import { combinedSource, richRoundTrip } from "./combined-authoring";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -437,6 +438,9 @@ test("J6.J7.funded-draft-lifecycle: save revise fresh resume publish and owned e
   page,
 }, info) => {
   const state = await fixture(page);
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(combinedSource);
   state.specialEdit = true;
   await page.getByLabel("Passphrase", { exact: true }).fill("original secret");
   await page
@@ -447,6 +451,11 @@ test("J6.J7.funded-draft-lifecycle: save revise fresh resume publish and owned e
   await page
     .getByRole("button", { name: "Insert note.txt", exact: true })
     .click();
+  const combined = await page
+    .getByLabel("Complete source", { exact: true })
+    .inputValue();
+  await richRoundTrip(page, combined);
+  expect(state.commands).toHaveLength(0);
   await fund(page);
   await expect(page.getByText(/Confirmed forum draft 42/).last()).toBeVisible();
   await expect(page.getByLabel("Total credits", { exact: true })).toHaveCount(
@@ -1135,6 +1144,21 @@ test("J6.J7.funded-draft-later-settings: delayed target adoption retains unappli
   expect(state.packet?.get("hb_total")).toBe("20");
   expect(state.packet?.get("hb_password")).toBe("");
   expect(state.packet?.has("hb_cond")).toBe(false);
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByLabel("Text size", { exact: true }).fill("150");
+  await page.locator("#interface-language").selectOption("zh-TW");
+  await page.keyboard.press("Escape");
+  const geometry = await page.locator("#tsdm-workspace").evaluate((host) => ({
+    width: host.clientWidth,
+    scroll: host.scrollWidth,
+  }));
+  expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1);
+  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await page.locator("#interface-language").selectOption("en");
+  await page.getByLabel("Text size", { exact: true }).fill("100");
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.reload();
   await expect(retained).toContainText("Later unsent secret");
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
@@ -1468,3 +1492,126 @@ test("J6.J7.funded-draft-continuation-packet-target: successful Save-and-continu
   expect(state.commands).toHaveLength(2);
   await evidence(page, info, state);
 });
+
+test("J7.integrated-direct-rich-upload: one reviewed direct publication confirms rich source and association separately from packet and credit observations", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(combinedSource);
+  await page.getByLabel("Require a reply", { exact: true }).check();
+  await page
+    .getByLabel("Passphrase", { exact: true })
+    .fill("Authored passphrase");
+  await upload(page);
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.focus();
+  await source.press("ControlOrMeta+End");
+  await page
+    .getByRole("button", { name: "Insert note.txt", exact: true })
+    .click();
+  const expected = combinedSource + "[attach]88[/attach]";
+  await richRoundTrip(page, expected);
+  expect(state.commands).toEqual([]);
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(
+    page.getByText("Publish red packet — deduct 20 credits", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Publish red packet", exact: true })
+    .click();
+  await expect(page.getByText(/Confirmed stored thread 42/)).toBeVisible();
+  await expect(
+    page.getByText("Saved association verified · note.txt", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Packet state: open", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Credit attribution remains unknown/),
+  ).toBeVisible();
+  expect(state.commands).toHaveLength(1);
+  expect(state.saved?.get("save")).not.toBe("1");
+  expect(state.saved?.get("message")).toBe(expected);
+  expect(state.saved?.get("typeid")).toBe("3");
+  expect(state.saved?.get("usesig")).toBe("1");
+  expect(state.associated).toEqual(["88"]);
+  expect(state.packet?.get("hb_password")).toBe("Authored passphrase");
+  expect(state.packet?.get("hb_cond")).toBe("1");
+  expect(state.credits.map((c) => c.operation)).toEqual(["HBS", "PR"]);
+  expect(state.reads.some((u) => u.includes("id=hongbao"))).toBe(true);
+  expect(state.reads.some((u) => u.includes("ac=credit"))).toBe(true);
+  expect(state.files.get("88")!.bytes.equals(bytes)).toBe(true);
+  await evidence(page, info, state);
+});
+
+for (const kind of ["direct", "funded"] as const)
+  test(`J11.integrated-packet-upload-copy-${kind}: fresh-account text copy excludes uploaded ownership and funding intent while retaining original uncertainty`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    await upload(page);
+    await page
+      .getByRole("button", { name: "Insert note.txt", exact: true })
+      .click();
+    const text = await page
+      .getByLabel("Complete source", { exact: true })
+      .inputValue();
+    state.saveOutcome = "lost-empty";
+    if (kind === "funded") await fund(page);
+    else {
+      await page
+        .getByRole("button", { name: "Review publication", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Publish red packet", exact: true })
+        .click();
+    }
+    await expect.poll(() => state.commands.length).toBe(1);
+    await expect(
+      page.getByRole("button", {
+        name: "Check current account and form",
+        exact: true,
+      }),
+    ).toBeVisible();
+    const before = await recovered(page);
+    state.member = "8";
+    await page
+      .getByRole("button", {
+        name: "Check current account and form",
+        exact: true,
+      })
+      .click();
+    await expect(page.getByText(/Sending paused/)).toBeVisible();
+    await page
+      .getByRole("button", {
+        name: "Prepare text copy for current account",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Replace with text copy", exact: true })
+      .click();
+    const copied = await recovered(page);
+    expect(copied.account).toMatchObject({ id: "8" });
+    expect(copied.source).toBe(text);
+    expect(copied.uploadedReferences).toEqual([]);
+    expect(copied.draft).toBeUndefined();
+    expect(
+      copied.options.find((option) => option.name === "hb_total")?.value,
+    ).not.toBe("20");
+    expect(copied.draftAttempts).toEqual(before.draftAttempts);
+    expect(copied.attempts).toEqual(before.attempts);
+    await expect(
+      page.getByText(
+        /Attachment references need reattachment or explicit removal/,
+      ),
+    ).toBeVisible();
+    expect(state.commands).toHaveLength(1);
+    expect(state.uploads).toHaveLength(1);
+    expect(state.removals).toEqual([]);
+    await evidence(page, info, state);
+  });

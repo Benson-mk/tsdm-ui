@@ -242,7 +242,7 @@ assert.equal(noticeRequests.length, 6);
     "\n" +
     readFileSync(resolve(root, "tests/consumer/packets.mjs"), "utf8") +
     `
-console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases, favoriteCases, packetCases }));
+console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases, favoriteCases, packetCases, boundaryCases }));
 `;
   writeFileSync(join(consumer, "consume.mjs"), source);
   writeFileSync(

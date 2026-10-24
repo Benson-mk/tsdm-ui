@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Benson-mk/tsdm-ui/evidence/public-files.schema.json",
+  "title": "Public Files",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "files"],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "reviewed"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "authored-summary",
+              "synthetic-artifact",
+              "authored-procedure"
+            ]
+          },
+          "reviewed": {
+            "const": true
+          }
+        }
+      }
+    }
+  }
+}

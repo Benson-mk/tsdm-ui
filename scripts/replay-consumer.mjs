@@ -140,6 +140,7 @@ try {
     receipt.observed.publicationCases,
   );
   for (const family of [
+    "boundaryCases",
     "replyCases",
     "editingCases",
     "packetCases",
@@ -173,6 +174,7 @@ try {
     },
     sourceManifestSha256: identity("manifest.json").sha256,
     packageSha256: receipt.packageSha256,
+    boundaryCases: observed.boundaryCases,
     publicationCases: observed.publicationCases,
     replyCases: observed.replyCases,
     editingCases: observed.editingCases,

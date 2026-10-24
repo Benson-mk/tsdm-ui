@@ -59,3 +59,20 @@ for (const name of names) {
 console.log(
   `Verified exact coverage, safe relative paths, byte sizes and SHA-256 for ${names.length} package files.`,
 );
+
+if (process.argv.includes("--public")) {
+  const { validatePublicEvidence } = await import("./public-evidence.mjs");
+  const allowed = validatePublicEvidence(
+    root,
+    process.argv.includes("--require-pass"),
+  ).sort();
+  if (JSON.stringify(names) !== JSON.stringify(allowed))
+    throw new Error(
+      "Public manifest contains files outside the authored allowlist",
+    );
+  console.log(
+    "Verified public schema, coverage accounting, candidate and authored allowlist. This is not installed qualification.",
+  );
+} else if (process.argv.includes("--require-pass")) {
+  throw new Error("--require-pass requires --public");
+}
