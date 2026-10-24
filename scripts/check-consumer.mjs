@@ -45,7 +45,7 @@ try {
   const source =
     `import assert from 'node:assert/strict';
 import { createForumClient, FORUM_CLIENT_VERSION, unresolvedWritingAttachments } from '@tsdm/forum-client';
-assert.equal(FORUM_CLIENT_VERSION, '0.9.0');
+assert.equal(FORUM_CLIENT_VERSION, '0.10.0');
 const origin = 'https://fixture.example';
 const threadURL = origin + '/forum.php?mod=viewthread&tid=42';
 const attachmentURL = origin + '/forum.php?mod=attachment&aid=authored-token';
@@ -180,8 +180,10 @@ assert.equal(noticeRequests.length, 6);
     readFileSync(resolve(root, "tests/consumer/editing.mjs"), "utf8") +
     "\n" +
     readFileSync(resolve(root, "tests/consumer/drafts.mjs"), "utf8") +
+    "\n" +
+    readFileSync(resolve(root, "tests/consumer/favorites.mjs"), "utf8") +
     `
-console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases }));
+console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases, favoriteCases }));
 `;
   writeFileSync(join(consumer, "consume.mjs"), source);
   writeFileSync(

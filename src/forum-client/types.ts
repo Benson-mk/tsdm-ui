@@ -208,7 +208,32 @@ export type FailureKind =
   | "invalid"
   | "network"
   | "stale";
+export type FavoriteKind = "thread" | "forum";
+export interface FavoriteRecord {
+  id: string;
+  kind: FavoriteKind;
+  targetId: string;
+  url: string | null;
+  title: string;
+  time: string;
+  note: string;
+  removable: boolean;
+  unavailableText?: string;
+}
+export interface Favorites {
+  kind: FavoriteKind;
+  url: string;
+  records: FavoriteRecord[];
+  pages: { current: string; links: ForumLink[] };
+}
 export type ReadResult =
+  | {
+      kind: "favorites";
+      favorites: Favorites;
+      account: Account;
+      generation: number;
+      sourceURL: string;
+    }
   | {
       kind: "notices";
       notices: Notices;
@@ -333,6 +358,12 @@ export interface ForumClient {
     prior?: DraftList,
     expectedAccount?: Account,
   ): Promise<DraftListResult>;
+  prepareFavorite(
+    intent: FavoriteIntent,
+    previousAttemptId?: string,
+  ): Promise<FavoritePreparation>;
+  changeFavorite(attempt: FavoriteAttempt): Promise<FavoriteAttempt>;
+  checkFavoriteResult(attempt: FavoriteAttempt): Promise<FavoriteAttempt>;
   readNotices(
     destination: string,
     prior?: Notices,
@@ -592,3 +623,27 @@ export interface DraftAttempt {
   message: string;
   result: DraftIdentity | null;
 }
+export interface FavoriteIntent {
+  action: "add" | "remove";
+  kind: FavoriteKind;
+  targetId: string;
+  recordId: string | null;
+  accountId: string;
+}
+export interface FavoriteCommand {
+  id: string;
+  generation: number;
+  intent: FavoriteIntent;
+}
+export interface FavoriteAttempt {
+  id: string;
+  command: FavoriteCommand;
+  status: "pending" | "confirmed" | "uncertain" | "not-sent";
+  checked: boolean;
+  message: string;
+  pages: Favorites[] | null;
+}
+export type FavoritePreparation =
+  | { kind: "ready"; command: FavoriteCommand }
+  | { kind: "already"; message: string; pages: Favorites[] }
+  | { kind: "unavailable"; message: string };

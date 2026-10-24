@@ -19,6 +19,7 @@ export interface NavigationEntry {
 }
 export interface NavigationRecord {
   schema: 2;
+  favoriteAttempts?: import("../forum-client").FavoriteAttempt[];
   writing: WritingContext | null;
   entries: Record<string, NavigationEntry>;
   pending: { entryKey: string; destination: string } | null;

@@ -1,0 +1,44 @@
+[
+  {
+    "repository": "tsdm_client",
+    "path": "lib/features/favorite/repository/favorite_repository.dart",
+    "head": "365f7fabde2e98821f55fa1910a055ac19b964bb",
+    "sha256": "4e65bc24dd5444f86da3a49d1c085c55fdd5fcfd31876927c3bd41a86188b001",
+    "workingTreeStatus": ""
+  },
+  {
+    "repository": "tsdm_client",
+    "path": "lib/features/favorite/utils/parse_favorite.dart",
+    "head": "365f7fabde2e98821f55fa1910a055ac19b964bb",
+    "sha256": "89a9138867633d7476c9ef629adf2f0f68888e535f26a9fb0262ea9fb9fa7fba",
+    "workingTreeStatus": ""
+  },
+  {
+    "repository": "tsdm-ui-experiment",
+    "path": "src/integration/live-favorite-list.js",
+    "head": "c8348e6c4c4aaf0011f174394733be3d580f59e5",
+    "sha256": "b6475cdd439eb569904c19925af58307bb51f3425e5c92f77d1f73a84f80f7bb",
+    "workingTreeStatus": ""
+  },
+  {
+    "repository": "tsdm-ui-experiment",
+    "path": "src/integration/live-thread-favorite-add-preparation.js",
+    "head": "c8348e6c4c4aaf0011f174394733be3d580f59e5",
+    "sha256": "054523c38b7b3e34455935065c9c631ce4421baf289a6acee30ec39df99b3c3a",
+    "workingTreeStatus": ""
+  },
+  {
+    "repository": "tsdm-ui-experiment",
+    "path": "src/integration/live-forum-favorite-add-preparation.js",
+    "head": "c8348e6c4c4aaf0011f174394733be3d580f59e5",
+    "sha256": "38e8616ccae6d97f1ee338b0fe905c6cb8c8c87b1b6ce2fb54203141d2305298",
+    "workingTreeStatus": ""
+  },
+  {
+    "repository": "tsdm-ui-experiment",
+    "path": "src/integration/live-favorite-removal.js",
+    "head": "c8348e6c4c4aaf0011f174394733be3d580f59e5",
+    "sha256": "9cd33d817557c4d6006faf4e561c9bb839c4f54d0afa4b4013e87f79ac3dffb0",
+    "workingTreeStatus": ""
+  }
+]

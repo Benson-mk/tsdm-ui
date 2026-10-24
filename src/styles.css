@@ -917,6 +917,42 @@ select {
   text-decoration: underline wavy;
 }
 
+.favorite-inline-kinds {
+  display: none;
+}
+.favorites-pane article {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+.favorites-pane time {
+  display: block;
+}
+.favorites-pane.secondary-results {
+  grid-column: 3;
+  border-right: 1px solid var(--separator);
+}
+.favorite-action {
+  max-height: 40vh;
+  overflow: auto;
+  flex-shrink: 0;
+}
+@media (max-width: 1279px) {
+  .favorite-inline-kinds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .favorites-pane.secondary-results {
+    grid-column: 2;
+  }
+}
+@media (max-width: 959px) {
+  .favorites-pane.secondary-results {
+    display: none;
+  }
+}
+
 .visual-editor {
   min-width: 0;
   overflow-x: auto;

@@ -138,6 +138,29 @@ function result(value: unknown): boolean {
     !url(value.sourceURL, true)
   )
     return false;
+  if (value.kind === "favorites") {
+    const favorites = value.favorites;
+    return (
+      object(favorites) &&
+      ["thread", "forum"].includes(String(favorites.kind)) &&
+      destination(favorites.url) &&
+      pages(favorites.pages) &&
+      list(
+        favorites.records,
+        (item) =>
+          object(item) &&
+          id(item.id) &&
+          id(item.targetId) &&
+          item.kind === favorites.kind &&
+          (item.url === null || destination(item.url)) &&
+          string(item.title) &&
+          string(item.time) &&
+          string(item.note) &&
+          typeof item.removable === "boolean" &&
+          (item.unavailableText === undefined || string(item.unavailableText)),
+      )
+    );
+  }
   if (value.kind === "search") {
     const search = value.search;
     return (
@@ -313,6 +336,47 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
   if (!object(value) || value.schema !== 2 || !object(value.entries))
     return false;
   if (!(value.writing === null || isWritingContext(value.writing)))
+    return false;
+  if (
+    value.favoriteAttempts !== undefined &&
+    !list(value.favoriteAttempts, (attempt) => {
+      if (
+        !object(attempt) ||
+        !key(attempt.id) ||
+        !object(attempt.command) ||
+        !key(attempt.command.id) ||
+        !finite(attempt.command.generation) ||
+        !object(attempt.command.intent) ||
+        !["pending", "confirmed", "uncertain", "not-sent"].includes(
+          String(attempt.status),
+        ) ||
+        typeof attempt.checked !== "boolean" ||
+        !string(attempt.message)
+      )
+        return false;
+      const intent = attempt.command.intent,
+        generation = attempt.command.generation;
+      return (
+        ["add", "remove"].includes(String(intent.action)) &&
+        ["thread", "forum"].includes(String(intent.kind)) &&
+        id(intent.targetId) &&
+        id(intent.accountId) &&
+        (intent.action === "add"
+          ? intent.recordId === null
+          : id(intent.recordId)) &&
+        (attempt.pages === null ||
+          list(attempt.pages, (favorites) =>
+            result({
+              kind: "favorites",
+              favorites,
+              account: { kind: "member", id: intent.accountId, name: "" },
+              generation,
+              sourceURL: object(favorites) ? favorites.url : null,
+            }),
+          ))
+      );
+    })
+  )
     return false;
   const entries = value.entries;
   for (const [entryKey, entry] of Object.entries(entries)) {

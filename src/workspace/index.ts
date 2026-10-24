@@ -47,7 +47,9 @@ const accountKey = (account: Account) =>
       ? "guest"
       : null;
 const success = (result: ReadResult) =>
-  ["thread", "board", "directory", "search", "notices"].includes(result.kind);
+  ["thread", "board", "directory", "search", "notices", "favorites"].includes(
+    result.kind,
+  );
 export function createWorkspace(
   client: ForumClient,
   destination: string,
@@ -216,6 +218,145 @@ export function createWorkspace(
     pending: null,
     writing: null,
   };
+  const favorite = shallowRef<{
+    busy: boolean;
+    prepared: import("../forum-client").FavoriteCommand | null;
+    attempts: import("../forum-client").FavoriteAttempt[];
+    message: string;
+  }>({ busy: false, prepared: null, attempts: [], message: "" });
+  async function prepareFavorite(
+    action: "add" | "remove",
+    kind: import("../forum-client").FavoriteKind,
+    targetId: string,
+    recordId: string | null = null,
+    previousAttemptId?: string,
+  ) {
+    if (favorite.value.busy) return;
+    const unresolved = favorite.value.attempts.find(
+      (item) =>
+        item.status === "uncertain" &&
+        item.command.intent.kind === kind &&
+        item.command.intent.targetId === targetId,
+    );
+    if (
+      unresolved &&
+      (!previousAttemptId ||
+        !favorite.value.attempts.some(
+          (item) =>
+            item.id === previousAttemptId &&
+            item.checked &&
+            item.status === "uncertain",
+        ))
+    ) {
+      favorite.value = {
+        ...favorite.value,
+        message:
+          "Check the original uncertain favorite result before considering a warned new attempt.",
+      };
+      return;
+    }
+    favorite.value = {
+      ...favorite.value,
+      busy: true,
+      prepared: null,
+      message: "Preparing current favorite action…",
+    };
+    const account = client.account;
+    if (account.kind !== "member") {
+      favorite.value = {
+        ...favorite.value,
+        busy: false,
+        message: "A current member account is required.",
+      };
+      return;
+    }
+    const result = await client.prepareFavorite(
+      { action, kind, targetId, recordId, accountId: account.id },
+      previousAttemptId,
+    );
+    observeAccount(client.account);
+    writing.observe(client.account);
+    favorite.value = {
+      ...favorite.value,
+      busy: false,
+      prepared: result.kind === "ready" ? result.command : null,
+      message:
+        result.kind === "ready"
+          ? `${previousAttemptId ? "A new attempt may repeat favorite effects. The original outcome stays uncertain. " : ""}Review ${action} ${kind === "forum" ? "board" : "thread"} ${targetId}, account ${account.id}${recordId ? `, favorite record ${recordId}` : ""}. This changes your favorite record.`
+          : result.message,
+    };
+  }
+  async function sendFavorite() {
+    const command = favorite.value.prepared;
+    if (!command || favorite.value.busy) return;
+    const attempt: import("../forum-client").FavoriteAttempt = {
+      id: crypto.randomUUID(),
+      command,
+      status: "pending",
+      checked: false,
+      message: "Favorite action pending…",
+      pages: null,
+    };
+    favorite.value = {
+      ...favorite.value,
+      busy: true,
+      prepared: null,
+      attempts: [...favorite.value.attempts, attempt],
+      message: attempt.message,
+    };
+    if (!(await persist())) {
+      finishFavorite({
+        ...attempt,
+        status: "not-sent",
+        message:
+          "The pending favorite attempt could not be saved for recovery. Nothing was sent.",
+      });
+      return;
+    }
+    const result = await client.changeFavorite(attempt);
+    finishFavorite(result);
+  }
+  function finishFavorite(attempt: import("../forum-client").FavoriteAttempt) {
+    observeAccount(client.account);
+    writing.observe(client.account);
+    favorite.value = {
+      ...favorite.value,
+      busy: false,
+      attempts: favorite.value.attempts.map((old) =>
+        old.id === attempt.id ? attempt : old,
+      ),
+      message: attempt.message,
+    };
+    if (attempt.status === "confirmed" && attempt.pages) {
+      for (const entry of Object.values(record.entries))
+        if (
+          entry.result?.kind === "favorites" &&
+          entry.result.favorites.kind === attempt.command.intent.kind &&
+          entry.account === `member:${attempt.command.intent.accountId}`
+        ) {
+          const prior = entry.result.favorites;
+          const current =
+            attempt.pages.find(
+              (p) => p.pages.current === prior.pages.current,
+            ) ?? attempt.pages[0];
+          if (current) entry.result = { ...entry.result, favorites: current };
+        }
+      const entry = entryFor(state.value.key);
+      if (entry?.result?.kind === "favorites")
+        state.value = { ...state.value, result: entry.result, stale: false };
+    }
+    void persist();
+  }
+  async function checkFavorite(id: string) {
+    const attempt = favorite.value.attempts.find((item) => item.id === id);
+    if (!attempt || favorite.value.busy) return;
+    favorite.value = {
+      ...favorite.value,
+      busy: true,
+      message: "Checking favorite result…",
+    };
+    finishFavorite(await client.checkFavoriteResult(attempt));
+  }
   let saveSequence = 0;
   const entryFor = (key: string) =>
     Object.hasOwn(record.entries, key) ? record.entries[key] : undefined;
@@ -226,6 +367,9 @@ export function createWorkspace(
     if (entry && view) entry.position = view.capture();
   }
   async function persist() {
+    record.favoriteAttempts = JSON.parse(
+      JSON.stringify(favorite.value.attempts),
+    );
     const current = ++saveSequence;
     const context = record.writing;
     const saved = await host.save(record);
@@ -294,15 +438,19 @@ export function createWorkspace(
     const entry: NavigationEntry = {
       key: crypto.randomUUID(),
       section:
-        routeFor(url)?.kind === "search" ||
-        (state.value.section === "search" &&
-          ["thread", "redirect"].includes(routeFor(url)?.kind ?? ""))
-          ? "search"
-          : routeFor(url)?.kind === "notices" ||
-              (state.value.section === "notices" &&
+        routeFor(url)?.kind === "favorites" ||
+        (state.value.section === "saved" &&
+          ["board", "thread", "redirect"].includes(routeFor(url)?.kind ?? ""))
+          ? "saved"
+          : routeFor(url)?.kind === "search" ||
+              (state.value.section === "search" &&
                 ["thread", "redirect"].includes(routeFor(url)?.kind ?? ""))
-            ? "notices"
-            : "boards",
+            ? "search"
+            : routeFor(url)?.kind === "notices" ||
+                (state.value.section === "notices" &&
+                  ["thread", "redirect"].includes(routeFor(url)?.kind ?? ""))
+              ? "notices"
+              : "boards",
       destination: url,
       originKey,
       selection: null,
@@ -326,18 +474,27 @@ export function createWorkspace(
     }
     if (account.kind === "unknown") {
       for (const entry of Object.values(record.entries))
-        if (entry.result?.kind === "notices") {
+        if (
+          entry.result &&
+          ["notices", "favorites"].includes(entry.result.kind)
+        ) {
           entry.result = null;
           invalidated = true;
         }
-      if (state.value.result?.kind === "notices")
+      if (
+        state.value.result &&
+        ["notices", "favorites"].includes(state.value.result.kind)
+      )
         state.value = {
           ...state.value,
           result: null,
           restored: false,
           missing: true,
         };
-      if (state.value.origin?.kind === "notices")
+      if (
+        state.value.origin &&
+        ["notices", "favorites"].includes(state.value.origin.kind)
+      )
         state.value = { ...state.value, origin: null };
     }
     if (observed) {
@@ -615,6 +772,22 @@ export function createWorkspace(
     if (recovered) {
       record = recovered;
       writing.restore(recovered.writing);
+      const attempts = (recovered.favoriteAttempts ?? []).map((attempt) =>
+        attempt.status === "pending"
+          ? {
+              ...attempt,
+              status: "uncertain" as const,
+              message:
+                "The tab recovered a pending favorite action. Its outcome is uncertain; no action was replayed.",
+            }
+          : attempt,
+      );
+      favorite.value = {
+        busy: false,
+        prepared: null,
+        attempts,
+        message: attempts.at(-1)?.message ?? "",
+      };
     }
     // Initial document traversal must not save an empty provisional record.
     // Read the current key after loading; earlier history events need no replay.
@@ -715,7 +888,8 @@ export function createWorkspace(
       state.value.result?.kind !== "thread"
     )
       return loadNotices();
-    if (!["boards", "search", "notices"].includes(state.value.section)) return;
+    if (!["boards", "search", "notices", "saved"].includes(state.value.section))
+      return;
     clearDownload();
     let entry = entryFor(state.value.key);
     if (!entry) {
@@ -765,6 +939,24 @@ export function createWorkspace(
     preferences,
     drafts: readonly(drafts),
     loadDrafts,
+    favorite: readonly(favorite),
+    prepareFavorite,
+    sendFavorite,
+    checkFavorite,
+    resendFavorite: (id: string) => {
+      const old = favorite.value.attempts.find(
+        (item) => item.id === id && item.checked && item.status === "uncertain",
+      );
+      if (!old) return;
+      const intent = old.command.intent;
+      return prepareFavorite(
+        intent.action,
+        intent.kind,
+        intent.targetId,
+        intent.recordId,
+        id,
+      );
+    },
     openSection,
     loadNotices,
     writing,

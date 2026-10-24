@@ -5,6 +5,8 @@ import {
 import { findMention } from "./mentions.js";
 import { createDraftOperations } from "./draft-operations.js";
 import { decodeDraftList, draftListPath, draftListURL } from "./drafts.js";
+import { createFavoriteCommands } from "./favorite-command.js";
+import { decodeFavorites } from "./favorites.js";
 import { fileFailure } from "./download.js";
 import { decodeNotices } from "./notices.js";
 import {
@@ -21,7 +23,14 @@ import { decodeThread } from "./read-thread.js";
 import { decodeBoard } from "./read-board.js";
 import { routeFor } from "./routes.js";
 export function describeDestination(value: string): {
-  kind: "directory" | "board" | "thread" | "redirect" | "search" | "notices";
+  kind:
+    | "directory"
+    | "board"
+    | "thread"
+    | "redirect"
+    | "search"
+    | "notices"
+    | "favorites";
   url: string;
 } | null {
   const route = routeFor(value);
@@ -41,7 +50,7 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.9.0";
+export const FORUM_CLIENT_VERSION = "0.10.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -51,6 +60,17 @@ export function createForumClient(options: {
   let sequence = 0;
   let downloadSequence = 0;
   const drafts = createDraftOperations({
+    ...options,
+    account: () => account,
+    generation: () => generation,
+    observe: (observed) => {
+      if (actor(observed) !== actor(account)) {
+        account = observed;
+        generation++;
+      }
+    },
+  });
+  const favoriteCommands = createFavoriteCommands({
     ...options,
     account: () => account,
     generation: () => generation,
@@ -196,6 +216,9 @@ export function createForumClient(options: {
         );
       }
     },
+    prepareFavorite: favoriteCommands.prepare,
+    changeFavorite: favoriteCommands.execute,
+    checkFavoriteResult: favoriteCommands.check,
     prepareThreadPublication: publisher.prepare,
     publishThread: publisher.publish,
     checkThreadResult: publisher.check,
@@ -650,11 +673,13 @@ export function createForumClient(options: {
             sourceURL: destination,
           };
         const decoded =
-          route?.kind === "search"
-            ? decodeSearchForm(response, destination)
-            : route?.kind === "thread"
-              ? decodeThread(response, destination)
-              : decodeBoard(response, destination);
+          route?.kind === "favorites"
+            ? decodeFavorites(response, destination)
+            : route?.kind === "search"
+              ? decodeSearchForm(response, destination)
+              : route?.kind === "thread"
+                ? decodeThread(response, destination)
+                : decodeBoard(response, destination);
         if (actor(decoded.account) !== actor(account)) {
           account = decoded.account;
           generation++;

@@ -11,6 +11,8 @@ import {
   DialogClose,
 } from "reka-ui";
 import SearchView from "../components/SearchView.vue";
+import { favoriteText } from "../components/favorite-labels";
+import FavoritesView from "../components/FavoritesView.vue";
 import NoticesView from "../components/NoticesView.vue";
 import SourceWriting from "../components/SourceWriting.vue";
 import ContentView from "../components/ContentView";
@@ -28,20 +30,20 @@ const text = computed(() =>
 const sections: Section[] = ["boards", "search", "saved", "notices", "drafts"];
 const sectionInfo = computed(() => {
   const section = state.value.section;
-  if (section === "boards" || section === "search" || section === "notices")
+  if (
+    section === "boards" ||
+    section === "search" ||
+    section === "notices" ||
+    section === "saved"
+  )
     return null;
   return {
     title: text.value[section],
     heading: text.value[`${section}Heading`],
     description: text.value[`${section}Overview`],
-    secondary:
-      section === "saved"
-        ? [text.value.savedBoards, text.value.savedThreads]
-        : [text.value[`${section}Scope`]],
+    secondary: [text.value.draftsScope],
     nativeURL:
-      section === "saved"
-        ? "https://www.tsdm39.com/home.php?mod=space&do=favorite&type=thread"
-        : "https://www.tsdm39.com/home.php?mod=space&do=thread&view=me&type=thread&filter=save",
+      "https://www.tsdm39.com/home.php?mod=space&do=thread&view=me&type=thread&filter=save",
   };
 });
 function chooseSection(event: Event) {
@@ -180,6 +182,9 @@ watch(
   },
   { immediate: true, flush: "sync" },
 );
+const favorite = props.workspace.favorite;
+const favoriteLabel = (value: string) =>
+  favoriteText(value, props.workspace.preferences.state.value.language);
 const download = props.workspace.download;
 watch(download, async (value) => {
   if (value?.status !== "ready" && value?.status !== "failure") return;
@@ -197,7 +202,7 @@ function prepareWriting() {
   if (id) void props.workspace.writing.prepare(id);
 }
 const boardContext = computed(() =>
-  state.value.section !== "boards"
+  !["boards", "saved"].includes(state.value.section)
     ? null
     : state.value.result?.kind === "board"
       ? state.value.result.board
@@ -217,6 +222,15 @@ const searchContext = computed(() =>
         : null,
 );
 
+const favoriteContext = computed(() =>
+  state.value.section !== "saved"
+    ? null
+    : state.value.result?.kind === "favorites"
+      ? state.value.result.favorites
+      : state.value.origin?.kind === "favorites"
+        ? state.value.origin.favorites
+        : null,
+);
 const selectedThread = computed(() =>
   state.value.result?.kind === "thread" ? state.value.result.thread.id : null,
 );
@@ -313,7 +327,8 @@ function navigate(event: MouseEvent) {
   event.preventDefault();
   void props.workspace.openThread(
     link.href,
-    link.closest("[data-notice-id]")?.getAttribute("data-notice-id") ??
+    link.closest("[data-favorite-id]")?.getAttribute("data-favorite-id") ??
+      link.closest("[data-notice-id]")?.getAttribute("data-notice-id") ??
       link.closest("[data-thread-id]")?.getAttribute("data-thread-id") ??
       null,
   );
@@ -422,7 +437,8 @@ onMounted(() => {
           ?.querySelector<HTMLElement>(".search-results h2")
           ?.scrollIntoView({ block: "start" });
       const selected = selection
-        ? (root.shadowRoot?.getElementById(`notice-${selection}`) ??
+        ? (root.shadowRoot?.getElementById(`favorite-${selection}`) ??
+          root.shadowRoot?.getElementById(`notice-${selection}`) ??
           root.shadowRoot
             ?.getElementById(`row-${selection}`)
             ?.querySelector<HTMLElement>(".subject"))
@@ -590,6 +606,25 @@ function boardIdFrom(url: string) {
       >
         {{ text.newThread }}
       </button>
+      <button
+        v-if="state.result?.kind === 'thread' || state.result?.kind === 'board'"
+        :disabled="favorite.busy"
+        @click="
+          workspace.prepareFavorite(
+            'add',
+            state.result.kind === 'board' ? 'forum' : 'thread',
+            state.result.kind === 'board'
+              ? state.result.board.id
+              : state.result.thread.id,
+          )
+        "
+      >
+        {{
+          favoriteLabel(
+            state.result.kind === "board" ? "Save board" : "Save thread",
+          )
+        }}
+      </button>
       <button v-if="writing.context" @click="workspace.writing.show()">
         {{ text.returnWriting }}
       </button>
@@ -732,11 +767,16 @@ function boardIdFrom(url: string) {
       </p>
       <section
         v-if="
-          ['boards', 'search', 'notices'].includes(state.section) &&
+          ['boards', 'search', 'notices', 'saved'].includes(state.section) &&
           state.result &&
-          !['directory', 'board', 'thread', 'search', 'notices'].includes(
-            state.result.kind,
-          )
+          ![
+            'directory',
+            'board',
+            'thread',
+            'search',
+            'notices',
+            'favorites',
+          ].includes(state.result.kind)
         "
         class="notice"
         role="alert"
@@ -767,6 +807,52 @@ function boardIdFrom(url: string) {
         </p>
       </section>
     </div>
+    <section
+      v-if="favorite.message"
+      class="notice favorite-action"
+      :aria-label="favoriteLabel('Favorite action')"
+    >
+      <p role="status">{{ favoriteLabel(favorite.message) }}</p>
+      <button
+        v-if="favorite.prepared"
+        :disabled="favorite.busy"
+        @click="workspace.sendFavorite()"
+      >
+        {{ favoriteLabel("Confirm favorite action") }}
+      </button>
+      <article
+        v-for="attempt in favorite.attempts"
+        :key="attempt.id"
+        :data-favorite-attempt="attempt.id"
+      >
+        <p>
+          {{ favoriteLabel(attempt.command.intent.action) }}
+          {{ favoriteLabel(attempt.command.intent.kind) }}
+          {{ attempt.command.intent.targetId }} · {{ favoriteLabel("Account") }}
+          {{ attempt.command.intent.accountId
+          }}<template v-if="attempt.command.intent.recordId">
+            · {{ favoriteLabel("Favorite record") }}
+            {{ attempt.command.intent.recordId }}</template
+          >
+          ·
+          {{ favoriteLabel(attempt.status) }}
+        </p>
+        <button
+          v-if="attempt.status === 'uncertain' && attempt.checked"
+          :disabled="favorite.busy"
+          @click="workspace.resendFavorite(attempt.id)"
+        >
+          {{ favoriteLabel("Review new favorite attempt") }}
+        </button>
+        <button
+          v-if="attempt.status === 'uncertain'"
+          :disabled="favorite.busy"
+          @click="workspace.checkFavorite(attempt.id)"
+        >
+          {{ favoriteLabel("Check favorite result") }}
+        </button>
+      </article>
+    </section>
     <main
       v-show="!writing.visible"
       class="workspace-body"
@@ -923,6 +1009,24 @@ function boardIdFrom(url: string) {
         @submit="workspace.submitSearch"
         @edit="workspace.editSearch"
       />
+      <FavoritesView
+        v-if="state.section === 'saved'"
+        :favorites="favoriteContext"
+        :secondary="state.result?.kind === 'thread'"
+        :board-target="state.result?.kind === 'board'"
+        :loading="state.loading"
+        :language="workspace.preferences.state.value.language"
+        @remove="
+          (kind, targetId, recordId) =>
+            workspace.prepareFavorite('remove', kind, targetId, recordId)
+        "
+        @load="
+          (kind) =>
+            workspace.openThread(
+              `https://www.tsdm39.com/home.php?mod=space&do=favorite&type=${kind}`,
+            )
+        "
+      />
       <NoticesView
         v-if="state.section === 'notices'"
         :notices="noticeContext"
@@ -1058,7 +1162,7 @@ function boardIdFrom(url: string) {
       </section>
       <section
         v-if="
-          ['boards', 'search', 'notices'].includes(state.section) &&
+          ['boards', 'search', 'notices', 'saved'].includes(state.section) &&
           state.result?.kind === 'thread'
         "
         class="reading-pane pane"
