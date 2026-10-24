@@ -11,7 +11,17 @@ export function createBrowserPreferences(): PreferenceHost {
         } catch {
           /* Invalid preferences use the baseline. */
         }
-        return { value, available: true };
+        const incompatible =
+          raw !== null &&
+          (!value ||
+            typeof value !== "object" ||
+            !("schema" in value) ||
+            value.schema !== 1);
+        return {
+          value,
+          available: true,
+          ...(incompatible ? { incompatibleRaw: raw } : {}),
+        };
       } catch {
         return { value: null, available: false };
       }

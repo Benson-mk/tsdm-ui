@@ -84,6 +84,15 @@ const english = {
   fileDownload: "File download",
   settings: "Settings",
   settingsDescription: "Changes preview and save immediately.",
+  incompatiblePreferences:
+    "Stored preferences are incompatible. Changes apply to this page only until you explicitly reset the retained record.",
+  retainedPreferences: "Retained preferences",
+  preferencesResetFailed:
+    "Preferences could not be reset. The retained record is still available.",
+  resetIncompatiblePreferences: "Reset incompatible preferences",
+  discardPreferencesWarning:
+    "Copy any needed preferences before discarding this local record. This does not delete forum posts, drafts or uploads.",
+  discardRetainedPreferences: "Discard retained preferences",
   textSize: "Text size",
   compact: "Compact",
   default: "Default",
@@ -363,6 +372,14 @@ const simplified: Strings = {
   fileDownload: "文件下载",
   settings: "设置",
   settingsDescription: "更改会立即预览并保存。",
+  incompatiblePreferences:
+    "已存偏好设置不兼容。明确重置保留记录之前，更改仅适用于本页。",
+  retainedPreferences: "保留的偏好设置",
+  preferencesResetFailed: "无法重置偏好设置。保留记录仍可读取。",
+  resetIncompatiblePreferences: "重置不兼容的偏好设置",
+  discardPreferencesWarning:
+    "丢弃本地记录前请复制需要的偏好设置。此操作不会删除论坛帖子、草稿或上传文件。",
+  discardRetainedPreferences: "丢弃保留的偏好设置",
   textSize: "文字大小",
   compact: "紧凑",
   default: "默认",
@@ -630,6 +647,14 @@ const traditional: Strings = {
   fileDownload: "檔案下載",
   settings: "設定",
   settingsDescription: "變更會立即預覽並儲存。",
+  incompatiblePreferences:
+    "已存偏好設定不相容。明確重設保留記錄之前，變更僅適用於本頁。",
+  retainedPreferences: "保留的偏好設定",
+  preferencesResetFailed: "無法重設偏好設定。保留記錄仍可讀取。",
+  resetIncompatiblePreferences: "重設不相容的偏好設定",
+  discardPreferencesWarning:
+    "捨棄本地記錄前請複製需要的偏好設定。此操作不會刪除論壇文章、草稿或上傳檔案。",
+  discardRetainedPreferences: "捨棄保留的偏好設定",
   textSize: "文字大小",
   compact: "緊湊",
   default: "預設",

@@ -16,6 +16,7 @@ const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
 const preferences = props.workspace.preferences;
 const state = preferences.state;
 const open = ref(false);
+const confirmPreferenceReset = ref(false);
 function changeOpen(value: boolean) {
   const change = () => {
     open.value = value;
@@ -95,7 +96,46 @@ function escape(event: KeyboardEvent) {
           <option value="zh-CN">简体中文</option>
           <option value="zh-TW">繁體中文</option>
         </select>
-        <p v-if="!preferences.persistent.value">
+        <section v-if="preferences.incompatibleRaw.value !== null">
+          <p role="alert">{{ text.incompatiblePreferences }}</p>
+          <p v-if="preferences.resetFailed.value" role="alert">
+            {{ text.preferencesResetFailed }}
+          </p>
+          <label for="retained-preferences">{{
+            text.retainedPreferences
+          }}</label>
+          <textarea
+            id="retained-preferences"
+            readonly
+            :value="preferences.incompatibleRaw.value"
+          />
+          <button
+            v-if="!confirmPreferenceReset"
+            @click="confirmPreferenceReset = true"
+          >
+            {{ text.resetIncompatiblePreferences }}
+          </button>
+          <template v-else>
+            <p>{{ text.discardPreferencesWarning }}</p>
+            <button
+              @click="
+                preferences.resetIncompatible();
+                confirmPreferenceReset = false;
+              "
+            >
+              {{ text.discardRetainedPreferences }}
+            </button>
+            <button @click="confirmPreferenceReset = false">
+              {{ text.close }}
+            </button>
+          </template>
+        </section>
+        <p
+          v-if="
+            !preferences.persistent.value &&
+            preferences.incompatibleRaw.value === null
+          "
+        >
           {{ text.storageUnavailable }}
         </p>
         <DialogClose>{{ text.close }}</DialogClose>

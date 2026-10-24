@@ -7,7 +7,7 @@ export interface Preferences {
   language: "en" | "zh-CN" | "zh-TW";
 }
 export interface PreferenceHost {
-  load(): { value: unknown; available: boolean };
+  load(): { value: unknown; available: boolean; incompatibleRaw?: string };
   save(value: Preferences): boolean;
 }
 const defaults: Preferences = {
@@ -50,14 +50,28 @@ function normalize(value: unknown): Preferences {
 export function createPreferences(host: PreferenceHost) {
   const loaded = host.load();
   const state = shallowRef<Preferences>(normalize(loaded.value));
-  const persistent = shallowRef(loaded.available);
+  const incompatibleRaw = shallowRef<string | null>(
+    loaded.incompatibleRaw ?? null,
+  );
+  const resetFailed = shallowRef(false);
+  const persistent = shallowRef(
+    loaded.available && incompatibleRaw.value === null,
+  );
   function set(update: Partial<Omit<Preferences, "schema">>) {
     state.value = normalize({ ...state.value, ...update });
-    persistent.value = host.save(state.value);
+    persistent.value = incompatibleRaw.value === null && host.save(state.value);
   }
   return {
     state: readonly(state),
     persistent: readonly(persistent),
+    incompatibleRaw: readonly(incompatibleRaw),
+    resetFailed: readonly(resetFailed),
+    resetIncompatible() {
+      if (incompatibleRaw.value === null) return;
+      persistent.value = host.save(state.value);
+      resetFailed.value = !persistent.value;
+      if (persistent.value) incompatibleRaw.value = null;
+    },
     set,
     setTextSize: (textSize: number) => set({ textSize }),
   };
