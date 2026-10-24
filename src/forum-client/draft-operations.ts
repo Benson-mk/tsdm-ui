@@ -15,6 +15,12 @@ import {
 import { decodeWriting, draftVersion as version } from "./prepare-writing.js";
 import { validateUploadFields } from "./upload-authoring.js";
 import { compatible, successful } from "./publish-thread.js";
+import {
+  observeRedPacket,
+  observePacketLedger,
+  validRedPacket,
+  recipientsCurrent,
+} from "./hongbao.js";
 import { decodeThread } from "./read-thread.js";
 import { decodeDraftList, draftListPath } from "./drafts.js";
 import { postCallback } from "./post-response.js";
@@ -308,6 +314,9 @@ export function createDraftOperations(config: {
         generation: config.generation(),
         prepared: {
           ...prepared.prepared,
+          ...(openings[0]!.redPacketThreadId === row.threadId
+            ? { existingRedPacket: true as const }
+            : {}),
           draft: {
             threadId: row.threadId,
             postId,
@@ -323,7 +332,7 @@ export function createDraftOperations(config: {
       );
     }
   }
-  async function check(
+  async function checkThread(
     attempt: DraftAttempt,
     row?: DraftRow,
   ): Promise<DraftAttempt> {
@@ -394,6 +403,7 @@ export function createDraftOperations(config: {
     return {
       ...attempt,
       observation: {
+        ...(stored.existingRedPacket ? { packetMarker: true as const } : {}),
         state: "draft",
         content: content ? "confirmed" : "unknown",
         attachments: attachments ? "confirmed" : "unknown",
@@ -408,6 +418,52 @@ export function createDraftOperations(config: {
           : `Draft ${row.threadId} observed; submitted content ${content ? "confirmed" : "unconfirmed"}; attachment associations ${attachments ? "confirmed" : "unconfirmed"}. No save was repeated.`,
       result: stored.draft!,
     };
+  }
+
+  async function components(
+    attempt: DraftAttempt,
+    recheck = false,
+  ): Promise<DraftAttempt> {
+    const writing = attempt.submission.writing;
+    if (!writing.redPacket && !writing.existingRedPacket) return attempt;
+    const unknown = {
+      state: "unknown",
+      conditions: [],
+      credit: "unknown" as const,
+    };
+    const target = attempt.result ?? writing.draft;
+    const generation = config.generation();
+    if (
+      !target ||
+      (!recheck && generation !== attempt.generation) ||
+      member(config.account()) !== writing.account.id
+    )
+      return { ...attempt, redPacket: unknown };
+    const observed = await observeRedPacket(
+      config.transport,
+      config.origin,
+      target.threadId,
+    );
+    const credits = await observePacketLedger(
+      config.transport,
+      config.origin,
+      writing.account.id,
+    );
+    if (credits.account.kind !== "unknown") config.observe(credits.account);
+    return {
+      ...attempt,
+      redPacket:
+        config.generation() === generation &&
+        member(config.account()) === writing.account.id
+          ? { ...observed, ledger: credits.ledger }
+          : unknown,
+    };
+  }
+  async function check(
+    attempt: DraftAttempt,
+    row?: DraftRow,
+  ): Promise<DraftAttempt> {
+    return components(await checkThread(attempt, row), true);
   }
 
   async function checkPublication(
@@ -704,6 +760,8 @@ export function createDraftOperations(config: {
       result: null,
     });
     if (
+      (writing.redPacket &&
+        (!attempt.fundingReviewed || !validRedPacket(writing))) ||
       attempt.operation === "publish" ||
       attempt.status !== "pending" ||
       !attempt.id ||
@@ -782,7 +840,7 @@ export function createDraftOperations(config: {
           "The account changed before draft saving. Nothing was sent.",
         );
       let url = new URL(
-        `/forum.php?mod=post&action=newthread&fid=${writing.board.id}`,
+        `/forum.php?mod=post&action=newthread&fid=${writing.board.id}${writing.redPacket ? "&specialextra=hongbao" : ""}`,
         config.origin,
       ).href;
       if (writing.draft) {
@@ -831,6 +889,7 @@ export function createDraftOperations(config: {
           writing.draft
             ? {
                 ...writing,
+                existingRedPacket: false,
                 options: writing.options.filter(
                   (option) =>
                     !["addfeed", "adddynamic", "adddynamic_doing"].includes(
@@ -848,6 +907,10 @@ export function createDraftOperations(config: {
       )
         return notSent(
           "The current draft form changed. Your writing is retained; nothing was sent.",
+        );
+      if (!(await recipientsCurrent(config, writing)))
+        return notSent(
+          "The designated recipients changed or could not be verified. Nothing was sent.",
         );
       const uploadFields = await validateUploadFields(
         config.transport,
@@ -881,9 +944,10 @@ export function createDraftOperations(config: {
         );
       // Pending-list responses do not identify the current account. Reobserve
       // the form after those awaits and keep the original saved-version guard.
-      const finalResponse = uploadFields.length
-        ? await config.transport.request(url, { fresh: true })
-        : response;
+      const finalResponse =
+        uploadFields.length || writing.redPacket
+          ? await config.transport.request(url, { fresh: true })
+          : response;
       const finalPrepared = decodeWriting(
         finalResponse,
         url,
@@ -902,6 +966,7 @@ export function createDraftOperations(config: {
         );
       if (
         finalPrepared.kind !== "prepared" ||
+        !compatible(prepared.prepared, finalPrepared.prepared) ||
         version(finalPrepared.prepared) !== version(prepared.prepared)
       )
         return notSent(
@@ -935,8 +1000,10 @@ export function createDraftOperations(config: {
       )
         return {
           ...attempt,
-          status: "rejected",
-          message: "The forum rejected draft saving. Your writing is retained.",
+          status: writing.redPacket ? "uncertain" : "rejected",
+          message: writing.redPacket
+            ? "The forum refused validation; draft and funding outcomes remain unconfirmed. Check the original attempt before any deliberate resend."
+            : "The forum rejected draft saving. Your writing is retained.",
           result: null,
         };
       const destination = call?.success
@@ -961,7 +1028,7 @@ export function createDraftOperations(config: {
               url: candidate.href,
             }
           : undefined;
-      return check(attempt, row);
+      return checkThread(attempt, row);
     } catch {
       return sent
         ? {
@@ -981,7 +1048,7 @@ export function createDraftOperations(config: {
   return {
     resume: observe,
     prepareSave,
-    save,
+    save: async (attempt: DraftAttempt) => components(await save(attempt)),
     check: async (
       attempt: DraftAttempt,
       row?: DraftRow,
@@ -989,6 +1056,7 @@ export function createDraftOperations(config: {
       ...(await check(attempt, row)),
       checked: true,
     }),
-    publish,
+    publish: async (attempt: DraftAttempt) =>
+      components(await publish(attempt)),
   };
 }

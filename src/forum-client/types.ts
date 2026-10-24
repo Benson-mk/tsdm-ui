@@ -617,7 +617,10 @@ export interface DraftIdentity {
   version: string;
 }
 export interface DraftAttempt {
+  redPacket?: RedPacketObservation;
+  fundingReviewed?: true;
   observation?: {
+    packetMarker?: true;
     state: "draft" | "published";
     content: "confirmed" | "unknown";
     attachments: "confirmed" | "unknown";

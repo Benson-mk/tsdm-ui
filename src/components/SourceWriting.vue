@@ -238,6 +238,52 @@ function updateOption(option: WritingOption, event: Event) {
     >
       {{ text.saveForumDraft }}
     </button>
+    <section v-if="state.fundedDraftReview" aria-label="Funded draft review">
+      <h3>
+        {{
+          packetText("Fund draft — deduct {amount} credits now").replace(
+            "{amount}",
+            state.fundedDraftReview.writing.options.find(
+              (o) => o.name === "hb_total",
+            )?.value ?? "",
+          )
+        }}
+      </h3>
+      <p>
+        {{
+          packetText(
+            "The packet is active before thread publication. Its conditions and expiry apply immediately; an unpublished draft does not make the packet private or inactive.",
+          )
+        }}
+      </p>
+      <ul>
+        <li
+          v-for="option in state.fundedDraftReview.writing.options.filter((o) =>
+            o.name.startsWith('hb_'),
+          )"
+          :key="option.name"
+        >
+          {{ packetText(option.label) }}:
+          {{
+            option.name === "hb_password"
+              ? packetText(option.value ? "present (not displayed)" : "none")
+              : option.kind === "checkbox"
+                ? option.checked
+                : (option.choices.find((c) => c.value === option.value)
+                    ?.label ?? option.value)
+          }}
+        </li>
+      </ul>
+      <button @click="workspace.writing.cancelFundedDraft()">
+        {{ packetText("Cancel funded draft save") }}
+      </button>
+      <button
+        :disabled="state.publishing || state.preparing || state.composing"
+        @click="workspace.writing.confirmFundedDraft()"
+      >
+        {{ packetText("Confirm funded draft save") }}
+      </button>
+    </section>
     <button
       v-if="state.context.draft"
       :disabled="state.preparing || state.publishing"
@@ -259,6 +305,88 @@ function updateOption(option: WritingOption, event: Event) {
           )
         }}
       </p>
+      <section v-if="attempt.redPacket" aria-label="Red-packet result">
+        <p>
+          {{ packetText("Packet state:") }}
+          {{ packetText(attempt.redPacket.state) }}
+        </p>
+        <p v-for="condition in attempt.redPacket.conditions" :key="condition">
+          {{
+            condition.startsWith("Greeting: ")
+              ? packetText("Greeting") + ": " + condition.slice(10)
+              : condition.split(": ").map(packetText).join(": ")
+          }}
+        </p>
+        <p>
+          {{
+            packetText(
+              "Exact passphrase, recipients, total, shares and expiry deadline are not confirmed by presence flags.",
+            )
+          }}
+        </p>
+        <section v-if="attempt.redPacket.ledger?.state === 'observed'">
+          <p>
+            {{
+              packetText("Observed credit rows (current returned page only)")
+            }}
+          </p>
+          <ul>
+            <li
+              v-for="(row, index) in attempt.redPacket.ledger.rows"
+              :key="index"
+            >
+              {{ row.operation }} · {{ row.change }} · {{ row.details }} ·
+              {{ row.time }}
+            </li>
+          </ul>
+          <p v-if="!attempt.redPacket.ledger.rows.length">
+            {{
+              packetText(
+                "No packet-credit rows were observed on this page. This does not prove no debit or refund occurred.",
+              )
+            }}
+          </p>
+        </section>
+        <p v-else>
+          {{
+            packetText(
+              "Credit ledger unavailable. No financial effect has been confirmed.",
+            )
+          }}
+        </p>
+        <p>
+          {{
+            packetText(
+              "Credit attribution remains unknown. A thread or packet label does not establish a debit or refund.",
+            )
+          }}
+        </p>
+        <p
+          v-if="
+            ['expired', 'withdrawn', 'closed'].includes(
+              attempt.redPacket.state,
+            ) || attempt.status === 'moderation'
+          "
+        >
+          {{
+            packetText(
+              "If an expected refund is missing, contact a moderator for assistance. Refund conditions and timing have not been verified.",
+            )
+          }}
+        </p>
+      </section>
+      <p
+        v-else-if="
+          attempt.submission.writing.redPacket ||
+          attempt.submission.writing.existingRedPacket
+        "
+      >
+        {{
+          packetText(
+            "Packet and credit observations were not retained. Their outcomes remain unknown.",
+          )
+        }}
+      </p>
       <button
         v-if="['uncertain', 'moderation'].includes(attempt.status)"
         :aria-label="insert(text.checkOriginalDraft, attempt.id)"
@@ -277,6 +405,13 @@ function updateOption(option: WritingOption, event: Event) {
     </section>
     <section v-if="state.draftResend && resendDraftAttempt" role="alert">
       <p>{{ text.draftResendWarning }}</p>
+      <p v-if="resendDraftAttempt.submission.writing.redPacket">
+        {{
+          packetText(
+            "A further red-packet attempt can deduct additional credits and create a duplicate thread or packet. The original unknown attempt remains unresolved.",
+          )
+        }}
+      </p>
       <p>{{ draftSummary(resendDraftAttempt, state.draftResend.revision) }}</p>
       <button @click="workspace.writing.cancelDraftResend()">
         {{ text.cancelDraftResend }}
@@ -815,6 +950,36 @@ function updateOption(option: WritingOption, event: Event) {
         )
       }}
     </p>
+    <section
+      v-if="state.context.unappliedPacketOptions?.length"
+      :aria-label="packetText('Unapplied packet settings')"
+    >
+      <h2>{{ packetText("Unapplied packet settings") }}</h2>
+      <p>
+        {{
+          packetText(
+            "These later local settings were not sent with the saved packet. They are retained for reference only; saving or publishing this draft will not apply them or fund another packet.",
+          )
+        }}
+      </p>
+      <dl>
+        <template
+          v-for="option in state.context.unappliedPacketOptions"
+          :key="option.name"
+        >
+          <dt>{{ packetText(option.label) }}</dt>
+          <dd>
+            {{
+              option.kind === "checkbox"
+                ? packetText(option.checked ? "Selected" : "Not selected")
+                : (option.choices.find(
+                    (choice) => choice.value === option.value,
+                  )?.label ?? option.value)
+            }}
+          </dd>
+        </template>
+      </dl>
+    </section>
     <p v-for="hint in state.context.redPacket?.hints" :key="hint">{{ hint }}</p>
     <fieldset>
       <legend>{{ text.currentFormOptions }}</legend>

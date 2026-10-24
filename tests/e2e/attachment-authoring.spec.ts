@@ -1876,6 +1876,7 @@ for (const instruction of [
   "dynamic",
   "conflicting",
   "duplicate",
+  "extra-tail",
 ] as const)
   test(`J8.image-instruction-invalid-${instruction}: unqualified native instruction never guesses an insertion kind`, async ({
     page,
@@ -1888,9 +1889,11 @@ for (const instruction of [
           ? `<a onclick="insertAttachimgTag('99');">wrong</a>`
           : instruction === "dynamic"
             ? `<a onclick="insertAttachimgTag(currentId);">dynamic</a>`
-            : instruction === "duplicate"
-              ? `<a onclick="insertAttachimgTag('88');">one</a><a onclick="insertAttachimgTag('88');">two</a>`
-              : `<a onclick="insertAttachTag('88');">file</a><a onclick="insertAttachimgTag('88');">image</a>`;
+            : instruction === "extra-tail"
+              ? `<a onclick="insertAttachTag('88');doane(event);unexpected();">file</a>`
+              : instruction === "duplicate"
+                ? `<a onclick="insertAttachimgTag('88');">one</a><a onclick="insertAttachimgTag('88');">two</a>`
+                : `<a onclick="insertAttachTag('88');">file</a><a onclick="insertAttachimgTag('88');">image</a>`;
     await select(page);
     await upload(page);
     await expect(
@@ -2043,3 +2046,28 @@ for (const language of ["en", "zh-CN", "zh-TW"] as const)
     expect(state.removals).toEqual([]);
     await receipt(page, state, info);
   });
+
+test("J8.native-text-event-tail: current native text instruction supports one upload and insertion", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  state.insertionMarkup = `<a onclick="insertAttachTag('88');doane(event);">note.txt</a>`;
+  await select(page);
+  await upload(page);
+  try {
+    await expect(
+      page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Insert note.txt", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue("[attach]88[/attach]Existing source");
+    expect(state.uploads).toHaveLength(1);
+    expect(state.saves).toEqual([]);
+    expect(state.removals).toEqual([]);
+  } finally {
+    await receipt(page, state, info);
+  }
+});

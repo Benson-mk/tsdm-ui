@@ -972,6 +972,22 @@ const descriptions: Record<string, readonly [string, string]> = {
   "Designated recipients": ["指定领取人", "指定領取人"],
   Expiry: ["有效期", "有效期"],
   Greeting: ["祝福语", "祝福語"],
+  "Packet and credit observations were not retained. Their outcomes remain unknown.":
+    [
+      "未保留红包和积分观测，结果仍未知。",
+      "未保留紅包和積分觀測，結果仍未知。",
+    ],
+  "Fund draft — deduct {amount} credits now": [
+    "资助草稿 — 立即扣除 {amount} 积分",
+    "資助草稿 — 立即扣除 {amount} 積分",
+  ],
+  "The packet is active before thread publication. Its conditions and expiry apply immediately; an unpublished draft does not make the packet private or inactive.":
+    [
+      "红包在线程发布前已生效，条件和到期规则立即适用。未发布的草稿不表示红包私密或未激活。",
+      "紅包在主題發佈前已生效，條件和到期規則立即適用。未發佈的草稿不表示紅包私密或未啟用。",
+    ],
+  "Cancel funded draft save": ["取消资助草稿保存", "取消資助草稿儲存"],
+  "Confirm funded draft save": ["确认资助草稿保存", "確認資助草稿儲存"],
   "Publish red packet": ["发布红包", "發佈紅包"],
   "Packet state:": ["红包状态：", "紅包狀態："],
   "Publish red packet — deduct {amount} credits": [
@@ -1015,6 +1031,19 @@ const descriptions: Record<string, readonly [string, string]> = {
     [
       "发送时可能扣除积分。不支持追加金额或静默重新注资。",
       "傳送時可能扣除積分。不支援追加金額或靜默重新注資。",
+    ],
+  "Save-and-continue is blocked because unapplied packet settings remain. They cannot be saved to the existing packet. Return to copy them before explicitly discarding this writing; ordinary Save keeps them here.":
+    [
+      "仍有未应用的红包设置，无法保存草稿并继续。这些设置无法保存到现有红包。请返回复制所需设置，再明确丢弃当前内容；普通保存会保留这些设置。",
+      "仍有未套用的紅包設定，無法儲存草稿並繼續。這些設定無法儲存到現有紅包。請返回複製所需設定，再明確捨棄目前內容；一般儲存會保留這些設定。",
+    ],
+  "Unapplied packet settings": ["未应用的红包设置", "未套用的紅包設定"],
+  Selected: ["已选择", "已選取"],
+  "Not selected": ["未选择", "未選取"],
+  "These later local settings were not sent with the saved packet. They are retained for reference only; saving or publishing this draft will not apply them or fund another packet.":
+    [
+      "这些稍后修改的本地设置未随已保存的红包发送，仅保留供参考。保存或发布此草稿不会应用这些设置，也不会为另一个红包注资。",
+      "這些稍後修改的本機設定未隨已儲存的紅包傳送，僅保留供參考。儲存或發佈此草稿不會套用這些設定，也不會為另一個紅包注資。",
     ],
   "Existing red packet: content edits do not change its conditions, top up, refund or re-fund it. Packet and credit outcomes require separate checking.":
     [

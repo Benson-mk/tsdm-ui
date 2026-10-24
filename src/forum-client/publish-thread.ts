@@ -1,7 +1,8 @@
-import { findMention, mentionsCurrent } from "./mentions.js";
+import { mentionsCurrent } from "./mentions.js";
 import { validateUploadFields } from "./upload-authoring.js";
 import {
   validRedPacket,
+  recipientsCurrent,
   observeRedPacket,
   observePacketLedger,
 } from "./hongbao.js";
@@ -212,7 +213,8 @@ export function successful(
           name === "special" &&
           type === "hidden" &&
           (writing.redPacket ||
-            (writing.action === "edit-post" && writing.existingRedPacket))
+            ((writing.action === "edit-post" || writing.draft) &&
+              writing.existingRedPacket))
         )) ||
       ((writing.action === "edit-post" || draftSave) &&
         name === "delattachop" &&
@@ -480,27 +482,6 @@ export function createThreadPublisher(config: {
       postIds: page.thread.posts.map((post) => post.id),
       owned,
     };
-  }
-  async function recipientsCurrent(writing: PreparedWriting): Promise<boolean> {
-    if (!writing.redPacket) return true;
-    const input =
-      writing.options.find((o) => o.name === "hb_appoint")?.value ?? "";
-    if (!input.trim()) return true;
-    const names = input.split(",").map((n) => n.trim());
-    if (
-      names.some((n) => !n || /[\r\n]/.test(n)) ||
-      new Set(names).size !== names.length
-    )
-      return false;
-    for (const name of names) {
-      const found = await findMention(config, writing, name);
-      if (
-        found.kind !== "people" ||
-        found.people.filter((p) => p.name === name).length !== 1
-      )
-        return false;
-    }
-    return true;
   }
   async function verifyThread(
     attempt: ThreadAttempt,
@@ -784,7 +765,7 @@ export function createThreadPublisher(config: {
           );
         if (decoded.kind !== "prepared") return fail(decoded.message);
         const validationGeneration = config.generation();
-        if (!(await recipientsCurrent(writing)))
+        if (!(await recipientsCurrent(config, writing)))
           return fail(
             "A designated recipient could not be resolved from the current forum identity search.",
           );
@@ -897,7 +878,7 @@ export function createThreadPublisher(config: {
           tsdmapp: "json",
         }))
           checkURL.searchParams.set(key, value);
-        if (!(await recipientsCurrent(writing)))
+        if (!(await recipientsCurrent(config, writing)))
           return notSent(
             "A designated recipient could not be resolved from the current forum identity search.",
           );

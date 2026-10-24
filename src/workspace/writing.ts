@@ -15,6 +15,7 @@ import {
 } from "../forum-client";
 export interface WritingContext extends PreparedWriting {
   draftAttempts?: import("../forum-client").DraftAttempt[];
+  unappliedPacketOptions?: import("../forum-client").WritingOption[];
   id: string;
   revision: number;
   editorUnresolved?: boolean;
@@ -60,6 +61,14 @@ export function createWriting(
     publication: ThreadPublication | null;
     publishing: boolean;
     resend: string | null;
+    fundedDraftReview: {
+      contextId: string;
+      revision: number;
+      generation: number;
+      writing: PreparedWriting;
+      continueAfter: boolean;
+      resendId?: string;
+    } | null;
     draftResend: {
       id: string;
       contextId: string;
@@ -94,6 +103,7 @@ export function createWriting(
     publication: null,
     publishing: false,
     resend: null,
+    fundedDraftReview: null,
     draftResend: null,
   });
   const uploadBytes = new Map<string, import("../forum-client").UploadFile>();
@@ -713,7 +723,6 @@ export function createWriting(
         publishing: false,
         message: result.status === "published" ? result.message : "",
         context: {
-          ...current,
           ...draftResult(current, result),
           draftAttempts: (current.draftAttempts ?? []).map((a) =>
             a.id === result.id ? result : a,
@@ -765,9 +774,16 @@ export function createWriting(
       attempts: _attempts,
       editorUnresolved: _editorUnresolved,
       draftAttempts: _draftAttempts,
+      unappliedPacketOptions: _unappliedPacketOptions,
       ...content
     } = context;
-    void [_selection, _attempts, _editorUnresolved, _draftAttempts];
+    void [
+      _selection,
+      _attempts,
+      _editorUnresolved,
+      _draftAttempts,
+      _unappliedPacketOptions,
+    ];
     return { contextId: id, revision, writing: content };
   }
   function updateAttempt(attempt: ThreadAttempt) {
@@ -839,8 +855,33 @@ export function createWriting(
   function draftResult(
     context: WritingContext,
     result: DraftAttempt,
-  ): Partial<WritingContext> {
-    if (!result.result || result.submission.contextId !== context.id) return {};
+  ): WritingContext {
+    if (!result.result || result.submission.contextId !== context.id)
+      return context;
+    const current = { ...context };
+    if (current.redPacket) {
+      const laterOptions = current.options.filter((option) => {
+        if (!option.name.startsWith("hb_")) return false;
+        const submitted = result.submission.writing.options.find(
+          (original) => original.name === option.name,
+        );
+        return (
+          !submitted ||
+          option.value !== submitted.value ||
+          option.checked !== submitted.checked
+        );
+      });
+      if (laterOptions.length)
+        current.unappliedPacketOptions = laterOptions.map((option) => ({
+          ...option,
+          choices: option.choices.map((choice) => ({ ...choice })),
+        }));
+      delete current.redPacket;
+      current.options = current.options.filter(
+        (o) => !o.name.startsWith("hb_"),
+      );
+      if (result.observation?.packetMarker) current.existingRedPacket = true;
+    }
     const canonicalFields = (fields: PreparedWriting["attachmentFields"]) =>
       (fields ?? []).map((field) =>
         result.observation?.attachmentNormalizations?.some(
@@ -859,6 +900,7 @@ export function createWriting(
           : field,
       );
     return {
+      ...current,
       // An observed partial result is not consent to replace the original
       // conflict baseline with another session's newer content.
       draft:
@@ -1033,7 +1075,41 @@ export function createWriting(
     if (attempt.operation === "publish") await publishDraft(proposal.id);
     else await saveDraft(false, proposal.id);
   }
-  async function saveDraft(continueAfter = false, resendId?: string) {
+  async function confirmFundedDraft() {
+    const review = state.value.fundedDraftReview;
+    state.value = { ...state.value, fundedDraftReview: null };
+    const context = state.value.context;
+    if (
+      !review ||
+      !context ||
+      context.id !== review.contextId ||
+      context.revision !== review.revision ||
+      client.generation !== review.generation
+    ) {
+      state.value = {
+        ...state.value,
+        message:
+          "The funded draft review changed. Review the current revision and account again. Nothing was sent.",
+      };
+      return;
+    }
+    await saveDraft(review.continueAfter, review.resendId, true);
+  }
+  function blockUnappliedContinuation(continueAfter: boolean) {
+    if (!continueAfter || !state.value.context?.unappliedPacketOptions?.length)
+      return false;
+    state.value = {
+      ...state.value,
+      message:
+        "Save-and-continue is blocked because unapplied packet settings remain. They cannot be saved to the existing packet. Return to copy them before explicitly discarding this writing; ordinary Save keeps them here.",
+    };
+    return true;
+  }
+  async function saveDraft(
+    continueAfter = false,
+    resendId?: string,
+    fundingReviewed = false,
+  ) {
     const context = state.value.context;
     if (
       !context ||
@@ -1042,6 +1118,7 @@ export function createWriting(
       state.value.composing
     )
       return;
+    if (blockUnappliedContinuation(continueAfter)) return;
     if (
       context.uploads?.some(
         (u) => !["uploaded", "associated", "removed"].includes(u.status),
@@ -1082,6 +1159,20 @@ export function createWriting(
       };
       return;
     }
+    if (context.redPacket && !context.draft && !fundingReviewed) {
+      state.value = {
+        ...state.value,
+        fundedDraftReview: {
+          contextId: context.id,
+          revision: context.revision,
+          generation: client.generation,
+          writing: submission(context).writing,
+          continueAfter,
+          ...(resendId ? { resendId } : {}),
+        },
+      };
+      return;
+    }
     const proposal: import("../forum-client").DraftAttempt = {
       id: crypto.randomUUID(),
       generation: client.generation,
@@ -1089,6 +1180,7 @@ export function createWriting(
       status: "pending",
       checked: false,
       ...(resendId ? { resendOf: resendId } : {}),
+      ...(fundingReviewed ? { fundingReviewed: true as const } : {}),
       message: "Saving forum draft…",
       result: null,
     };
@@ -1141,7 +1233,6 @@ export function createWriting(
         ...state.value,
         publishing: false,
         context: {
-          ...current,
           ...draftResult(current, result),
           draftAttempts: [
             ...(current.draftAttempts ?? []).filter((a) => a.id !== result.id),
@@ -1151,6 +1242,11 @@ export function createWriting(
       };
     else state.value = { ...state.value, publishing: false };
     await changed();
+    if (
+      state.value.context?.id === context.id &&
+      blockUnappliedContinuation(continueAfter)
+    )
+      return;
     if (
       continueAfter &&
       result.status === "confirmed" &&
@@ -1175,6 +1271,7 @@ export function createWriting(
           state.value.replacement.boardId,
           true,
           state.value.replacement.replyTarget,
+          state.value.replacement.redPacket,
         );
     }
   }
@@ -1268,7 +1365,6 @@ export function createWriting(
         publishing: false,
         message: result.message,
         context: {
-          ...current,
           ...draftResult(current, result),
           draftAttempts: (current.draftAttempts ?? []).map((a) =>
             a.id === result.id ? result : a,
@@ -1686,6 +1782,10 @@ export function createWriting(
       state.value = { ...state.value, draftResend: null };
     },
     saveDraft,
+    confirmFundedDraft,
+    cancelFundedDraft: () => {
+      state.value = { ...state.value, fundedDraftReview: null };
+    },
     publishDraft,
     publish,
     checkResult,
@@ -2096,7 +2196,8 @@ export function isWritingContext(value: unknown): value is WritingContext {
         !value.redPacket.hints.every(string) ||
         value.action !== "new-thread")) ||
     (value.existingRedPacket !== undefined &&
-      (value.existingRedPacket !== true || value.action !== "edit-post")) ||
+      (value.existingRedPacket !== true ||
+        (value.action !== "edit-post" && !value.draft))) ||
     !string(value.source) ||
     (value.editorUnresolved !== undefined &&
       typeof value.editorUnresolved !== "boolean")
@@ -2238,6 +2339,9 @@ export function isWritingContext(value: unknown): value is WritingContext {
             "remaining-draft",
             "moderation",
           ].includes(String(attempt.status)) ||
+          !validPacketObservation(attempt.redPacket) ||
+          (attempt.fundingReviewed !== undefined &&
+            attempt.fundingReviewed !== true) ||
           !string(attempt.message) ||
           !object(attempt.submission) ||
           !object(attempt.submission.writing) ||
@@ -2251,6 +2355,8 @@ export function isWritingContext(value: unknown): value is WritingContext {
         if (
           attempt.observation !== undefined &&
           (!object(attempt.observation) ||
+            (attempt.observation.packetMarker !== undefined &&
+              attempt.observation.packetMarker !== true) ||
             !["draft", "published"].includes(
               String(attempt.observation.state),
             ) ||
@@ -2307,6 +2413,11 @@ export function isWritingContext(value: unknown): value is WritingContext {
     (value.category === null || option(value.category)) &&
     Array.isArray(value.options) &&
     value.options.every(option) &&
+    (value.unappliedPacketOptions === undefined ||
+      (Array.isArray(value.unappliedPacketOptions) &&
+        value.unappliedPacketOptions.every(
+          (o) => option(o) && o.name.startsWith("hb_"),
+        ))) &&
     Array.isArray(value.uploadedReferences) &&
     value.uploadedReferences.every(
       (id) => string(id) && /^[1-9]\d*$/.test(id),
@@ -2320,6 +2431,37 @@ export function isWritingContext(value: unknown): value is WritingContext {
   );
 }
 
+function validPacketObservation(value: unknown): boolean {
+  return !(
+    value !== undefined &&
+    (!object(value) ||
+      ![
+        "open",
+        "claimed",
+        "done",
+        "withdrawn",
+        "expired",
+        "closed",
+        "unknown",
+        "absent",
+      ].includes(String(value.state)) ||
+      !Array.isArray(value.conditions) ||
+      !value.conditions.every(string) ||
+      value.credit !== "unknown" ||
+      (value.ledger !== undefined &&
+        (!object(value.ledger) ||
+          !["observed", "unavailable"].includes(String(value.ledger.state)) ||
+          !Array.isArray(value.ledger.rows) ||
+          !value.ledger.rows.every(
+            (row) =>
+              object(row) &&
+              ["HBS", "HBR", "HBG"].includes(String(row.operation)) &&
+              string(row.change) &&
+              string(row.details) &&
+              string(row.time),
+          ))))
+  );
+}
 function isAttempt(value: unknown): value is ThreadAttempt {
   if (
     !object(value) ||
@@ -2334,26 +2476,7 @@ function isAttempt(value: unknown): value is ThreadAttempt {
       "confirmed",
       "not-sent",
     ].includes(value.status) ||
-    (value.redPacket !== undefined &&
-      (!object(value.redPacket) ||
-        !string(value.redPacket.state) ||
-        !Array.isArray(value.redPacket.conditions) ||
-        !value.redPacket.conditions.every(string) ||
-        value.redPacket.credit !== "unknown" ||
-        (value.redPacket.ledger !== undefined &&
-          (!object(value.redPacket.ledger) ||
-            !["observed", "unavailable"].includes(
-              String(value.redPacket.ledger.state),
-            ) ||
-            !Array.isArray(value.redPacket.ledger.rows) ||
-            !value.redPacket.ledger.rows.every(
-              (row) =>
-                object(row) &&
-                ["HBS", "HBR", "HBG"].includes(String(row.operation)) &&
-                string(row.change) &&
-                string(row.details) &&
-                string(row.time),
-            ))))) ||
+    !validPacketObservation(value.redPacket) ||
     !string(value.message) ||
     typeof value.checked !== "boolean" ||
     !(value.candidateURL === null || safeThreadURL(value.candidateURL)) ||

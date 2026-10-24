@@ -1,3 +1,4 @@
+import { findMention, type MentionConfig } from "./mentions.js";
 import {
   attr,
   children,
@@ -209,4 +210,29 @@ export async function observePacketLedger(
   } catch {
     return { ledger: unavailable, account: { kind: "unknown" } };
   }
+}
+
+export async function recipientsCurrent(
+  config: MentionConfig,
+  writing: PreparedWriting,
+): Promise<boolean> {
+  if (!writing.redPacket) return true;
+  const input =
+    writing.options.find((o) => o.name === "hb_appoint")?.value ?? "";
+  if (!input.trim()) return true;
+  const names = input.split(",").map((n) => n.trim());
+  if (
+    names.some((n) => !n || /[\r\n]/.test(n)) ||
+    new Set(names).size !== names.length
+  )
+    return false;
+  for (const name of names) {
+    const found = await findMention(config, writing, name);
+    if (
+      found.kind !== "people" ||
+      found.people.filter((p) => p.name === name).length !== 1
+    )
+      return false;
+  }
+  return true;
 }

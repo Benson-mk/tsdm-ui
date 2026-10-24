@@ -312,6 +312,7 @@ export async function listedUpload(
   const tail = instruction[4]!.trim();
   if (
     tail &&
+    !/^doane\(event\)\s*;?$/.test(tail) &&
     !new RegExp(
       "^hideMenu\\(\\s*(['\"])attach_preview_" +
         id +

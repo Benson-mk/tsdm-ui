@@ -427,7 +427,6 @@ export function decodeWriting(
       ...(reply ? { replyTarget: reply } : {}),
       draftSaveAvailable:
         !reply &&
-        !redPacket &&
         named("save").length === 1 &&
         attr(named("save")[0]!, "type") === "hidden" &&
         attr(named("save")[0]!, "id") === "postsave" &&
