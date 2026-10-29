@@ -13,6 +13,7 @@ import {
   decodeSearchForm,
   prepareSearchRequest,
   decodeSearchResults,
+  searchCommandResult,
 } from "./search.js";
 import { decodeWriting } from "./prepare-writing.js";
 import { createPostEditor } from "./edit-post.js";
@@ -50,7 +51,7 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.12.0";
+export const FORUM_CLIENT_VERSION = "0.13.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -538,6 +539,7 @@ export function createForumClient(options: {
       expectedAccount: Account,
     ): Promise<ReadResult> {
       const current = ++sequence;
+      const startedGeneration = generation;
       const fail = (
         kind: "invalid" | "stale" | "network",
         message: string,
@@ -557,7 +559,7 @@ export function createForumClient(options: {
       formURL.searchParams.set("tsdmapp", "json");
       try {
         const fresh = await options.transport.request(formURL.href);
-        if (current !== sequence)
+        if (current !== sequence || generation !== startedGeneration)
           return fail("stale", "A newer action replaced this search.");
         const prepared = prepareSearchRequest(fresh, form.url, criteria);
         if (prepared.kind !== "prepared") return { ...prepared, generation };
@@ -577,15 +579,45 @@ export function createForumClient(options: {
             "The account changed while preparing search. Review the current form and submit again deliberately.",
           );
         }
-        const response = await options.transport.request(prepared.url, {
+        let response = await options.transport.request(prepared.url, {
           method: "POST",
           body: prepared.body,
         });
-        if (current !== sequence)
+        if (current !== sequence || generation !== startedGeneration)
           return fail(
             "stale",
             "A newer action replaced this search. The earlier request may still have had effects.",
           );
+        const command = searchCommandResult(response, prepared.url);
+        if (command) {
+          if (actor(command.account) !== actor(expectedAccount)) {
+            if (actor(command.account) !== actor(account)) {
+              account = command.account;
+              generation++;
+            }
+            return fail(
+              "invalid",
+              "The account changed during search. Its effects are not isolated; review the current account before another deliberate search.",
+            );
+          }
+          command.url.searchParams.set("tsdmapp", "json");
+          response = await options.transport.request(command.url.href);
+          if (current !== sequence || generation !== startedGeneration)
+            return fail(
+              "stale",
+              "A newer action replaced this search. The earlier request may still have had effects.",
+            );
+          const returned = routeFor(response.url);
+          if (
+            returned?.kind !== "search" ||
+            returned.url.origin !== options.origin ||
+            returned.url.searchParams.get("searchid") !== command.id
+          )
+            return fail(
+              "invalid",
+              "The returned page belongs to a different search.",
+            );
+        }
         const decoded = decodeSearchResults(
           response,
           form.url,
@@ -609,10 +641,21 @@ export function createForumClient(options: {
             "invalid",
             "The account changed during search. Its effects are not isolated; review the current account before another deliberate search.",
           );
+        if (
+          command &&
+          decoded.kind === "search" &&
+          decoded.search.results?.id !== command.id
+        )
+          return fail(
+            "invalid",
+            "The returned page belongs to a different search.",
+          );
         return { ...decoded, generation };
       } catch {
         return fail(
-          current !== sequence ? "stale" : "network",
+          current !== sequence || generation !== startedGeneration
+            ? "stale"
+            : "network",
           "Search could not be completed. It may have used credits or quota. Submit again only deliberately.",
         );
       }

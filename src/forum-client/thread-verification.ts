@@ -56,16 +56,36 @@ export function verifyStoredWriting(
     )
   )
     return null;
+  const attachmentNormalizations: NonNullable<
+    ThreadVerification["attachmentNormalizations"]
+  > = [];
   for (const field of submitted.attachmentFields ?? []) {
+    const matches =
+      stored.attachmentFields?.filter((actual) => actual.name === field.name) ??
+      [];
     if (
-      !stored.attachmentFields?.some(
-        (f) =>
-          f.name === field.name &&
-          f.value === field.value &&
-          f.disabled === field.disabled,
-      )
+      matches.length !== 1 ||
+      submitted.attachmentFields!.filter((actual) => actual.name === field.name)
+        .length !== 1 ||
+      matches[0]!.disabled !== field.disabled
     )
       return null;
+    const actual = matches[0]!;
+    if (actual.value === field.value) continue;
+    const attachment = /^attachnew\[([1-9]\d*)\]\[price\]$/.exec(field.name);
+    if (
+      !attachment ||
+      field.disabled ||
+      field.value !== "" ||
+      actual.value !== "0" ||
+      !submitted.uploadedReferences.includes(attachment[1]!)
+    )
+      return null;
+    attachmentNormalizations.push({
+      name: field.name,
+      submitted: "",
+      stored: "0",
+    });
   }
   const normalizations: ThreadVerification["normalizations"] = [];
   for (const expected of options(submitted)) {
@@ -97,8 +117,51 @@ export function verifyStoredWriting(
   return {
     stored: "verified",
     normalizations,
+    ...(attachmentNormalizations.length ? { attachmentNormalizations } : {}),
     creationEffects: creationEffects(submitted),
   };
+}
+/** Only the observed native representation of explicitly selected people. */
+function selectedMentionSource(submitted: PreparedWriting): string | null {
+  let expanded = submitted.source;
+  const names = new Set<string>();
+  for (const person of submitted.mentions ?? []) {
+    // A marker can only name one selected identity. Unsafe BBCode names and
+    // incomplete/unselected markers have no qualified stored representation.
+    if (
+      names.has(person.name) ||
+      !/^[1-9]\d*$/.test(person.id) ||
+      !person.name ||
+      /[[\]\r\n\u2063\u2064]/.test(person.name)
+    )
+      return null;
+    names.add(person.name);
+    expanded = expanded.replaceAll(
+      `@\u2063${person.name}\u2063`,
+      `[url=home.php?mod=space&uid=${person.id}]@${person.name}[/url]`,
+    );
+  }
+  if (/[\u2063\u2064]/.test(expanded)) return null;
+
+  return expanded;
+}
+/** Direct thread publication has qualified the same selected UID links as replies. */
+export function verifyStoredThread(
+  submitted: PreparedWriting,
+  stored: PreparedWriting,
+): ThreadVerification | null {
+  if (
+    submitted.action !== "new-thread" ||
+    submitted.draft ||
+    submitted.replyTarget
+  )
+    return null;
+  const exact = verifyStoredWriting(submitted, stored);
+  if (exact) return exact;
+  const source = selectedMentionSource(submitted);
+  return source === null
+    ? null
+    : verifyStoredWriting({ ...submitted, source }, stored);
 }
 /** Bounded native reply source observations; never a general BBCode normalizer. */
 export function verifyStoredReply(
@@ -122,30 +185,15 @@ export function verifyStoredReply(
   )
     return null;
 
-  let appended = submitted.source;
-  const names = new Set<string>();
-  for (const person of submitted.mentions ?? []) {
-    // A marker can only name one selected identity. Unsafe BBCode names and
-    // incomplete/unselected markers have no qualified stored representation.
-    if (
-      names.has(person.name) ||
-      !/^[1-9]\d*$/.test(person.id) ||
-      !person.name ||
-      /[[\]\r\n\u2063\u2064]/.test(person.name)
-    )
-      return null;
-    names.add(person.name);
-    appended = appended.replaceAll(
-      `@\u2063${person.name}\u2063`,
-      `[url=home.php?mod=space&uid=${person.id}]@${person.name}[/url]`,
-    );
-  }
-  if (/[\u2063\u2064]/.test(appended)) return null;
+  const appended = selectedMentionSource(submitted);
+  if (appended === null) return null;
 
   if (!before)
     return verifyStoredWriting({ ...submitted, source: appended }, stored);
 
-  const prefix = `${before.source}\n\n[hr]\n[b]${submitted.account.name} 补充了以下内容 (`;
+  // Two observed native merge envelopes; source inside either remains exact.
+  const quoteWrapped = stored.source.startsWith(`${before.source}\n\n[quote]`);
+  const prefix = `${before.source}\n\n${quoteWrapped ? "[quote]" : "[hr]\n"}[b]${submitted.account.name} 补充了以下内容 (`;
   if (!stored.source.startsWith(prefix)) return null;
   const remainder = stored.source.slice(prefix.length);
   const date = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})\)\[\/b\]\n/.exec(
@@ -161,7 +209,8 @@ export function verifyStoredReply(
     calendar.getUTCDate() !== day ||
     calendar.getUTCHours() !== hour ||
     calendar.getUTCMinutes() !== minute ||
-    remainder.slice(date[0].length) !== appended
+    remainder.slice(date[0].length) !==
+      appended + (quoteWrapped ? "[/quote]" : "")
   )
     return null;
 
@@ -184,7 +233,14 @@ export function isThreadVerification(
 ): value is ThreadVerification {
   if (
     !record(value) ||
-    !keys(value, ["stored", "normalizations", "creationEffects"]) ||
+    !keys(value, [
+      "stored",
+      "normalizations",
+      "creationEffects",
+      ...(Object.hasOwn(value, "attachmentNormalizations")
+        ? ["attachmentNormalizations"]
+        : []),
+    ]) ||
     value.stored !== "verified" ||
     !Array.isArray(value.normalizations) ||
     value.normalizations.length > 1 ||
@@ -209,6 +265,42 @@ export function isThreadVerification(
     )
   )
     return false;
+  if (Object.hasOwn(value, "attachmentNormalizations")) {
+    const entries = value.attachmentNormalizations;
+    const names = new Set<string>();
+    if (
+      !Array.isArray(entries) ||
+      !entries.length ||
+      entries.length > submitted.uploadedReferences.length ||
+      !entries.every((entry: unknown) => {
+        if (
+          !record(entry) ||
+          !keys(entry, ["name", "submitted", "stored"]) ||
+          typeof entry.name !== "string" ||
+          entry.submitted !== "" ||
+          entry.stored !== "0" ||
+          names.has(entry.name)
+        )
+          return false;
+        const match = /^attachnew\[([1-9]\d*)\]\[price\]$/.exec(entry.name);
+        const fields =
+          submitted.attachmentFields?.filter(
+            (field) => field.name === entry.name,
+          ) ?? [];
+        if (
+          !match ||
+          !submitted.uploadedReferences.includes(match[1]!) ||
+          fields.length !== 1 ||
+          fields[0]!.disabled ||
+          fields[0]!.value !== ""
+        )
+          return false;
+        names.add(entry.name);
+        return true;
+      })
+    )
+      return false;
+  }
   const expected = creationEffects(submitted);
   const entries = value.creationEffects;
   return (

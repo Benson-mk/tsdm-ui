@@ -258,6 +258,8 @@ const english = {
   openConfirmedThread: "Open confirmed thread",
   normalizedStoredPrice:
     "Stored price: 0 (normalized from an empty submitted value).",
+  normalizedStoredAttachmentPrice:
+    "Stored attachment {value} price: 0 (normalized from an empty submitted value).",
   deliveryUnverified: "Delivery unverified",
   effectNotRequested: "Not requested",
   effectNotIncluded: "Not included in the command",
@@ -534,6 +536,8 @@ const simplified: Strings = {
   returnReading: "返回阅读",
   openConfirmedThread: "打开已确认的主题",
   normalizedStoredPrice: "存储售价为 0（由提交的空值规范化）。",
+  normalizedStoredAttachmentPrice:
+    "附件 {value} 的存储售价为 0（由提交的空值规范化）。",
   deliveryUnverified: "尚未验证送达",
   effectNotRequested: "未请求",
   effectNotIncluded: "未包含在提交指令中",
@@ -810,6 +814,8 @@ const traditional: Strings = {
   returnReading: "返回閱讀",
   openConfirmedThread: "開啟已確認的主題",
   normalizedStoredPrice: "儲存售價為 0（由提交的空值正規化）。",
+  normalizedStoredAttachmentPrice:
+    "附件 {value} 的儲存售價為 0（由提交的空值正規化）。",
   deliveryUnverified: "尚未驗證送達",
   effectNotRequested: "未請求",
   effectNotIncluded: "未包含在提交指令中",

@@ -1,0 +1,735 @@
+{
+  "status": "reviewed-precommit-consolidation",
+  "policy": "Distinct choices are recorded once. Preserved failures and oracle mistakes are not themselves new trade-offs. This index is not a claim that private implementation ledgers have been publicly replayed.",
+  "entries": [
+    {
+      "id": "T01",
+      "choice": "Same-profile fresh manager entry with origin data retained",
+      "benefit": "Honors the available profile and avoids a new-profile setup burden.",
+      "cost": "Does not establish unused-profile default state; live-document loss remains an outcome, not an accepted preservation policy.",
+      "basis": ["E03", "E01"]
+    },
+    {
+      "id": "T02",
+      "choice": "Bounded temporary capture-phase geometry observer",
+      "benefit": "Separates pre-activation movement from app saved-position restoration.",
+      "cost": "Adds transient listeners/read overhead and does not establish uninstrumented timing.",
+      "basis": ["E05"]
+    },
+    {
+      "id": "T03",
+      "choice": "Lossless indexed/tagged file-byte comparison in offline review",
+      "benefit": "Compares all actual bytes across equivalent retained snapshot wrappers.",
+      "cost": "Does not claim literal wrapper serialization equality; every other field remains exact.",
+      "basis": ["E13", "E14"]
+    },
+    {
+      "id": "T04",
+      "choice": "Self-contained captured-HTML parser for native audit",
+      "benefit": "Repeatable verification without adding a parser dependency.",
+      "cost": "Explicit native select handling is required and authority is limited to captured HTML.",
+      "basis": ["E15"]
+    },
+    {
+      "id": "T05",
+      "choice": "Separate installed notices Load and later category actions",
+      "benefit": "Retains an explicit first-load and approval boundary.",
+      "cost": "Adds one owned action scope without changing the request/effect map.",
+      "basis": ["E18"]
+    },
+    {
+      "id": "T06",
+      "choice": "Reuse the cleaned response-probe tab for local recovery",
+      "benefit": "Preserves exact form lineage and avoids another native form read.",
+      "cost": "Couples final tab closure to the later recovery run; closure is now independently reviewed.",
+      "basis": ["E19", "E20"]
+    },
+    {
+      "id": "T07",
+      "choice": "Dispose the failed owned lifecycle context conservatively",
+      "benefit": "Ends the failed page without bypassing conservative interception controls.",
+      "cost": "Foregoes possible late terminal observation; disposal does not repair incomplete cleanup.",
+      "basis": ["E21"]
+    },
+    {
+      "id": "T08",
+      "choice": "Publish no raw evidence; author a private incremental disposition first",
+      "benefit": "Keeps unresolved requirements visible while preventing copying of authenticated material.",
+      "cost": "This draft is not schema-3-verifier-ready or self-contained for replay; final companions and review remain required.",
+      "basis": ["E34", "E32"]
+    },
+    {
+      "id": "T09",
+      "choice": "Combine the native before/during/after checks into one scheduled session cycle",
+      "benefit": "Limits shared-session interruption.",
+      "cost": "Requires coordinated human timing and the qualified response gate.",
+      "basis": ["E40", "E41"],
+      "origin": "Existing approved plan choice, now executed; not a new choice."
+    },
+    {
+      "id": "T10",
+      "choice": "Use an ordinary preparation read as the native in-flight object",
+      "benefit": "Exercises real stale identity ordering without forum mutation.",
+      "cost": "Native upload, removal, funding and nonempty uncertain-attempt variants remain separately modeled.",
+      "basis": ["E40", "E41"],
+      "origin": "Existing approved plan choice, now executed."
+    },
+    {
+      "id": "T11",
+      "choice": "Restore the same member after the guest boundary",
+      "benefit": "Avoids requiring a second account.",
+      "cost": "Does not establish native distinct-member copy behavior.",
+      "basis": ["E40", "E41"],
+      "origin": "Existing approved plan choice, now executed."
+    },
+    {
+      "id": "T12",
+      "choice": "Continue the original native response unchanged through the qualified gate",
+      "benefit": "Preserves native provenance without authored response fulfillment.",
+      "cost": "Depends on the qualified protocol capability; omitted post-release body resampling remains a separate observation limit. Complete-body read adds a bounded1MiB buffer and restricts the diagnostic to UTF-8 HTML/JSON; that same decision is not repeated as a separate entry.",
+      "basis": ["E40", "E41", "TRADE-SOURCE-25"],
+      "origin": "Existing approved plan choice, now executed."
+    },
+    {
+      "id": "T13",
+      "choice": "Include accepted declaration/result and corrected ownership metadata as referenced authored companions",
+      "benefit": "Preserves exact current source/result linkage and accepted fragment ownership without inventing additional schema3 execution attestations.",
+      "cost": "Complete per-case readback and final evidence-level integration remain separate work; these metadata inventories cannot qualify installed/native outcomes.",
+      "basis": ["E42", "E43", "E44", "E45"]
+    },
+    {
+      "id": "T14",
+      "choice": "Compose actual source/state replacement with a separate identical installed startup",
+      "benefit": "Supplies the missing installed no-resend dimension without repeating the proven manager replacement.",
+      "cost": "Requires explicit candidate/seed/preferences/path/runtime relevance joins and permanently retains the original incomplete startup interval; it is not a one-run complete-pass claim.",
+      "basis": ["E48", "E50"],
+      "origin": "Existing advisor gap-review decision, now executed and accepted."
+    },
+    {
+      "id": "T15",
+      "choice": "Accept three expressly narrowed native evidence bases",
+      "benefit": "Avoids new native search/social/deletion effects while preserving actual historical observations.",
+      "cost": "Unobserved fresh native search/populated notice and original removal absence remain unproved."
+    },
+    {
+      "id": "T16",
+      "choice": "Reuse clean retained root-build library module",
+      "benefit": "Avoids rebuilding userscript or editing generated comments.",
+      "cost": "New module/tarball identities and exact fresh consumer/replay evidence must remain distinct."
+    },
+    {
+      "id": "T17",
+      "choice": "Copy known populated cache into private execution area",
+      "benefit": "Keeps bounded consumer retry offline without mutating user cache.",
+      "cost": "Temporary43MB copy is excluded from publication."
+    },
+    {
+      "id": "T18",
+      "choice": "Preserve generic consumer recipe and add preparation note",
+      "benefit": "Keeps original receipts byte-for-byte.",
+      "cost": "Readers must distinguish suggested build command from actual no-build preparation."
+    },
+    {
+      "id": "T19",
+      "choice": "Separate immutable historical outcomes from required current assessment cases",
+      "benefit": "Allows unchanged strict verifier to assess accepted compositions without rewriting history.",
+      "cost": "Explicit history links and original status visibility are essential."
+    },
+    {
+      "id": "T20",
+      "choice": "Publish exact assertion/result and hashed primitive projections",
+      "benefit": "Retains all case provenance without copying raw request/source strings.",
+      "cost": "Private pointer map and exact full replay source are needed; hashes alone do not invent semantic readback."
+    },
+    {
+      "id": "T21",
+      "choice": "Use exact original declaration-call excerpts for schema inspection",
+      "benefit": "Avoids false-sensitive helper-token rejection while retaining original declaration bytes and full source elsewhere.",
+      "cost": "Excerpts are not independently executable; source/call identities and original locations stay explicit."
+    },
+    {
+      "id": "T22",
+      "choice": "Recognize one complete observed integer balance-hint grammar",
+      "benefit": "Ignores only proven volatile display data while preserving all other hints and order.",
+      "cost": "Other locales, units, grouped/signed/decimal or duplicated/missing hints remain conservative.",
+      "basis": ["TRADE-SOURCE-01"]
+    },
+    {
+      "id": "T23",
+      "choice": "Keep immutable public hint shape and retained source/ownership",
+      "benefit": "Avoids migration or automatic fresh-form adoption.",
+      "cost": "Historical balance label is not a live affordability promise.",
+      "basis": ["TRADE-SOURCE-01"]
+    },
+    {
+      "id": "T24",
+      "choice": "Leave affordability and actual debit validation to native authority",
+      "benefit": "Prevents a display hint from becoming spending/refund proof.",
+      "cost": "Even lower fresh balance may reach native rejection under existing uncertainty rules.",
+      "basis": ["TRADE-SOURCE-01"]
+    },
+    {
+      "id": "T25",
+      "choice": "Use shared compatibility comparison for the narrow balance exception",
+      "benefit": "Keeps direct/draft/funded callers consistent.",
+      "cost": "Broader caller surface requires affected negative coverage.",
+      "basis": ["TRADE-SOURCE-01"]
+    },
+    {
+      "id": "T26",
+      "choice": "Extend existing full-app funded fixture with optional hints/ordinary mode",
+      "benefit": "Avoids a divergent second model and retains independent source/packet/attachment readback.",
+      "cost": "Adds bounded fixture configuration.",
+      "basis": ["TRADE-SOURCE-01"]
+    },
+    {
+      "id": "T27",
+      "choice": "Freeze installed request bodies/order from the reviewed captured model",
+      "benefit": "Avoids evolving server state and native fallthrough in controlled checks.",
+      "cost": "Adapter is revision-specific and requires reviewed updates when request contract changes.",
+      "basis": ["TRADE-SOURCE-01"]
+    },
+    {
+      "id": "T28",
+      "choice": "Use dependency-minimal exact recovered controller bindings",
+      "benefit": "Preserves original behavior while avoiding unavailable unused eager factories.",
+      "cost": "Missing historical closure remains explicit; recovered bytes need exact provenance.",
+      "basis": ["TRADE-SOURCE-02"]
+    },
+    {
+      "id": "T29",
+      "choice": "Rehearse real controller through offline owned transport",
+      "benefit": "Supports repeatable complete-app and cleanup checks without native effects.",
+      "cost": "Actual installed transport acknowledgements remain separate evidence.",
+      "basis": ["TRADE-SOURCE-02"]
+    },
+    {
+      "id": "T30",
+      "choice": "Keep terminal UI observation in owned scope until actual timeout/completion",
+      "benefit": "Avoids premature quiet-scope completion during asynchronous UI work.",
+      "cost": "Rehearsal is slower.",
+      "basis": ["TRADE-SOURCE-02"]
+    },
+    {
+      "id": "T31",
+      "choice": "Serialize browser observations opaquely and parse locally",
+      "benefit": "Preserves exact JSON key order through transport while keeping strict guards.",
+      "cost": "Adds local parse and string-valued raw observation handle.",
+      "basis": ["TRADE-SOURCE-03"]
+    },
+    {
+      "id": "T32",
+      "choice": "Support exact observed JSON search-success envelope",
+      "benefit": "Retains structured search transport and fixes captured app POST behavior.",
+      "cost": "Adds narrow parser support; nativeHTML switch and general redirect framework are avoided.",
+      "basis": ["TRADE-SOURCE-04"]
+    },
+    {
+      "id": "T33",
+      "choice": "Reject unknown search envelope/actor/action/URL and hybrid document shapes",
+      "benefit": "Avoids unsafe guesses and effectful retries.",
+      "cost": "Unobserved future variants remain visibly uncertain until evidenced.",
+      "basis": ["TRADE-SOURCE-04"]
+    },
+    {
+      "id": "T34",
+      "choice": "Reuse existing search client/workspace ownership without new cancellation API",
+      "benefit": "Prevents late result replacement and duplicate effectful POST.",
+      "cost": "One bounded GET can finish after local navigation without updating the newer view.",
+      "basis": ["TRADE-SOURCE-04"]
+    },
+    {
+      "id": "T35",
+      "choice": "Use isolated staged builds/test mirrors with explicit exact-source import",
+      "benefit": "Preserves frozen dist and avoids concurrent shared-source edits.",
+      "cost": "Requires pinned source import, disclosed path adjustments and later integration verification.",
+      "basis": ["TRADE-SOURCE-04"]
+    },
+    {
+      "id": "T36",
+      "choice": "Pair exact private response replay with wholly authored public fixtures",
+      "benefit": "Preserves actual diagnostic response authority and public privacy.",
+      "cost": "Authoring lookup/control data cannot prove native service success; host evidence stays separate.",
+      "basis": ["TRADE-SOURCE-05"]
+    },
+    {
+      "id": "T37",
+      "choice": "Compare visible native search titles using independent rendered text",
+      "benefit": "Distinguishes HTML whitespace rendering from data loss.",
+      "cost": "Raw JSON whitespace equality is deliberately not the UI oracle.",
+      "basis": ["TRADE-SOURCE-06"]
+    },
+    {
+      "id": "T38",
+      "choice": "Use minimal wrapper content plus actual DOM Selection and mode switches for caret diagnosis",
+      "benefit": "Isolates causal mutation and avoids hidden-textarea oracle.",
+      "cost": "Minimal Latin case cannot replace rich/IME coverage and depends on browser selection support.",
+      "basis": ["TRADE-SOURCE-07"]
+    },
+    {
+      "id": "T39",
+      "choice": "Instrument a private copied editor observer for causal diagnosis",
+      "benefit": "Identifies exact mutation boundary without product instrumentation.",
+      "cost": "Experimental bundle is broader than safe repair and never counted as release candidate.",
+      "basis": ["TRADE-SOURCE-07"]
+    },
+    {
+      "id": "T40",
+      "choice": "Ignore only owned hide/spoiler root presentation-attribute mutations",
+      "benefit": "Preserves locale changes without global observer suppression.",
+      "cost": "Allowlist needs deliberate maintenance; unknown mutations remain observed.",
+      "basis": ["TRADE-SOURCE-07"]
+    },
+    {
+      "id": "T41",
+      "choice": "Permit existing disabled-empty native representation under exact keyed comparison",
+      "benefit": "Keeps parser/recovery/serialization unchanged and fixes valid preparation.",
+      "cost": "Separate context-specific validation boundary remains necessary to reject state drift.",
+      "basis": ["TRADE-SOURCE-08"]
+    },
+    {
+      "id": "T42",
+      "choice": "Reuse pinned dependencies with local writable cache and verified runtime",
+      "benefit": "Avoids unnecessary reinstall/network activity and user-cache changes.",
+      "cost": "UI lock-install cleanliness is not proved by reuse; fresh consumer installation is separate.",
+      "basis": ["TRADE-SOURCE-08"]
+    },
+    {
+      "id": "T43",
+      "choice": "Keep public API version stable for internal validation fixes",
+      "benefit": "Avoids implying interface changes.",
+      "cost": "Exact new tarball identity and consumer evidence distinguish every implementation.",
+      "basis": ["TRADE-SOURCE-08"]
+    },
+    {
+      "id": "T44",
+      "choice": "Use realm-independent Uint8Array byte-view branding in fixture bridge",
+      "benefit": "Admits equivalent foreign Uint8Array/Buffer views.",
+      "cost": "Other one-byte views and lookalike objects remain excluded.",
+      "basis": ["TRADE-SOURCE-09"]
+    },
+    {
+      "id": "T45",
+      "choice": "Recognize one exact observed merged-reply envelope",
+      "benefit": "Preserves strict full-source and identity boundaries.",
+      "cost": "Unobserved envelope variants may remain uncertain; no general merge parser.",
+      "basis": ["TRADE-SOURCE-10"]
+    },
+    {
+      "id": "T46",
+      "choice": "Reuse existing immutable result/recovery schema for normalization proofs",
+      "benefit": "Avoids migration for merge/mention repairs.",
+      "cost": "Raw source/readback receipts explain envelope/mention conversion because result metadata has no dedicated discriminator.",
+      "basis": ["TRADE-SOURCE-10"]
+    },
+    {
+      "id": "T47",
+      "choice": "Normalize empty default-page hint only in native callback parser",
+      "benefit": "Preserves strict manually supplied candidate validation.",
+      "cost": "Retains separate parser modes.",
+      "basis": ["TRADE-SOURCE-11"]
+    },
+    {
+      "id": "T48",
+      "choice": "Apply native callback normalization in shared outcome parser",
+      "benefit": "Keeps publication and edit consumers consistent.",
+      "cost": "Narrow support affects both callers and needs affected coverage.",
+      "basis": ["TRADE-SOURCE-11"]
+    },
+    {
+      "id": "T49",
+      "choice": "Replay exact edit callbacks against authored original targets",
+      "benefit": "Isolates captured parser failure without new send.",
+      "cost": "Does not reconstruct complete native account/precondition lifecycle.",
+      "basis": ["TRADE-SOURCE-11"]
+    },
+    {
+      "id": "T50",
+      "choice": "Request native representation only for mention capability pre/post checks",
+      "benefit": "Obtains required capability without extra fallback requests or global transport change.",
+      "cost": "Exchanges compact JSON for native payload only at that boundary.",
+      "basis": ["TRADE-SOURCE-05"]
+    },
+    {
+      "id": "T51",
+      "choice": "Reserialize JSON only for capability-tag differential control",
+      "benefit": "Isolates logical missing content.",
+      "cost": "Literal native/tag-removal controls are needed to corroborate representation-sensitive behavior.",
+      "basis": ["TRADE-SOURCE-05"]
+    },
+    {
+      "id": "T52",
+      "choice": "Limit stored mention conversion support to direct new-thread publication",
+      "benefit": "Avoids assuming all authoring operations normalize the same way.",
+      "cost": "Edit/draft checks remain conservative until separately qualified.",
+      "basis": ["TRADE-SOURCE-12"]
+    },
+    {
+      "id": "T53",
+      "choice": "Share existing bounded reply expansion for mention confirmation",
+      "benefit": "Keeps identity rules consistent.",
+      "cost": "Changes common helper structure and requires reply regressions.",
+      "basis": ["TRADE-SOURCE-12"]
+    },
+    {
+      "id": "T54",
+      "choice": "Validate recovered endpoint images through same-post unique association",
+      "benefit": "Retains legitimate images without global endpoint exception or provenance type.",
+      "cost": "Structurally forgeable origin storage grants no command/download authority; deliberate download revalidates access.",
+      "basis": ["TRADE-SOURCE-13"]
+    },
+    {
+      "id": "T55",
+      "choice": "Allow dormant native controls only in private read-snapshot validation",
+      "benefit": "Preserves complete recovered evidence without relaxing exported command checks.",
+      "cost": "Adds internal validation path; serialized shape cannot prove original DOM type.",
+      "basis": ["TRADE-SOURCE-13"]
+    },
+    {
+      "id": "T56",
+      "choice": "Compare attachment membership independent of presentation order",
+      "benefit": "Preserves immutable arrays and all non-attachment metadata semantics.",
+      "cost": "Bounded set/matching allocations; duplicates and unrelated field order remain strict.",
+      "basis": ["TRADE-SOURCE-13"]
+    },
+    {
+      "id": "T57",
+      "choice": "Add optional external-form hook for phase-specific attachment conflicts",
+      "benefit": "Keeps tests on full-app HTTP seam without product-state injection.",
+      "cost": "Adds fixture configuration while defaults remain unchanged.",
+      "basis": ["TRADE-SOURCE-13"]
+    },
+    {
+      "id": "T58",
+      "choice": "Allow structurally empty table rows subject to logical grid validation",
+      "benefit": "Supports valid rowspans and source roundtrips.",
+      "cost": "Row schema alone no longer ensures physical cell; uncovered/zero-width grids are rejected on import.",
+      "basis": ["TRADE-SOURCE-14"]
+    },
+    {
+      "id": "T59",
+      "choice": "Honor defaultPrevented at shared navigation delegate",
+      "benefit": "Prevents duplicate navigation consistently and respects child ownership.",
+      "cost": "Canceled clicks with no child navigation no longer receive layout fallback.",
+      "basis": ["TRADE-SOURCE-15"]
+    },
+    {
+      "id": "T60",
+      "choice": "Preserve confirmed writing in separate live context for subsequent edit",
+      "benefit": "Retains original complete attempt.",
+      "cost": "Adds a tab and does not prove destructive context replacement.",
+      "basis": ["TRADE-SOURCE-16"]
+    },
+    {
+      "id": "T61",
+      "choice": "Classify exact observed telemetry destination as finite named abort",
+      "benefit": "Allows deterministic owned navigation while retaining abort ledger.",
+      "cost": "Suppresses native telemetry and relies on endpoint-pattern provenance, not initiator proof.",
+      "basis": ["TRADE-SOURCE-17"]
+    },
+    {
+      "id": "T62",
+      "choice": "Keep wrapper-order ledger alongside original forum ledger",
+      "benefit": "Separates background traffic and controller rule attribution.",
+      "cost": "Consumers must distinguish sequence systems and actual acknowledgement evidence.",
+      "basis": ["TRADE-SOURCE-17"]
+    },
+    {
+      "id": "T63",
+      "choice": "Abort observed native board polling in synthetic scopes",
+      "benefit": "Isolates deterministic external responses.",
+      "cost": "Does not qualify native background traffic.",
+      "basis": ["TRADE-SOURCE-18"]
+    },
+    {
+      "id": "T64",
+      "choice": "Require two matching binary protocol representations for controlled uploads",
+      "benefit": "Detects missing/corrupt byte transport.",
+      "cost": "Depends on observed bridge capability and fails closed when unavailable.",
+      "basis": ["TRADE-SOURCE-18"]
+    },
+    {
+      "id": "T65",
+      "choice": "Use small finite authored reader model with strict single epoch",
+      "benefit": "Gives exact current-byte controlled coverage without private native response replay.",
+      "cost": "Unknown/background requests halt the case; real redirects/remount remain separate.",
+      "basis": ["TRADE-SOURCE-19"]
+    },
+    {
+      "id": "T66",
+      "choice": "Record pane-relative and absolute geometry with existing bounded tolerance",
+      "benefit": "Distinguishes preserved result position from banner displacement.",
+      "cost": "Does not promise pixel identity across presentation changes.",
+      "basis": ["TRADE-SOURCE-19"]
+    },
+    {
+      "id": "T67",
+      "choice": "Reuse exact historical authorities with separately counted fresh-document bootstrap",
+      "benefit": "Preserves comparable scope while aligning real setup ownership.",
+      "cost": "Extra bootstrap reads and historical labels are explicitly distinct from fixed case requests.",
+      "basis": ["TRADE-SOURCE-20"]
+    },
+    {
+      "id": "T68",
+      "choice": "Detach controlled interception before actual reload and observe passive traffic",
+      "benefit": "Tests recovery without model replay and avoids stale controller use.",
+      "cost": "Real installed event capture/native resource differences retain separate authority.",
+      "basis": ["TRADE-SOURCE-21"]
+    },
+    {
+      "id": "T69",
+      "choice": "Treat synthetic composition only as offline observer smoke",
+      "benefit": "Makes instrumentation repeatable.",
+      "cost": "Cannot establish genuine OS composition or click ordering.",
+      "basis": ["TRADE-SOURCE-22"]
+    },
+    {
+      "id": "T70",
+      "choice": "Split idle notice observation into controller-owned bounded segments",
+      "benefit": "Measures actual longer idle window without widening controller time limit.",
+      "cost": "Both elapsed time and segment completion must be recorded.",
+      "basis": ["TRADE-SOURCE-23"]
+    },
+    {
+      "id": "T71",
+      "choice": "Strengthen settled-directory preflight while preserving old scalar epoch contract",
+      "benefit": "Improves current setup and keeps reachable partial handles on failure.",
+      "cost": "Adds preflight work without rewriting old evidence.",
+      "basis": ["TRADE-SOURCE-23"]
+    },
+    {
+      "id": "T72",
+      "choice": "Restrict exposed current adapters to named cases while retaining unreachable original branches",
+      "benefit": "Keeps semantic provenance and prevents unintended extra effects.",
+      "cost": "Included generic code is not evidence those branches executed.",
+      "basis": ["TRADE-SOURCE-24"]
+    },
+    {
+      "id": "T73",
+      "choice": "Keep original authored pending text and explicit readable copy before discard",
+      "benefit": "Preserves exact source comparison and safe incompatible inspection.",
+      "cost": "Current identity comes from source hashes, not historical text labels; this is not manager replacement proof.",
+      "basis": ["TRADE-SOURCE-24"]
+    },
+    {
+      "id": "T74",
+      "choice": "Use separate one-endpoint Response-stage diagnostic",
+      "benefit": "Preserves original Request-stage controller contract.",
+      "cost": "Adds private helper/protocol review and excludes concurrent Fetch ownership.",
+      "basis": ["TRADE-SOURCE-25"]
+    },
+    {
+      "id": "T75",
+      "choice": "Inject lost acknowledgements only at external adapter boundary",
+      "benefit": "Makes cleanup failure cases deterministic after real operations.",
+      "cost": "Does not reproduce an actual bridge outage; abort/no-retry may leave uncertainty unresolved.",
+      "basis": ["TRADE-SOURCE-25"]
+    },
+    {
+      "id": "T76",
+      "choice": "Combine compatible writing and pending specimen in one actual replacement",
+      "benefit": "Reduces repeated manager reinstalls.",
+      "cost": "Only the exact authored state/target is established, not all deterministic variants.",
+      "basis": ["TRADE-SOURCE-26"]
+    },
+    {
+      "id": "T77",
+      "choice": "Accept historical native ordinary/draft/direct/favorite/listed-file evidence with current controlled/affected checks",
+      "benefit": "Uses existing independently read native effects without repeated mutations or spending.",
+      "cost": "Keeps each original source/runtime, failure and observer limit; does not prove fresh a3de dispatch or waive other native/provenance requirements.",
+      "originIdentity": {
+        "bytes": 1875,
+        "sha256": "17a7a349d13f308da9b4432e62261e307c5fbed9f64803f1d28d5333a26f4dcf"
+      },
+      "originDecision": "earlier-native-family-substitution",
+      "reviewAuthority": {
+        "bytes": 10345,
+        "sha256": "3c7a2ee385c08942f05ba2fc04b9ece76ae5cfdcfe7010ef2b7336a7bb6ea358"
+      }
+    },
+    {
+      "id": "T78",
+      "choice": "Quit and relaunch Chrome with normal restoration and no reseeding",
+      "benefit": "Observes actual browser lifetime behavior without manufacturing recovered state.",
+      "cost": "Accepts browser-controlled recovery absence and disconnected startup; no recovered-writing or current a3de restart claim.",
+      "originIdentity": {
+        "bytes": 4515,
+        "sha256": "c4bcf346b76cb7c980744f305638f35f0e0b898da0ef420cc50136e39933a5c1"
+      },
+      "originDecision": "actual-Chrome-restart",
+      "reviewAuthority": {
+        "bytes": 10345,
+        "sha256": "3c7a2ee385c08942f05ba2fc04b9ece76ae5cfdcfe7010ef2b7336a7bb6ea358"
+      }
+    },
+    {
+      "id": "T79",
+      "choice": "Use exact newly created disk file plus unique completed CDP download after high-level wait timeout",
+      "benefit": "Establishes actual saved bytes despite missing high-level event acknowledgement.",
+      "cost": "Requires unambiguous file/download identity and independent byte comparison; timeout remains recorded and is not silently converted into event success.",
+      "originIdentity": {
+        "bytes": 8612,
+        "sha256": "3c5b1eeddb5504edb3dcce795a0a008368e60dfc0a4237d9116e6dee937d75a5"
+      },
+      "originDecision": "disk-CDP-evidence-fallback",
+      "reviewAuthority": {
+        "bytes": 10345,
+        "sha256": "3c7a2ee385c08942f05ba2fc04b9ece76ae5cfdcfe7010ef2b7336a7bb6ea358"
+      }
+    },
+    {
+      "id": "T80",
+      "choice": "Reuse the same owned workflow tab only after confirmed full source/revision and saved recovery",
+      "benefit": "Avoids unnecessary context proliferation while keeping next authorized step tied to actual confirmed state.",
+      "cost": "Requires exact saved-state guard and separate operation/readback receipts; is distinct from preserving another live original context.",
+      "originIdentity": {
+        "bytes": 2595,
+        "sha256": "449776ff05fed3b0be8a6288280dc6d1167a835d19db3f1b2b10630ac5aac8f3"
+      },
+      "originDecision": "guarded-same-tab-reuse",
+      "reviewAuthority": {
+        "bytes": 10345,
+        "sha256": "3c7a2ee385c08942f05ba2fc04b9ece76ae5cfdcfe7010ef2b7336a7bb6ea358"
+      }
+    }
+  ],
+  "notReenumerated": "Repeated use of private captured replay versus public fixtures, dependency-minimal recovery, opaque JSON transport, staged builds/dependency cache and unchanged-authority adapters is consolidated once above. Runtime failures/oracle corrections are preserved evidence, not automatically new technical choices.",
+  "acceptanceNote": "Accepted native substitutions are explicit evidence-scope decisions, not native correctness proof. Final source review requires no mandatory code change.",
+  "provenanceLimits": [
+    "Older reports refer to numbered P1–P13 and controlled-authoring-recipes.md. That original note is not present in the retained context directory. This consolidated ledger records choices recoverable from actual retained repair/preparation ledgers; it does not fabricate the absent numbered note or claim its exact contents.",
+    "The nonblocking duplicate-helper advisory is a final maintenance observation, not a newly performed refactor."
+  ],
+  "sourceRecords": [
+    {
+      "alias": "TRADE-SOURCE-01",
+      "bytes": 2749,
+      "sha256": "b294b2d011d0622d5193db967f2b9ad43edc8f5972c6a1318615b93634fa1d91"
+    },
+    {
+      "alias": "TRADE-SOURCE-02",
+      "bytes": 5551,
+      "sha256": "390c3dc3189a1d79e1c18ebc9752ff3782caf6e6216c2ede9dd89e004230db19"
+    },
+    {
+      "alias": "TRADE-SOURCE-03",
+      "bytes": 3850,
+      "sha256": "808c0d4260c2e88494e4a4bbc88c6c1bd2c7be1d7874236025dd8b2aae23ee20"
+    },
+    {
+      "alias": "TRADE-SOURCE-04",
+      "bytes": 8563,
+      "sha256": "49dd99efa3a19db900f2a2079e8c47e810064513fdb4bbe55f7067a3595474c3"
+    },
+    {
+      "alias": "TRADE-SOURCE-05",
+      "bytes": 2783,
+      "sha256": "5f1c188333a4e4d8840ba2913320f1910d8520fa780e9d4f547e926aa4a0ef10"
+    },
+    {
+      "alias": "TRADE-SOURCE-06",
+      "bytes": 7111,
+      "sha256": "fc2b116d9fb5b3ed82613504cbb3e1a8ee591cabe9e9840becf1843e8c049e66"
+    },
+    {
+      "alias": "TRADE-SOURCE-07",
+      "bytes": 14752,
+      "sha256": "4d54d3129c0bf84cb7863678d2c1db45a2ca1f11e80605bdc301d16d7e43ac35"
+    },
+    {
+      "alias": "TRADE-SOURCE-08",
+      "bytes": 7399,
+      "sha256": "4cf608ea7dc904ba5f36d6092985193328fc34247b74ddbce25ab33870f95b5f"
+    },
+    {
+      "alias": "TRADE-SOURCE-09",
+      "bytes": 3385,
+      "sha256": "805e8b6bc6eaf75cf65134ad5e708e4cae1cfdb63c298091713c662b6d69d67b"
+    },
+    {
+      "alias": "TRADE-SOURCE-10",
+      "bytes": 6754,
+      "sha256": "04731430e64d48efa9220589d31c4ad46ba2966198ef97136bb088f7034584cc"
+    },
+    {
+      "alias": "TRADE-SOURCE-11",
+      "bytes": 8054,
+      "sha256": "5f5ee92d925434de52cd8b7dc5474425699daf5bbc54cc29af93c73a9f1574c3"
+    },
+    {
+      "alias": "TRADE-SOURCE-12",
+      "bytes": 7660,
+      "sha256": "4cb7732f71b347f1b96cf8b6641c90c90ce9a5771f0d2733dfcf7e80274334de"
+    },
+    {
+      "alias": "TRADE-SOURCE-13",
+      "bytes": 11497,
+      "sha256": "4a940a815de8a1dc3a4ff9d038cf5a331c30e0a8634528fbe636d2c010563e40"
+    },
+    {
+      "alias": "TRADE-SOURCE-14",
+      "bytes": 7448,
+      "sha256": "aa2c3bb4872b495a82e520e0672e1f424d7dc1b9eb730b714d743d554d62d1e8"
+    },
+    {
+      "alias": "TRADE-SOURCE-15",
+      "bytes": 9168,
+      "sha256": "05ccfe29d780c0050d740127e33f012a93c3cac9d77f7b99bdd7dd5eeb7e5fa5"
+    },
+    {
+      "alias": "TRADE-SOURCE-16",
+      "bytes": 5221,
+      "sha256": "721ae63cacd9e1be42b2523700bd9ef47212e71443aa4f2fa1a6df403a1ccb7d"
+    },
+    {
+      "alias": "TRADE-SOURCE-17",
+      "bytes": 9681,
+      "sha256": "e827efe1385432682393c8467a9e219f2de398711dc51dbce92fb04bd9ffb60d"
+    },
+    {
+      "alias": "TRADE-SOURCE-18",
+      "bytes": 2663,
+      "sha256": "9646c9596ea3e0d9dd1e68b309ebdc0a587fd8bcbac80e658b8d978146eea9b0"
+    },
+    {
+      "alias": "TRADE-SOURCE-19",
+      "bytes": 11071,
+      "sha256": "f3de64edb7b1af1549d30a8c70a1b9c9fbbc17e28ee7e93a829511edf4a943de"
+    },
+    {
+      "alias": "TRADE-SOURCE-20",
+      "bytes": 5153,
+      "sha256": "016dd77868af6fc89195702eb7d388997dcd5959866850f0cac46b396ee26465"
+    },
+    {
+      "alias": "TRADE-SOURCE-21",
+      "bytes": 10129,
+      "sha256": "818dd76304a553609cdcba586bd546abe8f9e77f44acf623efa7100276895356"
+    },
+    {
+      "alias": "TRADE-SOURCE-22",
+      "bytes": 7735,
+      "sha256": "f4d1c57376c90b59e5789c82ef92c5ba8f6e12c0921ba86dd6ac552b84474302"
+    },
+    {
+      "alias": "TRADE-SOURCE-23",
+      "bytes": 4921,
+      "sha256": "73f548ac22e5ca99c468fb19f8bceadce11ca99b58d72c676b3f4e974350066f"
+    },
+    {
+      "alias": "TRADE-SOURCE-24",
+      "bytes": 5499,
+      "sha256": "c58bd8673356e549db91b0cc792db496189b4961f3e6ca56ff63513a3f990584"
+    },
+    {
+      "alias": "TRADE-SOURCE-25",
+      "bytes": 8756,
+      "sha256": "419c1c198b008204cb587df23d39d34ad596841caa42451fa88a30cf0876e161"
+    },
+    {
+      "alias": "TRADE-SOURCE-26",
+      "bytes": 10941,
+      "sha256": "ab09b7082316cb034b6738d5fdcfe36a865d10bebfe53b7482bfaddabe81ab1b"
+    }
+  ],
+  "finalLedgerDisposition": "Completed advisor review confirms80 known distinct retained choices after four additions. Missing numbered-note contents are not invented; optional source duplicate-helper maintenance advisory is stated separately once in root report."
+}

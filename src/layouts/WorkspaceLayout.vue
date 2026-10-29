@@ -294,6 +294,7 @@ function closeAboutOnEscape(event: KeyboardEvent) {
   aboutOpen.value = false;
 }
 function navigate(event: MouseEvent) {
+  if (event.defaultPrevented) return;
   const link = event
     .composedPath()
     .find((node) => node instanceof HTMLAnchorElement);

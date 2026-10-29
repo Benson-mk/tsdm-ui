@@ -67,6 +67,14 @@ async function fixture(
       fresh: request.headers()["cache-control"],
     });
     let body: string;
+    if (url.pathname === "/plugin.php")
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: 1,
+          list: [{ uid: 8, username: "Other author" }],
+        }),
+      });
     if (request.method() === "POST") {
       state.posts.push(new URLSearchParams(request.postData() ?? ""));
       if (state.postGate) await state.postGate;
@@ -1621,3 +1629,310 @@ for (const [
       contentType: "image/png",
     });
   });
+
+for (const scenario of [
+  {
+    name: "selected-link",
+    select: true,
+    input: "Literal @Other author remains. ",
+    stored: "[url=home.php?mod=space&uid=8]@Other author[/url]",
+    confirmed: true,
+  },
+  {
+    name: "selected-marker",
+    select: true,
+    input: "Literal @Other author remains. ",
+    stored: "@\u2063Other author\u2063",
+    confirmed: true,
+  },
+  {
+    name: "incomplete-marker",
+    select: true,
+    input: "Incomplete @\u2063unknown ",
+    stored: "[url=home.php?mod=space&uid=8]@Other author[/url]",
+    confirmed: false,
+  },
+  {
+    name: "wrong-uid",
+    select: true,
+    input: "Literal @Other author remains. ",
+    stored: "[url=home.php?mod=space&uid=9]@Other author[/url]",
+    confirmed: false,
+  },
+  {
+    name: "wrong-name",
+    select: true,
+    input: "Literal @Other author remains. ",
+    stored: "[url=home.php?mod=space&uid=8]@Different author[/url]",
+    confirmed: false,
+  },
+  {
+    name: "extra-source",
+    select: true,
+    input: "Literal @Other author remains. ",
+    stored: "[url=home.php?mod=space&uid=8]@Other author[/url] changed",
+    confirmed: false,
+  },
+  {
+    name: "unqualified-url",
+    select: true,
+    input: "Literal @Other author remains. ",
+    stored: "[url=https://example.test/?uid=8]@Other author[/url]",
+    confirmed: false,
+  },
+  {
+    name: "literal-at",
+    select: false,
+    input: "Literal @Other author remains. ",
+    stored: "[url=home.php?mod=space&uid=8]@Other author[/url]",
+    confirmed: false,
+  },
+  {
+    name: "unselected-marker",
+    select: false,
+    input: "Unselected @\u2063Other author\u2063 remains. ",
+    stored: "[url=home.php?mod=space&uid=8]@Other author[/url]",
+    confirmed: false,
+  },
+]) {
+  test(`J4.thread-mention-storage-${scenario.name}: compare complete stored source using only selected native identity`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(
+      page,
+      (body) =>
+        '<script>window.ATPLUS={"api":"plugin.php?id=atplus:search","login":1,"use":1};</script>' +
+        body,
+    );
+    await page
+      .getByLabel("Title", { exact: true })
+      .fill("Selected mention confirmation");
+    await page
+      .getByLabel("Complete source", { exact: true })
+      .fill(scenario.input);
+    if (scenario.select) {
+      await page
+        .getByLabel("Find a person to mention", { exact: true })
+        .fill("Other author");
+      await page
+        .getByRole("button", { name: "Find mention", exact: true })
+        .click();
+      await page
+        .getByRole("button", {
+          name: "Mention Other author (UID 8)",
+          exact: true,
+        })
+        .click();
+    }
+    const submittedSource = await page
+      .getByLabel("Complete source", { exact: true })
+      .inputValue();
+    const from =
+      scenario.name === "literal-at"
+        ? "@Other author"
+        : "@\u2063Other author\u2063";
+    state.sourceChange = (body) =>
+      body.replaceAll(escape(from), escape(scenario.stored));
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Publish thread", exact: true })
+      .click();
+    await expect.poll(() => state.posts.length).toBe(1);
+    await expect(
+      page.getByText(
+        /Confirmed stored thread|Complete stored source or offered options did not match/,
+      ),
+    ).toBeVisible();
+    const observe = async (name: string) => {
+      await info.attach(name + ".png", {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
+      await info.attach(name + ".json", {
+        body: Buffer.from(
+          JSON.stringify({
+            scenario,
+            submittedSource,
+            posts: state.posts.map((p) => Object.fromEntries(p)),
+            requests: state.requests,
+          }),
+        ),
+        contentType: "application/json",
+      });
+    };
+    await observe("mention-storage-result");
+    expect(state.posts[0]!.get("message")).toBe(submittedSource);
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(submittedSource);
+    if (scenario.confirmed) {
+      await expect(page.getByText(/Confirmed stored thread/)).toBeVisible();
+    } else {
+      await expect(
+        page.getByText(
+          /Complete stored source or offered options did not match/,
+        ),
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Check result", exact: true })
+        .click();
+      await expect(
+        page.getByText(
+          /Complete stored source or offered options did not match/,
+        ),
+      ).toBeVisible();
+      expect(state.posts).toHaveLength(1);
+      await observe("mention-storage-read-only-recheck");
+    }
+  });
+}
+
+test("J5.thread-mention-original-recheck: check the restored immutable publication without resending or clearing later writing", async ({
+  page,
+}, info) => {
+  const state = await fixture(
+    page,
+    (body) =>
+      '<script>window.ATPLUS={"api":"plugin.php?id=atplus:search","login":1,"use":1};</script>' +
+      body,
+  );
+  await page
+    .getByLabel("Title", { exact: true })
+    .fill("Mention original result");
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Original selected identity ");
+  await page
+    .getByLabel("Find a person to mention", { exact: true })
+    .fill("Other author");
+  await page.getByRole("button", { name: "Find mention", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Mention Other author (UID 8)", exact: true })
+    .click();
+  state.sourceChange = (body) =>
+    body.replaceAll(
+      "@\u2063Other author\u2063",
+      escape("[url=home.php?mod=space&uid=8]@Other author[/url]"),
+    );
+  state.outcome = "lost";
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Publish thread", exact: true })
+    .click();
+  await expect(page.getByText(/response was lost/i)).toBeVisible();
+  const original = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+        .attempts[0],
+  );
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Later unrelated source must remain unchanged.");
+  await page.reload();
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    "Later unrelated source must remain unchanged.",
+  );
+  await page
+    .getByLabel("Candidate thread URL", { exact: true })
+    .fill(`${origin}/forum.php?mod=viewthread&tid=42`);
+  await page.getByRole("button", { name: "Check result", exact: true }).click();
+  await expect(
+    page.getByText(
+      /Confirmed stored thread|Complete stored source or offered options did not match/,
+    ),
+  ).toBeVisible();
+  await info.attach("mention-original-check.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await info.attach("mention-original-check.json", {
+    body: Buffer.from(
+      JSON.stringify({
+        original,
+        requests: state.requests,
+        posts: state.posts.map((p) => Object.fromEntries(p)),
+      }),
+    ),
+    contentType: "application/json",
+  });
+  await expect(page.getByText(/Confirmed stored thread/)).toBeVisible();
+  const checked = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+        .attempts[0],
+  );
+  expect(checked.id).toBe(original.id);
+  expect(checked.publication).toEqual(original.publication);
+  expect(state.posts).toHaveLength(1);
+  await page.reload();
+  await expect(page.getByText(/Confirmed stored thread/)).toBeVisible();
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    "Later unrelated source must remain unchanged.",
+  );
+  expect(state.posts).toHaveLength(1);
+  await info.attach("mention-original-recovered.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+for (const altered of [false, true]) {
+  test(`J4.publication-default-page-${altered ? "source-mismatch" : "complete"}: empty native callback page only supplies an independently verified candidate`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    state.response =
+      "<root><![CDATA[<script type=\"text/javascript\" reload=\"1\">if(typeof succeedhandle_=='function') {succeedhandle_('forum.php?mod=viewthread&tid=42&page=&extra=#pid101','Published',{'fid':'5','tid':'42','pid':'101'});}</script>]]></root>";
+    if (altered)
+      state.sourceChange = (body) =>
+        body.replace(escape(source), escape(source + " changed"));
+    await review(page);
+    await page
+      .getByRole("button", { name: "Publish thread", exact: true })
+      .click();
+    await expect.poll(() => state.posts.length).toBe(1);
+    await expect
+      .poll(
+        () =>
+          state.requests.filter(
+            (r) => new URL(r.url).searchParams.get("action") === "edit",
+          ).length,
+      )
+      .toBe(1);
+    if (altered)
+      await expect(
+        page.getByText(
+          /Complete stored source or offered options did not match/,
+        ),
+      ).toBeVisible();
+    else await expect(page.getByText(/Confirmed stored thread/)).toBeVisible();
+    expect(state.posts).toHaveLength(1);
+    expect(
+      state.requests
+        .filter(
+          (r) =>
+            r.method === "GET" &&
+            new URL(r.url).searchParams.get("mod") === "viewthread",
+        )
+        .every((r) => !new URL(r.url).searchParams.has("page")),
+    ).toBe(true);
+    await info.attach("default-page-candidate.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("default-page-candidate.json", {
+      body: Buffer.from(
+        JSON.stringify({
+          altered,
+          requests: state.requests,
+          posts: state.posts.map((p) => Object.fromEntries(p)),
+        }),
+      ),
+      contentType: "application/json",
+    });
+  });
+}

@@ -42,6 +42,8 @@ async function fixture(page: Page) {
     attachmentDescription: "Unchanged attachment",
     unavailable: false,
     outcome: "accepted",
+    response: null as string | null,
+    afterPost: () => {},
     posts: [] as URLSearchParams[],
     postURLs: [] as string[],
     reads: [] as string[],
@@ -97,9 +99,12 @@ async function fixture(page: Page) {
       state.title = sent.get("subject") ?? state.title;
       if (state.gate) await state.gate;
       if (state.outcome === "lost") return route.abort();
+      state.afterPost();
       return route.fulfill({
         contentType: "text/xml; charset=utf-8",
-        body: `<root><![CDATA[<script>succeedhandle_post('${state.outcome === "moderation" ? "" : url}', '${state.outcome === "moderation" ? "需要审核" : "Saved"}', {});</script>]]></root>`,
+        body:
+          state.response ??
+          `<root><![CDATA[<script>succeedhandle_post('${state.outcome === "moderation" ? "" : url}', '${state.outcome === "moderation" ? "需要审核" : "Saved"}', {});</script>]]></root>`,
       });
     }
     state.reads.push(u.href);
@@ -332,6 +337,93 @@ test("J5.edit-newer-revision: confirmation applies to submitted revision without
     page.getByRole("button", { name: "Save edited post", exact: true }),
   ).toBeVisible();
   await info.attach("newer-revision.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+test("J4.edit-result-single-navigation: one confirmed-result click returns from its board without losing newer source", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  await open(page);
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(original + " submitted");
+  let release!: () => void;
+  state.gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await review(page);
+  await save(page);
+  await expect.poll(() => state.posts.length).toBe(1);
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(original + " newer");
+  release();
+  await expect(page.getByText(/Confirmed saved post 101/)).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  const beforeBoard = state.reads.length;
+  const boardHistoryBefore = await page.evaluate(() => history.length);
+  await page
+    .getByRole("region", { name: "Thread reading", exact: true })
+    .getByRole("link", { name: "Music", exact: true })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "Thread results", exact: true }),
+  ).toBeVisible();
+  const boardReads = state.reads.slice(beforeBoard);
+  expect.soft(boardReads).toHaveLength(1);
+  expect.soft(boardReads[0]).toContain("mod=forumdisplay&fid=5");
+  expect
+    .soft((await page.evaluate(() => history.length)) - boardHistoryBefore)
+    .toBe(1);
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  const before = state.reads.length;
+  const historyBefore = await page.evaluate(() => history.length);
+  await page
+    .getByRole("link", { name: "Open confirmed thread", exact: true })
+    .click();
+  await expect(
+    page.getByRole("article", { name: "Post 101", exact: true }),
+  ).toBeVisible();
+  const readerRequests = state.reads.slice(before);
+  const historyAfter = await page.evaluate(() => history.length);
+  expect.soft(readerRequests).toHaveLength(1);
+  expect.soft(readerRequests[0]).toContain("mod=viewthread&tid=42");
+  expect.soft(historyAfter - historyBefore).toBe(1);
+  const beforeReturn = state.reads.length;
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    original + " newer",
+  );
+  await expect(page.getByText(/Confirmed saved post 101/)).toBeVisible();
+  expect(state.reads).toHaveLength(beforeReturn);
+  expect(state.posts).toHaveLength(1);
+  expect(state.source).toBe(original + " submitted");
+  await info.attach("edit-result-navigation.json", {
+    body: Buffer.from(
+      JSON.stringify({
+        boardReads,
+        readerRequests,
+        historyBefore,
+        historyAfter,
+        returnRequests: state.reads.slice(beforeReturn),
+        submittedSource: state.posts[0]!.get("message"),
+        retainedSource: await page
+          .getByLabel("Complete source", { exact: true })
+          .inputValue(),
+        commands: state.posts.length,
+      }),
+    ),
+    contentType: "application/json",
+  });
+  await info.attach("edit-result-navigation.png", {
     body: await page.screenshot(),
     contentType: "image/png",
   });
@@ -834,3 +926,306 @@ test("J5.editor-shared-edit: ordinary visual formatting preserves owned unknown 
     contentType: "image/png",
   });
 });
+
+// Proposed append to tests/e2e/edit-post.spec.ts. Existing full-app fixture only.
+// No product module calls or application/recovery injection. Not browser-executed.
+for (const scenario of [
+  { name: "same-destination-single", attempts: 1, viaBoard: false },
+  { name: "same-destination-earlier", attempts: 2, viaBoard: false },
+  { name: "different-destination-control", attempts: 1, viaBoard: true },
+]) {
+  test(`J4.result-link-transition-${scenario.name}: confirmed link reveals reading while preserving writing`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    await open(page);
+    for (let index = 0; index < scenario.attempts; index++) {
+      await page
+        .getByLabel("Complete source", { exact: true })
+        .fill(original + ` saved ${index + 1}`);
+      await review(page);
+      await save(page);
+      await expect(page.getByText(/Confirmed saved post 101/)).toHaveCount(
+        index + 1,
+      );
+    }
+    await page
+      .getByLabel("Complete source", { exact: true })
+      .fill(original + " retained newer writing");
+    if (scenario.viaBoard) {
+      await page
+        .getByRole("button", { name: "Return to reading", exact: true })
+        .click();
+      await page
+        .getByRole("region", { name: "Thread reading", exact: true })
+        .getByRole("link", { name: "Music", exact: true })
+        .click();
+      await expect(
+        page.getByRole("region", { name: "Thread results", exact: true }),
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Return to writing", exact: true })
+        .click();
+    }
+    const links = page.getByRole("link", {
+      name: "Open confirmed thread",
+      exact: true,
+    });
+    await expect(links).toHaveCount(scenario.attempts);
+    const link = links.first();
+    const chosenHref = await link.getAttribute("href");
+    const readBefore = state.reads.length;
+    const commandBefore = state.posts.length;
+    const historyBefore = await page.evaluate(() => history.length);
+    const snapshot = () =>
+      page.evaluate(() => {
+        const record = JSON.parse(
+          sessionStorage.getItem("tsdm.workspace.recovery")!,
+        );
+        const key = new URLSearchParams(location.hash.slice(1)).get(
+          "workspace",
+        );
+        const entry = key ? record.entries[key] : null;
+        return {
+          destination: entry?.destination ?? null,
+          target:
+            entry?.result?.kind === "thread"
+              ? entry.result.thread.target
+              : null,
+          writingSource: record.writing?.source ?? null,
+          attempts: record.writing?.attempts ?? [],
+        };
+      });
+    const before = await snapshot();
+    await link.click();
+    const reader = page.getByRole("article", { name: "Post 101", exact: true });
+    // The exact reported symptom: clicking result link must reveal reader UI.
+    await expect.soft(reader).toBeVisible({ timeout: 3000 });
+    const writingStillVisible = await page
+      .getByLabel("Complete source", { exact: true })
+      .isVisible();
+    const after = await snapshot();
+    const reads = state.reads.slice(readBefore);
+    const historyAfter = await page.evaluate(() => history.length);
+    await info.attach("confirmed-result-transition.json", {
+      body: Buffer.from(
+        JSON.stringify({
+          scenario,
+          chosenHref,
+          before,
+          after,
+          writingStillVisible,
+          reads,
+          historyBefore,
+          historyAfter,
+          commandsBefore: commandBefore,
+          commandsAfter: state.posts.length,
+        }),
+      ),
+      contentType: "application/json",
+    });
+    await info.attach("confirmed-result-transition.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    expect.soft(after.attempts).toEqual(before.attempts);
+    expect.soft(after.writingSource).toBe(before.writingSource);
+    expect.soft(state.posts).toHaveLength(commandBefore);
+    if (scenario.viaBoard) {
+      expect.soft(reads).toHaveLength(1);
+      expect.soft(historyAfter - historyBefore).toBe(1);
+    } else {
+      expect.soft(reads).toEqual([]);
+      expect.soft(historyAfter).toBe(historyBefore);
+      expect.soft(after.target).toBe("101");
+    }
+    // Discriminating fallback control, after the failing observation/artifacts.
+    if (writingStillVisible) {
+      await page
+        .getByRole("button", { name: "Return to reading", exact: true })
+        .click();
+      await expect(reader).toBeVisible();
+    }
+    await page
+      .getByRole("button", { name: "Return to writing", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(original + " retained newer writing");
+    expect(state.posts).toHaveLength(commandBefore);
+  });
+}
+
+const nativeEditCallback = (target: string) =>
+  `<?xml version="1.0" encoding="utf-8"?>\r\n<root><![CDATA[<script type="text/javascript" reload="1">if(typeof succeedhandle_=='function') {succeedhandle_('${target}', '帖子编辑成功，现在将转入主题页，请稍候……', {'fid':'5','tid':'42','pid':'101'});}</script>]]></root>`;
+for (const [name, destination, confirmed] of [
+  ["empty-page", "forum.php?mod=viewthread&tid=42&page=&extra=#pid101", true],
+  ["absent-page", "forum.php?mod=viewthread&tid=42&extra=#pid101", true],
+  [
+    "positive-page",
+    "forum.php?mod=viewthread&tid=42&page=2&extra=#pid101",
+    true,
+  ],
+  ["zero-page", "forum.php?mod=viewthread&tid=42&page=0&extra=#pid101", false],
+  [
+    "negative-page",
+    "forum.php?mod=viewthread&tid=42&page=-1&extra=#pid101",
+    false,
+  ],
+  [
+    "text-page",
+    "forum.php?mod=viewthread&tid=42&page=wat&extra=#pid101",
+    false,
+  ],
+  [
+    "space-page",
+    "forum.php?mod=viewthread&tid=42&page=%20&extra=#pid101",
+    false,
+  ],
+  [
+    "duplicate-page",
+    "forum.php?mod=viewthread&tid=42&page=&page=1&extra=#pid101",
+    false,
+  ],
+  [
+    "duplicate-target",
+    "forum.php?mod=viewthread&tid=42&tid=43&page=&extra=#pid101",
+    false,
+  ],
+  [
+    "unknown-key",
+    "forum.php?mod=viewthread&tid=42&page=&delete=1#pid101",
+    false,
+  ],
+  [
+    "external",
+    "https://example.test/forum.php?mod=viewthread&tid=42&page=#pid101",
+    false,
+  ],
+  [
+    "guard-mismatch",
+    "forum.php?mod=viewthread&tid=42&page=&extra=#pid101",
+    false,
+  ],
+  ["extra-code", "forum.php?mod=viewthread&tid=42&page=&extra=#pid101", false],
+] as const) {
+  test(`J4.edit-native-callback-${name}: use a bounded candidate only to trigger independent saved-post verification`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    await open(page);
+    state.response = nativeEditCallback(destination);
+    if (name === "guard-mismatch")
+      state.response = state.response.replace(
+        "typeof succeedhandle_",
+        "typeof otherhandler",
+      );
+    if (name === "extra-code")
+      state.response = state.response.replace(
+        "</script>",
+        "window.untrusted=1;</script>",
+      );
+    await page
+      .getByLabel("Complete source", { exact: true })
+      .fill(original + " native callback check");
+    await review(page);
+    let readsAtPost = 0;
+    state.afterPost = () => {
+      readsAtPost = state.reads.length;
+    };
+    await save(page);
+    await expect.poll(() => state.posts.length).toBe(1);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            JSON.parse(
+              sessionStorage.getItem("tsdm.workspace.recovery")!,
+            ).writing.attempts.at(-1).status,
+        ),
+      )
+      .not.toBe("pending");
+    await info.attach("native-edit-callback.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("native-edit-callback.json", {
+      body: Buffer.from(
+        JSON.stringify({
+          name,
+          response: state.response,
+          readsAfterSend: state.reads.slice(readsAtPost),
+          posts: state.posts.map((p) => Object.fromEntries(p)),
+        }),
+      ),
+      contentType: "application/json",
+    });
+    if (confirmed) {
+      await expect(page.getByText(/Confirmed saved post 101/)).toBeVisible();
+      expect(state.reads.length).toBeGreaterThan(readsAtPost);
+    } else {
+      await expect(
+        page.getByRole("button", { name: "Check result", exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText(/Confirmed saved post 101/)).toHaveCount(0);
+      expect(state.reads).toHaveLength(readsAtPost);
+    }
+    expect(state.posts).toHaveLength(1);
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(original + " native callback check");
+  });
+}
+for (const drift of [
+  "source",
+  "options",
+  "attachments",
+  "actor",
+  "unavailable",
+] as const) {
+  test(`J4.edit-native-callback-readback-${drift}: native success never substitutes for independent readback`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    await open(page);
+    state.response = nativeEditCallback(
+      "forum.php?mod=viewthread&tid=42&page=&extra=#pid101",
+    );
+    await page
+      .getByLabel("Complete source", { exact: true })
+      .fill(original + " submitted edit");
+    await review(page);
+    let readsAtPost = 0;
+    state.afterPost = () => {
+      readsAtPost = state.reads.length;
+      if (drift === "source") state.source += " changed";
+      if (drift === "options") state.price = "9";
+      if (drift === "attachments")
+        state.attachmentDescription = "Changed metadata";
+      if (drift === "actor") state.actor = "8";
+      if (drift === "unavailable") state.unavailable = true;
+    };
+    await save(page);
+    await expect.poll(() => state.posts.length).toBe(1);
+    await expect(
+      page.getByRole("button", { name: "Check result", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText(/Confirmed saved post 101/)).toHaveCount(0);
+    expect(state.posts).toHaveLength(1);
+    await expect.poll(() => state.reads.length).toBeGreaterThan(readsAtPost);
+    await info.attach("independent-edit-refusal.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("independent-edit-refusal.json", {
+      body: Buffer.from(
+        JSON.stringify({
+          drift,
+          readsAfterSend: state.reads.slice(readsAtPost),
+          posts: state.posts.map((p) => Object.fromEntries(p)),
+        }),
+      ),
+      contentType: "application/json",
+    });
+  });
+}

@@ -545,10 +545,17 @@ export type ThreadCreationEffect = {
   | { requested: true; included: boolean; outcome: "unknown" }
   | { requested: false; included: false; outcome: "not-requested" }
 );
+/** A qualified enabled attachment-price default; the submitted field stays exact. */
+export interface AttachmentNormalization {
+  name: string;
+  submitted: "";
+  stored: "0";
+}
 /** Fresh complete stored-source/options verification, not effect-delivery proof. */
 export interface ThreadVerification {
   stored: "verified";
   normalizations: { name: "price"; submitted: ""; stored: "0" }[];
+  attachmentNormalizations?: AttachmentNormalization[];
   creationEffects: ThreadCreationEffect[];
 }
 export interface RedPacketLedger {
@@ -625,11 +632,7 @@ export interface DraftAttempt {
     content: "confirmed" | "unknown";
     attachments: "confirmed" | "unknown";
     /** Independently observed native free-price defaults; submission stays exact. */
-    attachmentNormalizations?: {
-      name: string;
-      submitted: "";
-      stored: "0";
-    }[];
+    attachmentNormalizations?: AttachmentNormalization[];
   };
   checked?: boolean;
   resendOf?: string;

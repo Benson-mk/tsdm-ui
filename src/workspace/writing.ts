@@ -807,6 +807,18 @@ export function createWriting(
                 ...context.editTarget,
                 baseline: editBaseline({
                   ...attempt.publication.submission.writing,
+                  attachmentFields: (
+                    attempt.publication.submission.writing.attachmentFields ??
+                    []
+                  ).map((field) => {
+                    const normalized =
+                      attempt.result?.verification?.attachmentNormalizations?.find(
+                        (item) => item.name === field.name,
+                      );
+                    return normalized
+                      ? { ...field, value: normalized.stored }
+                      : field;
+                  }),
                   options: attempt.publication.submission.writing.options.map(
                     (option) => {
                       const normalization =
@@ -2136,7 +2148,53 @@ function validAttachmentFields(fields: unknown, edit: boolean): boolean {
       ))
   );
 }
+// Read snapshots preserve native edit-form controls as evidence only. This
+// allowance is never used for active writing or an immutable command submission.
+function validReadSnapshotFields(value: Record<string, unknown>): boolean {
+  if (
+    !["reply", "quick-quote"].includes(String(value.action)) ||
+    value.draft !== undefined ||
+    value.editTarget !== undefined ||
+    !Array.isArray(value.uploadedReferences) ||
+    !value.uploadedReferences.every(
+      (id) => string(id) && /^[1-9]\d*$/.test(id),
+    ) ||
+    new Set(value.uploadedReferences).size !==
+      value.uploadedReferences.length ||
+    !validAttachmentFields(value.attachmentFields, true)
+  )
+    return false;
+  const fields = value.attachmentFields;
+  if (fields === undefined) return true;
+  if (!Array.isArray(fields)) return false;
+  const names = new Set<string>();
+  return fields.every((field) => {
+    if (!object(field) || !string(field.name) || names.has(field.name))
+      return false;
+    names.add(field.name);
+    const match = /^(?:attachnew|attachupdate)\[([1-9]\d*)\]/.exec(field.name);
+    return (
+      !!match &&
+      value.uploadedReferences instanceof Array &&
+      value.uploadedReferences.includes(match[1]) &&
+      (!field.name.startsWith("attachupdate[") ||
+        (field.value === "" &&
+          fields.some(
+            (other) =>
+              object(other) &&
+              string(other.name) &&
+              other.name.startsWith(`attachnew[${match[1]}][`),
+          )))
+    );
+  });
+}
 export function isWritingContext(value: unknown): value is WritingContext {
+  return validateWritingContext(value);
+}
+function validateWritingContext(
+  value: unknown,
+  readSnapshot = false,
+): value is WritingContext {
   if (
     !object(value) ||
     !string(value.id) ||
@@ -2246,10 +2304,12 @@ export function isWritingContext(value: unknown): value is WritingContext {
   )
     return false;
   if (
-    !validAttachmentFields(
-      value.attachmentFields,
-      value.action === "edit-post" || value.draft !== undefined,
-    )
+    !(readSnapshot
+      ? validReadSnapshotFields(value)
+      : validAttachmentFields(
+          value.attachmentFields,
+          value.action === "edit-post" || value.draft !== undefined,
+        ))
   )
     return false;
   if (value.action === "edit-post") {
@@ -2499,13 +2559,17 @@ function isAttempt(value: unknown): value is ThreadAttempt {
   if (!isWritingContext(submittedWriting)) return false;
   const snapshot = (candidate: unknown) =>
     object(candidate) &&
-    isWritingContext({
-      ...candidate,
-      id: "observed",
-      revision: 1,
-      selection: { start: 0, end: 0, direction: "none" },
-      attempts: undefined,
-    }) &&
+    candidate.action === submittedWriting.action &&
+    validateWritingContext(
+      {
+        ...candidate,
+        id: "observed",
+        revision: 1,
+        selection: { start: 0, end: 0, direction: "none" },
+        attempts: undefined,
+      },
+      true,
+    ) &&
     object(candidate.account) &&
     candidate.account.id === submittedWriting.account.id &&
     object(candidate.board) &&

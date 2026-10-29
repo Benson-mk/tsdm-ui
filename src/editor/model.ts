@@ -108,7 +108,8 @@ export const editorSchema = new Schema({
       attrs: { syntax },
     },
     table_row: {
-      content: "(table_cell | table_header)+",
+      // A preceding rowspan can cover every logical slot in a physical row.
+      content: "(table_cell | table_header)*",
       tableRole: "row",
       attrs: { syntax },
     },
@@ -332,7 +333,11 @@ export function importSource(
       reason: "representation-ambiguous",
     });
   }
-  function structuralChildren(node: TagNode, allowed: string[]) {
+  function structuralChildren(
+    node: TagNode,
+    allowed: string[],
+    allowEmpty = false,
+  ) {
     const result: { node: TagNode; prefix: string }[] = [];
     let prefix = "";
     for (const child of node.children) {
@@ -344,7 +349,9 @@ export function importSource(
       result.push({ node: child, prefix });
       prefix = "";
     }
-    return result.length ? { children: result, suffix: prefix } : null;
+    return result.length || allowEmpty
+      ? { children: result, suffix: prefix }
+      : null;
   }
   function block(node: TagNode): PMNode {
     const lexeme = syntaxOf(node);
@@ -401,7 +408,8 @@ export function importSource(
     if (node.name === "table") {
       const structure = structuralChildren(node, ["tr"]);
       const cells = structure?.children.map((row) =>
-        structuralChildren(row.node, ["td", "th"]),
+        // TableMap below rejects empty rows that are not covered by a rowspan.
+        structuralChildren(row.node, ["td", "th"], true),
       );
       if (!structure || !cells || cells.some((row) => !row))
         return paragraph([raw(node, "malformed-table")]);

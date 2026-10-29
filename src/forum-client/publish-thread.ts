@@ -26,6 +26,7 @@ import { decodeWriting } from "./prepare-writing.js";
 import { decodeThread } from "./read-thread.js";
 import {
   verifyStoredWriting,
+  verifyStoredThread,
   verifyStoredReply,
 } from "./thread-verification.js";
 import type {
@@ -67,6 +68,29 @@ function document(response: HostResponse): Node {
 function options(writing: PreparedWriting): WritingOption[] {
   return [...(writing.category ? [writing.category] : []), ...writing.options];
 }
+function compatiblePacket(
+  original: PreparedWriting["redPacket"],
+  current: PreparedWriting["redPacket"],
+): boolean {
+  if (same(original, current)) return true;
+  if (!original || !current) return false;
+  // Only the observed whole balance hint is volatile. Keep its position and
+  // every limit, unit, other hint and metadata field exact; the server decides
+  // whether the current balance can fund the explicitly requested command.
+  const balance = /^目前餘額 (?:0|[1-9]\d*) 天使币$/;
+  if (
+    original.hints.filter((hint) => balance.test(hint)).length !== 1 ||
+    current.hints.filter((hint) => balance.test(hint)).length !== 1 ||
+    original.hints.findIndex((hint) => balance.test(hint)) !==
+      current.hints.findIndex((hint) => balance.test(hint))
+  )
+    return false;
+  const comparable = (packet: NonNullable<PreparedWriting["redPacket"]>) => ({
+    ...packet,
+    hints: packet.hints.map((hint) => (balance.test(hint) ? "" : hint)),
+  });
+  return same(comparable(original), comparable(current));
+}
 export function compatible(
   original: PreparedWriting,
   current: PreparedWriting,
@@ -74,7 +98,7 @@ export function compatible(
   return (
     Boolean(original.existingRedPacket) ===
       Boolean(current.existingRedPacket) &&
-    JSON.stringify(original.redPacket) === JSON.stringify(current.redPacket) &&
+    compatiblePacket(original.redPacket, current.redPacket) &&
     options(original).length === options(current).length &&
     options(current).every((fresh) => {
       const previous = options(original).find((o) => o.name === fresh.name);
@@ -325,7 +349,11 @@ export function successful(
   url.searchParams.delete("tsdmapp");
   return { url: url.href, body: new URLSearchParams(pairs).toString() };
 }
-function candidate(value: string, origin: string): string | null {
+function candidate(
+  value: string,
+  origin: string,
+  nativeDefaultPage = false,
+): string | null {
   const safe = safeURL(value, origin);
   if (!safe) return null;
   const url = new URL(safe);
@@ -341,6 +369,10 @@ function candidate(value: string, origin: string): string | null {
     )
   )
     return null;
+  // Native edit callbacks return page= for the default page. This is only
+  // qualified for parsed callbacks, after origin, key and uniqueness checks.
+  if (nativeDefaultPage && url.searchParams.get("page") === "")
+    url.searchParams.delete("page");
   const postId =
     url.searchParams.get("pid") || /^#pid([1-9]\d*)$/.exec(url.hash)?.[1];
   if (
@@ -380,7 +412,7 @@ export function outcome(
     };
   // A callback destination is a hint only; independent readback decides success.
   if (call?.success) {
-    const url = candidate(call.values[0]!, origin);
+    const url = candidate(call.values[0]!, origin, true);
     if (url)
       return {
         kind: "candidate",
@@ -608,7 +640,10 @@ export function createThreadPublisher(config: {
       }
       const verification =
         observed.kind === "prepared"
-          ? (supplement ?? verifyStoredWriting(writing, observed.prepared))
+          ? (supplement ??
+            (writing.replyTarget
+              ? verifyStoredWriting(writing, observed.prepared)
+              : verifyStoredThread(writing, observed.prepared)))
           : null;
       if (!verification)
         return uncertain(

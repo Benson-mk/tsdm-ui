@@ -47,6 +47,7 @@ export async function findMention(
     return fail("The original edit target is unavailable.");
   const generation = config.generation(),
     formURL = new URL("/forum.php", config.origin);
+  // The JSON form omits ATPLUS; mention capability requires the native form.
   Object.entries({
     mod: "post",
     action: editTarget ? "edit" : writing.replyTarget ? "reply" : "newthread",
@@ -61,7 +62,6 @@ export async function findMention(
               : {}),
           }
         : {}),
-    tsdmapp: "json",
   }).forEach(([k, v]) => formURL.searchParams.set(k, v));
   async function current() {
     const response = await config.transport.request(formURL.href, {

@@ -101,7 +101,7 @@ try {
   const source =
     `import assert from 'node:assert/strict';
 import { createForumClient, FORUM_CLIENT_VERSION, unresolvedWritingAttachments } from '@tsdm/forum-client';
-assert.equal(FORUM_CLIENT_VERSION, '0.12.0');
+assert.equal(FORUM_CLIENT_VERSION, '0.13.0');
 const origin = 'https://fixture.example';
 const threadURL = origin + '/forum.php?mod=viewthread&tid=42';
 const attachmentURL = origin + '/forum.php?mod=attachment&aid=authored-token';
@@ -272,7 +272,8 @@ const baseline: (writing: PreparedWriting) => WritingBaseline = editBaseline;
 void [search, returnedPage, attachment, notices, notice, publication, publish, check, prepareEdit, reviewEdit, saveEdit, checkEdit, actions, baseline];
 const verification: ThreadVerification = { stored: 'verified', normalizations: [{ name: 'price', submitted: '', stored: '0' }], creationEffects: [{ name: 'addfeed', requested: true, included: false, outcome: 'unknown' }] };
 const evidence = (attempt: ThreadAttempt): ThreadVerification | undefined => attempt.result?.verification;
-void [verification, evidence];
+const attachmentVerification: ThreadVerification = { stored: 'verified', normalizations: [], attachmentNormalizations: [{ name: 'attachnew[88][price]', submitted: '', stored: '0' }], creationEffects: [] };
+void [verification, attachmentVerification, evidence];
 const drafts: Promise<DraftListResult> = client.readDrafts();
 const resume = (row: DraftRow, account: Account) => client.resumeDraft(row, account);
 const prepareSave = (attempt: DraftAttempt): Promise<DraftAttempt> => client.prepareDraftSave(attempt);
@@ -317,9 +318,9 @@ void [cancellation, transfer, removal];
       "utf8",
     ),
   );
-  if (installed.version !== "0.12.0")
+  if (installed.version !== "0.13.0")
     throw new Error(
-      "Expected the funded-draft public package contract version 0.12.0.",
+      "Expected the attachment-normalization public package contract version 0.13.0.",
     );
   if (
     Object.keys(installed.dependencies ?? {}).length ||

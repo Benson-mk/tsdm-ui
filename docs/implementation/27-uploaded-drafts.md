@@ -231,3 +231,36 @@ this correction; the coordinator checks the retained original attempt.
 3. The fixture retains the observed permission-option values and implicit
    selection while substituting synthetic labels. This preserves parser behavior
    without claiming exact native presentation captions.
+
+## Issue 37 supersession: attachment presentation order
+
+The historical `native-price-strict-order` expectation and item6's exact-order
+restriction above are superseded for attachment membership and keyed metadata
+only. Current native two-file draft readback presents the same unique attachment
+IDs and metadata in a different group order while preserving complete source,
+options and the already qualified enabled blank-price-to-zero defaults. The
+original installed5b38 attempt and its read-only three-GET check remain retained
+as failing evidence; no Save was repeated to diagnose the mismatch.
+
+Draft Save/read-only confirmation, same-context resave and publication now compare
+exact unique ID membership and unique metadata names independently of presentation
+order. Named values and disabled states stay exact except the existing one-way
+price default. Only unique enabled empty replacement sentinels bound to an expected
+association are omitted, after validation. Missing/extra/duplicate/invalid IDs,
+missing/extra/duplicate/unbound names, active/disabled/duplicate/unbound sentinels
+and changed metadata remain failures. Source-token placement, account/target,
+funding checks and raw saved-version conflict tokens retain their existing rules.
+
+Failure-first full-app cases in `draft-attachments.spec.ts` and
+`funded-drafts.spec.ts` cover initial confirmation, original-attempt Check across
+reload/later writing, same-context and fresh-resume continuations, publication
+membership, named metadata, malformed controls, real remote conflicts and
+independent financial outcomes. Their discovery is not execution evidence;
+current candidate, installed results and final acceptance belong to issue37.
+
+This extends the existing attachment-presentation-versus-exact-membership trade-off
+to draft operations; it does not add a price/source normalization or change the
+funded-draft product contract. The cost is deliberately replacing the historical
+order-only refusal and verifying all shared draft transitions. Raw revision
+ordering remains conservative and may still refuse a separately observed remote
+presentation change between readbacks.

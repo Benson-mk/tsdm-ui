@@ -1,4 +1,4 @@
-import { attachments } from "./attachments.js";
+import { attachmentProfiles } from "./attachments.js";
 import { pagination, link } from "./read-board.js";
 import { routeFor, cleanURL } from "./routes.js";
 import { threadURL } from "./routes.js";
@@ -289,7 +289,8 @@ export function decodeThread(
       )[0] ??
       descendants(wrapper, (n) => /^postmessage_/.test(attr(n, "id")))[0];
     if (!body || !children(body).length) return null;
-    const bodyContent = content(body, response.url);
+    const profile = attachmentProfiles(wrapper, response.url);
+    const bodyContent = content(body, response.url, profile.inlineImages);
     if (!readable(bodyContent)) return null;
     const authorArea = descendants(wrapper, (n) => hasClass(n, "authi"))[0];
     const author = authorArea
@@ -303,7 +304,7 @@ export function decodeThread(
       : null;
     return {
       id,
-      attachments: attachments(wrapper, response.url),
+      attachments: profile.attachments,
       ...(descendants(
         body,
         (n) =>
