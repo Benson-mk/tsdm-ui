@@ -1,0 +1,854 @@
+{
+  "schema": 1,
+  "ticket": 38,
+  "title": "Qualify installed Edge compatibility on macOS",
+  "date": "2026-11-01",
+  "timezone": "Asia/Hong_Kong",
+  "status": "incomplete-evidence-commit-approved",
+  "qualified": false,
+  "releasePublication": false,
+  "windowsQualification": false,
+  "candidate": {
+    "commit": "46cb84000d47483d4c6ad3c3b83bf48cbac66772",
+    "bytes": 1710368,
+    "sha256": "a3de680f5120fea3db559a404a0c35a68a22aee1d6a36dbf488d63edd449367c"
+  },
+  "storage": "evidence/runs/38-edge-20261101",
+  "artifacts": {
+    "candidateSource": {
+      "path": "artifacts/candidate-source.tar",
+      "bytes": 4628480,
+      "sha256": "e8744d7cb17d512c087595ad17a1ad252c8e560a32603493c1e4e80f404aa76c"
+    },
+    "candidate": {
+      "path": "freeze/tsdm-workspace.user.js",
+      "bytes": 1710368,
+      "sha256": "a3de680f5120fea3db559a404a0c35a68a22aee1d6a36dbf488d63edd449367c"
+    },
+    "freezeManifest": {
+      "path": "freeze/manifest.json",
+      "bytes": 4325,
+      "sha256": "d12bff2606b8466faffd98029c1dc335e0bcaa23bbd6f95c7b688e8746d8984d"
+    },
+    "freezeReceipt": {
+      "path": "freeze/freeze.json",
+      "bytes": 62203,
+      "sha256": "3caf978e7e9279558f2d398bae8212868e31370293a3489fa86f62e053a8f7b5"
+    },
+    "syntheticManifest": {
+      "path": "replay/evidence/runs/2026-10-31T18-20-08.186Z/manifest.json",
+      "bytes": 357693,
+      "sha256": "c0e5bcf6b84fa4f58ee6981099ee18741248cd26f9a86533bd59d69f77b59152"
+    },
+    "syntheticReceipt": {
+      "path": "replay/evidence/runs/2026-10-31T18-20-08.186Z/receipt.json",
+      "bytes": 980737,
+      "sha256": "7f2ab059e4442f036e21ecf14934b1c9ed71d953358620834908b3560f0252c6"
+    },
+    "foundationSandboxFailure": {
+      "path": "replay/evidence/runs/2026-10-31T18-13-10.796Z/receipt.json",
+      "bytes": 160568,
+      "sha256": "aac7d951d25ec18247add11b2312d108d84b585b39bc0d611f20f22591087b77"
+    },
+    "foundationRerun": {
+      "path": "replay/evidence/runs/2026-10-31T18-15-44.383Z/receipt.json",
+      "bytes": 53021,
+      "sha256": "29897c8312671fd35e7f2a4f205f851b1139feadbe29c14199f8f9bbadedb26f"
+    },
+    "consumerManifest": {
+      "path": "clean-candidate/evidence/runs/consumer-2026-10-31T18-22-32.704Z/manifest.json",
+      "bytes": 1277,
+      "sha256": "5d3e8af289ebee2896ed9e8f763c7aceaa2a5759aea4a90b92311ccd49a7a9a5"
+    },
+    "consumerReceipt": {
+      "path": "clean-candidate/evidence/runs/consumer-2026-10-31T18-22-32.704Z/receipt.json",
+      "bytes": 21254,
+      "sha256": "b108ff784b6813ce713db0aab4855c1833126775f04b726d1cf8b038b896c1cf"
+    },
+    "consumerReplay": {
+      "path": "clean-candidate/evidence/runs/consumer-2026-10-31T18-22-32.704Z-replay-2026-10-31T18-23-48.336Z/receipt.json",
+      "bytes": 15045,
+      "sha256": "9cca05e034249cc820bdedbc872d3112d2d2698b6e14acf28b51e4d86c39c0ae"
+    },
+    "scope": {
+      "path": "artifacts/accepted-scope.json",
+      "bytes": 7109,
+      "sha256": "23d0dedf4d519dbaab81ebf2d5e3bd0b0b499fb94756873b5c0922d79f7de7d1"
+    },
+    "ticket": {
+      "path": "artifacts/issue-38.json",
+      "bytes": 7708,
+      "sha256": "e4bb03d81284a5aa9198745690eeb01a0a48a4db6c6b7a0b340eefc8d055f25c"
+    },
+    "historicalChrome": {
+      "path": "artifacts/chrome-historical-conclusion.json",
+      "bytes": 6956,
+      "sha256": "9dad3981d1ab5c6b7ef9bc1c6bd115070aa28ff9f2cdb152db5b9a8ef61a5052"
+    },
+    "installedExport": {
+      "path": "private/38-edge-installed.zip",
+      "bytes": 385170,
+      "sha256": "3899f78963be7a368a41cdcc983d40837600fdd4004a8e79a53ea595695c356a",
+      "visibility": "private"
+    },
+    "installedObservations": {
+      "path": "private/installed-observations.json",
+      "bytes": 133447,
+      "sha256": "5daf40828c64b06bfd54d0964c2044d8a66f6616110107cd09a0e5a70a1d3029",
+      "visibility": "private"
+    },
+    "uploadNetwork": {
+      "path": "private/upload-network.json",
+      "bytes": 14103,
+      "sha256": "4a89a98b6b799303372eefce83113cc704f5ad3b7c8dfefabc5b9f8934dc9c05",
+      "visibility": "private"
+    },
+    "uploadResponse": {
+      "path": "private/upload-response.json",
+      "bytes": 44,
+      "sha256": "f3104c3c66066bed9d0856f5fabe261b64f1249aeca95ffe3295c73b066d2d64",
+      "visibility": "private"
+    },
+    "noticeLoadNetwork": {
+      "path": "private/notices-load-network.json",
+      "bytes": 5528,
+      "sha256": "7f9ba742ca516afb5c8cd14d8cc28335b3f88b3e409ef0742fa24d6e79c521d2",
+      "visibility": "private"
+    },
+    "noticeReloadNetwork": {
+      "path": "private/notices-reload-network.json",
+      "bytes": 184011,
+      "sha256": "383cf3f2c720fd7df91a6a40ef1a0208159b5ffcb1644d29a3e68242954771eb",
+      "visibility": "private"
+    },
+    "searchNetwork": {
+      "path": "private/search-network.json",
+      "bytes": 23958,
+      "sha256": "65d7e32b6bc9c11d6819a16d9a4a36beb90fabc261e9cd8151700e3d801e525e",
+      "visibility": "private"
+    },
+    "searchReturnNetwork": {
+      "path": "private/search-return-network.json",
+      "bytes": 5965,
+      "sha256": "3ad7d7bfcd2c7809148b060fbd8a1783563fe2491b5159c2b4a69ae4cc496aa4",
+      "visibility": "private"
+    },
+    "searchReloadNetwork": {
+      "path": "private/search-reload-network.json",
+      "bytes": 234447,
+      "sha256": "9478543aab91f3c8096fa1af4f24001ecb74a6a6d20a6dcb0ede2acb41a61c0e",
+      "visibility": "private"
+    },
+    "imePlan": {
+      "path": "private/ime-plan.json",
+      "bytes": 1479,
+      "sha256": "c3d3f37d37eb5fdea1fef2f5aefd2ad52873d86cdac8601a12f6c3384ad4c1d0",
+      "visibility": "private"
+    },
+    "pngValidation": {
+      "path": "private/png-local-validation.json",
+      "bytes": 476,
+      "sha256": "f82bc64ea002e8764a548a4c628b1a8f30189999c6b07026d438ca4536f078ba",
+      "visibility": "private"
+    },
+    "correctedPngValidation": {
+      "path": "private/png-corrected-validation.json",
+      "bytes": 273,
+      "sha256": "a6c6b2993630661131469017631006423f5da4389c717e8ce2317bca5e4aeedf",
+      "visibility": "private"
+    },
+    "correctedPng": {
+      "path": "artifacts/edge-38-valid.PNG",
+      "bytes": 70,
+      "sha256": "a22a8629f6a15fe0a5d65f3e6f206ddc1c0ce5330aef6373002ae73eacdf53f5",
+      "visibility": "synthetic"
+    },
+    "correctedUploadNetwork": {
+      "path": "private/corrected-upload-network.json",
+      "visibility": "private",
+      "bytes": 78,
+      "sha256": "31e803c61a19e614035bd0e395adc744d017b9714f548f1e628928b796ab6c1b"
+    },
+    "correctedUploadScreenshot": {
+      "path": "private/corrected-upload-refused.png",
+      "visibility": "private",
+      "bytes": 46893,
+      "sha256": "517b7d051bb2f857828c20e02bbd49080538be508f800761a42dc3c2d18d4f47"
+    },
+    "imeSourceResult": {
+      "path": "private/ime-source-result.json",
+      "visibility": "private",
+      "bytes": 963,
+      "sha256": "2e983cf4edc27f08ba7271c2a888e965c8194903000487e92983a03129c64654"
+    },
+    "imeSourceScreenshot": {
+      "path": "private/ime-source-committed.png",
+      "visibility": "private",
+      "bytes": 51630,
+      "sha256": "487eedac90ae9f5f01321e20f769cd96857e876aa558e77f004565a9e8dbd927"
+    },
+    "tabLifecycle": {
+      "path": "private/tab-lifecycle.json",
+      "visibility": "private",
+      "bytes": 17518,
+      "sha256": "06257c94d72159f1a10d28073e2535def98dfbddc0d4bc8a9c8a6a45f1f0de70"
+    },
+    "nativeRedirect": {
+      "path": "private/native-redirect-network.json",
+      "visibility": "private",
+      "bytes": 160192,
+      "sha256": "86e0c605d540f71e0be64e9514331dfd547251c3c0bbb571f183508c3207ca6c"
+    },
+    "jpegFixture": {
+      "path": "artifacts/edge-38-check.jpg",
+      "visibility": "synthetic",
+      "bytes": 777,
+      "sha256": "95ec656f94ada529679e4c7da103599777c24e090c592c6f052b503b231ff9e5"
+    },
+    "jpegNetwork": {
+      "path": "private/jpeg-upload-network.json",
+      "visibility": "private",
+      "bytes": 14118,
+      "sha256": "d81dce803296b7747ee14f1cbe35038d0a1b8c1befd2b464ca64c3c8f0314a88"
+    },
+    "jpegResponse": {
+      "path": "private/jpeg-upload-response.json",
+      "visibility": "private",
+      "bytes": 44,
+      "sha256": "f3104c3c66066bed9d0856f5fabe261b64f1249aeca95ffe3295c73b066d2d64"
+    },
+    "ordinaryDownloadNetwork": {
+      "path": "private/ordinary-download-network.json",
+      "visibility": "private",
+      "bytes": 15850,
+      "sha256": "5331b54d15f6d0e8604ff9ab8440307f3a00b5c662b594c02990db458376590b"
+    },
+    "ordinaryDownloadReceipt": {
+      "path": "private/ordinary-download-receipt.json",
+      "visibility": "private",
+      "bytes": 705,
+      "sha256": "ae2aff036defc3d3228b6e93ae1ec032a2546dcd2c10407fb5e2ac91dcdc97e5"
+    },
+    "ordinaryDeliveredFile": {
+      "path": "private/ordinary-delivered.txt",
+      "visibility": "private",
+      "bytes": 105,
+      "sha256": "52956bba67593b606d55f780db9913175932c0936b63b5357e6465ee2d252600"
+    },
+    "sharedRequirementMap": {
+      "path": "artifacts/shared-requirement-map.json",
+      "bytes": 526154,
+      "sha256": "edca397dcb8d0f029420a2f9788c229b1dc3c8d23f6fd4e16dffc50416881b12",
+      "visibility": "synthetic"
+    },
+    "settingsPortal": {
+      "path": "private/portal-observation.json",
+      "bytes": 1621,
+      "sha256": "c5b6cc45c5e8eca505aa98e40bf60f809f232154225a2f7c3914905df03cc326",
+      "visibility": "private"
+    },
+    "settingsPortalScreenshot": {
+      "path": "private/settings-portal.png",
+      "bytes": 46356,
+      "sha256": "099bdc4e45e707eb59f97ba203c96877d28b3ed1b19184852a4668c219c2867b",
+      "visibility": "private"
+    },
+    "mappingValidation": {
+      "path": "artifacts/mapping-validation.json",
+      "bytes": 356,
+      "sha256": "7d1cee755c20684e10f97d200dfceab97c0010b9c1e5dc50b5b904dcf7b26965",
+      "visibility": "synthetic"
+    },
+    "nativeJpegNetwork": {
+      "path": "private/native-jpeg-upload-network.json",
+      "bytes": 17571,
+      "sha256": "49b9f5b2cd24643c07ab89c9ad954044b404ab6d053f9f99e5d9e7617b2f620f",
+      "visibility": "private"
+    },
+    "nativeJpegResponse": {
+      "path": "private/native-jpeg-upload-response.json",
+      "bytes": 44,
+      "sha256": "f3104c3c66066bed9d0856f5fabe261b64f1249aeca95ffe3295c73b066d2d64",
+      "visibility": "private"
+    },
+    "nativeJpegScreenshot": {
+      "path": "private/native-jpeg-upload-result.png",
+      "bytes": 66641,
+      "sha256": "f8d630012c3f60484bcdcfd0db0b870b8a560e54293daae98792994c84ccc65a",
+      "visibility": "private"
+    },
+    "nativeJpegPicker": {
+      "path": "private/native-jpeg-picker-blocked.png",
+      "bytes": 148637,
+      "sha256": "9a46f2c9a0044fdc93851c3448fcbaa1919cf631a56ea31890aa55bc6337892e",
+      "visibility": "private"
+    },
+    "paidDownloadNetwork": {
+      "path": "private/paid-download-network.json",
+      "bytes": 16327,
+      "sha256": "b11be072347a73faf190d2b127604aaf20765e855d5ec8c4e046237c052413be",
+      "visibility": "private"
+    },
+    "paidDownloadReceipt": {
+      "path": "private/paid-download-receipt.json",
+      "bytes": 544,
+      "sha256": "49819cce34b6304a0ade892927e6fbe4c47347cd1e3e8c6f898c72a8677ba757",
+      "visibility": "private"
+    },
+    "paidDeliveredFile": {
+      "path": "private/paid-delivered.txt",
+      "bytes": 169,
+      "sha256": "a2e07c146ebdfacdf0f7408d7899a0f7288e21c407b7651b74c096cc905950fc",
+      "visibility": "private"
+    },
+    "paidDownloadBefore": {
+      "path": "private/paid-download-before.json",
+      "bytes": 361,
+      "sha256": "4f927236311700735458e2c0382054d3a66663c66b2d58523c79068d044a7ccc",
+      "visibility": "private"
+    },
+    "identityGuest": {
+      "path": "private/identity-guest.txt",
+      "bytes": 7040,
+      "sha256": "325905b1870549a1ea7c56048b8ed72f07ca3bebbd6c3b5f2ca922c43ff951ee",
+      "visibility": "private"
+    },
+    "identityGuestNetwork": {
+      "path": "private/identity-guest-network.json",
+      "bytes": 8851,
+      "sha256": "a0827589ad31826638f0e2655876103b95cbc0782781e8bae94d61ac4b578ce1",
+      "visibility": "private"
+    },
+    "identityGuestScreenshot": {
+      "path": "private/identity-guest.png",
+      "bytes": 57062,
+      "sha256": "cb98ea8f948df871e5a15d4c15d2b2613dd4373a0c536965c8defa3955440779",
+      "visibility": "private"
+    },
+    "draftAccessContext": {
+      "path": "private/draft-access-context.txt",
+      "bytes": 5996,
+      "sha256": "19651b336a840665716989e9f5769f4202f3c0400492a3523b05602089f8812b",
+      "visibility": "private"
+    },
+    "nativeComparisonReceipt": {
+      "path": "private/native-upload-comparison-receipt.json",
+      "bytes": 725,
+      "sha256": "eec50d75f61423250bcea85c8c468f740d5ce4183d584d1da538f2f90ccb165d",
+      "visibility": "private"
+    },
+    "identityGuestReceipt": {
+      "path": "private/identity-guest-receipt.json",
+      "bytes": 273,
+      "sha256": "cb318595b12d2697906d04afb1cfaa274e638d63c65074ec547deaef8ce093eb",
+      "visibility": "private"
+    },
+    "predecessor": {
+      "path": "artifacts/predecessor-d2ce.user.js",
+      "bytes": 893643,
+      "sha256": "d2ce4efc9517d022426714d8d84784ae908a1a65d97fc5665317166392d899bd",
+      "visibility": "retained-development-candidate"
+    },
+    "predecessorIdentity": {
+      "path": "artifacts/predecessor-identity.json",
+      "bytes": 595,
+      "sha256": "d3385c3608bc928c16c16d9e82bbd0a97e5d0979c663039d95336f12c38398f3",
+      "visibility": "authored"
+    },
+    "memberReturn": {
+      "path": "private/identity-member-return.txt",
+      "bytes": 6784,
+      "sha256": "3915f76479cda7b12f9c6bb9cb2d3e625d5091b4f80250573b30a78f838d20cb",
+      "visibility": "private"
+    },
+    "memberReturnNetwork": {
+      "path": "private/identity-member-return-network.json",
+      "bytes": 10144,
+      "sha256": "3d20b67b37e8f94f1de2f59fbf3cef11cdb611b7f5edeb67152883b92a692289",
+      "visibility": "private"
+    },
+    "memberReturnScreenshot": {
+      "path": "private/identity-member-return.png",
+      "bytes": 50041,
+      "sha256": "1f4d45523745ee74dab7d2f76ab81717cfaee58ac06478c1c2c7c09fb8c29658",
+      "visibility": "private"
+    },
+    "replacementWritingBackup": {
+      "path": "private/before-replacement-writing-backup.json",
+      "bytes": 16302,
+      "sha256": "56313c7bfada1fffa6ccd38d9cb48e2200182c19a394daf49478bb2ecc5d1f11",
+      "visibility": "private"
+    },
+    "nativeDocumentResponse": {
+      "path": "private/native-document-response-network.json",
+      "bytes": 408779,
+      "sha256": "efb58d10c28eed1b8f73207bc4a3dbc37f09d376772175560f6f0174a5f669bb",
+      "visibility": "private"
+    },
+    "nativeCspSummary": {
+      "path": "private/native-document-csp-summary.json",
+      "bytes": 316,
+      "sha256": "907fe9117a3a488b36dd3883cbc33dbddbdf5f6ec1f0f8c57f334f3e516a0dca",
+      "visibility": "private"
+    },
+    "predecessorExport": {
+      "path": "private/38-edge-predecessor.user.js",
+      "bytes": 893643,
+      "sha256": "d2ce4efc9517d022426714d8d84784ae908a1a65d97fc5665317166392d899bd",
+      "visibility": "private"
+    },
+    "predecessorExportReceipt": {
+      "path": "private/predecessor-export-receipt.json",
+      "bytes": 409,
+      "sha256": "f733d76c94315b7041a6ed5323ed97cb37c956abe36ec0c53a014820e912f5c0",
+      "visibility": "private"
+    },
+    "replacementBefore": {
+      "path": "private/replacement-before.json",
+      "bytes": 4001,
+      "sha256": "4a7eada07e7c702f11eb96c929a256660737bb506ee723279b91f60f3e73ea61",
+      "visibility": "private"
+    },
+    "replacementBeforeScreenshot": {
+      "path": "private/replacement-predecessor-writing.png",
+      "bytes": 46833,
+      "sha256": "bc8df28dce2666b889377bde5543cbe7783b4fbb5a1f4d1c2b1e42b34e5efea1",
+      "visibility": "private"
+    },
+    "replacementPrepareNetwork": {
+      "path": "private/replacement-prepare-network.json",
+      "bytes": 6711,
+      "sha256": "2ffdd0e8b1f3087ae8ffe84f2ad856ded1a2eab1f41ce193e7858e9cfaab9a5d",
+      "visibility": "private"
+    },
+    "private/38-edge-after.user.js": {
+      "path": "private/38-edge-after.user.js",
+      "bytes": 1710368,
+      "sha256": "a3de680f5120fea3db559a404a0c35a68a22aee1d6a36dbf488d63edd449367c",
+      "visibility": "private"
+    },
+    "private/after-export-receipt.json": {
+      "path": "private/after-export-receipt.json",
+      "bytes": 304,
+      "sha256": "7de4dd921b6b2213ec712c256048629dc4cf74ebffc2be3964181df4fbd1cdab",
+      "visibility": "private"
+    },
+    "private/replacement-idle-return.json": {
+      "path": "private/replacement-idle-return.json",
+      "bytes": 302,
+      "sha256": "e318b612ad501a11919145d1559d75a05d903598c8601be4c6713168a56152b3",
+      "visibility": "private"
+    },
+    "private/replacement-after.json": {
+      "path": "private/replacement-after.json",
+      "bytes": 4939,
+      "sha256": "3e97458798eab569d4a33b2313e8ba0d3c917bbabe1f8f2f9a752128e6d6ebe6",
+      "visibility": "private"
+    },
+    "private/replacement-after.txt": {
+      "path": "private/replacement-after.txt",
+      "bytes": 6310,
+      "sha256": "ed6c0b6c27ebd18970dce9735f3839d234fde6f7aad410de8092751a22c53bc7",
+      "visibility": "private"
+    },
+    "private/replacement-after.png": {
+      "path": "private/replacement-after.png",
+      "bytes": 57181,
+      "sha256": "4f1352403b72d86e15eca65858b15e5f3c2bec58699080c2f3c87b7e2e596cf5",
+      "visibility": "private"
+    },
+    "private/replacement-reload-network.json": {
+      "path": "private/replacement-reload-network.json",
+      "bytes": 604369,
+      "sha256": "62713bfa96859171a526b2334e9fab300f115dba439cefabe441205ea986d277",
+      "visibility": "private"
+    },
+    "private/replacement-receipt.json": {
+      "path": "private/replacement-receipt.json",
+      "bytes": 785,
+      "sha256": "ae72c4657ef39ce1d9d232d0e27fbfff4bd03effe14b1438133a8d6c6a333e7f",
+      "visibility": "private"
+    },
+    "private/ordinary-publication-review.txt": {
+      "path": "private/ordinary-publication-review.txt",
+      "bytes": 6765,
+      "sha256": "dcd4fb6b317b883b4440ca91e2a2d34695f853d5fe185387ee36ba0dfd5155a4",
+      "visibility": "private"
+    },
+    "private/ordinary-publication-review.png": {
+      "path": "private/ordinary-publication-review.png",
+      "bytes": 45722,
+      "sha256": "2b910bc99a70bfa3f107df88932bd4bc9448ae40acc16fe9aa7d5193d88bab37",
+      "visibility": "private"
+    },
+    "private/ordinary-publication-network.json": {
+      "path": "private/ordinary-publication-network.json",
+      "bytes": 32332,
+      "sha256": "75df110f45f778a725d797dddbbe6faf4f4f8196b804c4ea0a34b0c33bcbd984",
+      "visibility": "private"
+    },
+    "private/ordinary-publication-result.txt": {
+      "path": "private/ordinary-publication-result.txt",
+      "bytes": 7073,
+      "sha256": "aa08e0246b51b6267051e0db60deca06564b69c7d7c62ff7fc9a7b47f194af58",
+      "visibility": "private"
+    },
+    "private/ordinary-publication-result.png": {
+      "path": "private/ordinary-publication-result.png",
+      "bytes": 46799,
+      "sha256": "1014f32791f03ad878cb625fc2f5a9348a12665c77e7dc3db8c989eb3021459b",
+      "visibility": "private"
+    },
+    "private/ordinary-native-view.json": {
+      "path": "private/ordinary-native-view.json",
+      "bytes": 1726,
+      "sha256": "e29513e256e88953a763f9ce74da246f74c8ecdc05a0ae345d80b4df2d4adc41",
+      "visibility": "private"
+    },
+    "private/ordinary-native-view.png": {
+      "path": "private/ordinary-native-view.png",
+      "bytes": 77961,
+      "sha256": "2825bfc66ca5a8aa5769d4f5eea020bd4a9aeba3215a425cb1289cef582ae4d6",
+      "visibility": "private"
+    },
+    "private/ordinary-native-saved.json": {
+      "path": "private/ordinary-native-saved.json",
+      "bytes": 5004,
+      "sha256": "30a0f8a217e192818283d9101745a3de3f1d83c2bd93b1e4440cd739e979a085",
+      "visibility": "private"
+    },
+    "private/ordinary-native-saved.png": {
+      "path": "private/ordinary-native-saved.png",
+      "bytes": 58279,
+      "sha256": "594da715a209405d0d9f55e244982872f908bc9520923d622a49a919f0b28cfb",
+      "visibility": "private"
+    },
+    "private/ordinary-write-receipt.json": {
+      "path": "private/ordinary-write-receipt.json",
+      "bytes": 1824,
+      "sha256": "559fe2dae34b60655495045a78b67c303edb6ce393b2ccb580a3ea0e293b0c07",
+      "visibility": "private"
+    },
+    "private/restart-before.json": {
+      "path": "private/restart-before.json",
+      "bytes": 168214,
+      "sha256": "73d48531769ffae87e2f8f65707ccc48c0977b7d364d5eaf40480dd24c6b5f6a",
+      "visibility": "private"
+    },
+    "private/restart-after.json": {
+      "path": "private/restart-after.json",
+      "bytes": 247454,
+      "sha256": "30f16cf1dc135a9b378c1f20e2385c003ab838554b04599c3bccebfa5cc53f9f",
+      "visibility": "private"
+    },
+    "private/restart-822137013.png": {
+      "path": "private/restart-822137013.png",
+      "bytes": 42475,
+      "sha256": "ddbb7a2799d52081e2b29cbbd08322420f7c1439f740098dc542b8c09a5a6ce6",
+      "visibility": "private"
+    },
+    "private/restart-822137020.png": {
+      "path": "private/restart-822137020.png",
+      "bytes": 42475,
+      "sha256": "ddbb7a2799d52081e2b29cbbd08322420f7c1439f740098dc542b8c09a5a6ce6",
+      "visibility": "private"
+    },
+    "private/restart-822137039.png": {
+      "path": "private/restart-822137039.png",
+      "bytes": 55256,
+      "sha256": "91abe9f4a31817de357effa49474be351a6ef00ced0cf40469ae51f10a9c83d2",
+      "visibility": "private"
+    },
+    "private/draft-switch-blocked.txt": {
+      "path": "private/draft-switch-blocked.txt",
+      "bytes": 310,
+      "sha256": "4cc7fbdcc90ff552dcab56bf9323f78fd52a5467ecc2aaf6b904fa6f35fc9433",
+      "visibility": "private"
+    },
+    "private/draft-switch-blocked.png": {
+      "path": "private/draft-switch-blocked.png",
+      "bytes": 67526,
+      "sha256": "0b2f2b1f5c08ea61d4302157903b18153c28ade78a2570f98eca305516d91d8c",
+      "visibility": "private"
+    },
+    "private/restart-receipt.json": {
+      "path": "private/restart-receipt.json",
+      "bytes": 1430,
+      "sha256": "9e0190df48428e9137c1d370b8a59b8872b3378d1d4123553096d39493f10eb2",
+      "visibility": "private"
+    },
+    "artifacts/standards-review.txt": {
+      "path": "artifacts/standards-review.txt",
+      "bytes": 371,
+      "sha256": "4f38289700545e9834110630da7007d00f2af4d059f4eb42765355aa562d1973",
+      "visibility": "authored"
+    },
+    "artifacts/spec-review.txt": {
+      "path": "artifacts/spec-review.txt",
+      "bytes": 457,
+      "sha256": "c32ee6db86f2587ae6d9e2d5626b379ef38544dee624f49d868d749f49eab895",
+      "visibility": "authored"
+    },
+    "artifacts/bdfl-review.txt": {
+      "path": "artifacts/bdfl-review.txt",
+      "bytes": 1073,
+      "sha256": "592d04dd45d283dc907d793f1e2cdf17ee2f27ba6f03b630682286f6c03cc887",
+      "visibility": "authored"
+    },
+    "artifacts/installed-manifest.json": {
+      "path": "artifacts/installed-manifest.json",
+      "bytes": 22596,
+      "sha256": "b26e9f25fdb54703e246c09ac16259bd1f34a004566354cc5786cd93ce28ac0c",
+      "visibility": "private-index"
+    }
+  },
+  "shared": {
+    "typecheck": "passed",
+    "syntheticCases": 1116,
+    "syntheticFailures": 0,
+    "syntheticRetries": 0,
+    "syntheticNode": "v24.22.1",
+    "syntheticEdge": "156.0.4314.50",
+    "syntheticManifestFiles": 2097,
+    "syntheticInputsMatchCleanCandidate": true,
+    "cleanInputs": 247,
+    "frozenOutputs": 30,
+    "cleanNode": "v24.22.0",
+    "cleanNpm": "11.21.1",
+    "consumerChecks": 20,
+    "consumerReplay": "passed",
+    "freezeIntegrity": "passed"
+  },
+  "preservedFailures": [
+    {
+      "artifact": "foundationSandboxFailure",
+      "caseCount": 26,
+      "classification": "browser-launch prevented by sandbox; no application assertions executed",
+      "targetedRerun": "foundationRerun"
+    }
+  ],
+  "installed": {
+    "status": "incomplete-unqualified",
+    "observedOs": "macOS 15.6 (24G84) arm64",
+    "managerUiVersion": "5.5.1",
+    "managerSourceVerified": true,
+    "oneEnabledCopyVerified": true,
+    "freshCandidateMountVerified": true,
+    "runningBrowserVersionVerified": true,
+    "runningBrowserVersion": "156.0.4314.50",
+    "chromiumVersion": "156.0.8078.49",
+    "exportedEnabledCopies": 1,
+    "inventoryAuthority": "Owner confirmed one enabled entry during same-entry replacement. Exact predecessor/final exports verified; independent full manager inventory tool-blocked.",
+    "predecessorSourceVerified": true,
+    "nativeEffects": {
+      "uploadAttempts": 4,
+      "uploadResult": "All refused. Original application PNG, application JPEG and native JPEG: HTTP 200 body -2. Corrected PNG: refusal with no response capture. Native form reports a server attachment-size restriction.",
+      "ordinaryWrites": 1,
+      "searchSubmissions": 1,
+      "searchResult": "three results; effective criteria and opened target verified",
+      "searchCreditBudget": 10,
+      "actualSearchCharge": "not independently established",
+      "noticeLoads": 1,
+      "noticeResult": "populated current list; unread indicator explicitly unknown",
+      "funding": 0,
+      "purchases": 0,
+      "removals": 0,
+      "ordinaryDiskDelivery": "105 bytes delivered; exact HTTP response match; receipt retained",
+      "paidDiskDelivery": "169-byte url.txt newly delivered; exact HTTP response match; no purchase",
+      "applicationUploadAttempts": 3,
+      "nativeComparisonUploadAttempts": 1,
+      "logout": 1,
+      "ordinaryWriteReadback": "Exact saved source/title/category and native options, actor/target/forum publication timestamp independently read back. Client revision49 is not a server revision ID; publication-only options unavailable in native edit form."
+    },
+    "passiveChecks": {
+      "noticeReturnRequests": 0,
+      "noticeReloadRequests": 0,
+      "noticeReloadTraceTruncated": false,
+      "searchReturnRepeatRequests": 0,
+      "searchReloadRequests": 0,
+      "searchReloadTraceTruncated": false,
+      "searchReloadBackgroundPost": "one Cloudflare challenge-platform POST; not an application search/upload/write",
+      "initialBootTrace": "truncated; excluded from zero-effect claims"
+    },
+    "uploadFixtureDiagnosis": "Corrected PNG and valid JPEG were refused. Native JPEG comparison also returned -2 and a server attachment-size restriction message. Underlying server cause remains unproven; no application-only defect established.",
+    "ime": "Owner-performed Phonetic–Cantonese source entry: exact 你好 committed, caret 222; agent-verified complete source preservation and visual/source roundtrip. Candidate-panel lifecycle not captured.",
+    "recovery": "Duplicate divergence, independent absence, close/restore, replacement and idle-return observed. Owner-performed full Edge restart changed browser connection. Original and duplicate reported unavailable snapshot with no writing; replacement tab returned to board with no writing or explicit absence warning. No startup network ledger; no durable restart-recovery or complete no-resend claim.",
+    "favoriteControls": "Already-saved board plus separate add-board/add-thread review controls observed; no confirmation. Removal preparation rejected by automatic approval review.",
+    "nativeEscape": "Bypass had zero roots. Observed HTTP 301 post redirect remounted exactly one workspace ShadowRoot.",
+    "settingsPortal": "Rendered Settings dialog/focus inside workspace ShadowRoot; nine native stylesheet links enabled; no light-DOM dialog. Current native forum-index HTTP200 response has no CSP or CSP-Report-Only header. Restrictive policy variants mapped synthetically.",
+    "identityTransition": "Real member→guest→same-member completed. Complete source preserved; sending paused while guest, resumed only after current account/form check. Old search snapshot remained unavailable. Return trace: zero POST.",
+    "replacement": "Exact d2ce predecessor and a3de current exports verified. Title/source/category/12 option checkboxes/root appearance retained after reload; revision4 acknowledged, sending paused. 208.308s idle-return preserved writing. Reload trace truncated, so no complete installed zero-effect ledger.",
+    "cleanInstall": "Unverified: initial empty export invalid as clean-before evidence; later exports demonstrate replacement only.",
+    "independentInventoryVerified": false
+  },
+  "acceptance": [
+    {
+      "id": "38.1",
+      "name": "Candidate and stable host identity",
+      "status": "verified",
+      "shared": [
+        "candidate",
+        "freezeReceipt"
+      ],
+      "remaining": "None at specified scope. Exact predecessor/current exports and host metadata verified; one enabled copy owner-confirmed. Independent full inventory unavailable and not an additional acceptance gate.",
+      "installedEvidence": [
+        "installedExport",
+        "predecessorExport",
+        "predecessorExportReceipt",
+        "private/after-export-receipt.json",
+        "private/38-edge-after.user.js",
+        "installedObservations"
+      ]
+    },
+    {
+      "id": "38.2",
+      "name": "Installed workflow coverage",
+      "status": "partial",
+      "shared": [
+        "syntheticReceipt",
+        "historicalChrome"
+      ],
+      "remaining": "Ordinary resumable draft context remains absent. Six writing preparations plus add-thread/add-board favorite reviews observed. Removal preparation tool-blocked; no favorite effect performed.",
+      "sharedCaseMapping": "sharedRequirementMap#38.2",
+      "installedEvidence": [
+        "installedObservations",
+        "draftAccessContext",
+        "private/draft-switch-blocked.txt"
+      ]
+    },
+    {
+      "id": "38.3",
+      "name": "Native effects and files",
+      "status": "failed-and-incomplete",
+      "shared": [
+        "syntheticReceipt"
+      ],
+      "remaining": "Successful authenticated upload and saved association absent: four uploads refused including native JPEG. Ordinary write/readback and ordinary/paid disk delivery verified with disclosed native option/version limits.",
+      "sharedCaseMapping": "sharedRequirementMap#38.3",
+      "installedEvidence": [
+        "uploadNetwork",
+        "uploadResponse",
+        "correctedUploadNetwork",
+        "jpegNetwork",
+        "jpegResponse",
+        "nativeComparisonReceipt",
+        "private/ordinary-write-receipt.json",
+        "private/ordinary-native-saved.json",
+        "ordinaryDownloadReceipt",
+        "paidDownloadReceipt"
+      ]
+    },
+    {
+      "id": "38.4",
+      "name": "Actual host behavior",
+      "status": "verified",
+      "shared": [
+        "syntheticReceipt"
+      ],
+      "remaining": "None at specified representative scope. Owner performed native Cantonese composition; committed output/roundtrip independently observed. Candidate-panel lifecycle not captured. Restrictive-CSP variants have synthetic authority.",
+      "sharedCaseMapping": "sharedRequirementMap#38.4",
+      "installedEvidence": [
+        "installedObservations",
+        "imeSourceResult",
+        "settingsPortal",
+        "nativeCspSummary",
+        "nativeRedirect"
+      ]
+    },
+    {
+      "id": "38.5",
+      "name": "Recovery and identity",
+      "status": "partial",
+      "shared": [
+        "syntheticReceipt"
+      ],
+      "remaining": "Clean install unverified. Restart performed: original/duplicate truthfully unavailable; replacement writing absent on board without explicit warning. Startup network ledger unavailable; replacement ledger truncated. Shared incompatible/no-auto-replay cases mapped; no durable restart-recovery claim.",
+      "sharedCaseMapping": "sharedRequirementMap#38.5",
+      "installedEvidence": [
+        "tabLifecycle",
+        "identityGuestReceipt",
+        "memberReturn",
+        "private/replacement-receipt.json",
+        "replacementBefore",
+        "private/replacement-after.json",
+        "private/restart-before.json",
+        "private/restart-after.json",
+        "private/restart-receipt.json"
+      ]
+    },
+    {
+      "id": "38.6",
+      "name": "Search and notices",
+      "status": "verified",
+      "shared": [
+        "syntheticReceipt",
+        "historicalChrome"
+      ],
+      "remaining": "None at the specified scope: fresh search and notice restoration observed; controlled category/pagination cases mapped and validated. Native unread count unknown; not every native category/second page observed populated.",
+      "sharedCaseMapping": "sharedRequirementMap#38.6",
+      "validation": "mappingValidation",
+      "installedEvidence": [
+        "searchNetwork",
+        "searchReturnNetwork",
+        "searchReloadNetwork",
+        "noticeLoadNetwork",
+        "noticeReloadNetwork",
+        "mappingValidation"
+      ]
+    },
+    {
+      "id": "38.7",
+      "name": "Evidence and relevance",
+      "status": "verified",
+      "shared": [
+        "candidateSource",
+        "freezeManifest",
+        "syntheticManifest",
+        "consumerManifest",
+        "consumerReplay",
+        "scope"
+      ],
+      "remaining": "None for retained evidence accounting: requirement links and artifact hashes verified. Missing observations remain explicit in their criteria; raw authenticated artifacts private.",
+      "installedEvidence": [
+        "mappingValidation",
+        "sharedRequirementMap",
+        "artifacts/installed-manifest.json"
+      ]
+    },
+    {
+      "id": "38.8",
+      "name": "Final disposition",
+      "status": "blocked",
+      "shared": [],
+      "remaining": "Standards/Spec report reviews and BDFL accounting validation complete. Owner explicitly approved an incomplete evidence commit on 2026-11-01 while keeping #38 unqualified. Clean install, two preparation gaps, successful upload/association and recovery/protection limits remain unresolved; no qualification exceptions accepted.",
+      "installedEvidence": [
+        "artifacts/standards-review.txt",
+        "artifacts/spec-review.txt",
+        "artifacts/bdfl-review.txt"
+      ]
+    }
+  ],
+  "limits": [
+    "Shared synthetic checks substitute network traffic and do not qualify installed Tampermonkey.",
+    "Original Chrome final bundle was not recovered; its closure is an accepted historical conclusion.",
+    "Synthetic runner used existing candidate dependencies and Node 24.22.1; clean build/consumer independently used pinned Node 24.22.0/npm 11.21.1.",
+    "Browser policy blocked extension-page control; owner approval of loading scripts does not remove the tool restriction.",
+    "Four authorized uploads refused; one ordinary publication independently read back, one search and one notice load occurred. No funding, removal or purchase.",
+    "Native upload-error-definition script navigation was blocked by the browser; no alternate retrieval attempted. Native comparison maps -2 to a server attachment-size restriction message; its underlying cause remains unproven.",
+    "Narrow screenshot uses a temporary 390 by 844 CSS viewport override, subsequently cleared. Text size restored to 100 percent.",
+    "The corrected upload attempt has an application refusal observation but an empty network capture; no response-code inference is made.",
+    "Cantonese input was owner-performed; committed text and roundtrip were independently observed, but composition-event/candidate-panel lifecycle was not.",
+    "Ordinary browser download events timed out; exact bytes and current timestamp in the last-used save directory establish disk delivery.",
+    "Automatic approval review rejected Remove favorite inspection and later duplicate-tab cleanup; no workaround was attempted. Add preparation was inspected instead, and the duplicate was retained.",
+    "Replacement trace is truncated. Owner-performed restart has no startup network ledger; original/duplicate show unavailable snapshots, replacement tab shows a board without retained writing or explicit absence warning.",
+    "Automatic approval review rejected discarding the retained local draft view to inspect the remaining expiry draft. No discard occurred; ordinary draft preparation remains unverified."
+  ],
+  "ownerDisposition": {
+    "date": "2026-11-01",
+    "timezone": "Asia/Hong_Kong",
+    "decision": "Commit the incomplete evidence report; keep #38 unqualified",
+    "incompleteEvidenceCommitApproved": true,
+    "qualificationExceptionsAccepted": false,
+    "qualificationApproved": false
+  }
+}
