@@ -538,6 +538,20 @@ function updateOption(option: WritingOption, event: Event) {
         >
           {{ text.normalizedStoredPrice }}
         </p>
+        <p
+          v-for="normalization in attempt.result.verification
+            .attachmentNormalizations ?? []"
+          :key="normalization.name"
+        >
+          {{
+            insert(
+              text.normalizedStoredAttachmentPrice,
+              /^attachnew\[([1-9]\d*)\]\[price\]$/.exec(
+                normalization.name,
+              )?.[1] ?? "",
+            )
+          }}
+        </p>
         <ul v-if="attempt.result.verification.creationEffects.length">
           <li
             v-for="effect in attempt.result.verification.creationEffects"

@@ -26,6 +26,7 @@ function form(member = "7", saved?: URLSearchParams) {
 async function fixture(
   page: Page,
   initialForm: (body: string) => string = (body) => body,
+  nativeOnlyMention = false,
 ) {
   const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
   const state = {
@@ -118,6 +119,15 @@ async function fixture(
       body = "<p>Malformed later rendering</p>";
     if (url.searchParams.get("mod") === "viewthread")
       body = state.threadChange(body);
+    if (nativeOnlyMention && url.searchParams.get("mod") === "post") {
+      if (!url.searchParams.has("tsdmapp"))
+        return route.fulfill({
+          contentType: "text/html; charset=utf-8",
+          body,
+        });
+      // The native form exposes this capability; its JSON representation omits it.
+      body = body.replace(/<script>window\.ATPLUS=[^<]*<\/script>/, "");
+    }
     return route.fulfill({
       contentType: "application/json; charset=utf-8",
       body: JSON.stringify({ document: body }),
@@ -257,6 +267,140 @@ test("J5.advanced-table: visual row column merge split and keyboard operations p
   });
 });
 
+for (const example of [
+  {
+    name: "two-by-two",
+    source:
+      "[table][tr][td]A[/td][td]B[/td][/tr][tr][td][/td][td][/td][/tr][/table]",
+    cells: 4,
+    mergedRows: [1, 0],
+    splitRows: [2, 2],
+    merged: "[table][tr][td=2,2]A\nB[/td][/tr][tr][/tr][/table]",
+    split:
+      "[table][tr][td=1,1]A\nB[/td][td=1,1][/td][/tr][tr][td=1,1][/td][td=1,1][/td][/tr][/table]",
+  },
+  {
+    name: "empty-vertical",
+    source: "[table][tr][td][/td][/tr][tr][td][/td][/tr][/table]",
+    cells: 2,
+    mergedRows: [1, 0],
+    splitRows: [1, 1],
+    merged: "[table][tr][td=1,2][/td][/tr][tr][/tr][/table]",
+    split: "[table][tr][td=1,1][/td][/tr][tr][td=1,1][/td][/tr][/table]",
+  },
+  {
+    name: "horizontal-control",
+    source: "[table][tr][td]A[/td][td]B[/td][/tr][/table]",
+    cells: 2,
+    mergedRows: [1],
+    splitRows: [2],
+    merged: "[table][tr][td=2,1]A\nB[/td][/tr][/table]",
+    split: "[table][tr][td=1,1]A\nB[/td][td=1,1][/td][/tr][/table]",
+  },
+])
+  test(`J5.advanced-full-rectangle-${example.name}: merge and split preserve the table grid`, async ({
+    page,
+  }, info) => {
+    const server = await fixture(page);
+    const body = await visual(page, example.source);
+    await expect(body.locator("td")).toHaveCount(example.cells);
+    await body.locator("td").first().click();
+    await body
+      .locator("td")
+      .last()
+      .click({ modifiers: ["Shift"] });
+    await expect(body.locator(".selectedCell")).toHaveCount(example.cells);
+    await operation(page, "Merge cells");
+    const mergedRows = await body
+      .locator("tr")
+      .evaluateAll((rows) =>
+        rows.map((row) => row.querySelectorAll("td,th").length),
+      );
+    expect.soft(mergedRows).toEqual(example.mergedRows);
+    const mergedSource = await sourceValue(page);
+    expect.soft(mergedSource).toBe(example.merged);
+    await visual(page);
+    await body.locator("td").first().click();
+    await operation(page, "Split cell");
+    const splitRows = await body
+      .locator("tr")
+      .evaluateAll((rows) =>
+        rows.map((row) => row.querySelectorAll("td,th").length),
+      );
+    expect.soft(splitRows).toEqual(example.splitRows);
+    const splitSource = await sourceValue(page);
+    expect.soft(splitSource).toBe(example.split);
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    expect.soft(await sourceValue(page)).toBe(example.merged);
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    expect.soft(await sourceValue(page)).toBe(example.split);
+    expect(server.posts).toHaveLength(0);
+    await info.attach("whole-table-grid.json", {
+      body: Buffer.from(
+        JSON.stringify({
+          expected: example,
+          mergedRows,
+          mergedSource,
+          splitRows,
+          splitSource,
+          publishedCommands: server.posts.length,
+        }),
+      ),
+      contentType: "application/json",
+    });
+    await info.attach("whole-table-grid.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+
+test("J5.advanced-covered-empty-row: valid rowspan source remains editable through import and reload", async ({
+  page,
+}, info) => {
+  const server = await fixture(page);
+  const cases = [
+    "[table][tr][td=1,2]A[/td][/tr][tr][/tr][/table]",
+    "[table][tr][td=2,2]A\nB[/td][/tr][tr] \n[/tr][/table]",
+  ];
+  const observed = [];
+  for (const original of cases) {
+    let body = await visual(page, original);
+    await expect(body.locator("table")).toHaveCount(1);
+    await expect(body.locator("tr")).toHaveCount(2);
+    await expect(body.locator("td")).toHaveCount(1);
+    await expect(body.locator("td")).toHaveAttribute("rowspan", "2");
+    expect(await sourceValue(page)).toBe(original);
+    await page.reload();
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(original);
+    body = await visual(page);
+    await expect(body.locator("table")).toHaveCount(1);
+    await expect(body.locator("tr")).toHaveCount(2);
+    await expect(body.locator("td")).toHaveCount(1);
+    await body.locator("td").click();
+    await operation(page, "Split cell");
+    await expect(body.locator("td")).toHaveCount(
+      original.includes("td=2,2") ? 4 : 2,
+    );
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    const restored = await sourceValue(page);
+    expect(restored).toBe(original);
+    observed.push({ original, restored });
+  }
+  expect(server.posts).toHaveLength(0);
+  await info.attach("covered-empty-row-roundtrip.json", {
+    body: Buffer.from(
+      JSON.stringify({ observed, publishedCommands: server.posts.length }),
+    ),
+    contentType: "application/json",
+  });
+  await info.attach("covered-empty-row-roundtrip.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
 test("J5.advanced-hidden: nested spoilers and reply-to-view blocks retain source through undo and saved readback", async ({
   page,
 }, info) => {
@@ -340,6 +484,9 @@ test("J5.advanced-grid-guard: malformed and unknown grids are preserved without 
     "[table][tr][td colspan=two]A[/td][/tr][/table]",
     "[table][tr][td]A[/td]bad[/tr][/table]",
     "[table][tr][td]A[/td][/table]",
+    "[table][tr][td]A[/td][/tr][tr][/tr][/table]",
+    "[table][tr][/tr][/table]",
+    "[table][/table]",
   ];
   for (const table of cases) {
     const original =
@@ -382,6 +529,140 @@ test("J5.advanced-grid-guard: malformed and unknown grids are preserved without 
     contentType: "image/png",
   });
 });
+
+for (const scenario of [
+  "available",
+  "login-disabled",
+  "use-disabled",
+  "external-endpoint",
+  "account-before",
+  "account-after",
+] as const) {
+  test(`J5.advanced-mention-native-form: ${scenario} uses current native capability without weakening guards`, async ({
+    page,
+  }, info) => {
+    const server = await fixture(page, (body) => body, true);
+    const source =
+      "Authored mention representation regression. Plain @text stays plain.";
+    await page.getByLabel("Complete source", { exact: true }).fill(source);
+    await page
+      .getByRole("button", {
+        name: "Check current account and form",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(source);
+    const before = server.requests.length;
+    server.formChange = (body) => {
+      if (scenario === "login-disabled")
+        return body.replace('"login":1', '"login":0');
+      if (scenario === "use-disabled")
+        return body.replace('"use":1', '"use":0');
+      if (scenario === "external-endpoint")
+        return body.replace(
+          '"api":"plugin.php',
+          '"api":"https://untrusted.invalid/plugin.php',
+        );
+      if (
+        scenario === "account-before" ||
+        (scenario === "account-after" &&
+          server.requests.some(
+            (request) => new URL(request.url).pathname === "/plugin.php",
+          ))
+      )
+        return body.replace(actor(), actor("9"));
+      return body;
+    };
+    await page
+      .getByLabel("Find a person to mention", { exact: true })
+      .fill("Other author");
+    await page
+      .getByRole("button", { name: "Find mention", exact: true })
+      .click();
+    const person = page.getByRole("button", {
+      name: "Mention Other author (UID 8)",
+      exact: true,
+    });
+    try {
+      if (scenario === "available") {
+        await expect(person).toBeVisible();
+        await expect(
+          page.getByText(
+            "The current forum mention service could not resolve this person. Plain text was preserved.",
+            { exact: true },
+          ),
+        ).toHaveCount(0);
+        await expect(
+          page.getByRole("button", { name: "Review publication", exact: true }),
+        ).toBeEnabled();
+      } else {
+        await expect(
+          page.getByText(
+            scenario.startsWith("account-")
+              ? "The account changed during mention lookup. Resolve the person again."
+              : "The current forum mention service could not resolve this person. Plain text was preserved.",
+            { exact: true },
+          ),
+        ).toBeVisible();
+        await expect(person).toHaveCount(0);
+      }
+      await expect(
+        page.getByLabel("Complete source", { exact: true }),
+      ).toHaveValue(source);
+      const requests = server.requests.slice(before);
+      const reachesLookup =
+        scenario === "available" || scenario === "account-after";
+      expect(
+        requests.map((request) => ({
+          url: request.url,
+          method: request.method,
+        })),
+      ).toEqual([
+        {
+          url: `${origin}/forum.php?mod=post&action=newthread&fid=5`,
+          method: "GET",
+        },
+        ...(reachesLookup
+          ? [
+              { url: `${origin}/plugin.php?id=atplus:search`, method: "POST" },
+              {
+                url: `${origin}/forum.php?mod=post&action=newthread&fid=5`,
+                method: "GET",
+              },
+            ]
+          : []),
+      ]);
+      expect(
+        server.requests
+          .slice(0, before)
+          .filter(
+            (request) =>
+              new URL(request.url).searchParams.get("mod") === "post",
+          )
+          .map((request) => new URL(request.url).searchParams.get("tsdmapp")),
+      ).toEqual(["json", "json"]);
+      expect(server.posts).toHaveLength(0);
+    } finally {
+      await info.attach("native-mention-capability.json", {
+        body: Buffer.from(
+          JSON.stringify({
+            scenario,
+            requests: server.requests,
+            authoringCommands: server.posts.length,
+            source: await sourceValue(page),
+          }),
+        ),
+        contentType: "application/json",
+      });
+      await info.attach("native-mention-capability.png", {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
+    }
+  });
+}
 
 test("J5.advanced-mention: resolved visual insertion preserves formatted caret and undo redo before authoritative source readback", async ({
   page,
@@ -980,6 +1261,158 @@ for (const list of [
     });
     await info.attach(`list-${list.kind}.png`, {
       body: await page.locator(".post-content").screenshot(),
+      contentType: "image/png",
+    });
+  });
+}
+
+for (const scenario of [
+  {
+    name: "spoiler",
+    source: "[spoiler=X]AB[/spoiler]",
+    text: "AB",
+    offset: 1,
+    title: "X",
+  },
+  {
+    name: "hide",
+    source: "[hide]AB[/hide]",
+    text: "AB",
+    offset: 1,
+    title: null,
+  },
+  {
+    name: "nested-table",
+    source:
+      "[spoiler=Current qualification][hide][table][tr][td]中文[/td][td]短語[/td][/tr][tr][td]Third[/td][td]Fourth[/td][/tr][/table][/hide][/spoiler]\n" +
+      "[list][*]中文項目[*]Latin item[/list]\n" +
+      "[quote=Author]Complete quotation[/quote]\n" +
+      "[unfamiliar=x]Original & <literal>[/unfamiliar] [attach]77[/attach]\n" +
+      "LongLatinTokenABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\n" +
+      "Source input: 測試輸入",
+    text: "中文",
+    offset: 2,
+    title: "Current qualification",
+  },
+]) {
+  test(`J5.advanced-language-caret-${scenario.name}: locale changes preserve native caret and subsequent editing`, async ({
+    page,
+  }, info) => {
+    const server = await fixture(page);
+    const body = await visual(page, scenario.source);
+    if (scenario.name === "nested-table")
+      await body.locator("td").first().click();
+    else await body.getByText(scenario.text, { exact: true }).click();
+    await page.keyboard.press("End");
+    for (let index = scenario.offset; index < scenario.text.length; index++)
+      await page.keyboard.press("ArrowLeft");
+    // Observe the active native selection; a hidden textarea is not its oracle.
+    const caret = () =>
+      page.locator(".ProseMirror").evaluate((element) => {
+        const root = element.getRootNode();
+        const selection =
+          root instanceof ShadowRoot && "getSelection" in root
+            ? (
+                root as ShadowRoot & { getSelection(): Selection | null }
+              ).getSelection()
+            : window.getSelection();
+        const anchor = selection?.anchorNode;
+        const cell = anchor?.parentElement?.closest("td,th");
+        return {
+          text: anchor?.textContent,
+          offset: selection?.anchorOffset,
+          collapsed: selection?.isCollapsed,
+          cell: cell
+            ? Array.from(cell.parentElement!.children).indexOf(cell)
+            : null,
+        };
+      });
+    const expectedCaret = {
+      text: scenario.text,
+      offset: scenario.offset,
+      collapsed: true,
+      cell: scenario.name === "nested-table" ? 0 : null,
+    };
+    expect(await caret(), "ordinary keyboard setup").toEqual(expectedCaret);
+    const observations = [];
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    for (const locale of [
+      { language: "zh-TW", spoiler: "折疊內容", hide: "回覆可見隱藏內容" },
+      {
+        language: "en",
+        spoiler: "Spoiler",
+        hide: "Reply-to-view hidden block",
+      },
+    ]) {
+      await page.locator("#interface-language").selectOption(locale.language);
+      if (scenario.title)
+        await expect(
+          page.getByRole("group", {
+            name: `${locale.spoiler}: ${scenario.title}`,
+            exact: true,
+          }),
+        ).toBeAttached();
+      if (scenario.name !== "spoiler")
+        await expect(
+          page.getByRole("group", { name: locale.hide, exact: true }),
+        ).toBeAttached();
+      const current = await caret();
+      observations.push({ language: locale.language, caret: current });
+      expect
+        .soft(current, `active native caret after ${locale.language}`)
+        .toEqual(expectedCaret);
+    }
+    await page.keyboard.press("Escape");
+    expect(await sourceValue(page)).toBe(scenario.source);
+    const mapped = await page
+      .getByLabel("Complete source", { exact: true })
+      .evaluate((element: HTMLTextAreaElement) => ({
+        start: element.selectionStart,
+        end: element.selectionEnd,
+      }));
+    const position = scenario.source.indexOf(scenario.text) + scenario.offset;
+    expect
+      .soft(mapped, "actual source-mode selection")
+      .toEqual({ start: position, end: position });
+    await visual(page);
+    await page.keyboard.type("Z");
+    const edited =
+      scenario.source.slice(0, position) +
+      "Z" +
+      scenario.source.slice(position);
+    expect
+      .soft(
+        await sourceValue(page),
+        "ordinary content mutation after language changes",
+      )
+      .toBe(edited);
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    expect
+      .soft(await sourceValue(page), "undo restores exact original source")
+      .toBe(scenario.source);
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    expect
+      .soft(await sourceValue(page), "redo restores exact edited source")
+      .toBe(edited);
+    expect(server.posts).toHaveLength(0);
+    await info.attach("language-caret.json", {
+      body: Buffer.from(
+        JSON.stringify(
+          {
+            scenario,
+            observations,
+            mapped,
+            edited,
+            commands: server.posts.length,
+          },
+          null,
+          2,
+        ),
+      ),
+      contentType: "application/json",
+    });
+    await info.attach("language-caret.png", {
+      body: await page.screenshot(),
       contentType: "image/png",
     });
   });

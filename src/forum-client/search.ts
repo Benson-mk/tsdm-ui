@@ -167,6 +167,9 @@ function responseDocument(
       if (
         !payload ||
         typeof payload !== "object" ||
+        // A command envelope cannot also stand in for a returned document.
+        ("type" in payload && payload.type === "result") ||
+        ("kind" in payload && payload.kind === "redirect") ||
         !("document" in payload) ||
         typeof payload.document !== "string"
       )
@@ -572,6 +575,83 @@ export function prepareSearchRequest(
     url: url.href,
     body: new URLSearchParams(pairs).toString(),
   };
+}
+/** A successful search command can offer one result read, never another command. */
+export function searchCommandResult(
+  response: HostResponse,
+  submitted: string,
+): { url: URL; id: string; account: Account } | null {
+  try {
+    if (
+      response.status !== 200 ||
+      response.url !== submitted ||
+      !/^application\/(?:json|[^;]+\+json)(?:;|$)/i.test(response.contentType)
+    )
+      return null;
+    const payload: unknown = JSON.parse(response.body);
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      Array.isArray(payload) ||
+      !("ok" in payload) ||
+      payload.ok !== 1 ||
+      !("api" in payload) ||
+      payload.api !== 1 ||
+      !("type" in payload) ||
+      payload.type !== "result" ||
+      !("schema" in payload) ||
+      payload.schema !== 13 ||
+      !("kind" in payload) ||
+      payload.kind !== "redirect" ||
+      !("message" in payload) ||
+      payload.message !== "" ||
+      !("message_key" in payload) ||
+      payload.message_key !== "" ||
+      !("handlekey" in payload) ||
+      payload.handlekey !== "" ||
+      !("login" in payload) ||
+      payload.login !== 0 ||
+      !("alert" in payload) ||
+      payload.alert !== "" ||
+      !("values" in payload) ||
+      !payload.values ||
+      typeof payload.values !== "object" ||
+      Array.isArray(payload.values) ||
+      Object.keys(payload.values).length !== 0 ||
+      "document" in payload ||
+      "head" in payload ||
+      !("uid" in payload) ||
+      typeof payload.uid !== "number" ||
+      !Number.isSafeInteger(payload.uid) ||
+      payload.uid < 0 ||
+      !("url" in payload) ||
+      typeof payload.url !== "string"
+    )
+      return null;
+    const route = routeFor(new URL(payload.url, submitted).href);
+    if (
+      route?.kind !== "search" ||
+      route.url.origin !== new URL(submitted).origin ||
+      route.url.hash ||
+      !route.url.searchParams.has("searchid") ||
+      route.url.searchParams.get("searchsubmit") !== "yes"
+    )
+      return null;
+    return {
+      url: route.url,
+      id: route.url.searchParams.get("searchid")!,
+      account:
+        payload.uid === 0
+          ? { kind: "guest" }
+          : {
+              kind: "member",
+              id: String(payload.uid),
+              name: `Member ${payload.uid}`,
+            },
+    };
+  } catch {
+    return null;
+  }
 }
 export function decodeSearchResults(
   response: HostResponse,

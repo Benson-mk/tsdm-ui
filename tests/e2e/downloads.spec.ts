@@ -1004,3 +1004,419 @@ for (const [language, downloadLabel, forbidden, message] of [
     });
   });
 }
+
+const inlineImageBytes = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+  "base64",
+);
+const inlineImageURL = `${origin}/forum.php?mod=attachment&aid=image-token&noupdate=yes`;
+const inlineDownloadURL = `${origin}/forum.php?mod=attachment&aid=image-token&nothumb=yes`;
+function nativeInlineImageThread(
+  change: (profile: string) => string = (body) => body,
+) {
+  const profile = `<ignore_js_op><img id="aimg_88" aid="88" src="static/image/common/none.gif" file="${inlineImageURL}" zoomfile="${inlineImageURL}&nothumb=yes" class="zoom" alt="Uploaded fixture image" onclick="fetch('https://effects.example/image-click')" onmouseover="fetch('https://effects.example/image-hover')"><div id="aimg_88_menu" style="display:none"><p><strong>fixture-image.png</strong> <em>(70 Bytes)</em></p><p><a href="${inlineDownloadURL}" target="_blank">Download attachment</a></p><a id="savephoto_88" href="javascript:;" onclick="fetch('https://effects.example/save-photo')">Save photo</a><a href="forum.php?mod=ajax&amp;action=deleteattach&amp;aid=88&amp;fid=5" onclick="fetch('https://effects.example/delete')">Delete</a></div></ignore_js_op>`;
+  return `${member}<div id="postlist"><h1 id="thread_subject">Attachment listening notes</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=9">Composer Nine</a></div><a id="postnum101" href="${threadURL}#pid101">1</a><div class="pcb"><p>Native inline image fixture.</p>${change(profile)}</div></div></div>`;
+}
+test("J8.native-inline-image: same-ID direct filename renders the offered image and delivers exact bytes without native handlers", async ({
+  page,
+}, info) => {
+  const requests = await open(page, {
+    initialThread: nativeInlineImageThread(),
+    currentThread: () => nativeInlineImageThread(),
+    file: {
+      body: inlineImageBytes,
+      contentType: "image/png",
+      headers: {
+        "content-disposition": 'attachment; filename="fixture-image.png"',
+        "content-length": String(inlineImageBytes.length),
+      },
+    },
+  });
+  const img = page.getByRole("img", {
+    name: "Uploaded fixture image",
+    exact: true,
+  });
+  await expect(img).toBeVisible();
+  await expect
+    .poll(() => img.evaluate((node) => (node as HTMLImageElement).naturalWidth))
+    .toBe(1);
+  await expect(img).toHaveAttribute("src", inlineImageURL);
+  await expect(img).not.toHaveAttribute("onclick");
+  await expect(img).not.toHaveAttribute("onmouseover");
+  const beforeClick = requests.length;
+  await img.click();
+  expect(requests).toHaveLength(beforeClick);
+  await page
+    .getByRole("button", { name: "Download fixture-image.png", exact: true })
+    .click();
+  await expect(
+    page.getByText("File ready to save", { exact: true }),
+  ).toBeVisible();
+  const event = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save file", exact: true }).click();
+  const download = await event,
+    path = info.outputPath("fixture-image.png");
+  await download.saveAs(path);
+  expect(await download.failure()).toBeNull();
+  const saved = readFileSync(path);
+  expect(saved.equals(inlineImageBytes)).toBe(true);
+  expect(download.suggestedFilename()).toBe("fixture-image.png");
+  expect(requests.filter((url) => url === inlineDownloadURL)).toHaveLength(1);
+  expect(requests.every((url) => new URL(url).origin === origin)).toBe(true);
+  expect(requests.some((url) => url.includes("deleteattach"))).toBe(false);
+  await info.attach("inline-image.png", {
+    body: saved,
+    contentType: "image/png",
+  });
+  await info.attach("inline-image-receipt.json", {
+    body: Buffer.from(
+      JSON.stringify({
+        requests,
+        filename: download.suggestedFilename(),
+        bytes: saved.length,
+        sha256: createHash("sha256").update(saved).digest("hex"),
+      }),
+    ),
+    contentType: "application/json",
+  });
+  await info.attach("inline-image-ui.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+for (const scenario of [
+  {
+    name: "missing-filename",
+    change: (s: string) => s.replace("<strong>fixture-image.png</strong>", ""),
+  },
+  {
+    name: "duplicate-filename",
+    change: (s: string) =>
+      s.replace(
+        "<strong>fixture-image.png</strong>",
+        "<strong>fixture-image.png</strong><strong>other.png</strong>",
+      ),
+  },
+  {
+    name: "numeric-id",
+    change: (s: string) => s.replace('aid="88"', 'aid="89"'),
+  },
+  {
+    name: "menu-id",
+    change: (s: string) => s.replace('id="aimg_88_menu"', 'id="aimg_89_menu"'),
+  },
+  {
+    name: "duplicate-image",
+    change: (s: string) =>
+      s.replace(
+        '<div id="aimg_88_menu"',
+        `<img id="aimg_88" aid="88" file="${inlineImageURL}" zoomfile="${inlineImageURL}&nothumb=yes"><div id="aimg_88_menu"`,
+      ),
+  },
+  {
+    name: "duplicate-menu",
+    change: (s: string) =>
+      s.replace(
+        "</ignore_js_op>",
+        `<div id="aimg_88_menu"><a href="${inlineDownloadURL}">fixture-image.png</a></div></ignore_js_op>`,
+      ),
+  },
+  {
+    name: "conflicting-direct-links",
+    change: (s: string) =>
+      s.replace(
+        "</p>",
+        `<a href="${inlineDownloadURL.replace("image-token", "different-token")}">other.png</a></p>`,
+      ),
+  },
+  {
+    name: "opaque-id",
+    change: (s: string) =>
+      s.replace(
+        `href="${inlineDownloadURL}"`,
+        `href="${inlineDownloadURL.replace("image-token", "different-token")}"`,
+      ),
+  },
+  {
+    name: "script-filename",
+    change: (s: string) =>
+      s.replace(
+        `href="${inlineDownloadURL}"`,
+        `onclick="nativeSavePhoto()" href="${inlineDownloadURL}"`,
+      ),
+  },
+  {
+    name: "foreign",
+    change: (s: string) =>
+      s.replace(
+        `href="${inlineDownloadURL}"`,
+        `href="https://foreign.example/forum.php?mod=attachment&aid=image-token&nothumb=yes"`,
+      ),
+  },
+  {
+    name: "zoom-token",
+    change: (s: string) =>
+      s.replace(
+        `zoomfile="${inlineImageURL}&nothumb=yes"`,
+        `zoomfile="${inlineImageURL.replace("image-token", "other-token")}&nothumb=yes"`,
+      ),
+  },
+  {
+    name: "zoom-flag",
+    change: (s: string) =>
+      s.replace(
+        `zoomfile="${inlineImageURL}&nothumb=yes"`,
+        `zoomfile="${inlineImageURL}&nothumb=no"`,
+      ),
+  },
+  {
+    name: "missing-no-update",
+    change: (s: string) => s.replaceAll("&noupdate=yes", ""),
+  },
+  {
+    name: "conflicting-file-profile",
+    change: (s: string) =>
+      s.replace(
+        "</ignore_js_op>",
+        `<span id="attach_88"><a href="${inlineDownloadURL.replace("image-token", "other-token")}">other.png</a></span></ignore_js_op>`,
+      ),
+  },
+  {
+    name: "permission",
+    change: (s: string) =>
+      s.replace("<ignore_js_op>", '<ignore_js_op class="attach_nopermission">'),
+  },
+]) {
+  test(`J8.native-inline-image-${scenario.name}: ambiguous or unqualified profile cannot render an attachment endpoint or offer download`, async ({
+    page,
+  }, info) => {
+    const requests = await open(page, {
+      initialThread: nativeInlineImageThread(scenario.change),
+    });
+    await expect(page.getByRole("button", { name: /^Download / })).toHaveCount(
+      0,
+    );
+    await expect(
+      page.getByRole("img", { name: "Uploaded fixture image", exact: true }),
+    ).toHaveCount(0);
+    expect(
+      requests.some(
+        (url) => new URL(url).searchParams.get("mod") === "attachment",
+      ),
+    ).toBe(false);
+    expect(
+      requests.some(
+        (url) =>
+          url.includes("deleteattach") || url.includes("effects.example"),
+      ),
+    ).toBe(false);
+    await info.attach("inline-profile-refusal.json", {
+      body: Buffer.from(JSON.stringify({ scenario: scenario.name, requests })),
+      contentType: "application/json",
+    });
+    await info.attach("inline-profile-refusal.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+}
+
+// Failure-first recovery cases: positive state is produced only by normal decoding.
+test("J8.inline-image-recovery: reader persists qualified descriptors through reload and revalidates deliberate download", async ({
+  page,
+}, info) => {
+  const traffic: { url: string; method: string; type: string }[] = [];
+  page.on("request", (r) =>
+    traffic.push({ url: r.url(), method: r.method(), type: r.resourceType() }),
+  );
+  await open(page, {
+    initialThread: nativeInlineImageThread(),
+    currentThread: () => nativeInlineImageThread(),
+    file: {
+      body: inlineImageBytes,
+      contentType: "image/png",
+      headers: { "content-length": String(inlineImageBytes.length) },
+    },
+  });
+  const img = page.getByRole("img", {
+    name: "Uploaded fixture image",
+    exact: true,
+  });
+  await expect
+    .poll(() => img.evaluate((n) => (n as HTMLImageElement).naturalWidth))
+    .toBe(1);
+  const before = await page.evaluate(() =>
+    JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
+  );
+  const start = traffic.length;
+  await page.reload();
+  await expect(page.getByText(/Restored snapshot/)).toBeVisible();
+  await expect(
+    page.getByText(/Stored recovery data is incompatible/),
+  ).toHaveCount(0);
+  await expect
+    .poll(() => img.evaluate((n) => (n as HTMLImageElement).naturalWidth))
+    .toBe(1);
+  const recovered = await page.evaluate(() =>
+    JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
+  );
+  expect(recovered.entries).toEqual(before.entries);
+  expect(
+    traffic
+      .slice(start)
+      .filter((r) => ["fetch", "xhr"].includes(r.type) || r.method !== "GET"),
+  ).toEqual([]);
+  await expect(
+    page.getByRole("button", { name: "Save file", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Download fixture-image.png", exact: true })
+    .click();
+  await expect(
+    page.getByText("File ready to save", { exact: true }),
+  ).toBeVisible();
+  expect(
+    traffic
+      .slice(start)
+      .filter((r) => ["fetch", "xhr"].includes(r.type))
+      .map((r) => r.url),
+  ).toEqual([`${threadURL}&tsdmapp=json`, inlineDownloadURL]);
+  await info.attach("image-recovery.json", {
+    body: Buffer.from(JSON.stringify({ before, recovered, traffic })),
+    contentType: "application/json",
+  });
+  await info.attach("image-recovery.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+// Negative-only hostile storage seam. Never used to manufacture a positive journey.
+for (const mutation of [
+  "missing-descriptor",
+  "foreign-source",
+  "wrong-endpoint",
+  "wrong-aid",
+  "missing-flag",
+  "wrong-flag",
+  "extra-query",
+  "duplicate-query",
+  "fragment",
+  "empty-fragment",
+  "empty-userinfo",
+  "userinfo",
+  "non-image-name",
+  "duplicate-id",
+  "duplicate-link",
+  "conflicting-link",
+  "offer-extra-query",
+  "offer-duplicate-query",
+  "offer-fragment",
+  "offer-userinfo",
+  "offer-wrong-flag",
+  "event-attribute",
+  "unknown-attribute",
+]) {
+  test(`J8.inline-image-recovery-hostile-${mutation}: reject and retain malformed record without authoring`, async ({
+    page,
+  }, info) => {
+    const requests = await open(page, {
+      initialThread: nativeInlineImageThread(),
+      file: { body: inlineImageBytes, contentType: "image/png" },
+    });
+    const rejected = await page.evaluate((mutation) => {
+      const key = "tsdm.workspace.recovery",
+        record = JSON.parse(sessionStorage.getItem(key)!);
+      interface StoredNode {
+        tag?: string;
+        attributes: Record<string, string>;
+        children?: StoredNode[];
+      }
+      interface StoredPost {
+        content: StoredNode[];
+        attachments: { id: string; name: string; url: string }[];
+      }
+      const entries: {
+        result?: { kind: string; thread: { posts: StoredPost[] } };
+      }[] = Object.values(record.entries);
+      const post = entries.find((entry) => entry.result?.kind === "thread")!
+        .result!.thread.posts[0]!;
+      const findImage = (nodes: StoredNode[]): StoredNode | undefined => {
+        for (const n of nodes) {
+          if (n.tag === "img") return n;
+          const found = n.children && findImage(n.children);
+          if (found) return found;
+        }
+      };
+      const img = findImage(post.content)!,
+        descriptor = post.attachments[0]!;
+      const source = new URL(img.attributes.src!),
+        offer = new URL(descriptor.url);
+      if (mutation === "missing-descriptor") post.attachments = [];
+      if (mutation === "foreign-source") source.hostname = "example.com";
+      if (mutation === "wrong-endpoint") source.pathname = "/other.php";
+      if (mutation === "wrong-aid") source.searchParams.set("aid", "different");
+      if (mutation === "missing-flag") source.searchParams.delete("noupdate");
+      if (mutation === "wrong-flag") source.searchParams.set("noupdate", "no");
+      if (mutation === "extra-query")
+        source.searchParams.set("action", "delete");
+      if (mutation === "duplicate-query")
+        source.searchParams.append("aid", "image-token");
+      if (mutation === "fragment") source.hash = "fragment";
+      if (mutation === "empty-fragment") source.hash = "#";
+      if (mutation === "userinfo") source.username = "user";
+      if (mutation === "non-image-name") descriptor.name = "file.txt";
+      if (mutation === "duplicate-id")
+        post.attachments.push({
+          ...descriptor,
+          url: descriptor.url.replace("image-token", "another-token"),
+        });
+      if (mutation === "duplicate-link")
+        post.attachments.push({ ...descriptor, id: "89" });
+      if (mutation === "conflicting-link")
+        post.attachments.push({
+          ...descriptor,
+          id: "89",
+          url: descriptor.url + "&action=pay",
+        });
+      if (mutation === "offer-extra-query")
+        offer.searchParams.set("action", "pay");
+      if (mutation === "offer-duplicate-query")
+        offer.searchParams.append("aid", "image-token");
+      if (mutation === "offer-fragment") offer.hash = "fragment";
+      if (mutation === "offer-userinfo") offer.username = "user";
+      if (mutation === "offer-wrong-flag")
+        offer.searchParams.set("nothumb", "no");
+      if (mutation === "event-attribute") img.attributes.onclick = "alert(1)";
+      if (mutation === "unknown-attribute")
+        img.attributes.file = img.attributes.src!;
+      img.attributes.src =
+        mutation === "empty-userinfo"
+          ? source.href.replace("https://", "https://@")
+          : source.href;
+      descriptor.url = offer.href;
+      const raw = JSON.stringify(record);
+      sessionStorage.setItem(key, raw);
+      return raw;
+    }, mutation);
+    const count = requests.length;
+    await page.reload();
+    await expect(
+      page.getByText(/Stored recovery data is incompatible/),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() =>
+        sessionStorage.getItem("tsdm.workspace.recovery"),
+      ),
+    ).toBe(rejected);
+    expect(requests).toHaveLength(count);
+    await info.attach("retained-hostile-record.json", {
+      body: Buffer.from(rejected),
+      contentType: "application/json",
+    });
+    await info.attach("refusal.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+}

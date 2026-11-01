@@ -86,7 +86,11 @@ const discarded = new Set(
   ),
 );
 const interactive = new Set("iframe object embed video audio form".split(" "));
-export function content(node: Node, base: string): ContentNode[] {
+export function content(
+  node: Node,
+  base: string,
+  inlineImages?: ReadonlyMap<Element, string>,
+): ContentNode[] {
   return children(node).flatMap((child): ContentNode[] => {
     if ("value" in child) return [{ kind: "text", text: child.value }];
     if (!element(child) || discarded.has(child.tagName)) return [];
@@ -143,7 +147,7 @@ export function content(node: Node, base: string): ContentNode[] {
                 },
               ],
             },
-            ...content(spoilerBody, base),
+            ...content(spoilerBody, base, inlineImages),
           ],
         },
       ];
@@ -165,13 +169,14 @@ export function content(node: Node, base: string): ContentNode[] {
           children: [],
         },
       ];
-    if (child.tagName === "ignore_js_op") return content(child, base);
+    if (child.tagName === "ignore_js_op")
+      return content(child, base, inlineImages);
     if (interactive.has(child.tagName))
       return [
         {
           kind: "unsupported",
           description: "Unsupported interactive content",
-          children: content(child, base),
+          children: content(child, base, inlineImages),
         },
       ];
     if (!allowed.has(child.tagName))
@@ -179,7 +184,7 @@ export function content(node: Node, base: string): ContentNode[] {
         {
           kind: "unsupported",
           description: `Unsupported formatting (${child.tagName})`,
-          children: content(child, base),
+          children: content(child, base, inlineImages),
         },
       ];
     const attributes: Record<string, string> = {};
@@ -210,10 +215,12 @@ export function content(node: Node, base: string): ContentNode[] {
         ["data-src", "zoomfile", "file", "data-original", "src"]
           .map((key) => attr(child, key))
           .find(Boolean) ?? "";
-      const url = safeURL(raw, base);
+      const qualified = inlineImages?.get(child);
+      const url = qualified ?? safeURL(raw, base);
       if (
         !url ||
-        !/\.(?:png|jpe?g|gif|webp|avif|bmp)$/i.test(new URL(url).pathname)
+        (!qualified &&
+          !/\.(?:png|jpe?g|gif|webp|avif|bmp)$/i.test(new URL(url).pathname))
       ) {
         return [
           {
@@ -239,7 +246,7 @@ export function content(node: Node, base: string): ContentNode[] {
         kind: "element",
         tag: child.tagName,
         attributes,
-        children: content(child, base),
+        children: content(child, base, inlineImages),
       },
     ];
   });

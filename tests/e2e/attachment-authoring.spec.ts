@@ -12,6 +12,7 @@ async function fixture(
   initialSource = "Existing source",
   editPostId = "101",
   mergedReply = false,
+  initialAttachments: { id: string; price: string }[] | null = null,
 ) {
   const state = {
     source: initialSource,
@@ -35,6 +36,11 @@ async function fixture(
     comments: false,
     metadataOption: '<option value="" selected>All</option>',
     storedReadperm: null as string | null,
+    storedAttachmentPrice: null as string | null,
+    storedFormChange: (body: string) => body,
+    editFormChange: (body: string) => body,
+    storedReferenceReadback: null as string[] | null,
+    saveResponseOverride: null as string | null,
     uploadLimit: 0,
     uploadInitializer: null as string | null,
     nativeJSON: null as Record<string, unknown> | null,
@@ -44,7 +50,7 @@ async function fixture(
     nativeFormReads: [] as string[],
     association: true,
     normalized: false,
-    updateSentinel: false,
+    updateSentinel: initialAttachments !== null,
     changeAccountAfterUpload: false,
     saved: false,
     saveGate: null as Promise<void> | null,
@@ -54,8 +60,8 @@ async function fixture(
     removals: [] as string[],
   };
   if (existing) {
-    state.ids = ["88"];
-    state.stored = ["88"];
+    state.ids = initialAttachments?.map((a) => a.id) ?? ["88"];
+    state.stored = [...state.ids];
     state.source =
       initialSource === "Existing source"
         ? "Existing [attach]88[/attach]"
@@ -90,7 +96,7 @@ async function fixture(
     const board =
       '<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music</a></div>';
     const fields = (id: string) =>
-      `<input name="attachnew[${id}][description]" value=""><select name="attachnew[${id}][readperm]">${state.storedReadperm === null ? state.metadataOption : `<option value="${esc(state.storedReadperm)}" selected>Stored permission</option>`}</select><input name="attachnew[${id}][price]" value="">`;
+      `<input name="attachnew[${id}][description]" value=""><select name="attachnew[${id}][readperm]">${state.storedReadperm === null ? state.metadataOption : `<option value="${esc(state.storedReadperm)}" selected>Stored permission</option>`}</select><input name="attachnew[${id}][price]" value="${state.saved ? esc(state.storedAttachmentPrice ?? "") : esc(initialAttachments?.find((a) => a.id === id)?.price ?? "")}">`;
     if (u.pathname === "/misc.php") {
       const raw = request.postDataBuffer()!,
         boundary = request.headers()["content-type"]!.split("boundary=")[1]!;
@@ -162,7 +168,9 @@ async function fixture(
       if (state.saveGate) await state.saveGate;
       return route.fulfill({
         contentType: "text/xml",
-        body: `<root><![CDATA[<script>succeedhandle_post('${context === "reply" || context === "quote" || editPostId === "303" ? thread + "&pid=303#pid303" : thread}', 'Saved', {});</script>]]></root>`,
+        body:
+          state.saveResponseOverride ??
+          `<root><![CDATA[<script>succeedhandle_post('${context === "reply" || context === "quote" || editPostId === "303" ? thread + "&pid=303#pid303" : thread}', 'Saved', {});</script>]]></root>`,
       });
     }
     if (u.searchParams.get("mod") === "attachment") {
@@ -180,7 +188,7 @@ async function fixture(
     }
     let body = account + board;
     if (u.searchParams.get("mod") === "post")
-      body += `<form id="postform" method="post" action="forum.php?mod=post&action=${u.searchParams.get("action")}&fid=5${u.searchParams.get("action") === "edit" ? `&tid=42&pid=${context === "reply" || context === "quote" ? "303" : editPostId}&editsubmit=yes` : context === "new-thread" ? "&topicsubmit=yes" : "&tid=42&replysubmit=yes"}"><input type="hidden" name="formhash" value="PRIVATE">${context === "quote" ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="AUTHOR-8"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">' : ""}<script>window.ATPLUS={"api":"plugin.php?id=atplus:search","login":1,"use":1};</script><label><input type="checkbox" name="usesig" value="1" checked>Signature</label><input name="price" value="0"><input type="hidden" name="save" id="postsave" value=""><button type="button" onclick="$('postsave').value=1;$('postsubmit').click();">Save draft</button><input name="subject" value="${context === "reply" || context === "quote" ? "" : esc(state.title)}"><textarea name="message">${esc(state.source).replaceAll("\r", "&#13;")}</textarea><button name="${u.searchParams.get("action") === "edit" ? "editsubmit" : context === "new-thread" ? "topicsubmit" : "replysubmit"}" type="submit" value="yes">Save</button></form><div id="e_attachlist">${u.searchParams.get("action") === "edit" ? state.stored.map((id) => (state.updateSentinel ? `<input type="hidden" name="attachupdate[${id}]" value="">` : "") + fields(id)).join("") : ""}</div><script>var upload = new SWFUpload({upload_url:'misc.php?mod=swfupload&action=swfupload&operation=upload&fid=5',post_params:{uid:'${state.member}',hash:'PRIVATE_UPLOAD'},file_upload_limit:${state.uploadLimit},file_queue_limit:0,file_size_limit:'${state.maxKB}',file_types:'*.jpg;*.jpeg;*.PNG;*.gif;*.txt',${state.comments ? "// ordinary native presentation comment\n" : ""}custom_settings:{uploadSource:'forum',uploadType:'attach',maxSizePerDay:${state.daily},maxAttachNum:${state.count},filterType:{txt:524288}}});</script>`;
+      body += `<form id="postform" method="post" action="forum.php?mod=post&action=${u.searchParams.get("action")}&fid=5${u.searchParams.get("action") === "edit" ? `&tid=42&pid=${context === "reply" || context === "quote" ? "303" : editPostId}&editsubmit=yes` : context === "new-thread" ? "&topicsubmit=yes" : "&tid=42&replysubmit=yes"}"><input type="hidden" name="formhash" value="PRIVATE">${context === "quote" ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="AUTHOR-8"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">' : ""}<script>window.ATPLUS={"api":"plugin.php?id=atplus:search","login":1,"use":1};</script><label><input type="checkbox" name="usesig" value="1" checked>Signature</label><input name="price" value="0"><input type="hidden" name="save" id="postsave" value=""><button type="button" onclick="$('postsave').value=1;$('postsubmit').click();">Save draft</button><input name="subject" value="${context === "reply" || context === "quote" ? "" : esc(state.title)}"><textarea name="message">${esc(state.source).replaceAll("\r", "&#13;")}</textarea><button name="${u.searchParams.get("action") === "edit" ? "editsubmit" : context === "new-thread" ? "topicsubmit" : "replysubmit"}" type="submit" value="yes">Save</button></form><div id="e_attachlist">${u.searchParams.get("action") === "edit" ? (state.saved ? (state.storedReferenceReadback ?? state.stored) : state.stored).map((id) => (state.updateSentinel ? `<input type="hidden" name="attachupdate[${id}]" value="">` : "") + fields(id)).join("") : ""}</div><script>var upload = new SWFUpload({upload_url:'misc.php?mod=swfupload&action=swfupload&operation=upload&fid=5',post_params:{uid:'${state.member}',hash:'PRIVATE_UPLOAD'},file_upload_limit:${state.uploadLimit},file_queue_limit:0,file_size_limit:'${state.maxKB}',file_types:'*.jpg;*.jpeg;*.PNG;*.gif;*.txt',${state.comments ? "// ordinary native presentation comment\n" : ""}custom_settings:{uploadSource:'forum',uploadType:'attach',maxSizePerDay:${state.daily},maxAttachNum:${state.count},filterType:{txt:524288}}});</script>`;
     else if (u.searchParams.get("mod") === "forumdisplay")
       body += `<div id="ct"><h1><a href="forum.php?mod=forumdisplay&fid=5">Music</a></h1></div><table id="threadlisttableid"><tbody id="normalthread_42"><tr><th><a class="xst" href="forum.php?mod=viewthread&tid=42">Existing thread</a></th></tr></tbody></table>`;
     else {
@@ -219,6 +227,10 @@ async function fixture(
         /<script>var upload = new SWFUpload\([\s\S]*?<\/script>/,
         `<script>${state.uploadInitializer}</script>`,
       );
+    if (u.searchParams.get("action") === "edit")
+      body = state.editFormChange(body);
+    if (state.saved && u.searchParams.get("action") === "edit")
+      body = state.storedFormChange(body);
     return route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({ ...state.nativeJSON, document: body }),
@@ -2071,3 +2083,821 @@ test("J8.native-text-event-tail: current native text instruction supports one up
     await receipt(page, state, info);
   }
 });
+
+// Native ordinary-publication failure inventory is retained with the proposed patch.
+// Only the external edit-form attachment price varies; submitter metadata stays blank.
+for (const scenario of [
+  {
+    name: "blank-to-zero",
+    storedPrice: "0",
+    association: true,
+    confirmed: true,
+  },
+  {
+    name: "unqualified-price",
+    storedPrice: "2",
+    association: true,
+    confirmed: false,
+  },
+  {
+    name: "missing-association",
+    storedPrice: "0",
+    association: false,
+    confirmed: false,
+  },
+]) {
+  test(`J4.attachment-stored-price-${scenario.name}: original publication retains its exact submitted attachment fields`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page, "new-thread");
+    state.storedAttachmentPrice = scenario.storedPrice;
+    state.association = scenario.association;
+    await select(page);
+    await upload(page);
+    await expect(
+      page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Insert note.txt", exact: true })
+      .click();
+    const expectedSource = "[attach]88[/attach]Existing source";
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(expectedSource);
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Publish thread", exact: true })
+      .click();
+    await expect(
+      page
+        .getByText(
+          /Confirmed stored thread|Complete stored source or offered options did not match/,
+        )
+        .first(),
+    ).toBeVisible();
+    const beforeCheck = state.requests.length;
+    if (
+      await page
+        .getByRole("button", { name: "Check result", exact: true })
+        .isVisible()
+    ) {
+      await page
+        .getByRole("button", { name: "Check result", exact: true })
+        .click();
+      await expect
+        .poll(
+          () =>
+            state.requests
+              .slice(beforeCheck)
+              .filter(
+                (request) =>
+                  new URL(request.url).searchParams.get("action") === "edit",
+              ).length,
+        )
+        .toBe(1);
+      await expect(
+        page.getByRole("button", { name: "Check result", exact: true }),
+      ).toBeEnabled();
+    }
+    const submitted = new URLSearchParams(state.saves[0]);
+    expect(submitted.has("attachnew[88][price]")).toBe(true);
+    expect(submitted.get("attachnew[88][price]")).toBe("");
+    expect(submitted.get("attachnew[88][description]")).toBe("");
+    expect(submitted.get("attachnew[88][readperm]")).toBe("");
+    expect(state.saves).toHaveLength(1);
+    expect(state.uploads).toHaveLength(1);
+    expect(state.removals).toEqual([]);
+    expect(state.source).toBe(expectedSource);
+    expect(state.stored).toEqual(scenario.association ? ["88"] : []);
+    expect(
+      state.requests
+        .slice(beforeCheck)
+        .every((request) => request.method === "GET"),
+    ).toBe(true);
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(expectedSource);
+    const recovered = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    );
+    const attempt = recovered.attempts[0];
+    expect(
+      attempt.publication.submission.writing.attachmentFields.find(
+        (field: { name: string }) => field.name === "attachnew[88][price]",
+      ).value,
+    ).toBe("");
+    // Soft final verdict retains failure artifacts on the current candidate.
+    expect
+      .soft(attempt.status)
+      .toBe(scenario.confirmed ? "confirmed" : "uncertain");
+    await expect
+      .soft(page.getByText(/Confirmed stored thread/))
+      .toHaveCount(scenario.confirmed ? 1 : 0);
+    await info.attach("attachment-price-verification.json", {
+      body: Buffer.from(
+        JSON.stringify({
+          scenario,
+          submitted: [...submitted],
+          attempt,
+          readOnlyRecheckRequests: state.requests.slice(beforeCheck),
+          source: state.source,
+          storedReferences: state.stored,
+          publicationCommands: state.saves.length,
+          uploads: state.uploads.length,
+          removals: state.removals.length,
+        }),
+      ),
+      contentType: "application/json",
+    });
+    if (scenario.confirmed) {
+      expect(attempt.result.verification.attachmentNormalizations).toEqual([
+        { name: "attachnew[88][price]", submitted: "", stored: "0" },
+      ]);
+      await expect(
+        page.getByText(
+          "Stored attachment 88 price: 0 (normalized from an empty submitted value).",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      const requestsBeforeReload = state.requests.length;
+      await page.reload();
+      await expect(page.getByText(/Confirmed stored thread/)).toBeVisible();
+      await expect(
+        page.getByText(
+          "Stored attachment 88 price: 0 (normalized from an empty submitted value).",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      expect(state.requests.slice(requestsBeforeReload)).toEqual([]);
+      expect(state.saves).toHaveLength(1);
+      expect(state.uploads).toHaveLength(1);
+    }
+    await receipt(page, state, info);
+  });
+}
+
+const attachmentPriceField = '<input name="attachnew[88][price]" value="0">';
+for (const scenario of [
+  {
+    name: "missing",
+    change: (body: string) => body.replace(attachmentPriceField, ""),
+  },
+  {
+    name: "disabled",
+    change: (body: string) =>
+      body.replace(
+        attachmentPriceField,
+        '<input name="attachnew[88][price]" value="0" disabled>',
+      ),
+  },
+  {
+    name: "duplicate",
+    change: (body: string) =>
+      body.replace(
+        attachmentPriceField,
+        attachmentPriceField + attachmentPriceField,
+      ),
+  },
+  {
+    name: "description",
+    change: (body: string) =>
+      body.replace(
+        'name="attachnew[88][description]" value=""',
+        'name="attachnew[88][description]" value="Other description"',
+      ),
+  },
+  {
+    name: "source",
+    change: (body: string) =>
+      body.replace("Existing source", "Different stored source"),
+  },
+  {
+    name: "actor",
+    change: (body: string) => body.replaceAll("uid=7", "uid=9"),
+  },
+]) {
+  test(`J4.attachment-price-readback-${scenario.name}: unrelated mismatch remains uncertain with no repeated effects`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page, "new-thread");
+    state.storedAttachmentPrice = "0";
+    state.storedFormChange = scenario.change;
+    await select(page);
+    await upload(page);
+    await expect(
+      page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Insert note.txt", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Publish thread", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Check result", exact: true }),
+    ).toBeEnabled();
+    await page
+      .getByRole("button", { name: "Check result", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Check result", exact: true }),
+    ).toBeEnabled();
+    await expect(page.getByText(/Confirmed stored thread/)).toHaveCount(0);
+    const attempt = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+          .attempts[0],
+    );
+    expect(attempt.status).toBe("uncertain");
+    expect(attempt.result).toBeNull();
+    expect(state.saves).toHaveLength(1);
+    expect(state.uploads).toHaveLength(1);
+    expect(state.removals).toEqual([]);
+    await receipt(page, state, info);
+  });
+}
+for (const corruption of [
+  "duplicate",
+  "wrong-id",
+  "nonzero",
+  "disabled-submission",
+  "omitted-submission",
+  "nonblank-submission",
+] as const) {
+  test(`J5.attachment-price-evidence-${corruption}: incompatible normalization stays inspectable and never replays`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page, "new-thread");
+    state.storedAttachmentPrice = "0";
+    await select(page);
+    await upload(page);
+    await expect(
+      page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Insert note.txt", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Publish thread", exact: true })
+      .click();
+    await expect(page.getByText(/Confirmed stored thread/)).toBeVisible();
+    const malformed = await page.evaluate((change) => {
+      const raw = JSON.parse(
+        sessionStorage.getItem("tsdm.workspace.recovery")!,
+      );
+      const attempt = raw.writing.attempts[0],
+        evidence = attempt.result.verification.attachmentNormalizations;
+      const fields = attempt.publication.submission.writing.attachmentFields;
+      const field = fields.find(
+        (item: { name: string }) => item.name === "attachnew[88][price]",
+      );
+      if (change === "duplicate") evidence.push({ ...evidence[0] });
+      if (change === "wrong-id") evidence[0].name = "attachnew[99][price]";
+      if (change === "nonzero") evidence[0].stored = "2";
+      if (change === "disabled-submission") field.disabled = true;
+      if (change === "omitted-submission")
+        attempt.publication.submission.writing.attachmentFields = fields.filter(
+          (item: { name: string }) => item.name !== "attachnew[88][price]",
+        );
+      if (change === "nonblank-submission") field.value = "2";
+      const value = JSON.stringify(raw);
+      sessionStorage.setItem("tsdm.workspace.recovery", value);
+      return value;
+    }, corruption);
+    await page.reload();
+    await expect(
+      page.getByText(/Stored recovery data is incompatible/),
+    ).toBeVisible();
+    await page
+      .getByRole("button", {
+        name: "Inspect retained recovery data",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByLabel("Retained recovery data", { exact: true }),
+    ).toHaveValue(malformed);
+    expect(state.saves).toHaveLength(1);
+    expect(state.uploads).toHaveLength(1);
+    expect(state.removals).toEqual([]);
+    await receipt(page, state, info);
+  });
+}
+
+test("J4.attachment-price-original-check: fresh matching metadata confirms the original uncertain attempt without resend", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, "new-thread");
+  state.storedAttachmentPrice = "2";
+  await select(page);
+  await upload(page);
+  await expect(
+    page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Insert note.txt", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Publish thread", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Check result", exact: true }),
+  ).toBeEnabled();
+  const original = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+        .attempts[0].publication,
+  );
+  state.storedAttachmentPrice = "0";
+  const before = state.requests.length;
+  await page.getByRole("button", { name: "Check result", exact: true }).click();
+  await expect(page.getByText(/Confirmed stored thread/)).toBeVisible();
+  const checked = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+        .attempts[0],
+  );
+  expect(checked.publication).toEqual(original);
+  expect(checked.result.verification.attachmentNormalizations).toEqual([
+    { name: "attachnew[88][price]", submitted: "", stored: "0" },
+  ]);
+  expect(state.requests.slice(before).map((request) => request.method)).toEqual(
+    ["GET", "GET"],
+  );
+  expect(state.saves).toHaveLength(1);
+  expect(state.uploads).toHaveLength(1);
+  expect(state.removals).toEqual([]);
+  await receipt(page, state, info);
+});
+test("J4.attachment-price-edit-baseline: qualified stored metadata does not create a false conflict on the next review", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, "edit");
+  state.storedAttachmentPrice = "0";
+  await select(page);
+  await upload(page);
+  await expect(
+    page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Insert note.txt", exact: true })
+    .click();
+  await save(page);
+  await expect(page.getByText(/Confirmed saved post 101/)).toBeVisible();
+  const confirmed = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+        .attempts[0],
+  );
+  expect(
+    confirmed.publication.submission.writing.attachmentFields.find(
+      (field: { name: string }) => field.name === "attachnew[88][price]",
+    ).value,
+  ).toBe("");
+  await page.getByRole("button", { name: "Review edit", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Save edited post", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Save my version", exact: true }),
+  ).toHaveCount(0);
+  expect(state.saves).toHaveLength(1);
+  expect(state.uploads).toHaveLength(1);
+  await receipt(page, state, info);
+});
+
+// Full-app existing+new reference readback. External response order/membership only.
+for (const scenario of [
+  {
+    name: "reordered",
+    order: ["88", "77"],
+    confirms: true,
+    originalCheck: false,
+    change: (s: string) => s,
+  },
+  {
+    name: "original-check",
+    order: ["88", "77"],
+    confirms: true,
+    originalCheck: true,
+    change: (s: string) => s,
+  },
+  {
+    name: "missing-existing",
+    order: ["88"],
+    confirms: false,
+    originalCheck: false,
+    change: (s: string) => s,
+  },
+  {
+    name: "missing-new",
+    order: ["77"],
+    confirms: false,
+    originalCheck: false,
+    change: (s: string) => s,
+  },
+  {
+    name: "extra",
+    order: ["88", "77", "99"],
+    confirms: false,
+    originalCheck: false,
+    change: (s: string) => s,
+  },
+  {
+    name: "duplicate",
+    order: ["88", "77", "88"],
+    confirms: false,
+    originalCheck: false,
+    change: (s: string) => s,
+  },
+  {
+    name: "source",
+    order: ["88", "77"],
+    confirms: false,
+    originalCheck: false,
+    change: (s: string) =>
+      s.replace("Existing [attach]77[/attach]", "Changed [attach]77[/attach]"),
+  },
+  {
+    name: "actor",
+    order: ["88", "77"],
+    confirms: false,
+    originalCheck: false,
+    change: (s: string) => s.replaceAll("uid=7", "uid=9"),
+  },
+  {
+    name: "description",
+    order: ["88", "77"],
+    confirms: false,
+    originalCheck: false,
+    change: (s: string) =>
+      s.replace(
+        'name="attachnew[77][description]" value=""',
+        'name="attachnew[77][description]" value="Changed"',
+      ),
+  },
+  {
+    name: "nonzero-price",
+    order: ["88", "77"],
+    confirms: false,
+    originalCheck: false,
+    change: (s: string) =>
+      s.replace(
+        'name="attachnew[88][price]" value="0"',
+        'name="attachnew[88][price]" value="2"',
+      ),
+  },
+  {
+    name: "readperm",
+    order: ["88", "77"],
+    confirms: false,
+    originalCheck: false,
+    change: (s: string) =>
+      s.replace(
+        '<select name="attachnew[77][readperm]"><option value="" selected>',
+        '<select name="attachnew[77][readperm]"><option value="9" selected>',
+      ),
+  },
+]) {
+  test(`J4.edit-reference-membership-${scenario.name}: original save preserves exact source and unique association membership`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(
+      page,
+      "edit",
+      true,
+      "Existing [attach]77[/attach]",
+      "101",
+      false,
+      [{ id: "77", price: "0" }],
+    );
+    state.storedAttachmentPrice = "0";
+    state.storedReferenceReadback = scenario.order;
+    state.storedFormChange = scenario.change;
+    if (scenario.originalCheck)
+      state.saveResponseOverride =
+        "<root><![CDATA[Authored unrecognized edit callback]]></root>";
+    await select(page);
+    await upload(page);
+    await expect(
+      page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Insert note.txt", exact: true })
+      .click();
+    const sourceBefore = await page
+      .getByLabel("Complete source", { exact: true })
+      .inputValue();
+    expect(sourceBefore).toContain("Existing [attach]77[/attach]");
+    expect(sourceBefore).toContain("[attach]88[/attach]");
+    await save(page);
+    if (scenario.confirms && !scenario.originalCheck) {
+      await expect(page.getByText(/Confirmed saved post 101/)).toBeVisible();
+    } else {
+      await expect(
+        page.getByRole("button", { name: "Check result", exact: true }),
+      ).toBeEnabled();
+    }
+    const before = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+          .attempts[0],
+    );
+    const checkReadStart = state.requests.length;
+    if (scenario.originalCheck || !scenario.confirms) {
+      await page
+        .getByRole("button", { name: "Check result", exact: true })
+        .click();
+      if (scenario.confirms)
+        await expect(page.getByText(/Confirmed saved post 101/)).toBeVisible();
+      else
+        await expect(
+          page.getByRole("button", { name: "Check result", exact: true }),
+        ).toBeEnabled();
+    }
+    const attempt = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+          .attempts[0],
+    );
+    expect(attempt.publication).toEqual(before.publication);
+    expect(attempt.publication.submission.writing.source).toBe(sourceBefore);
+    expect(attempt.publication.submission.writing.uploadedReferences).toEqual([
+      "77",
+      "88",
+    ]);
+    expect(
+      attempt.publication.submission.writing.attachmentFields.find(
+        (f: { name: string }) => f.name === "attachnew[88][price]",
+      ).value,
+    ).toBe("");
+    expect(attempt.status).toBe(scenario.confirms ? "confirmed" : "uncertain");
+    if (scenario.confirms) {
+      expect(attempt.result.verification.attachmentNormalizations).toEqual([
+        { name: "attachnew[88][price]", submitted: "", stored: "0" },
+      ]);
+      await expect(
+        page.getByText(
+          "Stored attachment 88 price: 0 (normalized from an empty submitted value).",
+          { exact: true },
+        ),
+      ).toBeVisible();
+    } else expect(attempt.result).toBeNull();
+    if (scenario.originalCheck || !scenario.confirms) {
+      expect(state.requests.slice(checkReadStart).map((r) => r.method)).toEqual(
+        ["GET", "GET", "GET"],
+      );
+    }
+    expect(state.saves).toHaveLength(1);
+    expect(state.uploads).toHaveLength(1);
+    expect(state.removals).toEqual([]);
+    expect(new URLSearchParams(state.saves[0]!).get("message")).toBe(
+      sourceBefore,
+    );
+    await info.attach("edit-reference-membership.json", {
+      body: Buffer.from(
+        JSON.stringify({
+          scenario: scenario.name,
+          renderedReferenceOrder: scenario.order,
+          source: sourceBefore,
+          originalPublication: before.publication,
+          result: attempt,
+          checkRequests: state.requests.slice(checkReadStart),
+          commands: state.saves.length,
+          uploads: state.uploads.length,
+        }),
+      ),
+      contentType: "application/json",
+    });
+    await receipt(page, state, info);
+  });
+}
+
+// Failure-first order-only baseline and preflight coverage; no positive storage input.
+test("J4.edit-order-next-review: reordered confirmation keeps original evidence and permits the next review", async ({
+  page,
+}, info) => {
+  const state = await fixture(
+    page,
+    "edit",
+    true,
+    "Existing [attach]77[/attach]",
+    "101",
+    false,
+    [{ id: "77", price: "0" }],
+  );
+  state.storedAttachmentPrice = "0";
+  state.storedReferenceReadback = ["88", "77"];
+  await select(page);
+  await upload(page);
+  await expect(
+    page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Insert note.txt", exact: true })
+    .click();
+  await save(page);
+  await expect(page.getByText(/Confirmed saved post 101/)).toBeVisible();
+  const before = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+  expect(
+    before.attempts[0].publication.submission.writing.uploadedReferences,
+  ).toEqual(["77", "88"]);
+  await page.getByRole("button", { name: "Review edit", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Save edited post", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Save my version", exact: true }),
+  ).toHaveCount(0);
+  const after = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+  expect(after.attempts).toEqual(before.attempts);
+  expect(after.editTarget.baseline).toEqual(before.editTarget.baseline);
+  expect(state.saves).toHaveLength(1);
+  expect(state.uploads).toHaveLength(1);
+  expect(state.removals).toEqual([]);
+  await info.attach("next-review-preservation.json", {
+    body: Buffer.from(JSON.stringify({ before, after })),
+    contentType: "application/json",
+  });
+  await receipt(page, state, info);
+});
+for (const phase of ["review", "preflight"]) {
+  for (const variation of [
+    "order-only",
+    "missing",
+    "extra",
+    "duplicate",
+    "description",
+    "readperm",
+    "price",
+    "disabled",
+    "source",
+    "title",
+    "option",
+    "actor",
+    "target",
+  ]) {
+    test(`J4.edit-order-${phase}-${variation}: presentation equivalence preserves exact content and metadata conflict boundaries`, async ({
+      page,
+    }, info) => {
+      const state = await fixture(
+        page,
+        "edit",
+        true,
+        "Existing [attach]77[/attach] [attach]88[/attach]",
+        "101",
+        false,
+        [
+          { id: "77", price: "0" },
+          { id: "88", price: "0" },
+        ],
+      );
+      state.storedAttachmentPrice = "0";
+      await page
+        .getByLabel("Complete source", { exact: true })
+        .fill(state.source + " local edit");
+      if (phase === "preflight") {
+        await page
+          .getByRole("button", { name: "Review edit", exact: true })
+          .click();
+        await expect(
+          page.getByRole("button", { name: "Save edited post", exact: true }),
+        ).toBeVisible();
+      }
+      const before = await page.evaluate(
+        () =>
+          JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
+            .writing,
+      );
+      state.stored =
+        variation === "missing"
+          ? ["88"]
+          : variation === "extra"
+            ? ["88", "77", "99"]
+            : variation === "duplicate"
+              ? ["88", "77", "88"]
+              : ["88", "77"];
+      state.editFormChange = (body) => {
+        // Reverse the independent controls, not their names, values or enabled state.
+        body = body.replace(
+          /(<input name="attachnew\[77\]\[description\]"[^>]*>)(<select name="attachnew\[77\]\[readperm\]">[\s\S]*?<\/select>)(<input name="attachnew\[77\]\[price\]"[^>]*>)/,
+          "$3$2$1",
+        );
+        if (variation === "description")
+          body = body.replace(
+            'name="attachnew[77][description]" value=""',
+            'name="attachnew[77][description]" value="changed"',
+          );
+        if (variation === "readperm")
+          body = body.replace(
+            '<select name="attachnew[77][readperm]"><option value="" selected>',
+            '<select name="attachnew[77][readperm]"><option value="9" selected>',
+          );
+        if (variation === "price")
+          body = body.replace(
+            'name="attachnew[77][price]" value="0"',
+            'name="attachnew[77][price]" value="2"',
+          );
+        if (variation === "disabled")
+          body = body.replace(
+            'name="attachnew[77][description]"',
+            'name="attachnew[77][description]" disabled',
+          );
+        if (variation === "source")
+          body = body.replace(
+            "Existing [attach]77[/attach]",
+            "Server changed [attach]77[/attach]",
+          );
+        if (variation === "title")
+          body = body.replace(
+            'name="subject" value="Owned attachment thread"',
+            'name="subject" value="Changed title"',
+          );
+        if (variation === "option")
+          body = body.replace(
+            'name="usesig" value="1" checked',
+            'name="usesig" value="1"',
+          );
+        if (variation === "actor") body = body.replaceAll("uid=7", "uid=9");
+        if (variation === "target")
+          body = body.replace("pid=101&editsubmit", "pid=102&editsubmit");
+        return body;
+      };
+      if (phase === "review") {
+        await page
+          .getByRole("button", { name: "Review edit", exact: true })
+          .click();
+        if (variation === "order-only")
+          await expect(
+            page.getByRole("button", { name: "Save edited post", exact: true }),
+          ).toBeVisible();
+        else {
+          await expect(
+            page
+              .getByText(/server post changed|unavailable|cannot be preserved/i)
+              .first(),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("button", { name: "Save edited post", exact: true }),
+          ).toHaveCount(0);
+        }
+      } else {
+        await page
+          .getByRole("button", { name: "Save edited post", exact: true })
+          .click();
+        if (variation === "order-only")
+          await expect(
+            page.getByText(/Confirmed saved post 101/),
+          ).toBeVisible();
+        else
+          await expect(
+            page
+              .getByText(
+                /changed before save|unavailable|Current source or original account/i,
+              )
+              .first(),
+          ).toBeVisible();
+      }
+      const after = await page.evaluate(
+        () =>
+          JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
+            .writing,
+      );
+      expect(after.source).toBe(before.source);
+      if (phase === "review" || variation !== "order-only")
+        expect(after.editTarget.baseline).toEqual(before.editTarget.baseline);
+      if (phase === "preflight")
+        expect(
+          after.attempts[0].publication.submission.writing.editTarget.baseline,
+        ).toEqual(before.editTarget.baseline);
+      expect(state.saves).toHaveLength(
+        phase === "preflight" && variation === "order-only" ? 1 : 0,
+      );
+      expect(state.uploads).toEqual([]);
+      expect(state.removals).toEqual([]);
+      await info.attach("edit-order-preservation.json", {
+        body: Buffer.from(JSON.stringify({ phase, variation, before, after })),
+        contentType: "application/json",
+      });
+      await receipt(page, state, info);
+    });
+  }
+}

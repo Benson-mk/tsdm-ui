@@ -44,8 +44,12 @@ const packetFields = `<div class="hb-postbox">
 <input type="text" name="hb_blessing" maxlength="50" value="恭喜發財,大吉大利">
 <div class="hb-hint">紅包金額在扣款成功後才鎖定;發表後不可補塞、不可加碼。</div></div>`;
 
-async function fixture(page: Page) {
+async function fixture(
+  page: Page,
+  setup: { ordinary?: boolean; hints?: string[] } = {},
+) {
   const state = {
+    hints: setup.hints ?? [],
     saved: null as URLSearchParams | null,
     packet: null as URLSearchParams | null,
     packetState: "open",
@@ -73,8 +77,10 @@ async function fixture(page: Page) {
     member: "7",
     published: false,
     association: true,
+    reverseStoredAttachments: false,
     uploadOutcome: "accepted",
     saveOutcome: "accepted",
+    rejectionMessage: "subject_invalid",
     publicationOutcome: "published",
     publicationMissingAssociation: false,
     updateSentinel: false,
@@ -107,9 +113,12 @@ async function fixture(page: Page) {
     `<input name="attachnew[${id}][description]" value=""><select name="attachnew[${id}][readperm]"><option value="" selected>All</option></select><input name="attachnew[${id}][price]" value="">`;
   const form = (edit: boolean) =>
     state.formChange(
-      `${actor()}${board}<form id="postform" method="post" action="forum.php?mod=post&action=${edit ? "edit&tid=42&pid=101&editsubmit=yes" : "newthread&topicsubmit=yes"}&fid=5"><input type="hidden" name="formhash" value="PRIVATE">${edit && state.specialEdit ? '<input type="hidden" name="special" value=""><input type="hidden" name="specialextra" value="NATIVE_KEPT">' : ""}<input type="hidden" name="posttime" value="1792550000"><input type="hidden" name="save" id="postsave" value=""><button type="button" onclick="$('postsave').value=1;$('postsubmit').click();">Save draft</button><input name="subject" value="${esc(edit ? (state.saved?.get("subject") ?? "") : "")}"><textarea name="message">${esc(edit ? (state.saved?.get("message") ?? "") : "")}</textarea>${!edit ? packetFields + '<script>window.ATPLUS={"api":"plugin.php?id=atplus:search","login":1,"use":1};</script>' : ""}<select name="typeid"><option value="3" selected>Listening</option></select><label><input type="checkbox" name="usesig" value="1"${!edit || state.saved?.has("usesig") ? " checked" : ""}>Signature</label><input name="price" value="0"><button name="${edit ? "editsubmit" : "topicsubmit"}" type="submit" value="yes">Save</button></form><div id="e_attachlist">${
+      `${actor()}${board}<form id="postform" method="post" action="forum.php?mod=post&action=${edit ? "edit&tid=42&pid=101&editsubmit=yes" : "newthread&topicsubmit=yes"}&fid=5"><input type="hidden" name="formhash" value="PRIVATE">${edit && state.specialEdit ? '<input type="hidden" name="special" value=""><input type="hidden" name="specialextra" value="NATIVE_KEPT">' : ""}<input type="hidden" name="posttime" value="1792550000"><input type="hidden" name="save" id="postsave" value=""><button type="button" onclick="$('postsave').value=1;$('postsubmit').click();">Save draft</button><input name="subject" value="${esc(edit ? (state.saved?.get("subject") ?? "") : "")}"><textarea name="message">${esc(edit ? (state.saved?.get("message") ?? "") : "")}</textarea>${!edit ? state.hints.map((hint) => `<span class="hb-hint">${esc(hint)}</span>`).join("") + (setup.ordinary ? "" : packetFields) + '<script>window.ATPLUS={"api":"plugin.php?id=atplus:search","login":1,"use":1};</script>' : ""}<select name="typeid"><option value="3" selected>Listening</option></select><label><input type="checkbox" name="usesig" value="1"${!edit || state.saved?.has("usesig") ? " checked" : ""}>Signature</label><input name="price" value="0"><button name="${edit ? "editsubmit" : "topicsubmit"}" type="submit" value="yes">Save</button></form><div id="e_attachlist">${
         edit
-          ? state.associated
+          ? (state.reverseStoredAttachments
+              ? [...state.associated].reverse()
+              : state.associated
+            )
               .filter((id) => state.files.has(id))
               .map(
                 (id) =>
@@ -235,7 +244,7 @@ async function fixture(page: Page) {
       if (state.saveOutcome === "rejected")
         return route.fulfill({
           contentType: "text/xml",
-          body: "<root><![CDATA[<script>errorhandle_post('subject_invalid', {});</script>]]></root>",
+          body: `<root><![CDATA[<script>errorhandle_post('${state.rejectionMessage}', {});</script>]]></root>`,
         });
       if (data.has("hb_total") && state.packetOutcome === "accepted") {
         state.packet = new URLSearchParams(data);
@@ -318,15 +327,20 @@ async function fixture(page: Page) {
   });
   await page.goto(`${origin}/forum.php?mod=forumdisplay&fid=5`);
   await page
-    .getByRole("button", { name: "New red packet", exact: true })
+    .getByRole("button", {
+      name: setup.ordinary ? "New thread" : "New red packet",
+      exact: true,
+    })
     .click();
   await page.getByLabel("Title", { exact: true }).fill("Uploaded draft");
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("[unknown]Draft source[/unknown]");
-  await page.getByLabel("Total credits", { exact: true }).fill("20");
-  await page.getByLabel("Share count", { exact: true }).fill("2");
-  await page.getByLabel("Expiry", { exact: true }).selectOption("6");
+  if (!setup.ordinary) {
+    await page.getByLabel("Total credits", { exact: true }).fill("20");
+    await page.getByLabel("Share count", { exact: true }).fill("2");
+    await page.getByLabel("Expiry", { exact: true }).selectOption("6");
+  }
   return state;
 }
 async function select(page: Page, name = "note.txt") {
@@ -1613,5 +1627,309 @@ for (const kind of ["direct", "funded"] as const)
     expect(state.commands).toHaveLength(1);
     expect(state.uploads).toHaveLength(1);
     expect(state.removals).toEqual([]);
+    await evidence(page, info, state);
+  });
+
+for (const outcome of ["packet-unknown", "credit-unknown"] as const)
+  test(`J6.J7.funded-draft-order-${outcome}: reordered associations cannot imply funding or credit confirmation`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    state.reverseStoredAttachments = true;
+    if (outcome === "packet-unknown") state.packetState = "malformed";
+    await upload(page, "first.txt");
+    await upload(page, "second.txt");
+    await save(page);
+    await page
+      .getByRole("button", { name: "Cancel funded draft save", exact: true })
+      .click();
+    expect(state.commands).toEqual([]);
+    expect(state.credits).toEqual([]);
+    await fund(page);
+    await expect(
+      page.getByText(/Confirmed forum draft 42/).last(),
+    ).toBeVisible();
+    const attempt = (await recovered(page)).draftAttempts![0]!;
+    expect(attempt.observation?.attachments).toBe("confirmed");
+    expect(attempt.redPacket?.credit).toBe("unknown");
+    if (outcome === "packet-unknown")
+      await expect(
+        page.getByText("Packet state: unknown", { exact: true }),
+      ).toBeVisible();
+    expect(state.commands).toHaveLength(1);
+    expect(state.uploads).toHaveLength(2);
+    expect(state.associated).toEqual(["88", "89"]);
+    expect(
+      state.credits.filter((c) => c.operation === "HBS").length,
+    ).toBeLessThanOrEqual(1);
+    await evidence(page, info, state);
+  });
+
+const balanceHint = "目前餘額 980 天使币";
+async function sendPacket(page: Page, kind: "direct" | "funded") {
+  if (kind === "funded") await fund(page);
+  else {
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Publish red packet", exact: true })
+      .click();
+  }
+}
+async function terminalPacket(page: Page, kind: "direct" | "funded") {
+  const writing = await recovered(page);
+  return (kind === "funded" ? writing.draftAttempts : writing.attempts)?.at(-1)
+    ?.status;
+}
+for (const kind of ["direct", "funded"] as const) {
+  for (const balance of ["990", "970"]) {
+    test(`J6.J7.balance-drift-${kind}-${balance}: single command preserves source attachment and funding choices`, async ({
+      page,
+    }, info) => {
+      const state = await fixture(page, { hints: [balanceHint] });
+      await upload(page);
+      await page
+        .getByRole("button", { name: "Insert note.txt", exact: true })
+        .click();
+      const source = await page
+        .getByLabel("Complete source", { exact: true })
+        .inputValue();
+      state.hints = [`目前餘額 ${balance} 天使币`];
+      await sendPacket(page, kind);
+      await expect
+        .poll(() => terminalPacket(page, kind))
+        .toMatch(/confirmed|not-sent|uncertain|rejected/);
+      expect(state.commands).toHaveLength(1);
+      expect(state.saved?.get("message")).toBe(source);
+      expect(state.packet?.get("hb_total")).toBe("20");
+      expect(state.packet?.get("hb_expire")).toBe("6");
+      expect(state.associated).toEqual(["88"]);
+      expect(state.uploads).toHaveLength(1);
+      expect(state.credits.filter((c) => c.operation === "HBS")).toHaveLength(
+        1,
+      );
+      await expect(
+        page
+          .getByText(
+            kind === "funded"
+              ? /Confirmed forum draft 42/
+              : /Confirmed stored thread 42/,
+          )
+          .last(),
+      ).toBeVisible();
+      await page.reload();
+      await expect(
+        page.getByLabel("Complete source", { exact: true }),
+      ).toHaveValue(source);
+      expect(state.commands).toHaveLength(1);
+      await evidence(page, info, state);
+    });
+  }
+  for (const change of [
+    "limits",
+    "wording",
+    "currency",
+    "suffix",
+    "missing",
+    "duplicate",
+    "duplicate-both",
+    "reordered",
+    "decimal",
+    "negative",
+    "max",
+    "min",
+    "step",
+    "choices",
+    "disabled",
+    "account",
+    "target",
+  ] as const) {
+    test(`J6.J7.balance-guard-${kind}-${change}: meaningful or ambiguous native drift still refuses before a command`, async ({
+      page,
+    }, info) => {
+      const state = await fixture(page, {
+        hints:
+          change === "duplicate-both"
+            ? [balanceHint, balanceHint]
+            : [balanceHint],
+      });
+      if (kind === "direct")
+        await page
+          .getByRole("button", { name: "Review publication", exact: true })
+          .click();
+      state.hints = ["目前餘額 990 天使币"];
+      if (change === "wording") state.hints = ["可用餘額 990 天使币"];
+      if (change === "currency") state.hints = ["目前餘額 990 威望"];
+      if (change === "suffix")
+        state.hints = ["目前餘額 990 天使币 每份至少 30"];
+      if (change === "missing") state.hints = [];
+      if (change === "duplicate" || change === "duplicate-both")
+        state.hints = ["目前餘額 990 天使币", "目前餘額 990 天使币"];
+      if (change === "decimal") state.hints = ["目前餘額 990.5 天使币"];
+      if (change === "negative") state.hints = ["目前餘額 -10 天使币"];
+      if (change === "account") state.member = "8";
+      state.formChange = (html) => {
+        if (change === "limits")
+          return html.replace(
+            "最多 100 份;每份至少 10",
+            "最多 100 份;每份至少 30",
+          );
+        if (change === "max") return html.replace('max="100"', 'max="1"');
+        if (change === "min")
+          return html.replace(
+            'name="hb_total" min="1"',
+            'name="hb_total" min="30"',
+          );
+        if (change === "step") return html.replace('step="1"', 'step="10"');
+        if (change === "choices")
+          return html.replace(
+            '<option value="6">6 小時</option>',
+            '<option value="6" disabled>6 小時</option>',
+          );
+        if (change === "disabled")
+          return html.replace('name="hb_total"', 'name="hb_total" disabled');
+        if (change === "target")
+          return html.replace(
+            "newthread&topicsubmit=yes&fid=5",
+            "newthread&topicsubmit=yes&fid=6",
+          );
+        if (change === "reordered")
+          return html
+            .replace('<span class="hb-hint">目前餘額 990 天使币</span>', "")
+            .replace(
+              "</form>",
+              '<span class="hb-hint">目前餘額 990 天使币</span></form>',
+            );
+        return html;
+      };
+      const source = await page
+        .getByLabel("Complete source", { exact: true })
+        .inputValue();
+      if (kind === "direct")
+        await page
+          .getByRole("button", { name: "Publish red packet", exact: true })
+          .click();
+      else await fund(page);
+      await expect.poll(() => terminalPacket(page, kind)).toBe("not-sent");
+      expect(state.commands).toEqual([]);
+      expect(state.credits).toEqual([]);
+      await expect(
+        page.getByLabel("Complete source", { exact: true }),
+      ).toHaveValue(source);
+      await page.reload();
+      await expect(
+        page.getByLabel("Complete source", { exact: true }),
+      ).toHaveValue(source);
+      expect(state.commands).toEqual([]);
+      await evidence(page, info, state);
+    });
+  }
+  test(`J6.J7.balance-server-authority-${kind}: depleted balance rejection preserves uncertainty without automatic replay`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page, { hints: [balanceHint] });
+    state.hints = ["目前餘額 0 天使币"];
+    state.saveOutcome = "rejected";
+    state.rejectionMessage = "餘額不足";
+    await sendPacket(page, kind);
+    await expect
+      .poll(() => terminalPacket(page, kind))
+      .toMatch(/not-sent|uncertain|rejected/);
+    expect(state.commands).toHaveLength(1);
+    expect(await terminalPacket(page, kind)).toBe("uncertain");
+    expect(state.saved).toBeNull();
+    expect(state.credits).toEqual([]);
+    await page.reload();
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue("[unknown]Draft source[/unknown]");
+    const readCount = state.reads.length;
+    await page
+      .getByRole("button", {
+        name: "Check current account and form",
+        exact: true,
+      })
+      .click();
+    await expect.poll(() => state.reads.length).toBeGreaterThan(readCount);
+    expect(state.commands).toHaveLength(1);
+    await evidence(page, info, state);
+  });
+}
+for (const kind of ["direct", "draft"] as const)
+  test(`J6.J7.balance-ordinary-${kind}: ordinary writing does not gain packet funding from balance metadata`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page, { ordinary: true, hints: [balanceHint] });
+    state.hints = ["目前餘額 990 天使币"];
+    if (kind === "draft") await save(page);
+    else {
+      await page
+        .getByRole("button", { name: "Review publication", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Publish thread", exact: true })
+        .click();
+    }
+    await expect.poll(() => state.commands.length).toBe(1);
+    await expect(
+      page
+        .getByText(
+          kind === "draft"
+            ? /Confirmed forum draft 42/
+            : /Confirmed stored thread 42/,
+        )
+        .last(),
+    ).toBeVisible();
+    expect(state.packet).toBeNull();
+    expect(state.saved?.get("message")).toBe("[unknown]Draft source[/unknown]");
+    expect(state.credits.filter((c) => c.operation === "HBS")).toEqual([]);
+    await evidence(page, info, state);
+  });
+
+test("J6.J7.balance-drift-direct-after-review: revalidate volatile balance at the final send boundary", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, { hints: [balanceHint] });
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  state.hints = ["目前餘額 970 天使币"];
+  await page
+    .getByRole("button", { name: "Publish red packet", exact: true })
+    .click();
+  await expect
+    .poll(() => terminalPacket(page, "direct"))
+    .toMatch(/confirmed|not-sent|uncertain|rejected/);
+  expect(state.commands).toHaveLength(1);
+  await expect(page.getByText(/Confirmed stored thread 42/)).toBeVisible();
+  expect(state.packet?.get("hb_total")).toBe("20");
+  await evidence(page, info, state);
+});
+
+for (const kind of ["direct", "funded"] as const)
+  test(`J6.J7.balance-empty-position-${kind}: empty hints cannot hide a moved native balance label`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page, { hints: [balanceHint, ""] });
+    if (kind === "direct")
+      await page
+        .getByRole("button", { name: "Review publication", exact: true })
+        .click();
+    state.hints = ["", "目前餘額 990 天使币"];
+    if (kind === "direct")
+      await page
+        .getByRole("button", { name: "Publish red packet", exact: true })
+        .click();
+    else await fund(page);
+    await expect
+      .poll(() => terminalPacket(page, kind))
+      .toMatch(/confirmed|not-sent|uncertain|rejected/);
+    expect(await terminalPacket(page, kind)).toBe("not-sent");
+    expect(state.commands).toEqual([]);
+    expect(state.credits).toEqual([]);
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue("[unknown]Draft source[/unknown]");
     await evidence(page, info, state);
   });

@@ -19,6 +19,8 @@ async function fixture(page: Page) {
     member: "7",
     published: false,
     association: true,
+    metadata: new Map<string, { description: string; readperm: string }>(),
+    reverseStoredAttachments: false,
     uploadOutcome: "accepted",
     saveOutcome: "accepted",
     publicationOutcome: "published",
@@ -29,6 +31,7 @@ async function fixture(page: Page) {
     pendingPrice: "",
     nativeReadperm: false,
     referenceKind: "attach" as "attach" | "attachimg",
+    referenceKinds: new Map<string, "attach" | "attachimg">(),
     listMissing: false,
     uploadGate: null as Promise<void> | null,
     saveGate: null as Promise<void> | null,
@@ -45,12 +48,15 @@ async function fixture(page: Page) {
   const board =
     '<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music</a></div>';
   const fields = (id: string, stored = false) =>
-    `<input name="attachnew[${id}][description]" value=""><select name="attachnew[${id}][readperm]"><option value=""${stored && state.nativeReadperm ? "" : " selected"}>All</option>${stored && state.nativeReadperm ? '<option value="1">One</option><option value="1">Another group</option><option value="10">Ten</option>' : ""}</select><input name="attachnew[${id}][price]" value="${stored ? (state.savedPrice ?? state.pendingPrice) : state.pendingPrice}">`;
+    `<input name="attachnew[${id}][description]" value="${esc(state.metadata.get(id)?.description ?? "")}"><select name="attachnew[${id}][readperm]"><option value="${esc(state.metadata.get(id)?.readperm ?? "")}"${stored && state.nativeReadperm ? "" : " selected"}>All</option>${stored && state.nativeReadperm ? '<option value="1">One</option><option value="1">Another group</option><option value="10">Ten</option>' : ""}</select><input name="attachnew[${id}][price]" value="${stored ? (state.savedPrice ?? state.pendingPrice) : state.pendingPrice}">`;
   const form = (edit: boolean) =>
     state.formChange(
       `${actor()}${board}<form id="postform" method="post" action="forum.php?mod=post&action=${edit ? "edit&tid=42&pid=101&editsubmit=yes" : "newthread&topicsubmit=yes"}&fid=5"><input type="hidden" name="formhash" value="PRIVATE"><input type="hidden" name="posttime" value="1792550000"><input type="hidden" name="save" id="postsave" value=""><button type="button" onclick="$('postsave').value=1;$('postsubmit').click();">Save draft</button><input name="subject" value="${esc(edit ? (state.saved?.get("subject") ?? "") : "")}"><textarea name="message">${esc(edit ? (state.saved?.get("message") ?? "") : "")}</textarea><select name="typeid"><option value="3" selected>Listening</option></select><label><input type="checkbox" name="usesig" value="1"${!edit || state.saved?.has("usesig") ? " checked" : ""}>Signature</label><input name="price" value="0"><button name="${edit ? "editsubmit" : "topicsubmit"}" type="submit" value="yes">Save</button></form><div id="e_attachlist">${
         edit
-          ? state.associated
+          ? (state.reverseStoredAttachments
+              ? [...state.associated].reverse()
+              : state.associated
+            )
               .filter((id) => state.files.has(id))
               .map(
                 (id) =>
@@ -90,6 +96,7 @@ async function fixture(page: Page) {
         return route.fulfill({ contentType: "text/plain", body: "-1" });
       const id = String(88 + state.files.size);
       state.files.set(id, { name, bytes: data });
+      state.referenceKinds.set(id, state.referenceKind);
       if (state.uploadGate) await state.uploadGate;
       if (state.uploadOutcome === "lost") return route.abort();
       return route.fulfill({ contentType: "text/plain", body: id });
@@ -103,7 +110,7 @@ async function fixture(page: Page) {
       const id = url.searchParams.get("aids")!;
       return route.fulfill({
         contentType: "text/xml",
-        body: `<root><![CDATA[${!state.listMissing && state.files.has(id) ? `<table><tbody><tr><td><a onclick="${state.referenceKind === "attachimg" ? "insertAttachimgTag" : "insertAttachTag"}('${id}');">${esc(state.files.get(id)!.name)}</a></td><td>${fields(id)}</td></tr></tbody></table>` : ""}]]></root>`,
+        body: `<root><![CDATA[${!state.listMissing && state.files.has(id) ? `<table><tbody><tr><td><a onclick="${state.referenceKinds.get(id) === "attachimg" ? "insertAttachimgTag" : "insertAttachTag"}('${id}');">${esc(state.files.get(id)!.name)}</a></td><td>${fields(id)}</td></tr></tbody></table>` : ""}]]></root>`,
       });
     }
     if (url.searchParams.get("action") === "deleteattach") {
@@ -1315,7 +1322,6 @@ for (const drift of [
   "reverse",
   "description",
   "readperm",
-  "order",
   "disabled",
   "missing",
 ] as const)
@@ -1358,17 +1364,7 @@ for (const drift of [
                     '<input name="attachnew[88][price]" value="0">',
                     "",
                   )
-                : drift === "order"
-                  ? html
-                      .replace(
-                        '<input name="attachnew[88][description]" value="">',
-                        "",
-                      )
-                      .replace(
-                        '<input name="attachnew[88][price]" value="0">',
-                        '<input name="attachnew[88][price]" value="0"><input name="attachnew[88][description]" value="">',
-                      )
-                  : html;
+                : html;
     await save(page);
     await expect(
       page.getByText(/attachment associations unconfirmed/).first(),
@@ -1397,3 +1393,391 @@ test("J6.J8.native-price-conflict: independently confirmed default does not mask
   expect(state.commands).toHaveLength(1);
   await evidence(page, info, state);
 });
+
+// #37: supersedes #27's order-only refusal; source order and metadata stay exact.
+async function orderPair(
+  page: Page,
+  state: Awaited<ReturnType<typeof fixture>>,
+) {
+  state.reverseStoredAttachments = true;
+  state.updateSentinel = true;
+  state.bareUpdateSentinel = true;
+  state.savedPrice = "0";
+  state.referenceKind = "attachimg";
+  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+    name: "first.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPQaNgAAAIsAVme8NXuAAAAAElFTkSuQmCC",
+      "base64",
+    ),
+  });
+  await page
+    .getByRole("button", { name: "Upload first.png", exact: true })
+    .click();
+  await expect(
+    page.getByText("Uploaded, unassociated · first.png", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Insert first.png", exact: true })
+    .click();
+  state.referenceKind = "attach";
+  await upload(page, "second.txt");
+  await page
+    .getByRole("button", { name: "Insert second.txt", exact: true })
+    .click();
+  return page.getByLabel("Complete source", { exact: true }).inputValue();
+}
+
+for (const continuation of ["same-context", "fresh-resume"] as const)
+  test(`J6.J8.draft-order-${continuation}: reversed native groups confirm exact mixed attachments through resave and publication`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    try {
+      const originalSource = await orderPair(page, state);
+      await save(page);
+      await expect(
+        page.getByText(/Confirmed forum draft 42/).last(),
+      ).toBeVisible();
+      expect(state.associated).toEqual(["88", "89"]);
+      expect(state.saved!.get("message")).toBe(originalSource);
+      const original = (await recoveredWriting(page)).draftAttempts[0];
+      expect(original.observation.attachmentNormalizations).toEqual([
+        { name: "attachnew[88][price]", submitted: "", stored: "0" },
+        { name: "attachnew[89][price]", submitted: "", stored: "0" },
+      ]);
+      if (continuation === "fresh-resume") {
+        page = await page.context().newPage();
+        await page.goto(`${origin}/forum.php?mod=forumdisplay&fid=5`);
+        await page
+          .getByRole("button", { name: "Drafts", exact: true })
+          .first()
+          .click();
+        await page
+          .getByRole("button", { name: "Load forum drafts", exact: true })
+          .click();
+        await page
+          .getByRole("button", { name: "Resume Uploaded draft", exact: true })
+          .click();
+      }
+      await expect(
+        page.getByLabel("Complete source", { exact: true }),
+      ).toHaveValue(originalSource);
+      await page
+        .getByLabel("Title", { exact: true })
+        .fill("Order-preserving revised draft");
+      await save(page);
+      await expect.poll(() => state.commands.length).toBe(2);
+      await expect(
+        page.getByText(/Confirmed forum draft 42/).last(),
+      ).toBeVisible();
+      if (continuation === "same-context")
+        expect((await recoveredWriting(page)).draftAttempts[0]).toEqual(
+          original,
+        );
+      await page
+        .getByRole("button", { name: "Publish saved draft", exact: true })
+        .click();
+      await expect(
+        page.getByText(/Confirmed publication of forum draft 42/).last(),
+      ).toBeVisible();
+      expect(state.commands).toHaveLength(3);
+      expect(state.uploads).toEqual(["first.png", "second.txt"]);
+      expect(state.removals).toEqual([]);
+      expect(state.associated).toEqual(["88", "89"]);
+      expect(state.saved!.get("message")).toBe(originalSource);
+      expect(state.saved!.get("typeid")).toBe("3");
+      expect(state.saved!.get("usesig")).toBe("1");
+      for (const command of state.commands.slice(1)) {
+        const u = new URL(command.url);
+        expect([u.searchParams.get("tid"), u.searchParams.get("pid")]).toEqual([
+          "42",
+          "101",
+        ]);
+        expect(
+          new URLSearchParams(command.body).get("attachnew[88][price]"),
+        ).toBe("0");
+        expect(
+          new URLSearchParams(command.body).get("attachnew[89][price]"),
+        ).toBe("0");
+      }
+    } finally {
+      await evidence(page, info, state);
+    }
+  });
+
+test("J6.J8.draft-order-original-check: reload reconciles only original reordered associations and retains later writing and upload", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  try {
+    const originalSource = await orderPair(page, state);
+    state.association = false;
+    await save(page);
+    await expect(
+      page.getByText(/attachment associations unconfirmed/).first(),
+    ).toBeVisible();
+    const original = (await recoveredWriting(page)).draftAttempts[0].submission;
+    await page
+      .getByLabel("Complete source", { exact: true })
+      .fill(originalSource + " later writing");
+    await upload(page, "later.txt");
+    await page.reload();
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(originalSource + " later writing");
+    state.associated = ["88", "89"];
+    const commands = state.commands.length,
+      uploads = state.uploads.length;
+    await page
+      .getByRole("button", { name: /Check original draft attempt/ })
+      .click();
+    await expect(
+      page.getByText(/Confirmed forum draft 42/).last(),
+    ).toBeVisible();
+    const current = await recoveredWriting(page);
+    expect(current.draftAttempts[0].submission).toEqual(original);
+    expect(current.uploads.map((u: { status: string }) => u.status)).toEqual([
+      "associated",
+      "associated",
+      "uploaded",
+    ]);
+    expect(
+      current.attachmentFields.find(
+        (f: { name: string }) => f.name === "attachnew[90][price]",
+      ).value,
+    ).toBe("");
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(originalSource + " later writing");
+    expect(state.commands).toHaveLength(commands);
+    expect(state.uploads).toHaveLength(uploads);
+    expect(state.removals).toEqual([]);
+  } finally {
+    await evidence(page, info, state);
+  }
+});
+
+test("J6.J8.draft-order-fields: unique named nonempty metadata survives reordered controls", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  try {
+    state.metadata.set("88", {
+      description: "PNG description",
+      readperm: "10",
+    });
+    state.metadata.set("89", {
+      description: "TXT description",
+      readperm: "20",
+    });
+    // Pending and saved responses carry distinct named values; only their order changes.
+    state.pendingPrice = "0";
+    await orderPair(page, state);
+    // Values authored by the native form remain distinct by ID; this fixture changes
+    // source HTML before upload validation and after Save, not application state.
+    state.formChange = (html) =>
+      !html.includes("action=edit")
+        ? html
+        : html.replace(
+            /(<input name="attachnew\[(88|89)\]\[description\]" value="[^"]*">)(<select[\s\S]*?<\/select>)(<input name="attachnew\[\2\]\[price\]" value="0">)/g,
+            "$4$3$1",
+          );
+    await save(page);
+    await expect(
+      page.getByText(/Confirmed forum draft 42/).last(),
+    ).toBeVisible();
+    expect(state.associated).toEqual(["88", "89"]);
+    expect(state.commands).toHaveLength(1);
+    expect(state.saved!.get("attachnew[88][description]")).toBe(
+      "PNG description",
+    );
+    expect(state.saved!.get("attachnew[89][description]")).toBe(
+      "TXT description",
+    );
+    expect(state.saved!.get("attachnew[88][readperm]")).toBe("10");
+    expect(state.saved!.get("attachnew[89][readperm]")).toBe("20");
+  } finally {
+    await evidence(page, info, state);
+  }
+});
+
+for (const defect of [
+  "missing-id",
+  "extra-id",
+  "duplicate-name",
+  "missing-name",
+  "unbound-name",
+  "invalid-id",
+  "extra-name",
+  "description",
+  "readperm",
+  "disabled-price",
+  "active-sentinel",
+  "disabled-sentinel",
+  "duplicate-sentinel",
+  "unbound-sentinel",
+] as const)
+  test(`J6.J8.draft-order-reject-${defect}: reordered native metadata cannot manufacture an association`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    try {
+      await orderPair(page, state);
+      state.formChange = (html) => {
+        if (!html.includes("action=edit")) return html;
+        if (defect === "invalid-id")
+          return html
+            .replaceAll("attachnew[88]", "attachnew[0]")
+            .replaceAll("attachupdate[88]", "attachupdate[0]");
+        if (defect === "extra-name")
+          return html.replace(
+            "</div><script>",
+            '<input name="attachnew[88][unknown]" value=""></div><script>',
+          );
+        if (defect === "missing-id")
+          return html.replace(
+            /<(?:input|select)\b[^>]*name="(?:attachnew\[88\]\[[^\]]+\]|attachupdate\[88\])"[^>]*(?:>[\s\S]*?<\/select>|>)/g,
+            "",
+          );
+        if (defect === "extra-id")
+          return html.replace(
+            "</div><script>",
+            '<input name="attachnew[90][description]" value=""><input name="attachnew[90][readperm]" value=""><input name="attachnew[90][price]" value="0"></div><script>',
+          );
+        if (defect === "duplicate-name")
+          return html.replace(
+            'name="attachnew[88][price]" value="0">',
+            'name="attachnew[88][price]" value="0"><input name="attachnew[88][price]" value="0">',
+          );
+        if (defect === "missing-name")
+          return html.replace(
+            '<input name="attachnew[88][price]" value="0">',
+            "",
+          );
+        if (defect === "unbound-name")
+          return html.replace(
+            'name="attachnew[88][price]"',
+            'name="attachnew[90][price]"',
+          );
+        if (defect === "description")
+          return html.replace(
+            'name="attachnew[88][description]" value=""',
+            'name="attachnew[88][description]" value="Changed description"',
+          );
+        if (defect === "readperm")
+          return html.replace(
+            '<select name="attachnew[88][readperm]"><option value="" selected>',
+            '<select name="attachnew[88][readperm]"><option value="10" selected>',
+          );
+        if (defect === "disabled-price")
+          return html.replace(
+            'name="attachnew[88][price]"',
+            'disabled name="attachnew[88][price]"',
+          );
+        if (defect === "active-sentinel")
+          return html.replace(
+            'name="attachupdate[88]">',
+            'name="attachupdate[88]" value="replacement">',
+          );
+        if (defect === "disabled-sentinel")
+          return html.replace(
+            'name="attachupdate[88]">',
+            'disabled name="attachupdate[88]">',
+          );
+        if (defect === "duplicate-sentinel")
+          return html.replace(
+            'name="attachupdate[88]">',
+            'name="attachupdate[88]"><input type="hidden" name="attachupdate[88]">',
+          );
+        return html.replace(
+          'name="attachupdate[88]">',
+          'name="attachupdate[90]">',
+        );
+      };
+      await save(page);
+      await expect
+        .poll(
+          async () => (await recoveredWriting(page)).draftAttempts?.[0]?.status,
+        )
+        .toBe("uncertain");
+      await expect(
+        page.getByText(/No save was repeated|save may have succeeded/i).last(),
+      ).toBeVisible();
+      expect(state.commands).toHaveLength(1);
+      expect(state.uploads).toHaveLength(2);
+      expect(state.removals).toEqual([]);
+      expect(
+        state.reads.some(
+          (u) => new URL(u).searchParams.get("action") === "edit",
+        ),
+      ).toBe(true);
+    } finally {
+      await evidence(page, info, state);
+    }
+  });
+
+test("J6.J8.draft-order-remote-conflict: true price drift still refuses same-context resave", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  try {
+    await orderPair(page, state);
+    await save(page);
+    await expect(
+      page.getByText(/Confirmed forum draft 42/).last(),
+    ).toBeVisible();
+    state.savedPrice = "1";
+    await page
+      .getByLabel("Title", { exact: true })
+      .fill("Unsaved local revision");
+    await save(page);
+    await expect(
+      page.getByText(/remote draft changed|current draft form changed/i).last(),
+    ).toBeVisible();
+    expect(state.commands).toHaveLength(1);
+    expect(state.saved!.get("subject")).toBe("Uploaded draft");
+  } finally {
+    await evidence(page, info, state);
+  }
+});
+
+for (const mismatch of ["missing", "extra"] as const)
+  test(`J6.J8.draft-order-published-${mismatch}: publication requires exact attachment membership`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    try {
+      await orderPair(page, state);
+      await save(page);
+      await expect(
+        page.getByText(/Confirmed forum draft 42/).last(),
+      ).toBeVisible();
+      if (mismatch === "missing") state.publicationMissingAssociation = true;
+      else
+        state.formChange = (html) =>
+          state.published && html.includes("action=edit")
+            ? html.replace(
+                "</div><script>",
+                '<input name="attachnew[90][description]" value=""><input name="attachnew[90][readperm]" value=""><input name="attachnew[90][price]" value="0"></div><script>',
+              )
+            : html;
+      await page
+        .getByRole("button", { name: "Publish saved draft", exact: true })
+        .click();
+      await expect(
+        page
+          .getByText(
+            /Published thread 42 observed; submitted content confirmed; attachment associations unconfirmed/,
+          )
+          .last(),
+      ).toBeVisible();
+      expect(state.commands).toHaveLength(2);
+      expect(state.uploads).toHaveLength(2);
+      expect(state.published).toBe(true);
+      expect(state.removals).toEqual([]);
+    } finally {
+      await evidence(page, info, state);
+    }
+  });

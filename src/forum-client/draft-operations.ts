@@ -55,24 +55,50 @@ function associationFields(fields: PreparedWriting["attachmentFields"]) {
       ),
   );
 }
+// Native attachment controls are keyed metadata; their order is presentation.
+function sameAttachmentReferences(a: readonly string[], b: readonly string[]) {
+  return (
+    a.length === b.length &&
+    new Set(a).size === a.length &&
+    new Set(b).size === b.length &&
+    a.every((id) => /^[1-9]\d*$/.test(id) && b.includes(id))
+  );
+}
 function verifyAssociationFields(
   submitted: PreparedWriting["attachmentFields"],
   stored: PreparedWriting["attachmentFields"],
+  references: readonly string[],
 ): NonNullable<DraftAttempt["observation"]>["attachmentNormalizations"] | null {
+  // Validate before omitting sentinels: duplicates or unbound replacement controls
+  // must never disappear into an apparently equal metadata collection.
+  for (const fields of [submitted ?? [], stored ?? []]) {
+    if (new Set(fields.map((field) => field.name)).size !== fields.length)
+      return null;
+    for (const field of fields) {
+      const update = /^attachupdate\[([1-9]\d*)\]$/.exec(field.name);
+      const metadata =
+        /^attachnew\[([1-9]\d*)\]\[(description|readperm|price)\]$/.exec(
+          field.name,
+        );
+      const id = (update ?? metadata)?.[1];
+      if (!id || !references.includes(id)) return null;
+      if (update && field.value !== "") return null;
+    }
+  }
   const before = associationFields(submitted),
-    after = associationFields(stored);
+    after = new Map(
+      associationFields(stored).map((field) => [field.name, field]),
+    );
   const normalizations: NonNullable<
     NonNullable<DraftAttempt["observation"]>["attachmentNormalizations"]
   > = [];
-  if (before.length !== after.length) return null;
-  for (let i = 0; i < before.length; i++) {
-    const field = before[i]!,
-      observed = after[i]!;
-    if (field.name !== observed.name || field.disabled !== observed.disabled)
-      return null;
+  if (before.length !== after.size) return null;
+  for (const field of before) {
+    const observed = after.get(field.name);
+    if (!observed || field.disabled !== observed.disabled) return null;
     if (field.value === observed.value) continue;
-    // Native draft readback stores an enabled blank attachment price as free.
-    // Keep the direction and literal values bounded; conflict versions stay raw.
+    // Preserve the already qualified one-way enabled blank-to-free default.
+    // Saved conflict versions remain raw, including their native ordering.
     if (
       !field.disabled &&
       /^attachnew\[[1-9]\d*\]\[price\]$/.test(field.name) &&
@@ -395,11 +421,13 @@ export function createDraftOperations(config: {
     const attachmentNormalizations = verifyAssociationFields(
       writing.attachmentFields,
       stored.attachmentFields,
+      writing.uploadedReferences,
     );
     const attachments =
-      JSON.stringify(writing.uploadedReferences) ===
-        JSON.stringify(stored.uploadedReferences) &&
-      attachmentNormalizations !== null;
+      sameAttachmentReferences(
+        writing.uploadedReferences,
+        stored.uploadedReferences,
+      ) && attachmentNormalizations !== null;
     return {
       ...attempt,
       observation: {
@@ -594,11 +622,13 @@ export function createDraftOperations(config: {
       const attachmentNormalizations = verifyAssociationFields(
         writing.attachmentFields,
         stored.attachmentFields,
+        writing.uploadedReferences,
       );
       const attachments =
-        JSON.stringify(writing.uploadedReferences) ===
-          JSON.stringify(stored.uploadedReferences) &&
-        attachmentNormalizations !== null;
+        sameAttachmentReferences(
+          writing.uploadedReferences,
+          stored.uploadedReferences,
+        ) && attachmentNormalizations !== null;
       return {
         ...attempt,
         observation: {
@@ -677,9 +707,14 @@ export function createDraftOperations(config: {
           { ...writing, attachmentFields: [] },
           { ...prepared.prepared, attachmentFields: [] },
         ) ||
+        !sameAttachmentReferences(
+          writing.uploadedReferences,
+          prepared.prepared.uploadedReferences,
+        ) ||
         verifyAssociationFields(
           writing.attachmentFields,
           prepared.prepared.attachmentFields,
+          writing.uploadedReferences,
         ) === null ||
         config.generation() !== attempt.generation
       )
@@ -929,14 +964,16 @@ export function createDraftOperations(config: {
         .map((u) => u.serverId);
       if (
         !uploadFields ||
-        JSON.stringify(
+        !sameAttachmentReferences(
           writing.uploadedReferences.filter((id) => !newIds.includes(id)),
-        ) !== JSON.stringify(prepared.prepared.uploadedReferences) ||
+          prepared.prepared.uploadedReferences,
+        ) ||
         verifyAssociationFields(
-          associationFields(writing.attachmentFields).filter(
+          (writing.attachmentFields ?? []).filter(
             (f) => !newIds.some((id) => f.name.startsWith(`attachnew[${id}]`)),
           ),
           prepared.prepared.attachmentFields,
+          writing.uploadedReferences.filter((id) => !newIds.includes(id)),
         ) === null
       )
         return notSent(

@@ -1,8 +1,11 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import monkey from "vite-plugin-monkey";
+import { editorFocusPatch } from "./vite.editor-focus";
 export default defineConfig({
+  optimizeDeps: { exclude: ["prosemirror-view"] },
   plugins: [
+    editorFocusPatch(),
     vue(),
     monkey({
       entry: "src/main.ts",

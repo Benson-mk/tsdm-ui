@@ -452,7 +452,7 @@ export function createWorkspace(
               ? "notices"
               : "boards",
       destination: url,
-      originKey,
+      originKey: originKey && entryFor(originKey) ? originKey : null,
       selection: null,
       position: null,
       result: null,
@@ -654,6 +654,7 @@ export function createWorkspace(
         new URL(state.value.destination).pathname +
           new URL(state.value.destination).search
     ) {
+      writing.hide();
       updateAnchor(requested.url.hash);
       return;
     }

@@ -22,6 +22,36 @@ import type {
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const equal = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
+// Native control order is presentation; association still requires exact unique IDs.
+function sameAttachmentReferences(a: readonly string[], b: readonly string[]) {
+  return (
+    a.length === b.length &&
+    new Set(a).size === a.length &&
+    new Set(b).size === b.length &&
+    a.every((id) => /^[1-9]\d*$/.test(id) && b.includes(id))
+  );
+}
+// Only the two attachment collections are unordered. Source, title and options
+// keep exact baseline semantics; duplicate controls are never deduplicated.
+function sameEditBaseline(a: WritingBaseline, b: WritingBaseline): boolean {
+  const { uploadedReferences: ar, attachmentFields: af = [], ...ac } = a;
+  const { uploadedReferences: br, attachmentFields: bf = [], ...bc } = b;
+  return (
+    equal(ac, bc) &&
+    sameAttachmentReferences(ar, br) &&
+    af.length === bf.length &&
+    new Set(af.map((field) => field.name)).size === af.length &&
+    new Set(bf.map((field) => field.name)).size === bf.length &&
+    af.every((field) =>
+      bf.some(
+        (other) =>
+          other.name === field.name &&
+          other.value === field.value &&
+          other.disabled === field.disabled,
+      ),
+    )
+  );
+}
 export const editBaseline = (v: PreparedWriting): WritingBaseline =>
   copy({
     title: v.title,
@@ -239,7 +269,12 @@ export function createPostEditor(config: {
             "Actual current source, options or original account are unavailable. Editing remains paused.",
           );
       }
-      if (!equal(writing.editTarget.baseline, editBaseline(fresh.latest)))
+      if (
+        !sameEditBaseline(
+          writing.editTarget.baseline,
+          editBaseline(fresh.latest),
+        )
+      )
         return {
           kind: "conflict",
           latest: fresh.latest,
@@ -265,7 +300,7 @@ export function createPostEditor(config: {
         (fresh.latest.titleAvailable === false && writing.title !== "") ||
         unresolvedWritingAttachments(writing).length ||
         !compatible(writing, fresh.latest) ||
-        !equal(
+        !sameAttachmentReferences(
           writing.uploadedReferences.filter((id) => !newIds.includes(id)),
           fresh.latest.uploadedReferences,
         ) ||
@@ -338,7 +373,10 @@ export function createPostEditor(config: {
       const fresh = await current(writing);
       const verification =
         fresh &&
-        equal(writing.uploadedReferences, fresh.latest.uploadedReferences)
+        sameAttachmentReferences(
+          writing.uploadedReferences,
+          fresh.latest.uploadedReferences,
+        )
           ? verifyStoredWriting(writing, fresh.latest)
           : null;
       if (!verification)
@@ -437,7 +475,7 @@ export function createPostEditor(config: {
           "Current source or original account changed before save. Review again.",
         );
       if (
-        !equal(w.editTarget!.baseline, editBaseline(fresh.latest)) ||
+        !sameEditBaseline(w.editTarget!.baseline, editBaseline(fresh.latest)) ||
         !compatible(w, fresh.latest)
       )
         return notSent(

@@ -53,7 +53,50 @@ const tags = new Set(
     " ",
   ),
 );
-function attribute(tag: string, name: string, value: unknown): boolean {
+// This is structural association in untrusted stored data, not provenance.
+function attachmentImageAid(value: unknown, flag: "noupdate" | "nothumb") {
+  if (!url(value, true)) return null;
+  const parsed = new URL(value);
+  const keys = [...parsed.searchParams.keys()];
+  return parsed.pathname === "/forum.php" &&
+    !parsed.href.includes("#") &&
+    !/^https?:\/\/[^/?#]*@/i.test(value) &&
+    keys.length === 3 &&
+    new Set(keys).size === 3 &&
+    parsed.searchParams.get("mod") === "attachment" &&
+    parsed.searchParams.get(flag) === "yes" &&
+    keys.every((key) => ["mod", "aid", flag].includes(key)) &&
+    parsed.searchParams.get("aid")
+    ? parsed.searchParams.get("aid")
+    : null;
+}
+function qualifiedImage(value: string, attachments: unknown[]): boolean {
+  const aid = attachmentImageAid(value, "noupdate");
+  if (!aid) return false;
+  const matching = attachments.filter(
+    (item) =>
+      object(item) &&
+      url(item.url, true) &&
+      new URL(item.url).searchParams.getAll("aid").includes(aid),
+  );
+  if (matching.length !== 1) return false;
+  const descriptor = matching[0];
+  return (
+    object(descriptor) &&
+    id(descriptor.id) &&
+    attachmentImageAid(descriptor.url, "nothumb") === aid &&
+    string(descriptor.name) &&
+    /\.(?:png|jpe?g|gif|webp|avif|bmp)$/i.test(descriptor.name) &&
+    attachments.filter((item) => object(item) && item.id === descriptor.id)
+      .length === 1
+  );
+}
+function attribute(
+  tag: string,
+  name: string,
+  value: unknown,
+  attachments: unknown[] = [],
+): boolean {
   if (!string(value)) return false;
   switch (name) {
     case "class":
@@ -68,7 +111,8 @@ function attribute(tag: string, name: string, value: unknown): boolean {
       return (
         tag === "img" &&
         url(value) &&
-        /\.(?:png|jpe?g|gif|webp|avif|bmp)$/i.test(new URL(value).pathname)
+        (/\.(?:png|jpe?g|gif|webp|avif|bmp)$/i.test(new URL(value).pathname) ||
+          qualifiedImage(value, attachments))
       );
     case "alt":
       return tag === "img";
@@ -87,11 +131,14 @@ function attribute(tag: string, name: string, value: unknown): boolean {
       return false;
   }
 }
-function content(value: unknown): boolean {
+function content(value: unknown, attachments: unknown[] = []): boolean {
   if (!object(value)) return false;
   if (value.kind === "text") return string(value.text);
   if (value.kind === "unsupported")
-    return string(value.description) && list(value.children, content);
+    return (
+      string(value.description) &&
+      list(value.children, (child) => content(child, attachments))
+    );
   if (
     value.kind !== "element" ||
     !string(value.tag) ||
@@ -102,8 +149,8 @@ function content(value: unknown): boolean {
   const tag = value.tag;
   return (
     Object.entries(value.attributes).every(([name, value]) =>
-      attribute(tag, name, value),
-    ) && list(value.children, content)
+      attribute(tag, name, value, attachments),
+    ) && list(value.children, (child) => content(child, attachments))
   );
 }
 function post(value: unknown): boolean {
@@ -125,7 +172,9 @@ function post(value: unknown): boolean {
           url(attachment.url, true) &&
           string(attachment.details),
       )) &&
-    list(value.content, content)
+    list(value.content, (node) =>
+      content(node, Array.isArray(value.attachments) ? value.attachments : []),
+    )
   );
 }
 function result(value: unknown): boolean {
@@ -249,7 +298,7 @@ function result(value: unknown): boolean {
           object(entry) &&
           id(entry.id) &&
           string(entry.time) &&
-          list(entry.body, content),
+          list(entry.body, (node) => content(node)),
       )
     );
   }

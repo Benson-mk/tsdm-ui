@@ -74,7 +74,22 @@ export function editorNode(
     if (author)
       dom.setAttribute("aria-label", author[1] ?? author[2] ?? author[3] ?? "");
   }
-  return { dom, contentDOM: dom };
+  return {
+    dom,
+    contentDOM: dom,
+    ignoreMutation(mutation) {
+      // Localized labels are presentation only. Re-parsing them replaces the
+      // editable subtree and moves the browser caret; content stays observed.
+      return (
+        node.type.name === "section" &&
+        (node.attrs.kind === "hide" || node.attrs.kind === "spoiler") &&
+        mutation.type === "attributes" &&
+        mutation.target === dom &&
+        (mutation.attributeName === "data-editor-label" ||
+          mutation.attributeName === "aria-label")
+      );
+    },
+  };
 }
 interface Frame {
   tag: string;

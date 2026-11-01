@@ -4,86 +4,106 @@
   "title": "Qualify installed Edge compatibility on macOS",
   "date": "2026-11-01",
   "timezone": "Asia/Hong_Kong",
-  "status": "incomplete-evidence-commit-approved",
+  "status": "final-installed-verified-source-freeze-pending",
   "qualified": false,
   "releasePublication": false,
   "windowsQualification": false,
   "candidate": {
-    "commit": "46cb84000d47483d4c6ad3c3b83bf48cbac66772",
-    "bytes": 1710368,
-    "sha256": "a3de680f5120fea3db559a404a0c35a68a22aee1d6a36dbf488d63edd449367c"
+    "sourceParent": "46cb84000d47483d4c6ad3c3b83bf48cbac66772",
+    "documentationParent": "1fc8905d5dc311b0cba9c5aabaea568b93ca8d8b",
+    "commit": null,
+    "bytes": 1710524,
+    "sha256": "9a0ec8af6c8feb95745db5fc801081e3bd2b62f6d19227ec9bf989848509b2ea",
+    "mode": "development-snapshot",
+    "cleanCommitted": false,
+    "packagingEligible": false,
+    "releaseEligible": false
   },
   "storage": "evidence/runs/38-edge-20261101",
   "artifacts": {
     "candidateSource": {
       "path": "artifacts/candidate-source.tar",
       "bytes": 4628480,
-      "sha256": "e8744d7cb17d512c087595ad17a1ad252c8e560a32603493c1e4e80f404aa76c"
+      "sha256": "e8744d7cb17d512c087595ad17a1ad252c8e560a32603493c1e4e80f404aa76c",
+      "visibility": "private"
     },
     "candidate": {
       "path": "freeze/tsdm-workspace.user.js",
       "bytes": 1710368,
-      "sha256": "a3de680f5120fea3db559a404a0c35a68a22aee1d6a36dbf488d63edd449367c"
+      "sha256": "a3de680f5120fea3db559a404a0c35a68a22aee1d6a36dbf488d63edd449367c",
+      "visibility": "synthetic-or-authored"
     },
     "freezeManifest": {
       "path": "freeze/manifest.json",
       "bytes": 4325,
-      "sha256": "d12bff2606b8466faffd98029c1dc335e0bcaa23bbd6f95c7b688e8746d8984d"
+      "sha256": "d12bff2606b8466faffd98029c1dc335e0bcaa23bbd6f95c7b688e8746d8984d",
+      "visibility": "synthetic-or-authored"
     },
     "freezeReceipt": {
       "path": "freeze/freeze.json",
       "bytes": 62203,
-      "sha256": "3caf978e7e9279558f2d398bae8212868e31370293a3489fa86f62e053a8f7b5"
+      "sha256": "3caf978e7e9279558f2d398bae8212868e31370293a3489fa86f62e053a8f7b5",
+      "visibility": "synthetic-or-authored"
     },
     "syntheticManifest": {
       "path": "replay/evidence/runs/2026-10-31T18-20-08.186Z/manifest.json",
       "bytes": 357693,
-      "sha256": "c0e5bcf6b84fa4f58ee6981099ee18741248cd26f9a86533bd59d69f77b59152"
+      "sha256": "c0e5bcf6b84fa4f58ee6981099ee18741248cd26f9a86533bd59d69f77b59152",
+      "visibility": "synthetic-or-authored"
     },
     "syntheticReceipt": {
       "path": "replay/evidence/runs/2026-10-31T18-20-08.186Z/receipt.json",
       "bytes": 980737,
-      "sha256": "7f2ab059e4442f036e21ecf14934b1c9ed71d953358620834908b3560f0252c6"
+      "sha256": "7f2ab059e4442f036e21ecf14934b1c9ed71d953358620834908b3560f0252c6",
+      "visibility": "synthetic-or-authored"
     },
     "foundationSandboxFailure": {
       "path": "replay/evidence/runs/2026-10-31T18-13-10.796Z/receipt.json",
       "bytes": 160568,
-      "sha256": "aac7d951d25ec18247add11b2312d108d84b585b39bc0d611f20f22591087b77"
+      "sha256": "aac7d951d25ec18247add11b2312d108d84b585b39bc0d611f20f22591087b77",
+      "visibility": "synthetic-or-authored"
     },
     "foundationRerun": {
       "path": "replay/evidence/runs/2026-10-31T18-15-44.383Z/receipt.json",
       "bytes": 53021,
-      "sha256": "29897c8312671fd35e7f2a4f205f851b1139feadbe29c14199f8f9bbadedb26f"
+      "sha256": "29897c8312671fd35e7f2a4f205f851b1139feadbe29c14199f8f9bbadedb26f",
+      "visibility": "synthetic-or-authored"
     },
     "consumerManifest": {
       "path": "clean-candidate/evidence/runs/consumer-2026-10-31T18-22-32.704Z/manifest.json",
       "bytes": 1277,
-      "sha256": "5d3e8af289ebee2896ed9e8f763c7aceaa2a5759aea4a90b92311ccd49a7a9a5"
+      "sha256": "5d3e8af289ebee2896ed9e8f763c7aceaa2a5759aea4a90b92311ccd49a7a9a5",
+      "visibility": "synthetic-or-authored"
     },
     "consumerReceipt": {
       "path": "clean-candidate/evidence/runs/consumer-2026-10-31T18-22-32.704Z/receipt.json",
       "bytes": 21254,
-      "sha256": "b108ff784b6813ce713db0aab4855c1833126775f04b726d1cf8b038b896c1cf"
+      "sha256": "b108ff784b6813ce713db0aab4855c1833126775f04b726d1cf8b038b896c1cf",
+      "visibility": "synthetic-or-authored"
     },
     "consumerReplay": {
       "path": "clean-candidate/evidence/runs/consumer-2026-10-31T18-22-32.704Z-replay-2026-10-31T18-23-48.336Z/receipt.json",
       "bytes": 15045,
-      "sha256": "9cca05e034249cc820bdedbc872d3112d2d2698b6e14acf28b51e4d86c39c0ae"
+      "sha256": "9cca05e034249cc820bdedbc872d3112d2d2698b6e14acf28b51e4d86c39c0ae",
+      "visibility": "synthetic-or-authored"
     },
     "scope": {
       "path": "artifacts/accepted-scope.json",
       "bytes": 7109,
-      "sha256": "23d0dedf4d519dbaab81ebf2d5e3bd0b0b499fb94756873b5c0922d79f7de7d1"
+      "sha256": "23d0dedf4d519dbaab81ebf2d5e3bd0b0b499fb94756873b5c0922d79f7de7d1",
+      "visibility": "synthetic-or-authored"
     },
     "ticket": {
       "path": "artifacts/issue-38.json",
       "bytes": 7708,
-      "sha256": "e4bb03d81284a5aa9198745690eeb01a0a48a4db6c6b7a0b340eefc8d055f25c"
+      "sha256": "e4bb03d81284a5aa9198745690eeb01a0a48a4db6c6b7a0b340eefc8d055f25c",
+      "visibility": "synthetic-or-authored"
     },
     "historicalChrome": {
       "path": "artifacts/chrome-historical-conclusion.json",
       "bytes": 6956,
-      "sha256": "9dad3981d1ab5c6b7ef9bc1c6bd115070aa28ff9f2cdb152db5b9a8ef61a5052"
+      "sha256": "9dad3981d1ab5c6b7ef9bc1c6bd115070aa28ff9f2cdb152db5b9a8ef61a5052",
+      "visibility": "synthetic-or-authored"
     },
     "installedExport": {
       "path": "private/38-edge-installed.zip",
@@ -600,9 +620,988 @@
       "bytes": 22596,
       "sha256": "b26e9f25fdb54703e246c09ac16259bd1f34a004566354cc5786cd93ce28ac0c",
       "visibility": "private-index"
+    },
+    "continuation/artifacts/recovery-repro.json": {
+      "path": "continuation-20261101/artifacts/recovery-repro.json",
+      "bytes": 157816,
+      "sha256": "ca710914e5381d0819e68f39aea54d44821bc5fbdae970fdb9b4ca7174113490",
+      "visibility": "private"
+    },
+    "continuation/artifacts/favorite-preparation-receipt.json": {
+      "path": "continuation-20261101/artifacts/favorite-preparation-receipt.json",
+      "bytes": 846,
+      "sha256": "dabfee8ef2fb6a5ad4f83597b20a2ef1a857ae71b08cc7adcefa652837916667",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/restart-destination-receipt.json": {
+      "path": "continuation-20261101/artifacts/restart-destination-receipt.json",
+      "bytes": 751,
+      "sha256": "05c2249626e6e64149d80aa5e1d151b06b39e31eccdc2716fc3d6ff3df19512f",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/proposed-recovery-fix.patch": {
+      "path": "continuation-20261101/artifacts/proposed-recovery-fix.patch",
+      "bytes": 314,
+      "sha256": "c5b66c388930886f9fc070939b695cf339f6b1a7a0e69897ffb4ee7a2537c2d7",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/edge-38-association.txt": {
+      "path": "continuation-20261101/artifacts/edge-38-association.txt",
+      "bytes": 87,
+      "sha256": "5b30076e29fd8f7ce46dc1f0bfa961cbc03e7f316504cfdffacc01e04e10d690",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/clean-export-receipt.json": {
+      "path": "continuation-20261101/artifacts/clean-export-receipt.json",
+      "bytes": 989,
+      "sha256": "5ea749316f3f39968f2474721bc9c872ce6d78d8df43ce7e3b9e5c24fb210c00",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/recovery-proposed.json": {
+      "path": "continuation-20261101/artifacts/recovery-proposed.json",
+      "bytes": 137805,
+      "sha256": "9a03440af81637893de6f3db1db328f14d64fdba609ef446512066c7f621ecad",
+      "visibility": "private"
+    },
+    "continuation/artifacts/draft-association-receipt.json": {
+      "path": "continuation-20261101/artifacts/draft-association-receipt.json",
+      "bytes": 1664,
+      "sha256": "f7a54d62f8a104cd687a02cd7c76018c548fd782b2a4399871669e592d075d2a",
+      "visibility": "private"
+    },
+    "continuation/artifacts/recovery-proposed-results/.last-run.json": {
+      "path": "continuation-20261101/artifacts/recovery-proposed-results/.last-run.json",
+      "bytes": 45,
+      "sha256": "91d1c43004802cd49950d78eb11c8fa7d05da8ffffe219a8b13b2f561bc00903",
+      "visibility": "private"
+    },
+    "continuation/artifacts/recovery-repro-results/.last-run.json": {
+      "path": "continuation-20261101/artifacts/recovery-repro-results/.last-run.json",
+      "bytes": 96,
+      "sha256": "7c0c373df723f6d118f88483e1cf1180c67f558be6ce1eec4b73cef62f42893f",
+      "visibility": "private"
+    },
+    "continuation/artifacts/recovery-repro-results/recovery-38-recovery-unava-70517-y-to-Drafts-survives-reload/trace.zip": {
+      "path": "continuation-20261101/artifacts/recovery-repro-results/recovery-38-recovery-unava-70517-y-to-Drafts-survives-reload/trace.zip",
+      "bytes": 937316,
+      "sha256": "97ff497e64708d2ebded3b1b15ef1efd0b102200e301a4e9a855bbfcf1ab9b27",
+      "visibility": "private"
+    },
+    "continuation/artifacts/recovery-repro-results/recovery-38-recovery-unava-70517-y-to-Drafts-survives-reload/error-context.md": {
+      "path": "continuation-20261101/artifacts/recovery-repro-results/recovery-38-recovery-unava-70517-y-to-Drafts-survives-reload/error-context.md",
+      "bytes": 5614,
+      "sha256": "b541a1cd3661806fca355313a1a7fc5d80398e4d63f601774cc9b89a0918cf8f",
+      "visibility": "private"
+    },
+    "continuation/private/draft-before-save.txt": {
+      "path": "continuation-20261101/private/draft-before-save.txt",
+      "bytes": 290,
+      "sha256": "7b89cafe39f8c801b1e3f48cd2b69de4f3473bbf33470455a4391435bed216e7",
+      "visibility": "private"
+    },
+    "continuation/private/txt-upload-network-initial.json": {
+      "path": "continuation-20261101/private/txt-upload-network-initial.json",
+      "bytes": 2598,
+      "sha256": "d05e0fb08e9b7f8b225bb9ad61a317afc5a6e8aa0b86b56e12ecc5a033daa65a",
+      "visibility": "private"
+    },
+    "continuation/private/recovery-after.png": {
+      "path": "continuation-20261101/private/recovery-after.png",
+      "bytes": 57193,
+      "sha256": "621e864094eb0c8440c808d09d6630061f4924d7bdd68206a23af9ac5c02f328",
+      "visibility": "private"
+    },
+    "continuation/private/proposed-ordinary-draft.json": {
+      "path": "continuation-20261101/private/proposed-ordinary-draft.json",
+      "bytes": 505,
+      "sha256": "cbc86ee63190f54e3a7b7b381397e722cb35d9f7174bf11a9d824126516c034c",
+      "visibility": "private"
+    },
+    "continuation/private/runtime.json": {
+      "path": "continuation-20261101/private/runtime.json",
+      "bytes": 752,
+      "sha256": "48f34a6aa2550c0f655b27c814c0010c0103c02a145b4aced390537918576e1c",
+      "visibility": "private"
+    },
+    "continuation/private/txt-upload-network-tail.json": {
+      "path": "continuation-20261101/private/txt-upload-network-tail.json",
+      "bytes": 25496,
+      "sha256": "b0621b3a67d2c6d42d913dca60417ad5308b0a4381c235daf13a4d456d095873",
+      "visibility": "private"
+    },
+    "continuation/private/favorite-preparation-network.json": {
+      "path": "continuation-20261101/private/favorite-preparation-network.json",
+      "bytes": 8409,
+      "sha256": "786c3ef2e1ae6ee98e21b7a7d0e8aed43626d549794ce8f9137324984978460a",
+      "visibility": "private"
+    },
+    "continuation/private/native-draft-list.png": {
+      "path": "continuation-20261101/private/native-draft-list.png",
+      "bytes": 113018,
+      "sha256": "3e1a2a711ca4e8d040c60afc052adb0d0a2b4ffc448b35606a1a2dbf2baa1eef",
+      "visibility": "private"
+    },
+    "continuation/private/native-saved-draft.png": {
+      "path": "continuation-20261101/private/native-saved-draft.png",
+      "bytes": 63812,
+      "sha256": "67697727d1be80ab68f27fe000038c20daeda6cf62ba4d7ffa2dfaa697573211",
+      "visibility": "private"
+    },
+    "continuation/private/ordinary-draft-resumed.png": {
+      "path": "continuation-20261101/private/ordinary-draft-resumed.png",
+      "bytes": 56792,
+      "sha256": "d99138199929cfffe19235d2923d3056dee3e600497bbf11b488b158eea30d15",
+      "visibility": "private"
+    },
+    "continuation/private/stored-file-response.json": {
+      "path": "continuation-20261101/private/stored-file-response.json",
+      "bytes": 157,
+      "sha256": "85498bad354c0a48a3503ffb168eada2dcd082c6b9ee2d01cdb8ea827fef98f1",
+      "visibility": "private"
+    },
+    "continuation/private/recovery-reload-network.json": {
+      "path": "continuation-20261101/private/recovery-reload-network.json",
+      "bytes": 183952,
+      "sha256": "c349acd3587fd312589e8d16c85114cebdccc312d9368c13babcf7693df4141a",
+      "visibility": "private"
+    },
+    "continuation/private/favorite-removal-review.png": {
+      "path": "continuation-20261101/private/favorite-removal-review.png",
+      "bytes": 39251,
+      "sha256": "dfbd8dd5eb7e312893b820ff48308c6d7225618e882b391d33b2c297a6500fe8",
+      "visibility": "private"
+    },
+    "continuation/private/ordinary-draft-save-result.txt": {
+      "path": "continuation-20261101/private/ordinary-draft-save-result.txt",
+      "bytes": 383,
+      "sha256": "acdfa8664e6a318e350abc748288a68d29d5d6ad0ea5dbbd3b88315ded4c604a",
+      "visibility": "private"
+    },
+    "continuation/private/recovery-before.json": {
+      "path": "continuation-20261101/private/recovery-before.json",
+      "bytes": 408,
+      "sha256": "0ef52d62c0124e79862b6539d8125d0e3f8fa820cef612d9ec08d71fa5f1bc8b",
+      "visibility": "private"
+    },
+    "continuation/private/draft-before-save.png": {
+      "path": "continuation-20261101/private/draft-before-save.png",
+      "bytes": 46154,
+      "sha256": "9a397c593e64cd3d4f0104a2e1d4816923b1991cad7fcd4aac8810b575325917",
+      "visibility": "private"
+    },
+    "continuation/private/stored-bytes-result.txt": {
+      "path": "continuation-20261101/private/stored-bytes-result.txt",
+      "bytes": 608,
+      "sha256": "1f49849d44759a59ccb4e9ae7f21e6cc809a4b8933e3e216f1cbc3757968ad67",
+      "visibility": "private"
+    },
+    "continuation/private/recovery-after.txt": {
+      "path": "continuation-20261101/private/recovery-after.txt",
+      "bytes": 56193,
+      "sha256": "a574dab32015d2e2e26b5a4cb5e17b17cabec5038f885037e69df17c3d080e93",
+      "visibility": "private"
+    },
+    "continuation/private/restart-document-navigation.json": {
+      "path": "continuation-20261101/private/restart-document-navigation.json",
+      "bytes": 368,
+      "sha256": "3a17072c13eba10ac8b2ab36822dfb6063409f243e341c75cf06a9ef009a786d",
+      "visibility": "private"
+    },
+    "continuation/private/recovery-rejected-record.json": {
+      "path": "continuation-20261101/private/recovery-rejected-record.json",
+      "bytes": 5158,
+      "sha256": "099d932e681a2af79d3d10e18537d3676b4489e1e7677de72b3fabd222b6c6ae",
+      "visibility": "private"
+    },
+    "continuation/private/stored-bytes-network.json": {
+      "path": "continuation-20261101/private/stored-bytes-network.json",
+      "bytes": 15824,
+      "sha256": "e2592a7a5ef74e7b0e640d670f2eb562d5c6823ea97d5707f79bea91598fa9ca",
+      "visibility": "private"
+    },
+    "continuation/private/ordinary-draft-resumed.txt": {
+      "path": "continuation-20261101/private/ordinary-draft-resumed.txt",
+      "bytes": 6302,
+      "sha256": "0e8fa964ffd9bf57ae7248bdbb8abdb9b869d1afc782bd4d98ef8cb2a246b4ca",
+      "visibility": "private"
+    },
+    "continuation/private/favorite-removal-review.txt": {
+      "path": "continuation-20261101/private/favorite-removal-review.txt",
+      "bytes": 274,
+      "sha256": "c191cee6815ac5f47e937cf5cc40754cfadb871b4dc32a0386e5af7d1cf24348",
+      "visibility": "private"
+    },
+    "continuation/private/ordinary-draft-save-result.png": {
+      "path": "continuation-20261101/private/ordinary-draft-save-result.png",
+      "bytes": 53883,
+      "sha256": "c2c2a599211272453a23807ef6c7424b92c68c84799f2515b7670a71806281c6",
+      "visibility": "private"
+    },
+    "continuation/private/native-draft-view.txt": {
+      "path": "continuation-20261101/private/native-draft-view.txt",
+      "bytes": 10861,
+      "sha256": "19764171c3c55e95a3e13f63ab9e06ced8e479048f2dcc4eced92cc75bfa3dbe",
+      "visibility": "private"
+    },
+    "continuation/private/ordinary-draft-resume-network.json": {
+      "path": "continuation-20261101/private/ordinary-draft-resume-network.json",
+      "bytes": 13123,
+      "sha256": "e1e4c3fd47893381b5904f86ed29fb5c1467c78134de2aaee348e9d629ea0eab",
+      "visibility": "private"
+    },
+    "continuation/private/ordinary-draft-save-network.json": {
+      "path": "continuation-20261101/private/ordinary-draft-save-network.json",
+      "bytes": 60055,
+      "sha256": "f452e2ac3f8d8d59a6a7bf439297ac403646eb4cf880f96f1ba03b985e45fccd",
+      "visibility": "private"
+    },
+    "continuation/private/proposed-ordinary-draft.png": {
+      "path": "continuation-20261101/private/proposed-ordinary-draft.png",
+      "bytes": 37490,
+      "sha256": "d71e00738b1fa7496933ef3e9a0a026d9de7494f52172a03d7892db69fae2d69",
+      "visibility": "private"
+    },
+    "continuation/private/reinstall-fresh-forum.png": {
+      "path": "continuation-20261101/private/reinstall-fresh-forum.png",
+      "bytes": 26155,
+      "sha256": "848e45e2f4ee2f8e3a6f58c21aff7dfaab43c5638159da7785d00568bc61f1ed",
+      "visibility": "private"
+    },
+    "continuation/private/native-upload-limits.txt": {
+      "path": "continuation-20261101/private/native-upload-limits.txt",
+      "bytes": 698,
+      "sha256": "07dccf78c74cb3155f99e3e67abf3ff14f13e4a7586fcc1d4f6de15bd7544e9d",
+      "visibility": "private"
+    },
+    "continuation/private/native-saved-draft.json": {
+      "path": "continuation-20261101/private/native-saved-draft.json",
+      "bytes": 10596,
+      "sha256": "0076eef201bda8ee3231cf6dc2556b935ea29290d7b860b7fcbe62b525e04ccb",
+      "visibility": "private"
+    },
+    "continuation/private/native-draft-view.png": {
+      "path": "continuation-20261101/private/native-draft-view.png",
+      "bytes": 113054,
+      "sha256": "514b8a63ebd905918cfa62b85af7c56f54622232ff73e0580aa92586a6f3030c",
+      "visibility": "private"
+    },
+    "continuation/private/clean-installed.zip": {
+      "path": "continuation-20261101/private/clean-installed.zip",
+      "bytes": 385169,
+      "sha256": "d11f6d2f571d8d9e1d7dd1e96392631f3176232780e385a42fed3416c2c82f73",
+      "visibility": "private"
+    },
+    "continuation/private/txt-upload-response.json": {
+      "path": "continuation-20261101/private/txt-upload-response.json",
+      "bytes": 48,
+      "sha256": "a1c5f2975f8f1446681995f8dbb942020b215b7c6c9f6ce674d306717aa53072",
+      "visibility": "private"
+    },
+    "continuation/private/reinstall-fresh-forum.txt": {
+      "path": "continuation-20261101/private/reinstall-fresh-forum.txt",
+      "bytes": 59473,
+      "sha256": "e5c21757dd69e72e02dcb8acd32d60e8cf5dcd539ec991bd5b62261955c319d4",
+      "visibility": "private"
+    },
+    "continuation/diagnostics/playwright.config.mjs": {
+      "path": "continuation-20261101/diagnostics/playwright.config.mjs",
+      "bytes": 411,
+      "sha256": "1148d2ee0f5862ac45bc52145261709c362165113de6703cae7eb066a52b03e8",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/diagnostics/recovery.spec.mjs": {
+      "path": "continuation-20261101/diagnostics/recovery.spec.mjs",
+      "bytes": 2518,
+      "sha256": "8bfef82136022f5a4a6e89d83605187e6dbdb12c93db6bd7a235a290eb0f2f21",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/proposedUserscript": {
+      "path": "continuation-20261101/proposed-fix/dist/tsdm-workspace.user.js",
+      "bytes": 1710421,
+      "sha256": "4c9297ce81944c9284ee928d8be4cd5dd7653c539f8e61fc4484ae2bdf73076c",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/manifest": {
+      "path": "continuation-20261101/artifacts/manifest.json",
+      "bytes": 928519,
+      "sha256": "152ea2d3358a477838b1ae5f2e810f6b19f3fdec4c5043ee638b444aa49a3bb6",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/repaired-installed-receipt.json": {
+      "path": "continuation-20261101/artifacts/repaired-installed-receipt.json",
+      "bytes": 536,
+      "sha256": "00f9dfe3070fef32390eed557026af64beeda58c050fd2636e143499c543eb35",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/focus-proposal-source.tar": {
+      "path": "continuation-20261101/artifacts/focus-proposal-source.tar",
+      "bytes": 4608000,
+      "sha256": "bb4eef2e08e520b949efec0c561d45e98950410363b683dcf1fc70baf637d033",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/caret-diagnosis-progress.json": {
+      "path": "continuation-20261101/artifacts/caret-diagnosis-progress.json",
+      "bytes": 938,
+      "sha256": "2e79da8f852891476cbf32b5f90ade5bb0b3f9a363771b83c52bd45b810ba7a5",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/repaired-candidate-progress.json": {
+      "path": "continuation-20261101/artifacts/repaired-candidate-progress.json",
+      "bytes": 1272,
+      "sha256": "a36455bf13492b52ee5654c32c0c58726dc51af620ad38d10cd7e3c886cff96f",
+      "visibility": "private"
+    },
+    "continuation/artifacts/repaired-library-comparison.json": {
+      "path": "continuation-20261101/artifacts/repaired-library-comparison.json",
+      "bytes": 563,
+      "sha256": "522d4c10b66f2f2596193b77023283adedf4dab9f1f73f9ba3f16ba03360dfa2",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/repaired-source.patch": {
+      "path": "continuation-20261101/artifacts/repaired-source.patch",
+      "bytes": 925,
+      "sha256": "7752bacaa826a8c49151d47fe8ff76677b62aea923134527f143eb6dc958d167",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/artifacts/focus-proposal-inputs.json": {
+      "path": "continuation-20261101/artifacts/focus-proposal-inputs.json",
+      "bytes": 36965,
+      "sha256": "b4e85007a8722575cb53b42432b116e11d312625a9415d4db4ecd95773ad9a60",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/private/repaired-regression-before.json": {
+      "path": "continuation-20261101/private/repaired-regression-before.json",
+      "bytes": 408,
+      "sha256": "536d9818626a5049f4b882f7abfbd9b2bdf5b93eeb95788715fa3b6b434e614c",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-fresh-mount.png": {
+      "path": "continuation-20261101/private/repaired-fresh-mount.png",
+      "bytes": 57555,
+      "sha256": "e4484d84f3544f3bd0752e8e3fc26e65cda4e2e739c6f5515c679dcdd21d43c1",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-replacement-before.png": {
+      "path": "continuation-20261101/private/repaired-replacement-before.png",
+      "bytes": 57135,
+      "sha256": "7d9423cff29c2509ba8bca88e19cfb8eecc8384cd2f806822b0f09ec7ceb9811",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-replacement-before.json": {
+      "path": "continuation-20261101/private/repaired-replacement-before.json",
+      "bytes": 3219,
+      "sha256": "685773dd907f0b05f770448964708d789d97c7563966a57bb08b6678fe057502",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-regression-after.png": {
+      "path": "continuation-20261101/private/repaired-regression-after.png",
+      "bytes": 58605,
+      "sha256": "43862c1499e4c787e85e5aec8cc25b4a71b9379b0e6a93b9bc3180ee4cd4bbc6",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-installed.txt": {
+      "path": "continuation-20261101/private/repaired-installed.txt",
+      "bytes": 1710421,
+      "sha256": "4c9297ce81944c9284ee928d8be4cd5dd7653c539f8e61fc4484ae2bdf73076c",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-regression-after.json": {
+      "path": "continuation-20261101/private/repaired-regression-after.json",
+      "bytes": 2270,
+      "sha256": "d6aa27ec87fa6047b0e2127afdff51a2ccd3c1863c52b6f1b5e398834f544d17",
+      "visibility": "private"
+    },
+    "continuation/private/caret-repaired-repeat.json": {
+      "path": "continuation-20261101/private/caret-repaired-repeat.json",
+      "bytes": 224311,
+      "sha256": "bf97aa87d93301e492db67f1feedebac63703ced61c96a4a36826760df2c9871",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-fresh-mount.json": {
+      "path": "continuation-20261101/private/repaired-fresh-mount.json",
+      "bytes": 951,
+      "sha256": "16b5caa03564efe16f2ba750ebae3f4f20a9022f7954f46c327dbda79583c8cd",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-caret-targeted-results/.last-run.json": {
+      "path": "continuation-20261101/private/repaired-caret-targeted-results/.last-run.json",
+      "bytes": 96,
+      "sha256": "811acedb974a3942667337b45e0f2940dfe03a5d089400c32963eece854f0a2a",
+      "visibility": "private"
+    },
+    "continuation/private/caret-repaired-results/.last-run.json": {
+      "path": "continuation-20261101/private/caret-repaired-results/.last-run.json",
+      "bytes": 96,
+      "sha256": "2cfa0375d6030604e93b94dd0699a1825d2c4b22c35dd61363f17a825057fb9e",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-full-suite-test-results/.last-run.json": {
+      "path": "continuation-20261101/private/repaired-full-suite-test-results/.last-run.json",
+      "bytes": 96,
+      "sha256": "811acedb974a3942667337b45e0f2940dfe03a5d089400c32963eece854f0a2a",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-caret-targeted-results/drafts-J6-visual-full-read-fc27e-ve-and-rendered-publication/trace.zip": {
+      "path": "continuation-20261101/private/repaired-caret-targeted-results/drafts-J6-visual-full-read-fc27e-ve-and-rendered-publication/trace.zip",
+      "bytes": 1074314,
+      "sha256": "76b7077f457081cde22018eeebf9e0242ca3bc43eacc8792648889d3e2e971ca",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-caret-targeted-results/drafts-J6-visual-full-read-fc27e-ve-and-rendered-publication/error-context.md": {
+      "path": "continuation-20261101/private/repaired-caret-targeted-results/drafts-J6-visual-full-read-fc27e-ve-and-rendered-publication/error-context.md",
+      "bytes": 10504,
+      "sha256": "71b149855363b8580d293cb1cdd76054d0a234fb8f7a56dc7ae2e7df30463baf",
+      "visibility": "private"
+    },
+    "continuation/private/caret-repaired-results/draft-caret-J6-visual-full-3415a-ve-and-rendered-publication/trace.zip": {
+      "path": "continuation-20261101/private/caret-repaired-results/draft-caret-J6-visual-full-3415a-ve-and-rendered-publication/trace.zip",
+      "bytes": 1098157,
+      "sha256": "9787095f236848d0e55dfa98ccaf06af89e0778e863a977a0e6922bd7e386a7e",
+      "visibility": "private"
+    },
+    "continuation/private/caret-repaired-results/draft-caret-J6-visual-full-3415a-ve-and-rendered-publication/error-context.md": {
+      "path": "continuation-20261101/private/caret-repaired-results/draft-caret-J6-visual-full-3415a-ve-and-rendered-publication/error-context.md",
+      "bytes": 10504,
+      "sha256": "01e698ad70b55cc9a834781bed835883121097f0497126615568a3c7fdcc68e1",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-full-suite-test-results/drafts-J6-visual-full-read-fc27e-ve-and-rendered-publication/error-context.md": {
+      "path": "continuation-20261101/private/repaired-full-suite-test-results/drafts-J6-visual-full-read-fc27e-ve-and-rendered-publication/error-context.md",
+      "bytes": 10504,
+      "sha256": "71b149855363b8580d293cb1cdd76054d0a234fb8f7a56dc7ae2e7df30463baf",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-full-suite-test-results/downloads-J8-native-inline-e433b-tes-without-native-handlers/fixture-image.png": {
+      "path": "continuation-20261101/private/repaired-full-suite-test-results/downloads-J8-native-inline-e433b-tes-without-native-handlers/fixture-image.png",
+      "bytes": 70,
+      "sha256": "4ff6ab670a58c14270e034e2090d9a432caa263a14e0a25785386b0c12f880b5",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-full-suite-test-results/downloads-J8-download-appe-64031-serve-a-prepared-exact-file/listening-notes.txt": {
+      "path": "continuation-20261101/private/repaired-full-suite-test-results/downloads-J8-download-appe-64031-serve-a-prepared-exact-file/listening-notes.txt",
+      "bytes": 55,
+      "sha256": "433506ebc4e78b00d49f567d12dc6d94da21cd819bf2faf3a36e43ffb18e6933",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-full-suite-test-results/downloads-J8-download-nati-3d63d-ut-touching-payment-records/listening-notes.txt": {
+      "path": "continuation-20261101/private/repaired-full-suite-test-results/downloads-J8-download-nati-3d63d-ut-touching-payment-records/listening-notes.txt",
+      "bytes": 55,
+      "sha256": "433506ebc4e78b00d49f567d12dc6d94da21cd819bf2faf3a36e43ffb18e6933",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-full-suite-test-results/downloads-J8-download-curr-f62e9-old-ordinary-attachment-URL/fresh-access.txt": {
+      "path": "continuation-20261101/private/repaired-full-suite-test-results/downloads-J8-download-curr-f62e9-old-ordinary-attachment-URL/fresh-access.txt",
+      "bytes": 55,
+      "sha256": "433506ebc4e78b00d49f567d12dc6d94da21cd819bf2faf3a36e43ffb18e6933",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-full-suite-test-results/downloads-J8-download-ordi-2deb6-e-through-real-browser-save/listening-notes.txt": {
+      "path": "continuation-20261101/private/repaired-full-suite-test-results/downloads-J8-download-ordi-2deb6-e-through-real-browser-save/listening-notes.txt",
+      "bytes": 55,
+      "sha256": "433506ebc4e78b00d49f567d12dc6d94da21cd819bf2faf3a36e43ffb18e6933",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-full-suite-test-results/downloads-J8-download-appe-99eec-serve-a-prepared-exact-file/listening-notes.txt": {
+      "path": "continuation-20261101/private/repaired-full-suite-test-results/downloads-J8-download-appe-99eec-serve-a-prepared-exact-file/listening-notes.txt",
+      "bytes": 55,
+      "sha256": "433506ebc4e78b00d49f567d12dc6d94da21cd819bf2faf3a36e43ffb18e6933",
+      "visibility": "private"
+    },
+    "continuation/diagnostics/caret.config.mjs": {
+      "path": "continuation-20261101/diagnostics/caret.config.mjs",
+      "bytes": 391,
+      "sha256": "61caa228c0264f98d43eef2c58b0739c6a0079a79010697143d8ed177d8c966a",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/diagnostics/draft-caret.spec.ts": {
+      "path": "continuation-20261101/diagnostics/draft-caret.spec.ts",
+      "bytes": 56678,
+      "sha256": "d9bb091e02061abb6c9c946004b437b25a3416ec9cebbeb663cfa0dd0e542908",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/repaired-synthetic/2026-11-01T10-22-01.742Z/manifest.json": {
+      "path": "continuation-20261101/repaired-synthetic/2026-11-01T10-22-01.742Z/manifest.json",
+      "bytes": 358522,
+      "sha256": "88d2497cfa652a022f0ebd7e81faca4e2cc8bf39c4170e8c4a9785067a4ab3ca",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/repaired-synthetic/baseline-caret-pass/manifest.json": {
+      "path": "continuation-20261101/repaired-synthetic/baseline-caret-pass/manifest.json",
+      "bytes": 3890,
+      "sha256": "e8fc270a12cd2382ba18b8889aa23df2fb1ad70906a2ec8809ab25135a00e54b",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/repaired-synthetic/repaired-caret-failure/manifest.json": {
+      "path": "continuation-20261101/repaired-synthetic/repaired-caret-failure/manifest.json",
+      "bytes": 3694,
+      "sha256": "c750635b2ce83fd61aa4993983b5daba01987330fc9c687d6cd8f5e94dacfa88",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/repaired-freeze/freeze.json": {
+      "path": "continuation-20261101/repaired-freeze/freeze.json",
+      "bytes": 62391,
+      "sha256": "f2fc5de3b1552d11f3bcf56c8b0ecde8b58a98576682f54de916ba85d37e6bfe",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/repaired-freeze/manifest.json": {
+      "path": "continuation-20261101/repaired-freeze/manifest.json",
+      "bytes": 4325,
+      "sha256": "9d0628676ac185745a5843126d8409eade8b0a7413becd5db5c7c8764aa9d7fd",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/focus-proposal/tsdm-workspace.user.js": {
+      "path": "continuation-20261101/focus-proposal/tsdm-workspace.user.js",
+      "bytes": 1710524,
+      "sha256": "9a0ec8af6c8feb95745db5fc801081e3bd2b62f6d19227ec9bf989848509b2ea",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/repaired-candidate-plan.md": {
+      "path": "continuation-20261101/repaired-candidate-plan.md",
+      "bytes": 3588,
+      "sha256": "447bd6ed27d17684443495c1ee3e5296919b3af642db88c9ed290a3900508e29",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-replacement-after.json": {
+      "path": "continuation-20261101/private/repaired-replacement-after.json",
+      "bytes": 4796,
+      "sha256": "3bd777cca255c0803878ecca4d22801796527ad9259b97d6f9ef959779598032",
+      "visibility": "private"
+    },
+    "continuation/private/repaired-replacement-after.png": {
+      "path": "continuation-20261101/private/repaired-replacement-after.png",
+      "bytes": 55099,
+      "sha256": "d064c81e6cd4875fc007e3413f5b571cc21416ee6355998a67dda43d0981f58e",
+      "visibility": "private"
+    },
+    "continuation/private/caret-focus-patched.json": {
+      "path": "continuation-20261101/private/caret-focus-patched.json",
+      "bytes": 1073459,
+      "sha256": "162bd75d6e41f536d66e03dba05c27aa76c45c67dc21430805a95008d518c044",
+      "visibility": "private"
+    },
+    "continuation/focus-freeze/freeze.json": {
+      "path": "continuation-20261101/focus-freeze/freeze.json",
+      "bytes": 62551,
+      "sha256": "4336a57d3d069adc43647d0b2fd871ba270a4c9f43f893a94038158ea7ae7db0",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/focus-freeze/manifest.json": {
+      "path": "continuation-20261101/focus-freeze/manifest.json",
+      "bytes": 4325,
+      "sha256": "6ddbcb55c4fb45a62bd703300af86e3bf478214141afe9dbb43fb5bb66614d26",
+      "visibility": "synthetic-or-authored"
+    },
+    "continuation/focus-freeze/tsdm-workspace.user.js": {
+      "path": "continuation-20261101/focus-freeze/tsdm-workspace.user.js",
+      "bytes": 1710524,
+      "sha256": "9a0ec8af6c8feb95745db5fc801081e3bd2b62f6d19227ec9bf989848509b2ea",
+      "visibility": "synthetic-or-authored"
+    },
+    "finalInstalledReceipt": {
+      "path": "continuation-20261101/final-installed/installed-receipt.json",
+      "bytes": 913,
+      "sha256": "c216f4b937ec879e9f400e4e753564b1bdf85b734bac3733506282f6d6d49789",
+      "visibility": "synthetic-or-authored"
+    },
+    "finalInstalledProgress": {
+      "path": "continuation-20261101/final-installed/progress-receipt.json",
+      "bytes": 7617,
+      "sha256": "43a2c3c7c54610722cb3628ffe2dbe4729db755470a767ca0219662289c3545b",
+      "visibility": "synthetic-or-authored"
+    },
+    "finalInstalledManifest": {
+      "path": "continuation-20261101/final-installed/manifest.json",
+      "bytes": 19342,
+      "sha256": "0b9d628f2e312d213a581faa547756da566fa5697d7f420d83e51da367eb5f69",
+      "visibility": "synthetic-or-authored"
+    },
+    "finalSharedRequirementMap": {
+      "path": "continuation-20261101/final-installed/shared-requirement-map.json",
+      "bytes": 527062,
+      "sha256": "580895d8a4504fbc05fa2f397db2257594c6914a191a80f7197b5991fd4230ea",
+      "visibility": "synthetic-or-authored"
+    },
+    "finalMappingValidation": {
+      "path": "continuation-20261101/final-installed/mapping-validation.json",
+      "bytes": 282,
+      "sha256": "437a5436ba65b715910a7f20d4f793af655b2c6b048f1df3f1784105486d982b",
+      "visibility": "synthetic-or-authored"
+    },
+    "finalRestartSummary": {
+      "path": "continuation-20261101/final-installed/restart-summary.json",
+      "bytes": 1267,
+      "sha256": "b2d8cc9442b31d62bd26f29634b5bdd0e9163a0608d49593662dbb4cf1114999",
+      "visibility": "synthetic-or-authored"
+    },
+    "finalStandardsReview": {
+      "path": "continuation-20261101/final-installed/standards-review.txt",
+      "bytes": 3497,
+      "sha256": "1ad9e54c1285e8fbdbecd5a3a2500700b985cafaa3dc31b363dd627bf7aec31a",
+      "visibility": "synthetic-or-authored"
+    },
+    "finalSpecReview": {
+      "path": "continuation-20261101/final-installed/spec-review.txt",
+      "bytes": 2606,
+      "sha256": "a23544a0718d3ed8f828db9e10ffdd845d36d159ed0e0436927a688313e36abe",
+      "visibility": "synthetic-or-authored"
+    },
+    "finalBdflReview": {
+      "path": "continuation-20261101/final-installed/bdfl-review.txt",
+      "bytes": 6894,
+      "sha256": "f75894dd612f292a721d307cac0030421fbf1f2a18bd171f871362d5bb5960d4",
+      "visibility": "synthetic-or-authored"
     }
   },
   "shared": {
+    "finalSuite": {
+      "schema": 1,
+      "candidateSha256": "9a0ec8af6c8feb95745db5fc801081e3bd2b62f6d19227ec9bf989848509b2ea",
+      "runId": "2026-11-01T11:08:26.513Z",
+      "status": "passed",
+      "cases": 1118,
+      "failed": 0,
+      "retries": 0,
+      "manifestVerifiedFiles": 2104,
+      "syntheticReceipt": "continuation-20261101/focus-synthetic/2026-11-01T11-08-26.513Z/receipt.json",
+      "runtime": {
+        "node": "v24.22.0",
+        "openssl": "OpenSSL 3.6.2 7 Apr 2026 (Library: OpenSSL 3.6.2 7 Apr 2026)",
+        "npmUserAgent": null,
+        "platform": "darwin",
+        "architecture": "arm64",
+        "playwright": "1.64.1"
+      },
+      "installedQualification": false,
+      "limits": [
+        "Offline substituted-network application evidence; does not establish installed manager or live forum behavior.",
+        "Raw reports, traces and workstation paths remain private."
+      ]
+    },
+    "requirementMap": "finalSharedRequirementMap",
+    "mappingValidation": "finalMappingValidation",
+    "libraryReuse": "Emitted forum-client outputs byte-identical; historical clean external consumer and replay authority retained."
+  },
+  "preservedFailures": [
+    {
+      "artifact": "foundationSandboxFailure",
+      "caseCount": 26,
+      "classification": "browser-launch prevented by sandbox; no application assertions executed",
+      "targetedRerun": "foundationRerun"
+    }
+  ],
+  "installed": {
+    "status": "behavior-verified-provenance-pending",
+    "runtime": {
+      "exportExact": true,
+      "oneEnabledExport": true,
+      "freshRoots": 1,
+      "edge": "156.0.4314.58",
+      "chromium": "156.0.8078.80",
+      "macOS": "15.6.0",
+      "architecture": "arm",
+      "manager": "5.5.1"
+    },
+    "receipt": "finalInstalledReceipt",
+    "progress": "finalInstalledProgress",
+    "restart": "finalRestartSummary",
+    "limits": [
+      "Restart recovered no writing; browser-controlled absence reported by destination.",
+      "No full startup request ledger spans browser restart; replacement trace truncated.",
+      "Background key probe failed while foreground native caret comparison passed; cause unproven.",
+      "Native unread count and category breadth unknown; no paid purchase."
+    ]
+  },
+  "acceptance": [
+    {
+      "id": "38.1",
+      "name": "Candidate and stable host identity",
+      "status": "verified",
+      "remaining": "Exact export, one enabled copy, clean-before owner confirmation and actual stable runtime recorded.",
+      "installedEvidence": [
+        "finalInstalledProgress",
+        "finalInstalledManifest"
+      ],
+      "sharedCaseMapping": null
+    },
+    {
+      "id": "38.2",
+      "name": "Installed workflow coverage",
+      "status": "verified",
+      "remaining": "Every distinct required preparation/control covered; no extra packet/favorite effects.",
+      "installedEvidence": [
+        "finalInstalledProgress",
+        "finalInstalledManifest"
+      ],
+      "sharedCaseMapping": "finalSharedRequirementMap#38.2"
+    },
+    {
+      "id": "38.3",
+      "name": "Native effects and files",
+      "status": "verified",
+      "remaining": "One upload and one conditional edit independently read back; both disk deliveries exact.",
+      "installedEvidence": [
+        "finalInstalledProgress",
+        "finalInstalledManifest"
+      ],
+      "sharedCaseMapping": "finalSharedRequirementMap#38.3"
+    },
+    {
+      "id": "38.4",
+      "name": "Actual host behavior",
+      "status": "verified",
+      "remaining": "Native IME/roundtrip, caret, focus, representative layout and redirect/remount covered with stated probe limitations.",
+      "installedEvidence": [
+        "finalInstalledProgress",
+        "finalInstalledManifest"
+      ],
+      "sharedCaseMapping": "finalSharedRequirementMap#38.4"
+    },
+    {
+      "id": "38.5",
+      "name": "Recovery and identity",
+      "status": "verified",
+      "remaining": "Browser-controlled absence on restart follows ADR0003; exact restored writing observed in close/restore, replacement/reload and divergence; no full startup ledger claim.",
+      "installedEvidence": [
+        "finalInstalledProgress",
+        "finalInstalledManifest"
+      ],
+      "sharedCaseMapping": "finalSharedRequirementMap#38.5"
+    },
+    {
+      "id": "38.6",
+      "name": "Search and notices",
+      "status": "verified",
+      "remaining": "Fresh effective-criteria search and notice load; no passive repeat requests; controlled breadth mapped.",
+      "installedEvidence": [
+        "finalInstalledProgress",
+        "finalInstalledManifest"
+      ],
+      "sharedCaseMapping": "finalSharedRequirementMap#38.6"
+    },
+    {
+      "id": "38.7",
+      "name": "Evidence and relevance",
+      "status": "pending",
+      "remaining": "Current evidence mapping retained; clean committed convergence and pinned freeze pending.",
+      "installedEvidence": [
+        "finalInstalledProgress",
+        "finalInstalledManifest"
+      ],
+      "sharedCaseMapping": null
+    },
+    {
+      "id": "38.8",
+      "name": "Final disposition",
+      "status": "pending",
+      "remaining": "Standards, Spec and completed-work BDFL report zero actionable source/behavior findings. Final clean-freeze/provenance disposition pending.",
+      "installedEvidence": [
+        "finalInstalledProgress",
+        "finalInstalledManifest"
+      ],
+      "sharedCaseMapping": null
+    }
+  ],
+  "limits": [
+    "Restart recovered no writing; browser-controlled absence reported by destination.",
+    "No full startup request ledger spans browser restart; replacement trace truncated.",
+    "Background key probe failed while foreground native caret comparison passed; cause unproven.",
+    "Native unread count and category breadth unknown; no paid purchase."
+  ],
+  "ownerDisposition": {
+    "sourceCheckpointApproved": true,
+    "ownerReply": "Approve checkpoint, then verify clean freeze",
+    "recordedAt": "2026-11-01T13:08:51.118394+00:00",
+    "qualificationExceptionsAccepted": false,
+    "uncheckedGates": [
+      "Clean committed pinned freeze",
+      "Final provenance/disposition"
+    ]
+  },
+  "continuation": {
+    "sourceCandidateUnchanged": true,
+    "qualified": false,
+    "proposalSha256": "4c9297ce81944c9284ee928d8be4cd5dd7653c539f8e61fc4484ae2bdf73076c",
+    "proposalInstalled": false,
+    "regressionBaseline": {
+      "passed": 1,
+      "failed": 1
+    },
+    "proposalTargeted": {
+      "passed": 2,
+      "failed": 0
+    },
+    "proposalTypecheck": "passed",
+    "ownerCandidateDecision": "Advance to repaired candidate",
+    "installedSuccessorSha256": "4c9297ce81944c9284ee928d8be4cd5dd7653c539f8e61fc4484ae2bdf73076c",
+    "installedSuccessorRecoveryRegression": "passed with exact saved source; sending paused after reload",
+    "successorFullSuite": {
+      "passed": 1117,
+      "failed": 1,
+      "retries": 0
+    },
+    "nextProposalSha256": "9a0ec8af6c8feb95745db5fc801081e3bd2b62f6d19227ec9bf989848509b2ea",
+    "nextProposalValidation": "10/10 focused passes; typecheck/lint/format passed; pinned development freeze exact; full 1118 passed, zero retries; 2104 manifest entries verified",
+    "replacementReloadAuthorization": "Explicit owner approval; reload completed and exact source/title retained, sending paused",
+    "runtimeRestart": "Owner restarted; actual Edge156.0.4314.58/Chromium156.0.8078.80/macOS15.6.0 arm verified. Replacement writing absent; independent regression snapshot unavailable. Startup traffic not captured.",
+    "nextProposalFullSuite": {
+      "schema": 1,
+      "candidateSha256": "9a0ec8af6c8feb95745db5fc801081e3bd2b62f6d19227ec9bf989848509b2ea",
+      "runId": "2026-11-01T11:08:26.513Z",
+      "status": "passed",
+      "cases": 1118,
+      "failed": 0,
+      "retries": 0,
+      "manifestVerifiedFiles": 2104,
+      "syntheticReceipt": "continuation-20261101/focus-synthetic/2026-11-01T11-08-26.513Z/receipt.json",
+      "runtime": {
+        "node": "v24.22.0",
+        "openssl": "OpenSSL 3.6.2 7 Apr 2026 (Library: OpenSSL 3.6.2 7 Apr 2026)",
+        "npmUserAgent": null,
+        "platform": "darwin",
+        "architecture": "arm64",
+        "playwright": "1.64.1"
+      },
+      "installedQualification": false,
+      "limits": [
+        "Offline substituted-network application evidence; does not establish installed manager or live forum behavior.",
+        "Raw reports, traces and workstation paths remain private."
+      ]
+    },
+    "finalInstalledProgress": {
+      "schema": 1,
+      "candidateSha256": "9a0ec8af6c8feb95745db5fc801081e3bd2b62f6d19227ec9bf989848509b2ea",
+      "qualified": false,
+      "installed": {
+        "exportExact": true,
+        "oneEnabledExport": true,
+        "freshRoots": 1,
+        "edge": "156.0.4314.58",
+        "chromium": "156.0.8078.80",
+        "macOS": "15.6.0",
+        "architecture": "arm",
+        "manager": "5.5.1"
+      },
+      "verified": {
+        "ordinaryEdit": {
+          "postAlias": "existing-task-post",
+          "submittedRevision": 9,
+          "sourceExactIndependentNativeReadback": true,
+          "uploadPosts": 1,
+          "savePosts": 1,
+          "attachmentAssociation": true,
+          "storedFilenameAndBytesMatch": true
+        },
+        "ordinaryDisk": {
+          "filename": "edge-38-final-association.txt",
+          "bytes": 84,
+          "sha256": "fc5ddc6bc56f44f880c09f23447f9f10999ed3dbdd639864547ba7293f5bd5d2",
+          "delivery": "Native Edge Downloads showed file; actual file verified on disk",
+          "automationDownloadEvent": "Timed out; does not override actual disk delivery"
+        },
+        "paidDisk": {
+          "deliveries": [
+            {
+              "filename": "url (1).txt",
+              "bytes": 169,
+              "sha256": "a2e07c146ebdfacdf0f7408d7899a0f7288e21c407b7651b74c096cc905950fc",
+              "responseExact": true
+            }
+          ],
+          "responseBytes": 169,
+          "responseSha256": "a2e07c146ebdfacdf0f7408d7899a0f7288e21c407b7651b74c096cc905950fc",
+          "purchaseRequests": 0
+        },
+        "recoveryRegression": "Unavailable snapshot to Drafts to existing ordinary draft to reload preserves exact source and pauses sending; nontruncated zero-POST request ledger.",
+        "caret": "Actual foreground macOS Command-Left, Right, Shift-X inserts at expected position; complete source exact. Background browser Playwright key path inserted at end and is retained as failed automation evidence; cause not established.",
+        "appearance": "70% derived Compact and Dark preview, restored 100%/Alias; source preserved; ShadowRoot dialog Tab focus contained and Close returned focus to Settings.",
+        "search": "One authorized search returned effective criteria and expected task thread; follow/Back/reload produced zero additional search requests.",
+        "notices": "One authorized populated load; passive browser reload restored stale snapshot with zero additional notice requests.",
+        "guest": "One authorized logout; both sources exact, sending paused; prior notice/search snapshots unavailable.",
+        "memberReturn": "Fresh same-account form checks preserved both complete sources and cleared sending pause; old search results stayed unavailable. Initial ordinary-draft check remained paused; a subsequent explicit check completed.",
+        "workflowPreparation": "Current installed reply, addressed quote, own edit, ordinary new thread, ordinary draft, direct red packet, funded draft, thread/board favorite addition and existing board-favorite removal controls inspected without additional submission. Request ledgers retained.",
+        "replacement": "Intermediate 4c to final 9a measured reload preserved complete local title/source/category and paused sending. Ledger truncated; retained zero-POST subset is not complete no-resend evidence.",
+        "narrow": "390x844 CSS viewport override in actual installed tab; workspace root 390px and writing sections/textarea 342px; source exact. Native underlying document retained 1200px scroll width. Override cleared; no native window-resize claim.",
+        "nativeEscape": "Native continuation has zero workspace roots. Observed native next-thread redirect returned HTTP302 and remounted one workspace; nontruncated request ledger.",
+        "cleanInstall": "Owner confirms complete removal before corrected 9a import; exact exported source, one enabled copy and fresh single-root mount independently verified. Manager5.5.1 owner-reported.",
+        "nativeIME": "Owner reports typing and committing \u4f60\u597d with Phonetic\u2013Cantonese, not pasting. Observed complete source ends IME final: \u4f60\u597d; visual representation and exact source roundtrip passed. Baseline restored locally without save.",
+        "inheritedDivergence": "Native Edge Duplicate Tab inherited complete source and paused sending. Appending a local marker in duplicate did not change original. Full source and snapshot backed up; close/restore authorization pending.",
+        "idleReturn": {
+          "elapsedSeconds": 1814.512,
+          "replacementSourceExact": true,
+          "limits": "Replacement-context exact source checked. Additional draft direct-value probes timed out before dispatch; visible snapshot retained source, but no additional exact-value claim is made."
+        },
+        "closeRestore": "Explicitly authorized native close/reopen of the task duplicate preserved exact complete source and divergence marker; sending paused. No startup network trace spans reopening; UI/source observation and controlled no-replay evidence retain distinct authority.",
+        "restartObservation": {
+          "ownerPerformed": true,
+          "browserConnectionChanged": true,
+          "contexts": [
+            {
+              "contextAlias": "saved-own-edit",
+              "writingPresent": false,
+              "unavailableShown": false,
+              "navigationType": "back_forward",
+              "documentRestoredWithOpaqueKey": false,
+              "recoveryRecordPresent": true
+            },
+            {
+              "contextAlias": "ordinary-draft",
+              "writingPresent": false,
+              "unavailableShown": true,
+              "navigationType": "back_forward",
+              "documentRestoredWithOpaqueKey": true,
+              "recoveryRecordPresent": false
+            },
+            {
+              "contextAlias": "local-replacement",
+              "writingPresent": false,
+              "unavailableShown": true,
+              "navigationType": "back_forward",
+              "documentRestoredWithOpaqueKey": true,
+              "recoveryRecordPresent": false
+            },
+            {
+              "contextAlias": "divergent-copy",
+              "writingPresent": false,
+              "unavailableShown": true,
+              "navigationType": "back_forward",
+              "documentRestoredWithOpaqueKey": true,
+              "recoveryRecordPresent": false
+            }
+          ],
+          "limit": "No startup network ledger spans browser disconnection. No recovered writing or complete zero-resend installed trace is claimed. Sources remain in private backups; saved forum content remains separately verified."
+        }
+      },
+      "pending": [
+        "Approved source merge commit",
+        "Clean committed pinned freeze and final provenance disposition"
+      ],
+      "approvalReview": "Passive notice reload initially rejected; same action accepted after current opaque forum URL, startup source and exact-candidate E2E boundary evidence supplied. No alternate control bypass.",
+      "tradeoffs": [
+        "Use native foreground keyboard comparison after background browser-key path produced a conflicting caret result. This provides actual host-input evidence while retaining the unexplained automation failure separately."
+      ],
+      "reviewDisposition": {
+        "standards": "Zero unresolved findings; final metadata reconciliation passed",
+        "spec": "No new blocking behavioral findings; browser-controlled restart absence conforms to ADR0003",
+        "bdfl": "Zero actionable source/installed-behavior findings; exact candidate and synthetic identities independently verified"
+      },
+      "sourceCheckpointApproval": {
+        "sourceCheckpointApproved": true,
+        "ownerReply": "Approve checkpoint, then verify clean freeze",
+        "recordedAt": "2026-11-01T13:08:51.118394+00:00",
+        "qualificationExceptionsAccepted": false,
+        "uncheckedGates": [
+          "Clean committed pinned freeze",
+          "Final provenance/disposition"
+        ]
+      }
+    }
+  },
+  "historicalCandidate": {
+    "commit": "46cb84000d47483d4c6ad3c3b83bf48cbac66772",
+    "bytes": 1710368,
+    "sha256": "a3de680f5120fea3db559a404a0c35a68a22aee1d6a36dbf488d63edd449367c"
+  },
+  "historicalShared": {
     "typecheck": "passed",
     "syntheticCases": 1116,
     "syntheticFailures": 0,
@@ -619,15 +1618,7 @@
     "consumerReplay": "passed",
     "freezeIntegrity": "passed"
   },
-  "preservedFailures": [
-    {
-      "artifact": "foundationSandboxFailure",
-      "caseCount": 26,
-      "classification": "browser-launch prevented by sandbox; no application assertions executed",
-      "targetedRerun": "foundationRerun"
-    }
-  ],
-  "installed": {
+  "historicalInstalled": {
     "status": "incomplete-unqualified",
     "observedOs": "macOS 15.6 (24G84) arm64",
     "managerUiVersion": "5.5.1",
@@ -641,8 +1632,8 @@
     "inventoryAuthority": "Owner confirmed one enabled entry during same-entry replacement. Exact predecessor/final exports verified; independent full manager inventory tool-blocked.",
     "predecessorSourceVerified": true,
     "nativeEffects": {
-      "uploadAttempts": 4,
-      "uploadResult": "All refused. Original application PNG, application JPEG and native JPEG: HTTP 200 body -2. Corrected PNG: refusal with no response capture. Native form reports a server attachment-size restriction.",
+      "uploadAttempts": 5,
+      "uploadResult": "Four initial image refusals retained; separately authorized TXT upload succeeded and was associated with one saved unpublished ordinary draft; exact stored bytes matched.",
       "ordinaryWrites": 1,
       "searchSubmissions": 1,
       "searchResult": "three results; effective criteria and opened target verified",
@@ -655,10 +1646,12 @@
       "removals": 0,
       "ordinaryDiskDelivery": "105 bytes delivered; exact HTTP response match; receipt retained",
       "paidDiskDelivery": "169-byte url.txt newly delivered; exact HTTP response match; no purchase",
-      "applicationUploadAttempts": 3,
+      "applicationUploadAttempts": 4,
       "nativeComparisonUploadAttempts": 1,
       "logout": 1,
-      "ordinaryWriteReadback": "Exact saved source/title/category and native options, actor/target/forum publication timestamp independently read back. Client revision49 is not a server revision ID; publication-only options unavailable in native edit form."
+      "ordinaryWriteReadback": "Exact saved source/title/category and native options, actor/target/forum publication timestamp independently read back. Client revision49 is not a server revision ID; publication-only options unavailable in native edit form.",
+      "ordinaryDraftSaves": 1,
+      "successfulUploads": 1
     },
     "passiveChecks": {
       "noticeReturnRequests": 0,
@@ -671,17 +1664,17 @@
       "initialBootTrace": "truncated; excluded from zero-effect claims"
     },
     "uploadFixtureDiagnosis": "Corrected PNG and valid JPEG were refused. Native JPEG comparison also returned -2 and a server attachment-size restriction message. Underlying server cause remains unproven; no application-only defect established.",
-    "ime": "Owner-performed Phonetic–Cantonese source entry: exact 你好 committed, caret 222; agent-verified complete source preservation and visual/source roundtrip. Candidate-panel lifecycle not captured.",
-    "recovery": "Duplicate divergence, independent absence, close/restore, replacement and idle-return observed. Owner-performed full Edge restart changed browser connection. Original and duplicate reported unavailable snapshot with no writing; replacement tab returned to board with no writing or explicit absence warning. No startup network ledger; no durable restart-recovery or complete no-resend claim.",
-    "favoriteControls": "Already-saved board plus separate add-board/add-thread review controls observed; no confirmation. Removal preparation rejected by automatic approval review.",
+    "ime": "Owner-performed Phonetic\u2013Cantonese source entry: exact \u4f60\u597d committed, caret 222; agent-verified complete source preservation and visual/source roundtrip. Candidate-panel lifecycle not captured.",
+    "recovery": "Prior restart document timing shows ordinary board URL/back_forward, not opaque key. New missing-snapshot \u2192 Drafts \u2192 reload rejects its own dangling-origin recovery record; source retained. Reproduced offline. Prior capture limits retained.",
+    "favoriteControls": "Add-board/add-thread and remove-board reviews observed. Removal preparation2GET/0POST; separate confirmation never invoked.",
     "nativeEscape": "Bypass had zero roots. Observed HTTP 301 post redirect remounted exactly one workspace ShadowRoot.",
     "settingsPortal": "Rendered Settings dialog/focus inside workspace ShadowRoot; nine native stylesheet links enabled; no light-DOM dialog. Current native forum-index HTTP200 response has no CSP or CSP-Report-Only header. Restrictive policy variants mapped synthetically.",
-    "identityTransition": "Real member→guest→same-member completed. Complete source preserved; sending paused while guest, resumed only after current account/form check. Old search snapshot remained unavailable. Return trace: zero POST.",
+    "identityTransition": "Real member\u2192guest\u2192same-member completed. Complete source preserved; sending paused while guest, resumed only after current account/form check. Old search snapshot remained unavailable. Return trace: zero POST.",
     "replacement": "Exact d2ce predecessor and a3de current exports verified. Title/source/category/12 option checkboxes/root appearance retained after reload; revision4 acknowledged, sending paused. 208.308s idle-return preserved writing. Reload trace truncated, so no complete installed zero-effect ledger.",
-    "cleanInstall": "Unverified: initial empty export invalid as clean-before evidence; later exports demonstrate replacement only.",
+    "cleanInstall": "Owner confirmed complete removal before import in existing Edge profile, stable Tampermonkey5.5.1; exact single-enabled export and fresh forum-index mount independently verified.",
     "independentInventoryVerified": false
   },
-  "acceptance": [
+  "historicalAcceptance": [
     {
       "id": "38.1",
       "name": "Candidate and stable host identity",
@@ -703,27 +1696,29 @@
     {
       "id": "38.2",
       "name": "Installed workflow coverage",
-      "status": "partial",
+      "status": "verified",
       "shared": [
         "syntheticReceipt",
         "historicalChrome"
       ],
-      "remaining": "Ordinary resumable draft context remains absent. Six writing preparations plus add-thread/add-board favorite reviews observed. Removal preparation tool-blocked; no favorite effect performed.",
+      "remaining": "None at specified preparation scope. Ordinary draft resumed and favorite-removal review observed; no favorite mutation.",
       "sharedCaseMapping": "sharedRequirementMap#38.2",
       "installedEvidence": [
         "installedObservations",
         "draftAccessContext",
-        "private/draft-switch-blocked.txt"
+        "private/draft-switch-blocked.txt",
+        "continuation/artifacts/draft-association-receipt.json",
+        "continuation/artifacts/favorite-preparation-receipt.json"
       ]
     },
     {
       "id": "38.3",
       "name": "Native effects and files",
-      "status": "failed-and-incomplete",
+      "status": "verified",
       "shared": [
         "syntheticReceipt"
       ],
-      "remaining": "Successful authenticated upload and saved association absent: four uploads refused including native JPEG. Ordinary write/readback and ordinary/paid disk delivery verified with disclosed native option/version limits.",
+      "remaining": "Representative TXT upload and saved draft association verified with independent native readback and exact stored bytes. Earlier four image refusals retained; underlying cause unproven.",
       "sharedCaseMapping": "sharedRequirementMap#38.3",
       "installedEvidence": [
         "uploadNetwork",
@@ -735,7 +1730,8 @@
         "private/ordinary-write-receipt.json",
         "private/ordinary-native-saved.json",
         "ordinaryDownloadReceipt",
-        "paidDownloadReceipt"
+        "paidDownloadReceipt",
+        "continuation/artifacts/draft-association-receipt.json"
       ]
     },
     {
@@ -758,11 +1754,11 @@
     {
       "id": "38.5",
       "name": "Recovery and identity",
-      "status": "partial",
+      "status": "failed",
       "shared": [
         "syntheticReceipt"
       ],
-      "remaining": "Clean install unverified. Restart performed: original/duplicate truthfully unavailable; replacement writing absent on board without explicit warning. Startup network ledger unavailable; replacement ledger truncated. Shared incompatible/no-auto-replay cases mapped; no durable restart-recovery claim.",
+      "remaining": "Clean reinstall verified on stated owner/agent authority. Frozen candidate creates dangling origin after unavailable snapshot \u2192 Drafts, then rejects its own record on reload. Proposed isolated repair passes targeted E2Es; not installed/qualified. Original truncated replacement and restart capture limits retained.",
       "sharedCaseMapping": "sharedRequirementMap#38.5",
       "installedEvidence": [
         "tabLifecycle",
@@ -773,7 +1769,11 @@
         "private/replacement-after.json",
         "private/restart-before.json",
         "private/restart-after.json",
-        "private/restart-receipt.json"
+        "private/restart-receipt.json",
+        "continuation/artifacts/clean-export-receipt.json",
+        "continuation/artifacts/restart-destination-receipt.json",
+        "continuation/artifacts/recovery-repro.json",
+        "continuation/private/recovery-rejected-record.json"
       ]
     },
     {
@@ -820,7 +1820,7 @@
       "name": "Final disposition",
       "status": "blocked",
       "shared": [],
-      "remaining": "Standards/Spec report reviews and BDFL accounting validation complete. Owner explicitly approved an incomplete evidence commit on 2026-11-01 while keeping #38 unqualified. Clean install, two preparation gaps, successful upload/association and recovery/protection limits remain unresolved; no qualification exceptions accepted.",
+      "remaining": "Owner approved advancing to repaired candidate4c9297ce. Its separate required qualification is in progress; current a3de remains failed. No qualification exceptions accepted.",
       "installedEvidence": [
         "artifacts/standards-review.txt",
         "artifacts/spec-review.txt",
@@ -828,22 +1828,24 @@
       ]
     }
   ],
-  "limits": [
+  "historicalLimits": [
     "Shared synthetic checks substitute network traffic and do not qualify installed Tampermonkey.",
     "Original Chrome final bundle was not recovered; its closure is an accepted historical conclusion.",
     "Synthetic runner used existing candidate dependencies and Node 24.22.1; clean build/consumer independently used pinned Node 24.22.0/npm 11.21.1.",
     "Browser policy blocked extension-page control; owner approval of loading scripts does not remove the tool restriction.",
-    "Four authorized uploads refused; one ordinary publication independently read back, one search and one notice load occurred. No funding, removal or purchase.",
+    "Four authorized image uploads refused; a fifth TXT upload and one unpublished draft save succeeded; one ordinary publication independently read back, one search and one notice load occurred. No funding, removal or purchase.",
     "Native upload-error-definition script navigation was blocked by the browser; no alternate retrieval attempted. Native comparison maps -2 to a server attachment-size restriction message; its underlying cause remains unproven.",
     "Narrow screenshot uses a temporary 390 by 844 CSS viewport override, subsequently cleared. Text size restored to 100 percent.",
     "The corrected upload attempt has an application refusal observation but an empty network capture; no response-code inference is made.",
     "Cantonese input was owner-performed; committed text and roundtrip were independently observed, but composition-event/candidate-panel lifecycle was not.",
     "Ordinary browser download events timed out; exact bytes and current timestamp in the last-used save directory establish disk delivery.",
-    "Automatic approval review rejected Remove favorite inspection and later duplicate-tab cleanup; no workaround was attempted. Add preparation was inspected instead, and the duplicate was retained.",
+    "Initial Remove favorite preparation rejection later resolved by submitting source-backed evidence to the same approval review; original UI review action allowed,2GET/0POST. No confirmation/deletion. Earlier duplicate cleanup rejection retained.",
     "Replacement trace is truncated. Owner-performed restart has no startup network ledger; original/duplicate show unavailable snapshots, replacement tab shows a board without retained writing or explicit absence warning.",
-    "Automatic approval review rejected discarding the retained local draft view to inspect the remaining expiry draft. No discard occurred; ordinary draft preparation remains unverified."
+    "Automatic approval review rejected discarding the retained local draft view to inspect the remaining expiry draft. No discard occurred; a separately authorized new ordinary draft later supplied preparation evidence."
   ],
-  "ownerDisposition": {
+  "snapshotRole": "source-checkpoint-before-clean-freeze",
+  "finalDisposition": "continuation-20261101/final-disposition.json",
+  "historicalOwnerDisposition": {
     "date": "2026-11-01",
     "timezone": "Asia/Hong_Kong",
     "decision": "Commit the incomplete evidence report; keep #38 unqualified",

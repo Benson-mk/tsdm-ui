@@ -361,6 +361,91 @@ test("J4.reply-later-edit: older confirmation preserves later source while retur
     contentType: "image/png",
   });
 });
+test("J4.reply-result-single-navigation: one confirmed-result click reads once and preserves newer unsent source", async ({
+  page,
+}, info) => {
+  const state = await readyReply(page);
+  let release!: () => void;
+  state.sourceGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect
+    .poll(() =>
+      state.requests.some(
+        (request) => new URL(request.url).searchParams.get("action") === "edit",
+      ),
+    )
+    .toBe(true);
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Later unsent revision");
+  release();
+  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  const before = state.requests.length;
+  const historyBefore = await page.evaluate(() => history.length);
+  await page
+    .getByRole("link", { name: "Open confirmed post", exact: true })
+    .click();
+  await expect(
+    page.getByRole("article", { name: "Post 303", exact: true }),
+  ).toBeVisible();
+  const readerRequests = state.requests.slice(before);
+  const historyAfter = await page.evaluate(() => history.length);
+  expect.soft(readerRequests).toHaveLength(1);
+  expect
+    .soft(
+      readerRequests.map((request) => {
+        const destination = new URL(request.url);
+        return {
+          method: request.method,
+          origin: destination.origin,
+          pathname: destination.pathname,
+          query: Object.fromEntries(destination.searchParams),
+        };
+      }),
+    )
+    .toEqual([
+      {
+        method: "GET",
+        origin,
+        pathname: "/forum.php",
+        query: { mod: "viewthread", tid: "42", page: "1", tsdmapp: "json" },
+      },
+    ]);
+  expect.soft(historyAfter - historyBefore).toBe(1);
+  const beforeReturn = state.requests.length;
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    "Later unsent revision",
+  );
+  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  expect(state.requests).toHaveLength(beforeReturn);
+  expect(state.posts).toHaveLength(1);
+  expect(state.posts[0]!.get("message")).toBe(source);
+  await info.attach("reply-result-navigation.json", {
+    body: Buffer.from(
+      JSON.stringify({
+        readerRequests,
+        historyBefore,
+        historyAfter,
+        returnRequests: state.requests.slice(beforeReturn),
+        submittedSource: state.posts[0]!.get("message"),
+        retainedSource: await page
+          .getByLabel("Complete source", { exact: true })
+          .inputValue(),
+        commands: state.posts.length,
+      }),
+    ),
+    contentType: "application/json",
+  });
+  await info.attach("reply-result-navigation.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
 test("J5.reply-pending: reload retains uncertainty then explicit exact-post check confirms without sending", async ({
   page,
 }, info) => {
@@ -1242,3 +1327,407 @@ for (const addressed of [false, true])
       contentType: "image/png",
     });
   });
+
+for (const attempted of [false, true]) {
+  test(`J4.image-writing-recovery-${attempted ? "uncertain" : "local"}: qualified reader image preserves writing and immutable attempt without replay`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page);
+    state.mode = "lost";
+    state.threadChange = (body) =>
+      body.replace(
+        "<p>Existing opening source</p>",
+        '<p>Existing opening source</p><ignore_js_op><img id="aimg_88" aid="88" file="forum.php?mod=attachment&amp;aid=image-token&amp;noupdate=yes" zoomfile="forum.php?mod=attachment&amp;aid=image-token&amp;noupdate=yes&amp;nothumb=yes" alt="Recovery image"><div id="aimg_88_menu"><p><strong>fixture.png</strong></p><a href="forum.php?mod=attachment&amp;aid=image-token&amp;nothumb=yes">Download attachment</a></div></ignore_js_op>',
+      );
+    await page
+      .getByRole("button", { name: "Refresh thread", exact: true })
+      .click();
+    await expect(
+      page.getByRole("img", { name: "Recovery image", exact: true }),
+    ).toHaveAttribute("src", /noupdate=yes/);
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    await page.getByLabel("Complete source", { exact: true }).fill(source);
+    if (attempted) {
+      await page
+        .getByRole("button", { name: "Review publication", exact: true })
+        .click();
+      await page
+        .getByRole("button", { name: "Send reply", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", { name: "Check result", exact: true }),
+      ).toBeVisible();
+    }
+    const before = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    );
+    const count = state.requests.length;
+    await page.reload();
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(source);
+    const after = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    );
+    expect(after.source).toBe(before.source);
+    expect(after.selection).toEqual(before.selection);
+    expect(after.attempts).toEqual(before.attempts);
+    expect(state.posts).toHaveLength(attempted ? 1 : 0);
+    expect(
+      state.requests.slice(count).filter((r) => r.method !== "GET"),
+    ).toEqual([]);
+    await info.attach("image-writing-recovery.json", {
+      body: Buffer.from(
+        JSON.stringify({ before, after, requests: state.requests }),
+      ),
+      contentType: "application/json",
+    });
+    await info.attach("image-writing-recovery.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+}
+
+// Read-only native edit forms retain empty replacement sentinels; no replacement command.
+async function dormantSnapshotJourney(page: Page, merged: boolean) {
+  const state = await fixture(page);
+  state.priorSource = merged ? "Prior complete [attach]77[/attach]" : null;
+  state.sourceChange = (body) => {
+    if (merged && state.posts.length)
+      body = body.replace(
+        escape(source),
+        escape(state.priorSource + "\nNative supplement boundary\n" + source),
+      );
+    return (
+      body +
+      '<div id="e_attachlist"><input type="hidden" name="attachupdate[77]" value=""><input name="attachnew[77][description]" value="Retained image"><select name="attachnew[77][readperm]"><option value="0" selected>Everyone</option></select><input name="attachnew[77][price]" value="0"></div>'
+    );
+  };
+  if (merged)
+    await page
+      .getByRole("article", { name: "Post 101", exact: true })
+      .getByRole("button", { name: "Quick Quote", exact: true })
+      .click();
+  else
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  if (merged)
+    await expect(
+      page.getByLabel("Complete source before sending", { exact: true }),
+    ).toHaveValue(state.priorSource!);
+  else await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  return state;
+}
+for (const merged of [false, true]) {
+  test(`J4.reply-snapshot-recovery-${merged ? "merged-quote" : "confirmed"}: retain decoder-produced dormant controls and immutable evidence without replay`, async ({
+    page,
+  }, info) => {
+    const state = await dormantSnapshotJourney(page, merged);
+    const before = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    );
+    expect(
+      before.attempts[0].replyComparison.observed.attachmentFields,
+    ).toContainEqual({ name: "attachupdate[77]", value: "", disabled: false });
+    expect(before.attempts[0].status).toBe(merged ? "uncertain" : "confirmed");
+    const count = state.requests.length;
+    await page.reload();
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(source);
+    const after = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    );
+    expect(after.attempts).toEqual(before.attempts);
+    expect(after.selection).toEqual(before.selection);
+    expect(state.posts).toHaveLength(1);
+    expect(state.requests).toHaveLength(count);
+    if (merged)
+      await expect(
+        page.getByLabel("Complete observed result source", { exact: true }),
+      ).toHaveValue(
+        state.priorSource + "\nNative supplement boundary\n" + source,
+      );
+    await info.attach("snapshot-recovery.json", {
+      body: Buffer.from(
+        JSON.stringify({ before, after, requests: state.requests }),
+      ),
+      contentType: "application/json",
+    });
+    await info.attach("snapshot-recovery.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+}
+for (const mutation of [
+  "nonempty",
+  "invalid-id",
+  "unassociated",
+  "missing-metadata",
+  "duplicate",
+  "arbitrary-name",
+  "wrong-action",
+  "actor",
+  "board",
+  "target",
+  "before-identity",
+  "active-sentinel",
+  "submitted-sentinel",
+]) {
+  test(`J4.reply-snapshot-hostile-${mutation}: read-only allowance cannot create command authority or unbound evidence`, async ({
+    page,
+  }, info) => {
+    const state = await dormantSnapshotJourney(page, true);
+    const rejected = await page.evaluate((mutation) => {
+      const key = "tsdm.workspace.recovery",
+        record = JSON.parse(sessionStorage.getItem(key)!);
+      const attempt = record.writing.attempts[0],
+        observed = attempt.replyComparison.observed;
+      const sentinel = observed.attachmentFields.find(
+        (f: { name: string }) => f.name === "attachupdate[77]",
+      );
+      if (mutation === "nonempty") sentinel.value = "replace";
+      if (mutation === "invalid-id") sentinel.name = "attachupdate[0]";
+      if (mutation === "unassociated") sentinel.name = "attachupdate[78]";
+      if (mutation === "missing-metadata")
+        observed.attachmentFields = [sentinel];
+      if (mutation === "duplicate")
+        observed.attachmentFields.push({ ...sentinel });
+      if (mutation === "arbitrary-name") sentinel.name = "deleteattach[77]";
+      if (mutation === "wrong-action") observed.action = "edit-post";
+      if (mutation === "actor") observed.account.id = "9";
+      if (mutation === "board") observed.board.id = "6";
+      if (mutation === "target") observed.replyTarget.threadId = "43";
+      if (mutation === "before-identity")
+        attempt.replyComparison.before.source += " hostile drift";
+      if (mutation === "active-sentinel")
+        record.writing.attachmentFields = [{ ...sentinel }];
+      if (mutation === "submitted-sentinel")
+        attempt.publication.submission.writing.attachmentFields = [
+          { ...sentinel },
+        ];
+      const raw = JSON.stringify(record);
+      sessionStorage.setItem(key, raw);
+      return raw;
+    }, mutation);
+    const count = state.requests.length;
+    await page.reload();
+    await expect(
+      page.getByText(/Stored recovery data is incompatible/),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() =>
+        sessionStorage.getItem("tsdm.workspace.recovery"),
+      ),
+    ).toBe(rejected);
+    expect(state.posts).toHaveLength(1);
+    expect(state.requests).toHaveLength(count);
+    await info.attach("snapshot-hostile-record.json", {
+      body: Buffer.from(rejected),
+      contentType: "application/json",
+    });
+    await info.attach("snapshot-hostile.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+}
+
+const quoteSupplementStored =
+  "Original [unknown]complete prior[/unknown].\n\n[quote][b]Writer 7 补充了以下内容 (2026-10-28 13:56)[/b]\n[quote]Additional own source[/quote]\nLiteral @Writer 7 stays. [url=home.php?mod=space&uid=7]@Writer 7[/url] [/quote]";
+for (const [name, stored, confirmed] of [
+  ["complete", quoteSupplementStored, true],
+  [
+    "wrong-actor",
+    quoteSupplementStored.replace("[b]Writer 7", "[b]Writer 8"),
+    false,
+  ],
+  [
+    "wrong-date",
+    quoteSupplementStored.replace("2026-10-28", "2026-02-30"),
+    false,
+  ],
+  ["wrong-time", quoteSupplementStored.replace("13:56", "24:56"), false],
+  [
+    "changed-prior",
+    quoteSupplementStored.replace("complete prior", "changed prior"),
+    false,
+  ],
+  [
+    "missing-prior",
+    quoteSupplementStored.slice(supplementBefore.length),
+    false,
+  ],
+  [
+    "changed-submission",
+    quoteSupplementStored.replace("Additional own source", "Altered source"),
+    false,
+  ],
+  ["extra-text", quoteSupplementStored + "Unexpected suffix", false],
+  ["missing-close", quoteSupplementStored.slice(0, -8), false],
+  ["extra-close", quoteSupplementStored + "[/quote]", false],
+  [
+    "wrong-open",
+    quoteSupplementStored.replace("\n\n[quote][b]", "\n\n[quote=Writer 7][b]"),
+    false,
+  ],
+  [
+    "prior-wrapped",
+    "[quote]" + quoteSupplementStored.replace("\n\n[quote]", "\n\n"),
+    false,
+  ],
+  ["options", quoteSupplementStored, false],
+  ["missing-prior-attachment", quoteSupplementStored, false],
+  ["changed-prior-attachment", quoteSupplementStored, false],
+] as const) {
+  test(`J4.reply-quote-supplement-${name}: preserve complete prior and submitted source at the native wrapper boundary`, async ({
+    page,
+  }, info) => {
+    const state = await readySupplement(page);
+    const attachment =
+      '<div id="e_attachlist"><input type="hidden" name="attachupdate[77]" value=""><input name="attachnew[77][description]" value="Retained image"><input name="attachnew[77][price]" value="0"></div>';
+    state.sourceChange = (body) => {
+      const isAttachmentCase =
+        name === "missing-prior-attachment" ||
+        name === "changed-prior-attachment";
+      if (!state.posts.length)
+        return body + (isAttachmentCase ? attachment : "");
+      let result = body.replace(escape(supplementSubmitted), escape(stored));
+      if (name === "options")
+        result = result.replace('value="1" checked', 'value="1"');
+      if (name === "changed-prior-attachment")
+        result += attachment.replace(
+          'value="Retained image"',
+          'value="Changed image"',
+        );
+      return result;
+    };
+    // Capture the configured prior association before sending, not after review.
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Send reply", exact: true }).click();
+    await expect.poll(() => state.posts.length).toBe(1);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
+              .writing.attempts[0].status,
+        ),
+      )
+      .not.toBe("pending");
+    await info.attach("quote-supplement.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("quote-supplement.json", {
+      body: Buffer.from(
+        JSON.stringify({
+          name,
+          stored,
+          requests: state.requests,
+          posts: state.posts.map((p) => Object.fromEntries(p)),
+          recovery: await page.evaluate(() =>
+            JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
+          ),
+        }),
+      ),
+      contentType: "application/json",
+    });
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(supplementSubmitted);
+    if (confirmed)
+      await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+    else {
+      await expect(
+        page.getByRole("button", { name: "Check result", exact: true }),
+      ).toBeVisible();
+      await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
+      const before = state.requests.length;
+      await page
+        .getByRole("button", { name: "Check result", exact: true })
+        .click();
+      await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
+      expect(state.posts).toHaveLength(1);
+      expect(
+        state.requests.slice(before).every((r) => r.method === "GET"),
+      ).toBe(true);
+    }
+  });
+}
+
+test("J5.reply-quote-supplement-recovery: recheck the same uncertain attempt after reload without changing newer writing or resending", async ({
+  page,
+}, info) => {
+  const state = await readySupplement(page);
+  state.mode = "lost";
+  state.sourceChange = (body) =>
+    state.posts.length
+      ? body.replace(escape(supplementSubmitted), escape(quoteSupplementStored))
+      : body;
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect(page.getByText(/response was lost/)).toBeVisible();
+  const original = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+        .attempts[0],
+  );
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Later local writing remains untouched.");
+  await page.reload();
+  const requestsBefore = state.requests.length;
+  await page
+    .getByLabel("Candidate thread URL", { exact: true })
+    .fill(`${threadURL}&page=1#pid303`);
+  await page.getByRole("button", { name: "Check result", exact: true }).click();
+  await expect.soft(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  const checked = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+        .attempts[0],
+  );
+  await info.attach("quote-recovered-result.json", {
+    body: Buffer.from(
+      JSON.stringify({
+        original,
+        checked,
+        requests: state.requests.slice(requestsBefore),
+      }),
+    ),
+    contentType: "application/json",
+  });
+  await info.attach("quote-recovered-result.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  expect(checked.id).toBe(original.id);
+  expect(checked.publication).toEqual(original.publication);
+  expect(checked.status).toBe("confirmed");
+  expect(state.posts).toHaveLength(1);
+  expect(
+    state.requests.slice(requestsBefore).every((r) => r.method === "GET"),
+  ).toBe(true);
+  await page.reload();
+  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    "Later local writing remains untouched.",
+  );
+  expect(state.posts).toHaveLength(1);
+});

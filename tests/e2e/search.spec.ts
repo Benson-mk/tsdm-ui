@@ -2109,3 +2109,325 @@ for (const changedAccount of [false, true]) {
     });
   });
 }
+
+// Deliberately authored equivalent of the observed schema-13 search command.
+// Identity, search ID, criteria and token are fixture-only values.
+function searchCommand(overrides: Record<string, unknown> = {}) {
+  return {
+    body: JSON.stringify({
+      ok: 1,
+      api: 1,
+      type: "result",
+      schema: 13,
+      kind: "redirect",
+      message: "",
+      message_key: "",
+      url: resultURL.replace(origin + "/", ""),
+      handlekey: "",
+      values: {},
+      login: 0,
+      alert: "",
+      uid: 7,
+      formhash: "authored-unused-token",
+      ...overrides,
+    }),
+    contentType: "application/json; charset=utf-8",
+  };
+}
+async function submitAutumnSearch(page: Page) {
+  await openSearch(page);
+  await page.getByLabel("Keywords", { exact: true }).fill("autumn");
+  await page
+    .getByRole("region", { name: "Search overview", exact: true })
+    .getByRole("button", { name: "Search", exact: true })
+    .click();
+}
+
+test("J3.search-command-result: one qualified JSON command follows its result once and remains passive through history and reload", async ({
+  page,
+}, info) => {
+  const requests = await open(page, `${origin}/forum.php`, (url, method) =>
+    url.pathname !== "/search.php"
+      ? url.searchParams.get("mod") === "viewthread"
+        ? thread
+        : directory
+      : method === "POST"
+        ? searchCommand()
+        : url.searchParams.has("searchid")
+          ? results()
+          : form,
+  );
+  await submitAutumnSearch(page);
+  await expect(
+    page.getByRole("link", { name: "Autumn 1 listening", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Keywords", { exact: true }).fill("winter");
+  await expect(
+    page.getByRole("list", { name: "Effective search criteria", exact: true }),
+  ).toContainText("Keywords: autumn");
+  expect(requests.filter((r) => r.method === "POST")).toHaveLength(1);
+  expect(
+    requests.filter((r) => new URL(r.url).searchParams.has("searchid")),
+  ).toEqual([{ url: `${resultURL}&tsdmapp=json`, method: "GET", body: null }]);
+  await page
+    .getByRole("link", { name: "Autumn 1 listening", exact: true })
+    .click();
+  await expect(
+    page.getByText("Complete autumn opening.", { exact: true }),
+  ).toBeVisible();
+  const before = requests.length;
+  await page.goBack();
+  await expect(page.getByLabel("Keywords", { exact: true })).toHaveValue(
+    "winter",
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("link", { name: "Autumn 1 listening", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Keywords", { exact: true })).toHaveValue(
+    "winter",
+  );
+  expect(requests).toHaveLength(before);
+  await info.attach("command-result-effects.json", {
+    body: JSON.stringify(requests),
+    contentType: "application/json",
+  });
+  await info.attach("command-result-recovered.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+for (const scenario of [
+  {
+    name: "foreign-origin",
+    overrides: { url: resultURL.replace(origin, "https://other.invalid") },
+  },
+  {
+    name: "credentials",
+    overrides: { url: resultURL.replace("https://", "https://reader:secret@") },
+  },
+  { name: "http", overrides: { url: resultURL.replace("https:", "http:") } },
+  { name: "not-search", overrides: { url: "forum.php?mod=viewthread&tid=42" } },
+  {
+    name: "missing-id",
+    overrides: { url: "search.php?mod=forum&searchsubmit=yes" },
+  },
+  { name: "duplicate-id", overrides: { url: resultURL + "&searchid=999" } },
+  { name: "duplicate-action", overrides: { url: resultURL + "&mod=forum" } },
+  { name: "extra-action", overrides: { url: resultURL + "&action=delete" } },
+  { name: "fragment", overrides: { url: resultURL + "#unexpected" } },
+  { name: "ambiguous-document", overrides: { document: results() } },
+  { name: "ambiguous-head", overrides: { head: account } },
+  { name: "wrong-schema", overrides: { schema: 14 } },
+  { name: "wrong-kind", overrides: { kind: "success" } },
+  { name: "failed-command", overrides: { ok: 0 } },
+  { name: "login-command", overrides: { login: 1 } },
+  { name: "alert-command", overrides: { alert: "confirm" } },
+  { name: "command-values", overrides: { values: { action: "confirm" } } },
+  { name: "unknown-actor", overrides: { uid: null } },
+  { name: "text-actor", overrides: { uid: "7" } },
+  { name: "changed-actor", overrides: { uid: 8 } },
+  { name: "guest-actor", overrides: { uid: 0 } },
+]) {
+  test(`J3.search-command-reject-${scenario.name}: an unqualified command never sends its offered request or replays search`, async ({
+    page,
+  }, info) => {
+    const requests = await open(page, `${origin}/forum.php`, (url, method) =>
+      url.pathname !== "/search.php"
+        ? directory
+        : method === "POST"
+          ? searchCommand(scenario.overrides)
+          : url.searchParams.has("searchid")
+            ? results()
+            : form,
+    );
+    await submitAutumnSearch(page);
+    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Autumn 1 listening", exact: true }),
+    ).toHaveCount(0);
+    expect(requests.filter((r) => r.method === "POST")).toHaveLength(1);
+    expect(
+      requests.filter((r) => new URL(r.url).searchParams.has("searchid")),
+    ).toHaveLength(0);
+    const before = requests.length;
+    await page.reload();
+    await expect(page.getByLabel("Keywords", { exact: true })).toHaveValue(
+      "autumn",
+    );
+    expect(requests).toHaveLength(before);
+    await info.attach("rejected-command-effects.json", {
+      body: JSON.stringify(requests),
+      contentType: "application/json",
+    });
+  });
+}
+
+for (const scenario of [
+  { name: "http-error", response: { ...searchCommand(), status: 500 } },
+  {
+    name: "wrong-mime",
+    response: { ...searchCommand(), contentType: "text/plain" },
+  },
+  {
+    name: "malformed-json",
+    response: { body: '{"kind":"redirect",', contentType: "application/json" },
+  },
+]) {
+  test(`J3.search-command-source-${scenario.name}: an invalid command response cannot cause a result fetch`, async ({
+    page,
+  }, info) => {
+    const requests = await open(page, `${origin}/forum.php`, (url, method) =>
+      url.pathname !== "/search.php"
+        ? directory
+        : method === "POST"
+          ? scenario.response
+          : form,
+    );
+    await submitAutumnSearch(page);
+    await expect(page.getByRole("alert")).toBeVisible();
+    expect(requests.filter((r) => r.method === "POST")).toHaveLength(1);
+    expect(
+      requests.filter((r) => new URL(r.url).searchParams.has("searchid")),
+    ).toHaveLength(0);
+    await info.attach("invalid-command-source-effects.json", {
+      body: JSON.stringify(requests),
+      contentType: "application/json",
+    });
+  });
+}
+
+for (const scenario of [
+  { name: "lost", response: { body: "", abort: true } },
+  {
+    name: "changed-actor",
+    response: { body: results().replace("uid=7", "uid=8") },
+  },
+  { name: "unknown-actor", response: { body: results().replace(account, "") } },
+  {
+    name: "different-id",
+    response: { body: results().replaceAll("581", "999") },
+  },
+  {
+    name: "second-command",
+    response: searchCommand({ url: resultURL.replace("581", "999") }),
+  },
+]) {
+  test(`J3.search-command-return-${scenario.name}: failed result retrieval stays uncertain with one POST and one GET`, async ({
+    page,
+  }, info) => {
+    const requests = await open(page, `${origin}/forum.php`, (url, method) =>
+      url.pathname !== "/search.php"
+        ? directory
+        : method === "POST"
+          ? searchCommand()
+          : url.searchParams.has("searchid")
+            ? scenario.response
+            : form,
+    );
+    await submitAutumnSearch(page);
+    await expect(page.getByRole("alert")).toBeVisible();
+    expect(requests.filter((r) => r.method === "POST")).toHaveLength(1);
+    expect(
+      requests.filter((r) => new URL(r.url).searchParams.has("searchid")),
+    ).toEqual([
+      { url: `${resultURL}&tsdmapp=json`, method: "GET", body: null },
+    ]);
+    await expect(
+      page.getByRole("link", { name: "Autumn 1 listening", exact: true }),
+    ).toHaveCount(0);
+    const before = requests.length;
+    await page.reload();
+    await expect(page.getByLabel("Keywords", { exact: true })).toHaveValue(
+      "autumn",
+    );
+    expect(requests).toHaveLength(before);
+    await info.attach("failed-command-result-effects.json", {
+      body: JSON.stringify(requests),
+      contentType: "application/json",
+    });
+  });
+}
+
+for (const heldPhase of ["submission", "result"] as const) {
+  for (const destination of ["Boards", "Saved"]) {
+    test(`J3.search-command-depart-${heldPhase}-${destination}: later navigation keeps ownership while a local departure permits one bounded result read`, async ({
+      page,
+    }, info) => {
+      let release = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const requests = await open(
+        page,
+        `${origin}/forum.php`,
+        async (url, method) => {
+          if (url.pathname !== "/search.php") return directory;
+          if (
+            (heldPhase === "submission" && method === "POST") ||
+            (heldPhase === "result" && url.searchParams.has("searchid"))
+          )
+            await held;
+          return method === "POST"
+            ? searchCommand()
+            : url.searchParams.has("searchid")
+              ? results()
+              : form;
+        },
+      );
+      await submitAutumnSearch(page);
+      await expect
+        .poll(
+          () =>
+            requests.filter((r) =>
+              heldPhase === "submission"
+                ? r.method === "POST"
+                : new URL(r.url).searchParams.has("searchid"),
+            ).length,
+        )
+        .toBe(1);
+      await page
+        .getByRole("navigation", { name: "Main destinations", exact: true })
+        .getByRole("button", { name: destination, exact: true })
+        .click();
+      const pending = page.waitForResponse(
+        (r) =>
+          new URL(r.url()).pathname === "/search.php" &&
+          (heldPhase === "submission"
+            ? r.request().method() === "POST"
+            : new URL(r.url()).searchParams.has("searchid")),
+      );
+      release();
+      await (await pending).finished();
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+      await expect(
+        page
+          .getByRole("navigation", { name: "Main destinations", exact: true })
+          .getByRole("button", { name: destination, exact: true }),
+      ).toHaveAttribute("aria-current", "page");
+      expect(requests.filter((r) => r.method === "POST")).toHaveLength(1);
+      expect(
+        requests.filter((r) => new URL(r.url).searchParams.has("searchid")),
+      ).toHaveLength(
+        heldPhase === "submission" && destination === "Boards" ? 0 : 1,
+      );
+      await expect(
+        page.getByRole("link", { name: "Autumn 1 listening", exact: true }),
+      ).toHaveCount(0);
+      const before = requests.length;
+      await page.goBack();
+      await page.reload();
+      expect(requests).toHaveLength(before);
+      await info.attach("departed-command-effects.json", {
+        body: JSON.stringify(requests),
+        contentType: "application/json",
+      });
+    });
+  }
+}
