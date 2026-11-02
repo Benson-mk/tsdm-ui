@@ -1,0 +1,8 @@
+{
+  "version": "0.4.0",
+  "sha256": "d2ce4efc9517d022426714d8d84784ae908a1a65d97fc5665317166392d899bd",
+  "bytes": 893643,
+  "sourceCommit": "4cadc771e8c246bf5d487cb8cc09bc33c762ec99",
+  "provenance": "Retained issue #20 development candidate, documented in docs/implementation/20-acceptance.md. Compressed exact executable bytes, not rebuilt or rewritten. This is not a previous public release.",
+  "gzipSha256": "de1d92dc485c8316bd7c804693da62d312222104ab29e6c0f1f22656d5d2f4bc"
+}

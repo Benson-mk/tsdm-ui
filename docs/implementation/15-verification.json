@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "ticket": 15,
+  "date": "2026-11-02",
+  "timezone": "Asia/Hong_Kong",
+  "status": "complete-at-accepted-scope",
+  "baseCommit": "673a17951c5a1e425abdaa8a20c1419dd15ae643",
+  "closedCurrentReleaseChildren": [
+    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+    35, 36, 37, 38, 40
+  ],
+  "nativeBlockers": [],
+  "deferredUnverified": [39, 47],
+  "candidate": {
+    "qualifiedSource": "33c32655f583aa3c0738d22fbd081fce39df69c5",
+    "userscript": {
+      "bytes": 1710524,
+      "sha256": "9a0ec8af6c8feb95745db5fc801081e3bd2b62f6d19227ec9bf989848509b2ea"
+    },
+    "libraryModule": {
+      "bytes": 359872,
+      "sha256": "6b8835115f41109441e5e8d8cc3ed6ffb0ef18da867cb0233b4ab7bf845ce45a"
+    },
+    "libraryVersion": "0.13.0"
+  },
+  "verification": {
+    "typecheck": "passed",
+    "build": "passed; executable hashes match qualified files",
+    "lint": "passed with --ignore-pattern .local/**; original traversal failure retained",
+    "format": "passed after formatting two preexisting #38 documents",
+    "consumer": {
+      "status": "passed",
+      "checks": 20,
+      "namedFamilyOutcomes": 50,
+      "path": "evidence/runs/consumer-2026-11-02T03-37-16.339Z"
+    },
+    "packagingCli": {
+      "status": "passed",
+      "scenarios": 19,
+      "path": "evidence/runs/15-reconciliation-20261102/packaging-cli"
+    },
+    "qualifiedPayload": "passed; 111 coverage rows",
+    "stagedAssets": "7 exact hashes verified",
+    "fullApplicationE2E": {
+      "status": "passed",
+      "cases": 1118,
+      "retries": 0,
+      "path": "evidence/runs/2026-11-02T03-37-11.613Z",
+      "manifestVerified": true,
+      "documentationSnapshot": "Captured before final report/review metadata; executable and test inputs unchanged."
+    }
+  },
+  "cleanup": {
+    "files": 45,
+    "trackedRestored": 38,
+    "untrackedArchived": 7,
+    "verifiedExternalArchive": true,
+    "archiveLocation": "See private/cleanup.json and task response"
+  },
+  "reviews": {
+    "standards": {
+      "status": "passed",
+      "actionableFindings": 0,
+      "report": "evidence/runs/15-reconciliation-20261102/private/reviews/standards.md",
+      "sha256": "632a057ad99fd3e6174d76a2be6b9094a4cd45dcb604aa3577251060bc181524"
+    },
+    "spec": {
+      "status": "passed",
+      "actionableFindings": 0,
+      "report": "evidence/runs/15-reconciliation-20261102/private/reviews/spec.md",
+      "sha256": "88d34279e7232c28289bb43fa9413fdfd0884a03ec52dafdde89b95ed31cf861"
+    },
+    "bdfl": {
+      "status": "passed",
+      "actionableFindings": 0,
+      "report": "evidence/runs/15-reconciliation-20261102/private/reviews/bdfl.md",
+      "sha256": "10d5560a547101d6bb163e4fc27364d9c680bf208ac0882f03d649343321df93",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "xhigh",
+      "additionalTradeoffs": 0
+    }
+  },
+  "publicationPerformed": false,
+  "issueStateChanged": false,
+  "tradeoffs": "docs/implementation/15-reconciliation.md#task-trade-offs",
+  "localEvidence": "evidence/runs/15-reconciliation-20261102",
+  "acceptance": [
+    {
+      "id": "15.reconciliation.1",
+      "status": "verified"
+    },
+    {
+      "id": "15.reconciliation.2",
+      "status": "verified"
+    },
+    {
+      "id": "15.reconciliation.3",
+      "status": "verified"
+    },
+    {
+      "id": "15.reconciliation.4",
+      "status": "verified"
+    },
+    {
+      "id": "15.reconciliation.5",
+      "status": "verified"
+    },
+    {
+      "id": "15.reconciliation.6",
+      "status": "verified"
+    },
+    {
+      "id": "15.reconciliation.7",
+      "status": "verified"
+    }
+  ]
+}

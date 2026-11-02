@@ -1,0 +1,684 @@
+{
+  "schema": 1,
+  "requirements": [
+    {
+      "id": "story-1",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Clean-profile matching/nonmatching URLs, one enabled manager identity, exact source exports and final stable-channel entry remain installed obligations.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-2",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current account guards include upload and funding ownership in G08 and the named identity races. Observe authoritative account before effects; no ambient-cookie atomicity claim. Final stable installed account transitions remain separately required.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-3",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Guest/login/challenge retained destination requires final real redirect/native continuation; controls unavailable to a guest must not imply empty content.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-4",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current directory/subboard identities and returned-page cases pass in the exact #36 deterministic suite. Final frozen stable-browser and required Windows checks remain; do not invent forum counts.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-5",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Populate categories, sort/filter/pins and translated generated labels without changing server text; inspect actual returned identity/effects.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-6",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Every page follows returned identity; family-specific effect rules persist. Final notice pagination is not supplied by generic board cases.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-7",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Advanced editor and reader integration has named deterministic coverage; affected development evidence remains candidate-specific; final stable qualification remains open.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-8",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current long/inert rich-content, unsupported-embed and narrow/large-text cases preserve surrounding source. Final installed geometry and native input observations remain separately required.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-9",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Real exact/last-post remounts; missing target never substitutes arbitrary visible post; exact final redirect/host checks required.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-10",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Observed direct-link parent, neutral missing context; no fabricated Back history.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-11",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Back/Forward restores criteria, page, selection/position without repeated search/notice effects; actual lifecycle final run.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-12",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. All section overviews/pickers; retain sole writing owner without hidden notice/search effects.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-13",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current medium-picker, narrow drill-down and short-window cases include attachment and packet controls at representative translated/large-text settings. Final stable installed host usability remains a separate obligation.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-14",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Parent independent density wording is superseded: global Text size with derived Compact; no second density setting.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-15",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Keyboard/composition guards are synthetic; actual OS IME/focus remains candidate-specific installed evidence, not synthetic proof.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-16",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Explicit current form/effective criteria incl author/filter defaults, no query while merely editing.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-17",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Returned search ID/pager and passive history, no silent new search.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-18",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Expiry/throttle/cost/refusal distinct from empty; no automatic rerun or fallback.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-19",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current board/category/submitter and independent complete-source assertions include the G01 rich-source/upload combination. Accepted ordinary publication evidence retains its original candidate; final frozen native/installed qualification remains.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-20",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Exact addressed target plus merged/current source and independent returned post; combined upload/advanced path G02.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-21",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Resolved identity vs literal text, stale lookup owner, caret/table/CRLF; notification delivery not inferred; G02.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-22",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Shared visual/source semantics are exercised across the six authoring contexts by G01–G06 and their actual named declarations. Final installed input/host coverage remains distinct from deterministic integration.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-23",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. The accepted ordinary-tool inventory and current advanced/combined cases retain complete source in the #36 suite. The covering set does not multiply every low-level tool across every context; final installed input observations remain separately attributed.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-24",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Links/email/image/emoticon/code/named quotes and resolved mentions; G02 checks reference interaction with upload/target.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-25",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #24 advanced-editor and installed-input evidence is recorded in docs/implementation/24-acceptance.md, including the list-nesting inventory correction and its original candidate limits. Current named advanced and G01–G06 combined cases pass in #36. Full frozen stable-manager/Windows input and integrated release qualification remain separate; no historical failed baseline is relabelled.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-26",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current no-op/unaffected-syntax, refusal, CRLF, table and hidden-block assertions include complete-source preservation in G01–G06 under their distinct forms. Final native/installed qualification remains separately scoped.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-27",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current disabled/effective price/permission distinctions, native zero normalization bounded; packet restrictions are not ordinary price.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-28",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Owned opening/reply edits preserve actual complete editable source and metadata. G03 and current named edit/attachment cases cover advanced content, new upload, local reference removal and explicit server-file commands. Authoritative native deletion absence remains unproved; final frozen qualification is separate.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-29",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current G03 and named conflict cases cover latest source/options/references, protected reload and warned overwrite while preserving combined local state. No atomicity guarantee is inferred; final installed/native evidence retains its own candidate and scope.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-30",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Complete prior-plus-added merged source; explicit moderation and read-only original check; live moderation not induced merely for coverage.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-31",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted page-session contract supersedes until-tab-close permanence/erasure; copied/restored contexts may diverge; G07–G09.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-32",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current G04/G06 exercise Return/replace/save-and-continue against the confirmed outgoing revision, with attachment and immediate funding disclosures. Accepted #27/#33 development evidence remains candidate-specific; final frozen host qualification is separate.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-33",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Acknowledged vs unacknowledged source; visible capacity/incompatibility and no durable fallback; final actual host checks.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-34",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current G01–G09 assertions preserve immutable submitted source/options/upload/packet observations when later local edits or owners change. The full #36 deterministic receipt supplies current integration evidence; final installed lifecycle remains separately required.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-35",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Explicit same-record saved revision remains distinct from local recovery. G04/G06 include the implemented ordinary uploaded and funded-draft extensions accepted in #27/#33. Final frozen stable/native checks remain; their earlier native observations are not relabelled.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-36",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #27 implements upload/save/list/resume/revise/resave/publish with independent same-record source/options/association readback (docs/implementation/27-uploaded-drafts.md). The current J6.J8.draft-upload-lifecycle and related cases pass in #36. Final frozen installed/live qualification remains; native draft-file deletion and authoritative absence are still unverified.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-37",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #27 ordinary uploaded-draft and #33 funded-draft lifecycles preserve the same target through publication and independent draft-list reconciliation. Current named remaining-draft/moderation/unknown/component cases pass in #36. Final frozen qualification remains; native moderation is not manufactured and hidden financial facts are not inferred.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-38",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current account-change and G08 cases preserve original writing and pause effects across pending uploads and funding. Accepted native account semantics remain bounded by their original evidence; final installed session transitions are separate.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-39",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Explicit text-only fresh preparation/copy; never transfer uploads/credit settings/draft ownership; combined G08.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-40",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current G07/G08 and operation-specific cases retain pending/uncertain attempts and independent upload/funding effect identity through duplicate activation and refresh. Final stable installed lifecycle evidence remains required; no automatic replay or rollback is promised.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-41",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #32/#33 and current G05/G06 cases preserve the original unknown attempt, require explicit checking, and warn before a deliberately new attempt about duplicate or additional credit effects. Native development did not consume a resend merely for coverage; final qualification must preserve those limits.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-42",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #32 completion records both installed browsers and one separately authorized native direct-packet publication with independent source, packet and ledger observations (docs/implementation/32-completion.md). Current direct-packet/G05 cases pass in #36. Exact hidden native settings and debit attribution remain bounded unknowns; final frozen stable-manager/Windows qualification remains separate.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-43",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #33 completion records installed review/cancel barriers and the authorized native initial funded Save with immediate-debit and active-before-publication disclosure (docs/implementation/33-completion.md). Current G06 and funding-intent cases pass. Final frozen qualification remains separate; no existing budget permits another charged action.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-44",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #33 implements and verifies same-target resave/publication/content-edit preservation without silently re-funding, including both installed browsers and its bounded native lifecycle (docs/implementation/33-completion.md). Current G06 cases retain full conditions synthetically and one funding command. Hidden native condition values remain unobservable; final frozen qualification remains.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-45",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #32/#33 separately observe thread/source, packet and ledger outcomes; current direct/funded cases cover partial, malformed and unknown components. Native ledger rows are not an immutable packet-to-debit/refund join. Final frozen live/installed checks must preserve this attribution limit rather than declaring financial certainty.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-46",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #32/#33 include explicit expired/unavailable/refund-unknown and moderator-assistance behavior, with current direct/funded deterministic cases. Their bounded native lifecycles do not establish expiry/refund enforcement, timing or exact refund attribution. Those limits and final frozen qualification remain explicit.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-47",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #26 ordinary attachment work, #27 uploaded drafts and #33 funded drafts supply implemented paths, affected installed workflows and bounded native upload/association evidence. Current #36 cases cover all six authoring contexts, including JPEG/PNG/GIF and ordinary files under current native policy. Final exact frozen stable/Windows/native variants remain separately required; accepted evidence does not prove authoritative native deletion absence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-48",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current ordinary and draft upload paths support qualified uploads, visible progress, pending-upload guards and independent saved association. The accepted #27 lifecycle and current J6.J8.draft-upload-lifecycle supersede the historical blanket draft-upload deferral. Unsupported or unqualified capabilities still refuse safely. Final frozen installed/live qualification remains separate.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-49",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current ordinary, uploaded-draft and funded-draft cases preserve existing references and distinguish local reference removal from explicit server-file removal. Accepted #27 includes deterministic/installed draft removal behavior, but native draft-file deletion and authoritative absence remain unverified; #26 also lacks authoritative native absence proof. #27’s exception is ticket-specific and does not waive final release evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-50",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Actual saved-file bytes/hash, accessible paid without purchase; synthetic/macos historical outcomes do not waive final other-OS checks.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-51",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #30 verifies both-kind favorites lifecycles in both installed browsers and authorized native absent/present/absent readback (docs/implementation/30-completion.md). Current named cases pass in #36. Earlier incomplete transport evidence remains historical; final exact frozen stable/Windows qualification is still required.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-52",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Already present/absent, missing target and last-page behavior; target not deleted, failed page not empty.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-53",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Deliberate load/refresh, effect disclosure and no polling/preload; notice verification itself can affect state.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-54",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Full returned bodies/time/categories/pages; synthetic coverage cannot manufacture naturally unavailable live category evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-55",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Exact target through delayed images/remount and passive Back/Forward/reload without notice requests; final host checks.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-56",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Observed/stale/unknown/absent/zero and deferred PM/activity; no per-item unread guarantee.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-57",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current G01–G09 and operation-specific cases distinguish missing/refused/challenge/429/network/invalid/validation and combined upload/funding outcomes. Final native/installed qualification retains capable-context and unavailable-resource limits.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "story-58",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Emergency exact native target independent of startup, then actual reentry; stable/final checks separate.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-59",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #35 verifies earlier-to-current replacement, pending-to-uncertain preservation, malformed/future preferences, copy/reset/quota refusal and native disable/uninstall/re-entry in both development browsers (docs/implementation/35-continuation.md; accepted completion https://github.com/Benson-mk/tsdm-ui/issues/35#issuecomment-6383726565). Separate #47 still requires an actual offered manager software update, not script reinstall, without forced downgrade/channel change. Final frozen stable macOS/Windows qualification remains independent.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-60",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. The exact clean #36 public package passes its current consumer and independent replay. A later change to package bytes or API requires its own attributed verification; no new consumer run is pending merely because historical notes described future work.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-61",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. The clean committed accepted-#35 product freeze and current #36 deterministic/public-consumer identities are verified; external #36 tooling/test inputs are separately pinned. Postcommit source/tool identity revalidation and the final exact installed stable/Windows baseline remain distinct obligations.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-62",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Reviewed G10/G11 tooling and authored development evidence; exact public source/replay references, all required levels and stable installed gates remain distinct.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "story-63",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Shared actions/reader/editor/source semantics + clean consumer; different layout delivery remains out of scope, do not invent second layout test app.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "J1",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "J2",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "J3",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "J4",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "J5",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "J6",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "J7",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "J8",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "J9",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "J10",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "J11",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "Node",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["clean-node-consumer"]
+    },
+    {
+      "id": "F1-response-representation",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic"]
+    },
+    {
+      "id": "F2-write-outcome",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "live"]
+    },
+    {
+      "id": "F3-recovery-lifetime",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic"]
+    },
+    {
+      "id": "F4-effectful-history",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic"]
+    },
+    {
+      "id": "F5-inert-input",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic"]
+    },
+    {
+      "id": "F6-files",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Review expanded executed variants and level-specific independent evidence.",
+      "requiredLevels": ["synthetic", "live"]
+    },
+    {
+      "id": "F7-identity",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Final installed current account and browser-session changes require independent authoritative observations; synthetic races do not promise atomic isolation.",
+      "requiredLevels": ["synthetic", "installed", "live"]
+    },
+    {
+      "id": "S7-framework",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Exact npm ci/static/build, dependency notices/no CDN, actual output measurement and G11; no runtime byte budget from probes.",
+      "requiredLevels": ["synthetic"]
+    },
+    {
+      "id": "S8-ownership",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Public consumer boundary and actual same implementation; no new architecture or second layout delivery requirement.",
+      "requiredLevels": ["clean-node-consumer"]
+    },
+    {
+      "id": "S8-transport-trust",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Retain existing API research bounds; read vs effectful GET matters. Raw privileged forum scripts never executed by fixture seam.",
+      "requiredLevels": ["synthetic"]
+    },
+    {
+      "id": "S10-writing-recovery",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Browser inheritance/restoration allowed; no universal tab-close erasure/durability; G07/G08.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "S10-workflows",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current G01–G06 and their named declaration/expanded-case mappings cover ordinary authoring, uploaded drafts and both packet paths; other named families cover favorites/notices. Accepted development completions remain candidate-specific. Final frozen live/installed failures and normal journeys are still required.",
+      "requiredLevels": ["synthetic", "live"]
+    },
+    {
+      "id": "S12-financial-limits",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Accepted #32 direct publication and #33 funded-draft lifecycle include bounded native actions and both installed development browsers; current G05/G06 cover their deterministic combinations. Final frozen stable/Windows qualification remains separate. Hidden native conditions and precise packet-to-ledger attribution remain unknown, and prior charged-action budgets are consumed.",
+      "requiredLevels": ["synthetic", "live", "installed"]
+    },
+    {
+      "id": "S9-replication",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Actual macOS/Windows, OS versions/architectures/browser/manager identities; existing BETA cannot waive final schedule.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "S9-exact-evidence",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current G10/G11 tooling verifies authored schema/coverage and clean committed product packaging with separately pinned #36 tools. Accepted #34 consumer and #35 replacement evidence retain original attribution; exact #36 consumer/replay is verified. Postcommit identity revalidation and final frozen installed baseline remain; no new live/write/cleanup/publication authority is conferred.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "S6-appearance-followup",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Nine steps; four representative sizes each theme, locale/geometry set and G09; no independent density option.",
+      "requiredLevels": ["synthetic"]
+    },
+    {
+      "id": "36.1",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current #36 combined assertions, runbooks, authored evidence and clean committed product freeze are implemented and verified with separately pinned tooling/test inputs. Root acceptance/commit and postcommit identity revalidation remain; final frozen stable installed/live/Windows qualification is a later obligation, not an unimplemented feature deferral.",
+      "requiredLevels": ["synthetic"]
+    },
+    {
+      "id": "36.2",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current #36 combined assertions, runbooks, authored evidence and clean committed product freeze are implemented and verified with separately pinned tooling/test inputs. Root acceptance/commit and postcommit identity revalidation remain; final frozen stable installed/live/Windows qualification is a later obligation, not an unimplemented feature deferral.",
+      "requiredLevels": ["synthetic", "clean-node-consumer"]
+    },
+    {
+      "id": "36.3",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current #36 combined assertions, runbooks, authored evidence and clean committed product freeze are implemented and verified with separately pinned tooling/test inputs. Root acceptance/commit and postcommit identity revalidation remain; final frozen stable installed/live/Windows qualification is a later obligation, not an unimplemented feature deferral.",
+      "requiredLevels": ["synthetic", "installed"]
+    },
+    {
+      "id": "36.4",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current #36 combined assertions, runbooks, authored evidence and clean committed product freeze are implemented and verified with separately pinned tooling/test inputs. Root acceptance/commit and postcommit identity revalidation remain; final frozen stable installed/live/Windows qualification is a later obligation, not an unimplemented feature deferral.",
+      "requiredLevels": ["synthetic", "clean-node-consumer"]
+    },
+    {
+      "id": "36.5",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current #36 combined assertions, runbooks, authored evidence and clean committed product freeze are implemented and verified with separately pinned tooling/test inputs. Root acceptance/commit and postcommit identity revalidation remain; final frozen stable installed/live/Windows qualification is a later obligation, not an unimplemented feature deferral.",
+      "requiredLevels": ["synthetic"]
+    },
+    {
+      "id": "36.6",
+      "status": "not-run",
+      "cases": [],
+      "gap": "No execution has been entered in this template. Current #36 combined assertions, runbooks, authored evidence and clean committed product freeze are implemented and verified with separately pinned tooling/test inputs. Root acceptance/commit and postcommit identity revalidation remain; final frozen stable installed/live/Windows qualification is a later obligation, not an unimplemented feature deferral.",
+      "requiredLevels": ["synthetic", "installed"]
+    }
+  ]
+}

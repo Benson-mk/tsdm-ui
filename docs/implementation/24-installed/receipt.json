@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "issue": 24,
+  "kind": "authored-installed-feature-summary",
+  "status": "passed",
+  "candidate": {
+    "applicationVersion": "0.4.0",
+    "bytes": 1463170,
+    "sha256": "95a3aa932ec632c059358b3df1271a0c788ab0998b6726f7dc22fab6efcb7db2"
+  },
+  "library": {
+    "version": "0.6.0",
+    "bytes": 281817,
+    "sha256": "8940172c4a58892e18212af871353dfb2ec7aa64a81019ff089e94545fe8b21b",
+    "contractChanged": false
+  },
+  "installedBrowsers": ["edge", "chrome"],
+  "runtimeExactOccurrencesEach": 1,
+  "syntheticPostsRecorded": {
+    "edge": 5,
+    "chrome": 4
+  },
+  "appearance": {
+    "textSizes": [90, 100, 120],
+    "nestedFontPixels": [17.1, 19, 22.8],
+    "widths": [390, 960, 1600],
+    "languages": ["en", "zh-CN", "zh-TW"]
+  },
+  "actualIME": {
+    "edge": {
+      "phrase": "輸入測試",
+      "requestedPhrase": "中文輸入",
+      "humanAttestation": "done",
+      "events": 70,
+      "trusted": [
+        "compositionstart",
+        "compositionupdate",
+        "beforeinput",
+        "input"
+      ],
+      "untrusted": ["compositionend"],
+      "neighborCellIndex": 1,
+      "source": "[table][tr][td=1,1]輸入測試[/td][td=1,1][/td][/tr][tr][td]Neighbor C[/td][td]Neighbor D[/td][/tr][/table]",
+      "savedReadbackAndRenderedCells": "independently verified",
+      "externalHTTP": "controlled synthetic",
+      "eventCounts": {
+        "trustedCompositionStart": 2,
+        "trustedCompositionUpdate": 22,
+        "trustedBeforeInput": 22,
+        "trustedInput": 22,
+        "untrustedCompositionEnd": 2
+      }
+    },
+    "chrome": "historical human input plus current affected caret/keyboard observations; not a current human-input rerun",
+    "chromeHistoricalSHA256": "92ea81520c66ba866e3b2ce6b1df434996ce065b094d4fa85aa784873791da39",
+    "chromeHistoricalLimit": "human attestation and source/history; no successful event observer"
+  },
+  "e2e": {
+    "baseline": {
+      "passed": 299,
+      "retries": 0,
+      "run": "2026-10-23T04-56-02.185Z"
+    },
+    "inventoryAddition": {
+      "passed": 2,
+      "retries": 0,
+      "run": "2026-10-23T05-04-10.123Z"
+    },
+    "combinedBaselineClaim": false
+  },
+  "review": {
+    "standardsMaterialFindings": 0,
+    "specValidatedP2": 1,
+    "specResolvedP2": 1,
+    "specRemainingFindings": 0,
+    "bdfl": "final code/coverage/actual-input disposition passed; portable audit condition satisfied"
+  },
+  "restoration": {
+    "edge": {
+      "preferencesExact": true,
+      "heldRequests": 0,
+      "tabClosed": true,
+      "interceptionCleared": true
+    },
+    "chrome": {
+      "preferencesExact": true,
+      "heldRequests": 0,
+      "tabClosed": true,
+      "interceptionCleared": true
+    }
+  },
+  "newNativeWrites": 0,
+  "nativeAdvancedSavedRenderedPairLocated": false,
+  "nativeSemantics": "captured native dialect/current controls plus deterministic and installed returned rendering under BDFL bounded decision",
+  "releaseQualified": false,
+  "privateRetention": "evidence/runs/issue-24-completion-retained",
+  "tradeOffs": 6,
+  "diagnostics": {
+    "resumedReviewInterceptionMissing": true,
+    "accountGuardPausedBeforePOST": true,
+    "extraPublicationPOSTBeforeReenable": 0,
+    "sameControllerReenabled": true,
+    "uninterruptedHandoffRoutingClaimed": false,
+    "inactiveInterceptionCause": "not established"
+  },
+  "runtimeMetadataAttribution": "retained same-day prior accepted workflow, not new issue24 measurement",
+  "acceptanceCriteriaVerified": 4,
+  "audit": {
+    "status": "passed",
+    "assertions": 1274,
+    "pending": [],
+    "verifier": "evidence/runs/issue-24-completion-retained/verify.py",
+    "receipt": "evidence/runs/issue-24-completion-retained/verification.json",
+    "manifest": "evidence/runs/issue-24-completion-retained/manifest.json",
+    "reportSHA256": "a941e8fb73fd8623fdf11ade11b433d3e092067c42f6fe3829f0b56157757472",
+    "verificationSHA256": "cff4b010d843dd8033cf99a76a0868ad8e88adc141d8ea96448aa7031bcfefb2"
+  },
+  "semanticLookupPOSTs": {
+    "edge": 6,
+    "chrome": 7
+  }
+}

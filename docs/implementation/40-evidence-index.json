@@ -1,0 +1,121 @@
+{
+  "schema": 1,
+  "ticket": 40,
+  "status": "complete-at-accepted-scope",
+  "preparationBase": "cc01b1cbb88915d39039f08787ba49dee69e3d95",
+  "candidate": {
+    "version": "0.4.0",
+    "sourceCommit": "33c32655f583aa3c0738d22fbd081fce39df69c5",
+    "bytes": 1710524,
+    "sha256": "9a0ec8af6c8feb95745db5fc801081e3bd2b62f6d19227ec9bf989848509b2ea"
+  },
+  "library": {
+    "version": "0.13.0",
+    "file": "tsdm-forum-client-0.13.0.tgz",
+    "bytes": 107902,
+    "sha256": "551e305d61997a05e326079ec9ab1e45b47d8cda9d6b29279d0331ce232e5cdd"
+  },
+  "storage": "evidence/runs/40-release-20261101",
+  "payload": "evidence/runs/40-release-20261101/payload",
+  "verification": {
+    "packagingCliScenarios": 19,
+    "packagingCli": "passed",
+    "freshReplayE2E": 5,
+    "freshReplayE2EStatus": "passed",
+    "cleanTypecheck": "passed",
+    "discoveredCases": 1118,
+    "retainedFullApplicationCases": 1118,
+    "retainedFullApplicationRerun": false,
+    "independentConsumerReplay": "passed",
+    "changedFileLint": "passed",
+    "publicSyntheticImagesInspected": 11,
+    "finalQualifiedVerification": "passed",
+    "finalZIPQualifiedVerification": "passed",
+    "everyZIPEntryByteCompared": true,
+    "stagedChecksums": "passed",
+    "all45PreexistingPathsPreserved": true
+  },
+  "requiredCoverageRows": 111,
+  "deferred": [39, 47],
+  "releasePublished": false,
+  "githubIssueStateChanged": false,
+  "tradeoffs": "docs/releases/0.4.0/report.md#distinct-task-trade-offs",
+  "limits": [
+    "Exact final Edge candidate with accepted historical Chrome scope; no fresh final-candidate Chrome verdict.",
+    "Windows and genuine manager-update recovery remain unverified.",
+    "Original Chrome final temporary bundle is unavailable.",
+    "The receipt and report preserve restart absence, incomplete ledgers, background-key failure, search/notices/removal and financial limits."
+  ],
+  "pending": [],
+  "releaseAssets": "evidence/runs/40-release-20261101/github-release",
+  "payloadManifest": {
+    "bytes": 15896,
+    "sha256": "b6ac42a12a1a9ed2f0db24d70464d1145a5b084e0d5227c9192e402ef8490381"
+  },
+  "stagingReceipt": {
+    "bytes": 1821,
+    "sha256": "f604b01d965b595bdb588687ae2ddf142aa3e1cfbd4aff21bc62b1aec0d22684"
+  },
+  "assets": {
+    "RELEASE_NOTES.md": {
+      "bytes": 2419,
+      "sha256": "05cfb809811a12240025c580480a046c8179b85835616c6ebaf129152664174c"
+    },
+    "SHA256SUMS": {
+      "bytes": 372,
+      "sha256": "834728118ee50a63d449ab9860aadd12e9f238fdf4dde1f1d78e42f58f73dd13"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "bytes": 100673,
+      "sha256": "a729aeb59572d8b869c17481e5cffff69a9a9dfff5c917ee1a2b101401cc7b90"
+    },
+    "release-request.json": {
+      "bytes": 1080,
+      "sha256": "9249b7a3fd42e30320dd9f92e331f6f1871f0c15cd1f953dc57d24e1d6e2b4f1"
+    },
+    "tsdm-forum-client-0.13.0.tgz": {
+      "bytes": 107902,
+      "sha256": "551e305d61997a05e326079ec9ab1e45b47d8cda9d6b29279d0331ce232e5cdd"
+    },
+    "tsdm-workspace-0.4.0-release.zip": {
+      "bytes": 2569772,
+      "sha256": "077a75812776ff03ffa74dfc31f5939d2f3f2d89c2647f36a611c964565853b7"
+    },
+    "tsdm-workspace.user.js": {
+      "bytes": 1710524,
+      "sha256": "9a0ec8af6c8feb95745db5fc801081e3bd2b62f6d19227ec9bf989848509b2ea"
+    }
+  },
+  "zipEntries": 109,
+  "reviews": {
+    "standards": "passed; zero actionable findings",
+    "spec": "passed; zero actionable findings",
+    "bdfl": "passed; zero actionable findings; gpt-6.1-sol/xhigh"
+  },
+  "acceptance": [
+    {
+      "id": "40.1",
+      "status": "verified"
+    },
+    {
+      "id": "40.2",
+      "status": "verified"
+    },
+    {
+      "id": "40.3",
+      "status": "verified"
+    },
+    {
+      "id": "40.4",
+      "status": "verified"
+    },
+    {
+      "id": "40.5",
+      "status": "verified"
+    },
+    {
+      "id": "40.6",
+      "status": "verified"
+    }
+  ]
+}

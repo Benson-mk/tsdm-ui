@@ -1,0 +1,164 @@
+{
+  "schema": 1,
+  "issue": 31,
+  "date": "2026-10-21",
+  "timezone": "Asia/Hong_Kong",
+  "candidate": {
+    "version": "0.3.0",
+    "bytes": 844870,
+    "sha256": "edb8bc8f1f2f7dabb73f4aafcfd16a2e396d59f0a14477840bcce6fb2d573d64"
+  },
+  "mode": "installed-development-live-pagination-and-reader-correction",
+  "browserOrder": ["Edge", "Chrome"],
+  "versions": {
+    "source": "human structured replies; internal browser version page blocked by policy",
+    "edge": "155.0.4283.62",
+    "chrome": "155.0.8059.85",
+    "tampermonkeyEdge": "BETA 5.6.6242",
+    "tampermonkeyChrome": "BETA 5.6.6242",
+    "os": "macOS 15.6"
+  },
+  "identity": {
+    "officialBackupsAndFullReadbacksBoth": true,
+    "exactExecutingSourceBoth": true,
+    "matchingCopiesEach": 1,
+    "storedReceiptTiming": "Captured before journeys; original runtimeQualificationPending fields retained. Later complete runtime inventories establish executing identity separately."
+  },
+  "qualifiedNativePageComparisons": 4,
+  "nativeRowsPerBrowser": [30, 6],
+  "deliberateNoticeRequestsPerPage": 1,
+  "responseAndFinishCompleteEach": true,
+  "fullRowsAndOrderedTargetsEqualBoth": true,
+  "currentPageAndReturnedDestinationsEqualBoth": true,
+  "qualifiedZeroNoticeScopes": 14,
+  "fullPassiveListComparisons": 8,
+  "targetVisibilityComparisons": 4,
+  "selectedNoticeFocusRestoredBoth": true,
+  "targetReturnAndReloadScroll": {
+    "edge": 394.5,
+    "chrome": 318
+  },
+  "target": {
+    "realRedirectStatusBoth": 301,
+    "uniqueExactPostFocusedBoth": true,
+    "initialPrecedingImagesCompleteBoth": 4,
+    "forwardPrecedingImages": {
+      "edge": {
+        "complete": 3,
+        "total": 4
+      },
+      "chrome": {
+        "complete": 2,
+        "total": 4
+      }
+    },
+    "edgeStrictWithinPane": false,
+    "edgeTopMinusPaneTop": -0.1171875,
+    "chromeStrictWithinPane": true,
+    "chromeTopMinusPaneTop": 0.234375,
+    "explicitGeometryTolerancePx": 1,
+    "bothWithinTolerance": true,
+    "futureLayoutFullySettledClaimed": false
+  },
+  "unread": {
+    "current": "unknown",
+    "newTransitionClaimed": false,
+    "numericZeroClaimed": false,
+    "historicalReadEffect": "Original fdc observations remain separately identified."
+  },
+  "scopeLimits": [
+    "Initial startup scopes are truncated and unqualified.",
+    "Chrome first target and first Back scopes are truncated and unqualified; complete replacement scopes retained.",
+    "Forward visibility is observed while some earlier lazy images remain incomplete.",
+    "Edge raw strict containment remains false with explicit subpixel tolerance."
+  ],
+  "historicalEvidenceIncident": {
+    "historicalCandidate": "c519bf0a2308628b3c51b8b4dac96d8a677073232026790043ecb3a32c121233",
+    "overwrittenEdgeFiles": 22,
+    "exactOriginalsRecovered": 2,
+    "historicalOriginalRawFilesUnavailable": 20,
+    "originalPreOverwriteManifestRetained": true,
+    "originalIncompleteAuthoredReportRetained": true,
+    "historicalChromeNegativeRetained": true,
+    "historicalRawManifestCurrentlyFullyVerifiable": false,
+    "currentRunSeparate": true
+  },
+  "privateEvidence": {
+    "filesVerified": 106,
+    "manifestSha256": "dfb0f2aa3a155a935ecdaf7e1082f6758ac6a0182a0038ac3a2325514a4446b4",
+    "contents": "Raw authenticated captures, official source backups and screenshots remain private."
+  },
+  "syntheticEvidence": {
+    "casesPassed": 302,
+    "casesTotal": 302,
+    "noticeCases": 44,
+    "fullManifestFilesVerified": 336,
+    "runAlias": "2026-10-21T06-33-48.391Z",
+    "consumerLibrarySha256": "83d4e4697b45c89c6cbcec54b40f7056a0e052d98b3e28fac2d8e0bd2421d78f",
+    "consumerLibraryByteIdenticalToReviewedC519": true
+  },
+  "acceptance": "All five development criteria independently verified by the completed installed BDFL audit on 2026-10-21, combining exact-candidate affected observations with explicitly scoped unchanged historical evidence under ADR0002. Parent-spec and release completion are not claimed.",
+  "acceptanceCriteria": {
+    "AC1": {
+      "status": "verified-development",
+      "basis": "Exact-candidate deliberate page actions and complete zero-notice passive scopes, together with unchanged historical category/refresh/disclosure/idle observations and current regression."
+    },
+    "AC2": {
+      "status": "verified-development",
+      "basis": "Four complete populated native/installed page comparisons,30+6 records in each browser with returned pagination, together with unchanged historical standard-category and mention comparisons."
+    },
+    "AC3": {
+      "status": "verified-development",
+      "basis": "Current populated pager/read-filter observations, bounded historical read-presentation evidence and current unknown/absent/zero/stale/failure regression; no new unread transition or zero inferred."
+    },
+    "AC4": {
+      "status": "verified-development",
+      "basis": "Real301/remount unique exact target and passive restoration in both browsers, declared geometry/image limits, delayed-image/reader-intent E2Es and unchanged historical mention/direct-arrival/recovery evidence."
+    },
+    "AC5": {
+      "status": "verified-development",
+      "basis": "Unchanged explicit native continuation and complete standard notice presentation, current regression and honestly retained evidence/release limits."
+    }
+  },
+  "releaseQualified": false,
+  "issue15Complete": false,
+  "issue19ActualManagerSoftwareUpdateVerified": false,
+  "published": false,
+  "tradeoffs": "Canonical feature items 13 and 14 retained; this documentation task adds no distinct technical trade-off.",
+  "derivation": {
+    "kind": "repository-documentation-derivative",
+    "sourcePackage": "installed-pagination-and-reader-correction-2026-10-21",
+    "sourcePackageFileIdentities": [
+      {
+        "path": "comparison.json",
+        "bytes": 7185,
+        "sha256": "b207895897ce482242bca3a4ec47ca3440f04eced341a5f2a762bb9127b349e0"
+      },
+      {
+        "path": "receipt.json",
+        "bytes": 4525,
+        "sha256": "c2e9d31a7cd44a2c399dc8126a1e710e620fd7069f75e5fe4cea7132126e31ee"
+      },
+      {
+        "path": "report.md",
+        "bytes": 7741,
+        "sha256": "120ee233b20b8a30aa3b668fdf605ede52dc2416837ecf74d2778b2bc8eb44a3"
+      }
+    ],
+    "sourcePackageManifestSha256": "1adfa2ee74478c7fc19f61db126f2ce2ed42e58480f41d832c66dc22087dfa96",
+    "sourceAcceptance": "Pending independent installed BDFL audit when authored.",
+    "changes": "Report adds repository derivative provenance and replay paths; receipt adds original source-package identities. comparison.json remains byte-identical. The derivative manifest identifies current derivative bytes, separately from source-package inputs. Root clarifies geometry/network scope attribution and the subsequent #19 scope revision/#47 follow-up; historical source package remains unchanged. Completed independent audit disposition is now applied to this derivative; original source-package pending statuses and identities remain unchanged."
+  },
+  "managerUpdateFollowup": {
+    "issue": 47,
+    "status": "open-release-gate",
+    "issue19DevelopmentScope": "Explicitly revised by the human; #19 closed without claiming actual manager software-update observation."
+  },
+  "independentAudit": {
+    "role": "BDFL using validate-gpt-code-review",
+    "completed": "2026-10-21",
+    "verdict": "All five #31 development acceptance criteria verified; no required source or documentation correction.",
+    "historicalApplicability": "Explicitly assessed under ADR0002; original candidate and observation scopes retained.",
+    "additionalDistinctTradeoffs": []
+  }
+}

@@ -1,0 +1,68 @@
+# Advanced visual content — issue 24
+
+The shared visual editor exposes table creation, row and column insertion/deletion, rectangular cell selection, merge/split and table removal. The existing format selector adds named spoilers, reply-to-view hidden blocks and block unwrapping. Resolved mentions use the existing account-bound person lookup; insertion now goes through the active editor selection and source-coordinate mapping, so selected table cells and retained CRLF are safe. Additional named quotes remain independent of the one addressed Quick Quote action.
+
+## Source and preservation boundary
+
+Table creation uses `[table][tr][td]`. Changed native spans use `[td=columns,rows,width]`, retaining width when present. Untouched syntax, case, whitespace, surrounding unknown content and attachment references remain exact. Splitting can retain explicit `1,1` spans and copied lexical cell styling. Historical attribute-form spans remain preserved using their original local dialect; this is not a new claim of current forum support for that imported syntax. Invalid dimensions, malformed/ragged/overlapping grids and unsupported spans are refused or retained as protected complete source instead of silently repairing other cells. Valid nested tables remain editable. The creation controls accept 1–20 rows/columns; span editing stays within the native two-digit range.
+
+Spoilers use `[spoiler=title]body[/spoiler]`. A blank title produces the localized visible title “Spoiler”; bracket/quote/newline characters that cannot be represented safely are refused. Reply-to-view uses `[hide]body[/hide]`, without accidentally inheriting a previous format value as a permission parameter. Hidden sections show their full content with labelled boundaries while composing. Reading uses only returned content and restrictions; the editor is not a simulation of server access permissions.
+
+The current native editor's title/body insertion was observed independently without submitting: `[spoiler=Fixture title]Fixture hidden content[/spoiler]`. Table span and hide spellings are established by the retained native `attachment-native/bbcode.js` and `editor.js` observations already identified in [editor provenance](23-provenance.md). These are syntax observations, not publication or installed-candidate acceptance. No additional experiment source was copied; this ticket extends the already pinned and strictly typed editor implementation.
+
+The table selection plugin's view props are installed alongside its existing session state. Keyboard Tab/Shift+Tab moves through cells; row/column/table selectors and pointer Shift-click create selections. A resolved mention replacing a cell selection uses ProseMirror's selected head cell and clears the other selected cell bodies while preserving the grid. Its native marked text remains editable text, not a second identity or chip implementation. Existing fresh lookup/account checks continue to apply before sending.
+
+The reader now finds a nonempty native spoiler control label even when an empty `.spoilerheader` wraps the input button. This preserves the server-returned title in rendered readback.
+
+## Verification
+
+`tests/e2e/advanced-editor.spec.ts` runs the complete built application with only external HTTP substituted. Each meaningful publication checks the received exact source, a separate authoritative edit response and the visible confirmed result; table/rectangle/hidden/mention cases also open the returned rendered post. The existing reporter retains screenshots, source/effect ledgers, executable and input hashes, the replayable scenario snapshot and human/machine reports. Failed initial runs and corrective red runs are retained separately.
+
+| Named case                           | Required behavior                                                                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `J5.advanced-table`                  | Creation, keyboard cell navigation, row/column operations, horizontal merge/split, undo/redo, unaffected unknown/reference source, saved source and rendered table. |
+| `J5.advanced-hidden`                 | Nested spoiler/hide insertion, unwrap, undo/redo, exact saved source and the returned disclosure/permission notice.                                                 |
+| `J5.advanced-grid-guard`             | Malformed, ragged, overlapping and unknown grids remain complete protected source; valid nested tables; invalid dimensions/selection cause no write.                |
+| `J5.advanced-mention`                | Resolved visual caret insertion within formatting, literal @ text, undo/redo, view remount, saved source and returned UID link.                                     |
+| `J5.advanced-table-inventory`        | Remaining row/column/selection/delete operations and native width preservation.                                                                                     |
+| `J5.advanced-appearance-composition` | Long nested table/hidden content, 90/100/120% Text size, automatic Compact boundary, narrow/medium/wide viewports, composition transition guards.                   |
+| `J5.advanced-mention-structure`      | Selected row replacement retains table boundaries and unaffected cells through saved-source readback.                                                               |
+| `J5.advanced-mention-crlf`           | Source selection after retained CRLF uses displayed offsets and saves exact raw line endings.                                                                       |
+| `J5.advanced-rectangle`              | Pointer rectangle selection, vertical/horizontal spans, split/undo and independently rendered spans.                                                                |
+| `J5.advanced-spoiler-title`          | Observed named syntax for default title; unsafe title conversion refusal retains source.                                                                            |
+
+`J5.advanced-language-change` verifies already-rendered spoiler/hide boundaries in all three interface languages, localized invalid table dimensions, complete source retention and absence of POST.
+
+The preceding `J5.editor-tools`, preservation, opaque, interpretation, lifecycle, caret and line-ending cases retain the ordinary-tool inventory, unknown/literal preservation, explicit source interpretation and keyboard/history coverage. Existing reply mention drift/context/account tests retain identity safeguards. The affected authoring, writing, reply and navigation suites are rerun on this candidate; source/effect receipts determine actual results.
+
+Synthetic composition events establish transition guards only. Exact installed Edge/Chrome workflows and current Edge actual OS IME through the changed table-selection path require qualification. The completed BDFL decision accepts bounded native syntax/current-control provenance plus controlled source/rendered readback without an additional native advanced publication; arbitrary server normalization remains unclaimed. No native write, installation, publication or cleanup was performed by this implementation worker. The coordinator subsequently completed affected installed workflows, current Edge actual input and final independent evidence/review gates; all four criteria are now verified in `24-acceptance.md`.
+
+## Actual trade-offs
+
+The preceding issue #23 ledger continues to govern isolated integration, source-first authoring, pinned editor dependencies, grouped controls, diagnostic mappings and bounded evidence. The existing reply workflow supplies identity resolution. Those choices are not counted again; this ticket supplies the previously deferred advanced controls.
+
+1. Validate the complete imported table grid before enabling structural editing, and keep automatic table repair/HTML-table paste disabled. This protects unrelated lexical source, but malformed or unsupported grids require complete-source editing instead of a visual repair guess. Valid nested and spanned grids remain available.
+2. Use the observed positional native span syntax for new/changed native cells, retaining width and original spelling rather than canonicalizing the entire table. Split cells may contain redundant explicit `1,1` spans and inherited style attributes; arbitrary imported attribute syntax is preserved without claiming new native support. Creation stays bounded to 20 rows/columns and native span changes to 99.
+3. Show hidden section bodies with labelled boundaries in the writing view. This makes nested content directly editable, but does not preview which forum readers may access it or collapse the content as the reader does.
+4. Supply a localized default spoiler title when the format value is empty. This uses the independently observed named syntax and gives an accessible visible label, but authors wanting a particular disclosure title must enter it explicitly.
+5. Insert resolved mentions through the existing editor's text transaction and retain identity in the existing writing metadata, rather than introducing a second mention node/identity model. This preserves structural selection and undo history, but mentions remain editable marked text; identity metadata is checked separately at send and is not itself part of editor undo history. Content and identity updates can advance two writing revisions while only one text undo entry is created.
+
+6. Keep the source-derived hidden-section title in an inert DOM attribute and update only label attributes on interface-language changes. This retains the editable DOM and native selection, at the cost of synchronizing the visible and accessible presentation labels explicitly.
+
+## Reconstruction on accepted issue #23
+
+The exact historical ten-file delta is reapplied selectively on accepted `20c2f6898d88d4f636a2189f941d8aaae049adf7`; no later-ticket root files are copied wholesale. Its original test-first failures and the ordinary-caret regression/correction remain historical evidence, while current verification targets the rebuilt isolated candidate. Accepted #23 diagnostic localization is retained. The initial reconstructed source is separately manifested before subsequent correction.
+
+The first current table case fails on accepted #23 because table controls are absent. A new failure-first full-application language-transition case then demonstrates that existing hidden-section boundaries retain their creation language. Updating only the inert label attributes corrects that presentation defect; it does not rebuild editable DOM or change codec/session content. The case checks zh-CN, zh-TW and English boundaries, invalid table-dimension explanations, exact source retention and zero publication. The initial incorrect Settings-selector diagnostic is retained separately from the meaningful failed boundary assertion.
+
+The reader spoiler-label change modifies the public library executable without changing exported types or contract. Its unpublished version remains `0.6.0`, pinned by new artifact hash; the application remains `0.4.0`. This is not a release or registry publication.
+
+Current isolated final verification passes **299/299** affected application cases with zero retries at `2026-10-23T04-56-02.185Z`, following **11/11** targeted advanced cases at `2026-10-23T04-55-11.330Z`. Clean public consumer passes at `consumer-2026-10-23T04-56-03.909Z`; typecheck, lint, formatting and build pass. The userscript SHA-256 is `95a3aa932ec632c059358b3df1271a0c788ab0998b6726f7dc22fab6efcb7db2` (1,463,170 bytes). This current evidence does not relabel earlier failed or historical runs. See `24-acceptance.md` for completed coordinator-owned installed/input/review gates and bounded native attribution.
+
+## Complete inventory review follow-up
+
+Independent Spec review correctly identified that the original inventory statement omitted actual invocation of Indent list and Outdent list. The preceding ordinary case covers block indentation and list creation; those do not establish list nesting. Added `J5.advanced-list-nesting-unordered` and `J5.advanced-list-nesting-ordered` at the existing complete-application seam. Both indent the second item under the first, assert independently written exact source and DOM nesting, verify undo/redo, outdent back to sibling items, verify history again, then save nested content with independent source/readback and returned nested-list assertions. Surrounding uppercase markup, unknown syntax and an attachment reference remain exact.
+
+Both cases pass on the unchanged frozen `95a3aa93` executable at `2026-10-23T05-04-10.123Z` (**2/2**, zero retries). No production defect or change was required. This closes the demonstrated test-inventory gap without relabelling the earlier 299-case regression or adding another product trade-off.
+
+Final installed Edge/Chrome workflows and current Edge actual OS IME through the changed table-selection path pass, with exact source/readback/rendering and restored preferences. Final portable audit passes **1,274 assertions**, with no pending gate. The Spec P2 is resolved and Standards/BDFL completion dispositions pass. Native-semantic bounds, historical Chrome input attribution, five Edge/four Chrome controlled publications and preserved instrumentation diagnostics are recorded in `24-installed/report.md`. No additional trade-off arose from final evidence/review reconciliation.

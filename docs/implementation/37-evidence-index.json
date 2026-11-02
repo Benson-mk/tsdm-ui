@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "ticket": 37,
+  "status": "100 rows accepted at precommit scope; clean committed qualification pending",
+  "candidate": {
+    "version": "0.4.0",
+    "bytes": 1710368,
+    "sha256": "a3de680f5120fea3db559a404a0c35a68a22aee1d6a36dbf488d63edd449367c"
+  },
+  "reviewedBase": "c36dde6361a8889102b920d5f3849659ec84645e",
+  "reviewedDiffSha256": "5278404cabd3fa4fcc146adac57c43149a3a8e16f3141a4364817ce5a2ed65c8",
+  "artifacts": {
+    "37-schema3-precommit-20261029-v5-final": {
+      "manifest.json": {
+        "bytes": 170624,
+        "sha256": "1c41c02b64638aefef795af8e6d1d663f48123ce416bfab07b33fd0f3427d086"
+      },
+      "receipt.json": {
+        "bytes": 2146910,
+        "sha256": "f7a854365d9291a07c11552ea97f2dc54e325c08a60b0351eaf7dd53e6493372"
+      },
+      "coverage.json": {
+        "bytes": 153493,
+        "sha256": "04cfb26f8c88e65b51184505bc79707be3f76c8d0232c7a7d73989e009bd43b5"
+      },
+      "report.md": {
+        "bytes": 12965,
+        "sha256": "afc2144f59e3c70dc86b70ccfdd8ad15d22c0cc2b385a7ec904ba95fc75061f6"
+      }
+    },
+    "37-replay-companions-20261029-v5": {
+      "manifest.json": {
+        "bytes": 22461,
+        "sha256": "0039f346f38f21e5bafa83a41ad67fbf633df77a6e1912ccdbfe0bb57576d2bc"
+      },
+      "companion-receipt.json": {
+        "bytes": 1135,
+        "sha256": "6b423134153486c081b7d82ec8d2c7454af6aceb02707c0fe6443e1a7e4a2100"
+      },
+      "workspace.tar.gz": {
+        "bytes": 1147460,
+        "sha256": "de01662ff000d9272ccb008927f9d11b651172b81cc7125e862648cb5fdc0182"
+      }
+    },
+    "37-precommit-evidence-20261029-v5": {
+      "manifest.json": {
+        "bytes": 204097,
+        "sha256": "d764d9a39148cffc92224853938fac2e9fdc22e987bac8e52d465b510263623c"
+      }
+    },
+    "37-precommit-evidence-20261029-v6": {
+      "manifest.json": {
+        "bytes": 206280,
+        "sha256": "c3e25e8de1bf9328ae6bc32c186b435d4c801d4bc3302cadbd99dd0e72460634"
+      },
+      "summary.json": {
+        "bytes": 1846,
+        "sha256": "8c091e7c0c7a988e43dc1a6bb1aa56e0e1dcfdfc0b00fd3ea93ad3121d274f31"
+      },
+      "schema3/manifest.json": {
+        "bytes": 172703,
+        "sha256": "875fbe7543843bf4110e4211f383ceb1e0a36788a4bca47d9fcf74f75d91591e"
+      },
+      "schema3/receipt.json": {
+        "bytes": 2150716,
+        "sha256": "cfdf5caf5c8daf5ed2d0628d37a5495bd5b6f7b2356763b116c461972e593a91"
+      },
+      "schema3/coverage.json": {
+        "bytes": 134018,
+        "sha256": "4ea0b790be137ac7aea99c93a5d6870f24a08154b81f6e945288fabc2f2847f6"
+      },
+      "schema3/report.md": {
+        "bytes": 4164,
+        "sha256": "c6f2580fde0c055fc89f53968f6a9086dbed2449f0ee33cf27fcb973889f76ba"
+      }
+    }
+  },
+  "verification": {
+    "publicSchema": "passed",
+    "requirePass": "rejected: required qualification remains incomplete",
+    "sourceReview": "zero documented Standards violations, one nonblocking duplication advisory; zero evidence-backed Spec defects",
+    "application": "1116 passed retained results, zero retries; no new execution during assembly",
+    "consumer": "20 aggregate checks and independent replay passed",
+    "precommitClauseReview": "100 of103 accepted at explicitly agreed scope; no new native/product gap"
+  },
+  "pending": [
+    "36.4: actual clean committed locked-dependency freeze",
+    "S9-exact-evidence: exact emitted artifact comparison and committed-source provenance",
+    "37.6: final reviewer closure"
+  ],
+  "limits": [
+    "Package names identify separately retained local artifacts; this index is not publication or a download URL.",
+    "Reviewed diff pins the31 implementation files before documentation assembly.",
+    "Accepted native evidence substitutions change required evidence without proving unobserved paths.",
+    "The exact source archive predates these documentation-only additions; final freeze must include the actual ticket commit."
+  ],
+  "currentPrecommitBundle": "37-precommit-evidence-20261029-v6"
+}

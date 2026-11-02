@@ -1,0 +1,148 @@
+{
+  "schema": 1,
+  "mode": "installed-development-live-mention-continuation",
+  "candidateSha256": "fdcdb05289d30032cae26aad01bd67b37be7af6d6e66edaba845792fc4bc3e81",
+  "candidateBytes": 842336,
+  "comparisons": [
+    {
+      "browser": "edge",
+      "category": "load",
+      "nativeRows": 5,
+      "installedRows": 5,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "browser": "edge",
+      "category": "at",
+      "nativeRows": 1,
+      "installedRows": 1,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "browser": "chrome",
+      "category": "load",
+      "nativeRows": 5,
+      "installedRows": 5,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "browser": "chrome",
+      "category": "at",
+      "nativeRows": 1,
+      "installedRows": 1,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    }
+  ],
+  "scopes": {
+    "edge-load": {
+      "ledgerTruncated": false,
+      "allRequests": 1,
+      "noticeRequests": 1
+    },
+    "edge-mypost": {
+      "ledgerTruncated": false,
+      "allRequests": 1,
+      "noticeRequests": 1
+    },
+    "edge-at": {
+      "ledgerTruncated": false,
+      "allRequests": 1,
+      "noticeRequests": 1
+    },
+    "edge-target-second": {
+      "ledgerTruncated": false,
+      "allRequests": 131,
+      "noticeRequests": 0
+    },
+    "edge-back-complete": {
+      "ledgerTruncated": false,
+      "allRequests": 110,
+      "noticeRequests": 0
+    },
+    "edge-forward-complete": {
+      "ledgerTruncated": false,
+      "allRequests": 109,
+      "noticeRequests": 0
+    },
+    "edge-back2-complete": {
+      "ledgerTruncated": false,
+      "allRequests": 109,
+      "noticeRequests": 0
+    },
+    "edge-reload-complete": {
+      "ledgerTruncated": false,
+      "allRequests": 116,
+      "noticeRequests": 0
+    },
+    "chrome-load": {
+      "ledgerTruncated": false,
+      "allRequests": 1,
+      "noticeRequests": 1
+    },
+    "chrome-mypost": {
+      "ledgerTruncated": false,
+      "allRequests": 1,
+      "noticeRequests": 1
+    },
+    "chrome-at": {
+      "ledgerTruncated": false,
+      "allRequests": 1,
+      "noticeRequests": 1
+    },
+    "chrome-target-second": {
+      "ledgerTruncated": false,
+      "allRequests": 136,
+      "noticeRequests": 0
+    },
+    "chrome-back-complete": {
+      "ledgerTruncated": false,
+      "allRequests": 112,
+      "noticeRequests": 0
+    },
+    "chrome-forward-complete": {
+      "ledgerTruncated": false,
+      "allRequests": 111,
+      "noticeRequests": 0
+    },
+    "chrome-back2-complete": {
+      "ledgerTruncated": false,
+      "allRequests": 111,
+      "noticeRequests": 0
+    },
+    "chrome-reload-complete": {
+      "ledgerTruncated": false,
+      "allRequests": 119,
+      "noticeRequests": 0
+    }
+  },
+  "passiveRowsEqual": true,
+  "exactMentionTargetFocusedBothBrowsers": true,
+  "selectedMentionFocusRestoredBothBrowsers": true,
+  "scroll": {
+    "edge": 369.5,
+    "chrome": 497
+  },
+  "readEffect": {
+    "freshNativeHeaderBefore": "count 1",
+    "firstDeliberateResponseHeader": "count 1",
+    "freshNativeHeaderAfter": "plain label without count",
+    "subsequentSameMentionBodyStyle": "no unread bold style",
+    "subsequentAppUnread": "unknown",
+    "explicitNumericZeroObserved": false,
+    "effectOccursOnSharedAccount": "Edge load preceded Chrome checks; Chrome is not a second independent unread transition"
+  },
+  "returnedPagerLinks": 0,
+  "remaining": "Actual returned pagination unavailable on both accounts."
+}

@@ -1,0 +1,231 @@
+{
+  "candidateSha256": "edb8bc8f1f2f7dabb73f4aafcfd16a2e396d59f0a14477840bcce6fb2d573d64",
+  "candidateBytes": 844870,
+  "browsers": {
+    "edge": {
+      "pages": [
+        {
+          "browser": "edge",
+          "page": 1,
+          "nativeRows": 30,
+          "installedRows": 30,
+          "fullRowsEqual": true,
+          "nativeAnchorCount": 2,
+          "returnedDestinations": 1,
+          "returnedDestinationsEqual": true,
+          "currentPageEqual": true,
+          "noticeRequests": 1,
+          "responseAndFinishComplete": true,
+          "requestedOnlyReturnedDestination": true,
+          "jsonRepresentationAddedWithoutRetry": true,
+          "ledgerTruncated": false
+        },
+        {
+          "browser": "edge",
+          "page": 2,
+          "nativeRows": 6,
+          "installedRows": 6,
+          "fullRowsEqual": true,
+          "nativeAnchorCount": 2,
+          "returnedDestinations": 1,
+          "returnedDestinationsEqual": true,
+          "currentPageEqual": true,
+          "noticeRequests": 1,
+          "responseAndFinishComplete": true,
+          "requestedOnlyReturnedDestination": true,
+          "jsonRepresentationAddedWithoutRetry": true,
+          "ledgerTruncated": false
+        }
+      ],
+      "passive": [
+        {
+          "scope": "back-page1",
+          "rows": 30,
+          "fullRowsEqual": true,
+          "pageAndPagerEqual": true,
+          "noticeRequests": 0,
+          "completeScope": true,
+          "scrollTop": 8469.5,
+          "focusedNotice": false
+        },
+        {
+          "scope": "forward-page2",
+          "rows": 6,
+          "fullRowsEqual": true,
+          "pageAndPagerEqual": true,
+          "noticeRequests": 0,
+          "completeScope": true,
+          "scrollTop": 0,
+          "focusedNotice": false
+        },
+        {
+          "scope": "target-back2",
+          "rows": 6,
+          "fullRowsEqual": true,
+          "pageAndPagerEqual": true,
+          "noticeRequests": 0,
+          "completeScope": true,
+          "scrollTop": 394.5,
+          "focusedNotice": true
+        },
+        {
+          "scope": "reload",
+          "rows": 6,
+          "fullRowsEqual": true,
+          "pageAndPagerEqual": true,
+          "noticeRequests": 0,
+          "completeScope": true,
+          "scrollTop": 394.5,
+          "focusedNotice": true
+        }
+      ],
+      "targets": [
+        {
+          "scope": "target-focus",
+          "uniqueExactPostFocused": true,
+          "visible": true,
+          "strictWithinPane": false,
+          "topMinusPaneTop": -0.1171875,
+          "roundingTolerancePx": 1,
+          "withinOnePixel": true,
+          "precedingImageCount": 4,
+          "completePrecedingImages": 4,
+          "noticeRequests": 0
+        },
+        {
+          "scope": "target-forward-settled-focus",
+          "uniqueExactPostFocused": true,
+          "visible": true,
+          "strictWithinPane": false,
+          "topMinusPaneTop": -0.1171875,
+          "roundingTolerancePx": 1,
+          "withinOnePixel": true,
+          "precedingImageCount": 4,
+          "completePrecedingImages": 3,
+          "noticeRequests": 0
+        }
+      ],
+      "exactOfficialSourceEqual": true,
+      "exactRuntimeEqual": true,
+      "matchingCopies": 1,
+      "realTargetRedirectStatus": 301,
+      "qualifiedOverviewNoticeRequests": 0
+    },
+    "chrome": {
+      "pages": [
+        {
+          "browser": "chrome",
+          "page": 1,
+          "nativeRows": 30,
+          "installedRows": 30,
+          "fullRowsEqual": true,
+          "nativeAnchorCount": 2,
+          "returnedDestinations": 1,
+          "returnedDestinationsEqual": true,
+          "currentPageEqual": true,
+          "noticeRequests": 1,
+          "responseAndFinishComplete": true,
+          "requestedOnlyReturnedDestination": true,
+          "jsonRepresentationAddedWithoutRetry": true,
+          "ledgerTruncated": false
+        },
+        {
+          "browser": "chrome",
+          "page": 2,
+          "nativeRows": 6,
+          "installedRows": 6,
+          "fullRowsEqual": true,
+          "nativeAnchorCount": 2,
+          "returnedDestinations": 1,
+          "returnedDestinationsEqual": true,
+          "currentPageEqual": true,
+          "noticeRequests": 1,
+          "responseAndFinishComplete": true,
+          "requestedOnlyReturnedDestination": true,
+          "jsonRepresentationAddedWithoutRetry": true,
+          "ledgerTruncated": false
+        }
+      ],
+      "passive": [
+        {
+          "scope": "back-page1",
+          "rows": 30,
+          "fullRowsEqual": true,
+          "pageAndPagerEqual": true,
+          "noticeRequests": 0,
+          "completeScope": true,
+          "scrollTop": 6629.5,
+          "focusedNotice": false
+        },
+        {
+          "scope": "forward-page2",
+          "rows": 6,
+          "fullRowsEqual": true,
+          "pageAndPagerEqual": true,
+          "noticeRequests": 0,
+          "completeScope": true,
+          "scrollTop": 0,
+          "focusedNotice": false
+        },
+        {
+          "scope": "target-back2",
+          "rows": 6,
+          "fullRowsEqual": true,
+          "pageAndPagerEqual": true,
+          "noticeRequests": 0,
+          "completeScope": true,
+          "scrollTop": 318,
+          "focusedNotice": true
+        },
+        {
+          "scope": "reload",
+          "rows": 6,
+          "fullRowsEqual": true,
+          "pageAndPagerEqual": true,
+          "noticeRequests": 0,
+          "completeScope": true,
+          "scrollTop": 318,
+          "focusedNotice": true
+        }
+      ],
+      "targets": [
+        {
+          "scope": "target-focus",
+          "uniqueExactPostFocused": true,
+          "visible": true,
+          "strictWithinPane": true,
+          "topMinusPaneTop": 0.234375,
+          "roundingTolerancePx": 1,
+          "withinOnePixel": true,
+          "precedingImageCount": 4,
+          "completePrecedingImages": 4,
+          "noticeRequests": 0
+        },
+        {
+          "scope": "target-forward-settled-focus",
+          "uniqueExactPostFocused": true,
+          "visible": true,
+          "strictWithinPane": true,
+          "topMinusPaneTop": 0.234375,
+          "roundingTolerancePx": 1,
+          "withinOnePixel": true,
+          "precedingImageCount": 4,
+          "completePrecedingImages": 2,
+          "noticeRequests": 0
+        }
+      ],
+      "exactOfficialSourceEqual": true,
+      "exactRuntimeEqual": true,
+      "matchingCopies": 1,
+      "realTargetRedirectStatus": 301,
+      "qualifiedOverviewNoticeRequests": 0
+    }
+  },
+  "limits": [
+    "Initial startup scopes and Chrome first target/first Back scopes are truncated and unqualified; complete replacement scopes are used.",
+    "Forward leaves some preceding lazy images incomplete; observed target visibility is qualified, universal future layout settlement is not.",
+    "Edge top rounding is -0.1171875 pixels; strict false retained and explicit 1px geometry tolerance applied.",
+    "Current unread state remains unknown; no new unread transition or numeric zero claimed.",
+    "Twenty historical c519 Edge raw files unavailable after capture-directory incident; current edb8 evidence is separate."
+  ]
+}

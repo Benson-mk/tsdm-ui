@@ -1,0 +1,96 @@
+{
+  "edge": [
+    {
+      "category": "all",
+      "nativeRows": 14,
+      "installedRows": 14,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "category": "mypost",
+      "nativeRows": 4,
+      "installedRows": 4,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "category": "rate",
+      "nativeRows": 1,
+      "installedRows": 1,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "category": "system",
+      "nativeRows": 8,
+      "installedRows": 8,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "category": "friend",
+      "nativeRows": 1,
+      "installedRows": 1,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    }
+  ],
+  "chrome": [
+    {
+      "category": "all",
+      "nativeRows": 14,
+      "installedRows": 14,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "category": "mypost",
+      "nativeRows": 4,
+      "installedRows": 4,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "category": "rate",
+      "nativeRows": 1,
+      "installedRows": 1,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "category": "system",
+      "nativeRows": 8,
+      "installedRows": 8,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    },
+    {
+      "category": "friend",
+      "nativeRows": 1,
+      "installedRows": 1,
+      "identitiesMatch": true,
+      "timesMatch": true,
+      "bodyTextMatch": true,
+      "orderedTargetsMatch": true
+    }
+  ]
+}

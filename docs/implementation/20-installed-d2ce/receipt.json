@@ -1,0 +1,741 @@
+{
+  "schema": 1,
+  "issue": 20,
+  "date": "2026-10-21",
+  "timezone": "Asia/Hong_Kong",
+  "mode": "installed-development-corrected-publication",
+  "status": "development-acceptance-verified",
+  "candidate": {
+    "version": "0.4.0",
+    "bytes": 893643,
+    "sha256": "d2ce4efc9517d022426714d8d84784ae908a1a65d97fc5665317166392d899bd",
+    "node": "24.22.0",
+    "npm": "11.21.1",
+    "lockSha256": "134506a7905d81a213431f508e42a9e66995cc861b09b2caa2fb8b03dbcad709",
+    "portableEntry": {
+      "bytes": 257429,
+      "sha256": "ab786e0f322a62f8693aea4ed8c03937a42b39473ca9cf6e25173a8ad50317fd"
+    },
+    "consumedPackageSha256": "8a843618c02d76ef06306b11c1d8175c702b9aa8905359a8ed073132e127613c"
+  },
+  "environment": {
+    "os": "macOS 15.6",
+    "build": "24G84",
+    "edge": "155.0.4283.62",
+    "chrome": "155.0.8059.85",
+    "tampermonkeyEdge": "BETA 5.6.6242",
+    "tampermonkeyChrome": "BETA 5.6.6242",
+    "versionProvenance": "Browser and manager versions are attributed human reports; OS version/build are from retained sw_vers output.",
+    "stableOrOtherOSReleaseQualified": false
+  },
+  "codeGate": {
+    "completedStandardsSpecBDFL": true,
+    "requiredCorrections": 0,
+    "fullApplication": {
+      "run": "2026-10-21T11-55-56.622Z",
+      "passed": 382,
+      "total": 382,
+      "retries": 0,
+      "manifestFiles": 376,
+      "publicationFileCases": 76,
+      "nativeKeyboardCases": 4
+    },
+    "affectedApplication": {
+      "run": "2026-10-21T11-54-29.128Z",
+      "passed": 17,
+      "total": 17,
+      "retries": 0,
+      "manifestFiles": 26
+    },
+    "cleanConsumer": {
+      "run": "consumer-2026-10-21T11-56-04.387Z",
+      "publicationPassed": 32,
+      "publicationTotal": 32,
+      "manifestFiles": 3
+    },
+    "testsRerunByAuthorship": false
+  },
+  "identity": {
+    "officialBackupUpdateFullReadbackBoth": true,
+    "exactSourceBytesBoth": true,
+    "oneExactExecutingCopyBoth": true,
+    "qualifyingInventories": {
+      "edge": "edge-live-runtime-second-complete",
+      "chrome": "chrome-live-runtime-third-complete"
+    },
+    "explicitReloadBoth": true,
+    "continuousScopesCompleteBoth": true,
+    "earlierInconclusiveScopesRetained": true
+  },
+  "nativeInput": {
+    "physicalPointerMenuSelectedBoth": true,
+    "physicalKeyboardMenuSelection": "observed-native-macOS-input-both",
+    "rangeDefaultsCaretRadioEscapeFocusObservedBoth": true,
+    "preferencesRestored": {
+      "edge": {
+        "language": "English",
+        "size": 100,
+        "theme": "Alias"
+      },
+      "chrome": {
+        "language": "English",
+        "size": 90,
+        "theme": "Alias"
+      }
+    },
+    "nativeContinuation": {
+      "freshCompleteNavigationBoth": true,
+      "exactCurrentScriptInventoriesBoth": true,
+      "settingsControls": 0,
+      "newThreadPOSTs": 0,
+      "earlierEdgeIncompleteStaleInterceptionUnqualified": true
+    },
+    "responsivePassClaimed": false,
+    "physicalKeyboardMenuScope": {
+      "input": "Click native popup; Down, Return selects Simplified Chinese; Up, Return restores English",
+      "opensMenuByPointer": true,
+      "keyboardOnlyOpeningClaimed": false,
+      "usesSelectOptionForThisObservation": false,
+      "dialogClosedBoth": true,
+      "completeWritingAttemptAndResultEqualToPriorConfirmedReloadBoth": true,
+      "newRequestCountClaimFromStateSnapshots": false,
+      "earlierAutomatedDiagnosticFailuresRetainHistoricalStatus": true
+    }
+  },
+  "controlledBoundary": {
+    "externalHTTPOnly": "Application request-stage XHR/Fetch",
+    "realManagerApplicationNativeStorageInputHistoryFocus": true,
+    "nativeDocumentStaticBackgroundTraffic": "normal, separately observed",
+    "zeroTotalNetworkClaimed": false,
+    "cumulativeSnapshotCountsMustNotBeSummed": true,
+    "pairedCurrentSnapshotsInspected": 38,
+    "caseRows": [
+      {
+        "alias": "edge-normalized-later-writing",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["confirmed"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 8,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-known-result-reload",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["confirmed"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 8,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-disabled-creation-result",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["confirmed"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-disabled-price-result",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["uncertain"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-missing-persistent-result",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["uncertain"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-lost-before-reload",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["uncertain"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-lost-checked",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["confirmed"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 6,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-pending-before-reload",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["pending"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-pending-duplicate-disabled",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["pending"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-pending-checked",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["confirmed"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 6,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-session-before-prepare",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 0,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 0,
+        "attemptStatusesInOrder": [],
+        "submittedRevisions": [],
+        "currentWritingRevision": 1,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-session-before-send",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 0,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 0,
+        "attemptStatusesInOrder": ["not-sent"],
+        "submittedRevisions": [3],
+        "currentWritingRevision": 3,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-session-held-send",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["not-sent", "pending"],
+        "submittedRevisions": [3, 1],
+        "currentWritingRevision": 1,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-session-after-held-response",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["not-sent", "uncertain"],
+        "submittedRevisions": [3, 1],
+        "currentWritingRevision": 1,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-session-source-held",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["not-sent", "uncertain"],
+        "submittedRevisions": [3, 1],
+        "currentWritingRevision": 1,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-session-changed-during-source",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["not-sent", "uncertain"],
+        "submittedRevisions": [3, 1],
+        "currentWritingRevision": 1,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-native-quota-result",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 0,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 0,
+        "attemptStatusesInOrder": [],
+        "submittedRevisions": [],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-native-input-complete",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 0,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 0,
+        "attemptStatusesInOrder": [],
+        "submittedRevisions": [],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "edge-native-language-selected",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 0,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 0,
+        "attemptStatusesInOrder": [],
+        "submittedRevisions": [],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-normalized-later-writing",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["confirmed"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 8,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-known-result-reload",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["confirmed"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 8,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-disabled-creation-result",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["confirmed"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-disabled-price-result",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["uncertain"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-missing-persistent-result",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["uncertain"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-lost-before-reload",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["uncertain"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-lost-checked",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["confirmed"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 6,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-pending-before-reload",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["pending"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-pending-duplicate-disabled",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["pending"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-pending-checked",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["confirmed"],
+        "submittedRevisions": [4],
+        "currentWritingRevision": 7,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-session-before-prepare",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 0,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 0,
+        "attemptStatusesInOrder": [],
+        "submittedRevisions": [],
+        "currentWritingRevision": 1,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-session-before-send",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 0,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 0,
+        "attemptStatusesInOrder": ["not-sent"],
+        "submittedRevisions": [3],
+        "currentWritingRevision": 3,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-session-held-send",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["not-sent", "pending"],
+        "submittedRevisions": [3, 1],
+        "currentWritingRevision": 1,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-session-after-held-response",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["not-sent", "uncertain"],
+        "submittedRevisions": [3, 1],
+        "currentWritingRevision": 1,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-session-source-held",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["not-sent", "uncertain"],
+        "submittedRevisions": [3, 1],
+        "currentWritingRevision": 1,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-session-changed-during-source",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 1,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 1,
+        "attemptStatusesInOrder": ["not-sent", "uncertain"],
+        "submittedRevisions": [3, 1],
+        "currentWritingRevision": 1,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-native-quota-result",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 0,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 0,
+        "attemptStatusesInOrder": [],
+        "submittedRevisions": [],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-native-input-complete",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 0,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 0,
+        "attemptStatusesInOrder": [],
+        "submittedRevisions": [],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      },
+      {
+        "alias": "chrome-native-language-selected",
+        "candidate": "d2ce",
+        "interceptedPOSTsInCumulativeSnapshot": 0,
+        "acceptedSyntheticPostsInCumulativeSnapshot": 0,
+        "attemptStatusesInOrder": [],
+        "submittedRevisions": [],
+        "currentWritingRevision": 4,
+        "completeBatches": true,
+        "countsAdditiveAcrossRows": false
+      }
+    ]
+  },
+  "verificationSemantics": {
+    "storedPublication": "verified independently",
+    "normalizations": [
+      {
+        "name": "price",
+        "submitted": "",
+        "stored": "0"
+      }
+    ],
+    "creationEffects": [
+      {
+        "name": "addfeed",
+        "requested": true,
+        "included": true,
+        "outcome": "unknown"
+      },
+      {
+        "name": "adddynamic",
+        "requested": true,
+        "included": true,
+        "outcome": "unknown"
+      },
+      {
+        "name": "adddynamic_doing",
+        "requested": false,
+        "included": false,
+        "outcome": "not-requested"
+      }
+    ],
+    "deliveryInferredFromFeedIdentifier": false,
+    "disabledCreation": {
+      "name": "addfeed",
+      "requested": true,
+      "included": false,
+      "outcome": "unknown"
+    },
+    "disabledPrice": {
+      "actualCommandIncludesPrice": false,
+      "immutableSubmittedBlankPreserved": true,
+      "resultStatus": "uncertain",
+      "result": null
+    },
+    "missingPersistentState": {
+      "resultStatus": "uncertain",
+      "result": null
+    }
+  },
+  "recovery": {
+    "normalizedOriginalRevision": 4,
+    "laterWritingRevision": 8,
+    "laterTitleSourceBBCodeOptionPreservedBoth": true,
+    "confirmedResultSurvivesReaderFailureReloadBoth": true,
+    "uncertainResendForKnownStoredThread": false,
+    "lostAndPendingExplicitChecks": {
+      "sameOriginalAttemptAndSubmissionBoth": true,
+      "passiveApplicationRequestsBeforeExplicitCheck": 0,
+      "publicationPOSTsPerCumulativeSequence": 1,
+      "automaticReplay": false
+    },
+    "sessionAttempts": {
+      "first": "not-sent",
+      "firstPOSTs": 0,
+      "second": "uncertain",
+      "secondHeldPOSTs": 1,
+      "sourceCheckActorChangeConfirms": false,
+      "actorNames": "run-local actor-A/actor-B aliases"
+    },
+    "nativeQuota": {
+      "actualQuotaExceededErrorBoth": true,
+      "nativeMethodsUnchanged": true,
+      "acknowledgedRecoveryExact": true,
+      "addedApplicationRequests": 0,
+      "addedPOSTs": 0,
+      "fillerRemovedAndDisposableTabsClosedUnderInterception": true
+    },
+    "atomicAmbientAccountIsolationGuaranteed": false,
+    "rollbackGuaranteed": false
+  },
+  "live": {
+    "edgeOriginal": {
+      "historicalCandidate": "9921",
+      "originalPublicationPOSTsHistorical": 1,
+      "currentPOSTs": 0,
+      "currentExplicitCheckGETs": 2,
+      "sameOriginalAttemptSubmission": true,
+      "submittedRevision": 4,
+      "currentStatus": "confirmed",
+      "statusAfterReload": "confirmed",
+      "immutableBlankPriceSourceOptionsPreserved": true
+    },
+    "chrome": {
+      "currentPublicationPOSTs": 1,
+      "sendScopeGETs": 3,
+      "sendScopeSequence": [
+        "preflight GET",
+        "publication POST",
+        "public GET",
+        "owned-edit GET"
+      ],
+      "submittedRevision": 4,
+      "immediateStatus": "confirmed",
+      "sameAttemptSubmissionSourceAfterReload": true,
+      "passivePOSTs": 0,
+      "extraReview": {
+        "formGETs": 1,
+        "additionalPublish": false,
+        "transientReviewClearedByReload": true
+      }
+    },
+    "actualThreadsAcrossHistoricalAndCurrent": 2,
+    "threadsPerBrowser": 1,
+    "referenceThreadModified": false,
+    "uploadsSpendingForumDraftOrCleanupPerformed": false
+  },
+  "independentNativeComparison": {
+    "parser": "parse5 directly on actual retained public/owned-edit HTTP bodies",
+    "importsProductParser": false,
+    "sourceTitleCategoryExactBoth": true,
+    "openingAuthorAndCurrentActorMatchBoth": true,
+    "threadAndOpeningIdentityMatchBoth": true,
+    "persistentMismatchesBoth": 0,
+    "qualifiedNormalization": "enabled actually submitted blank price to present stored0 only",
+    "namedCreationControlsAbsentOnOwnedEditBoth": true,
+    "creationEffectDeliveryEstablished": false
+  },
+  "visualEvidence": {
+    "currentScreenshotsInspectedByRoot": 48,
+    "contactSheets": 8,
+    "actualScrollPositionsRetained": true,
+    "fullDOMAndRecoveryComplementImages": true,
+    "fullResponsiveOrEveryPriorFocusActionProvenByScreenshots": false
+  },
+  "privateEvidence": {
+    "status": "exact-final-input-set-independently-verified-by-authorship",
+    "fileCount": 569,
+    "totalBytes": 148371253,
+    "manifestSha256": "08f2984f8e9981abebcf8818dbcdb489410606e7032207ea4c48b9330ea317f4",
+    "verifiedByAuthorship": true,
+    "allSizesAndHashesMatch": true,
+    "exactCoverageNoMissingOrUnlistedFiles": true,
+    "containsHistoricalAndCurrentInputs": true,
+    "earlier262FileSnapshotUnchanged": true,
+    "hashesDoNotEstablishUnobservedBehaviorOrAcceptance": true,
+    "rawAuthenticatedContentsExcludedFromPublic": true
+  },
+  "sourceDocuments": [
+    {
+      "alias": "final-offline-handoff",
+      "sha256": "b3433ba6f489e70a3b44423de075c578a928ed3c4d5378ad9ac115c33a5a24ce"
+    },
+    {
+      "alias": "completed-final-code-gate",
+      "sha256": "1ef31a97adbe2f9b32e0988c35bcc85e7c3a04a5064868e907c082a37d0d2beb"
+    },
+    {
+      "alias": "current-issue20-criteria",
+      "sha256": "d5e073b202e80bee3b1c46772d5a04e22dd6e0fd6dbf4c1a79b3ce2ff2af0e42"
+    },
+    {
+      "alias": "native-keyboard-menu-follow-up",
+      "sha256": "d3eb0e54877f8ed31f5d4d5daf10d237582330ff8fe6617c32a3569a54b07933"
+    }
+  ],
+  "acceptanceCriteria": {
+    "AC1": {
+      "checked": true,
+      "status": "independently-verified-development-scope"
+    },
+    "AC2": {
+      "checked": true,
+      "status": "independently-verified-development-scope"
+    },
+    "AC3": {
+      "checked": true,
+      "status": "independently-verified-development-scope"
+    },
+    "AC4": {
+      "checked": true,
+      "status": "independently-verified-development-scope"
+    },
+    "AC5": {
+      "checked": true,
+      "status": "independently-verified-development-scope"
+    }
+  },
+  "qualification": {
+    "issue20Accepted": true,
+    "issue15Complete": false,
+    "commitApprovedByThisAuthorship": false,
+    "releaseQualified": false,
+    "published": false
+  },
+  "retainedLimits": [
+    "Native keyboard menu selection follows pointer opening; keyboard-only opening and new request counts from state snapshots are not claimed.",
+    "Earlier runtime/continuation inconclusive scopes retain original identities.",
+    "Cumulative snapshot rows cannot be summed as extra sends.",
+    "Static controller validation is distinct from complete actual Network/Fetch scope evidence.",
+    "Historical9921 package remains unchanged and incomplete.",
+    "Current creation effects remain unknown, not delivery confirmation."
+  ],
+  "tradeoffs": "Eleven canonical product choices and corrected historical storage-testing choice remain central. The historical native-menu evidence limitation is resolved by the separately scoped native keyboard follow-up without rewriting diagnostic failures. This authoring boundary adds no distinct trade-off.",
+  "acceptanceAudit": {
+    "date": "2026-10-22",
+    "criteriaVerified": 5,
+    "criteriaTotal": 5,
+    "report": "../20-acceptance.md",
+    "scope": "Declared macOS/BETA development acceptance; release qualification remains separate"
+  }
+}

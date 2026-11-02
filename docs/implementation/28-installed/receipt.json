@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "runId": "issue-28-installed-development-2026-10-19",
+  "timezone": "Asia/Hong_Kong",
+  "mode": "installed-development-authored-summary",
+  "status": "passed",
+  "candidate": {
+    "version": "0.2.0",
+    "bytes": 669720,
+    "userscriptSHA256": "6457a604c049f6dfb2f2418be57c7ab23bf6375866b117cb6d0201361623ae52",
+    "edgeStoredSourceSHA256": "6457a604c049f6dfb2f2418be57c7ab23bf6375866b117cb6d0201361623ae52",
+    "chromeStoredSourceSHA256": "6457a604c049f6dfb2f2418be57c7ab23bf6375866b117cb6d0201361623ae52"
+  },
+  "runtime": {
+    "os": "macOS15.6",
+    "osBuild": "24G84",
+    "architecture": "arm64",
+    "browserRuntimeMajor": "155",
+    "installedBundleVersions": {
+      "edge": "155.0.4283.62",
+      "chrome": "155.0.8059.84"
+    },
+    "bundleVersionSource": "Installed application metadata checked after the observations; prior environment record agrees",
+    "managerVersion": "BETA5.6.6242",
+    "editorsVersion": "1.0.7",
+    "managerVersionSource": "user-reported; exact source and executing controls observed"
+  },
+  "executionOrder": ["edge", "chrome"],
+  "cases": [
+    {
+      "name": "J8.edge-ordinary-installed",
+      "mode": "installed-development",
+      "status": "passed",
+      "fileAlias": "ordinary-A.txt",
+      "expectedBytes": 47,
+      "savedBytes": 47,
+      "savedName": {
+        "nativeFilenameMatchedBeforeCollisionSuffix": true,
+        "collisionSuffix": 7
+      },
+      "independentReadback": {
+        "browserDownloads": "completed",
+        "fileSystemStatAndHash": "matched independently supplied original",
+        "secondFileSystemRecheck": "matched saved receipt",
+        "exactSHA256RetainedPrivately": true
+      },
+      "network": {
+        "freshThreadGET": 1,
+        "attachmentGET": 1,
+        "postRequests": 0,
+        "purchaseRequests": 0,
+        "retries": 0,
+        "binaryStatus": 200,
+        "binaryContentType": "application/octet-stream"
+      },
+      "productStatus": "Browser save requested; disk delivery unconfirmed by the application",
+      "authoredOriginalSHA256": "2947803bc3757cee909195d1271a3220cebd276440d7500055e69b5a907f1dad"
+    },
+    {
+      "name": "J8.edge-paid-installed",
+      "mode": "installed-development",
+      "status": "passed",
+      "fileAlias": "paid-A.txt",
+      "expectedBytes": 169,
+      "savedBytes": 169,
+      "savedName": {
+        "nativeFilenameMatchedBeforeCollisionSuffix": true,
+        "collisionSuffix": null
+      },
+      "independentReadback": {
+        "browserDownloads": "completed",
+        "fileSystemStatAndHash": "matched independently supplied original",
+        "secondFileSystemRecheck": "matched saved receipt",
+        "exactSHA256RetainedPrivately": true
+      },
+      "network": {
+        "freshThreadGET": 1,
+        "attachmentGET": 1,
+        "postRequests": 0,
+        "purchaseRequests": 0,
+        "retries": 0,
+        "binaryStatus": 200,
+        "binaryContentType": "application/octet-stream"
+      },
+      "productStatus": "Browser save requested; disk delivery unconfirmed by the application"
+    },
+    {
+      "name": "J8.chrome-ordinary-installed",
+      "mode": "installed-development",
+      "status": "passed",
+      "fileAlias": "ordinary-A.txt",
+      "expectedBytes": 47,
+      "savedBytes": 47,
+      "savedName": {
+        "nativeFilenameMatchedBeforeCollisionSuffix": true,
+        "collisionSuffix": 8
+      },
+      "independentReadback": {
+        "browserDownloads": "completed",
+        "fileSystemStatAndHash": "matched independently supplied original",
+        "secondFileSystemRecheck": "matched saved receipt",
+        "exactSHA256RetainedPrivately": true
+      },
+      "network": {
+        "freshThreadGET": 1,
+        "attachmentGET": 1,
+        "postRequests": 0,
+        "purchaseRequests": 0,
+        "retries": 0,
+        "binaryStatus": 200,
+        "binaryContentType": "application/octet-stream"
+      },
+      "productStatus": "Browser save requested; disk delivery unconfirmed by the application",
+      "authoredOriginalSHA256": "2947803bc3757cee909195d1271a3220cebd276440d7500055e69b5a907f1dad"
+    },
+    {
+      "name": "J8.chrome-paid-installed",
+      "mode": "installed-development",
+      "status": "passed",
+      "fileAlias": "paid-A.txt",
+      "expectedBytes": 169,
+      "savedBytes": 169,
+      "savedName": {
+        "nativeFilenameMatchedBeforeCollisionSuffix": true,
+        "collisionSuffix": 1
+      },
+      "independentReadback": {
+        "browserDownloads": "completed",
+        "fileSystemStatAndHash": "matched independently supplied original",
+        "secondFileSystemRecheck": "matched saved receipt",
+        "exactSHA256RetainedPrivately": true
+      },
+      "network": {
+        "freshThreadGET": 1,
+        "attachmentGET": 1,
+        "postRequests": 0,
+        "purchaseRequests": 0,
+        "retries": 0,
+        "binaryStatus": 200,
+        "binaryContentType": "application/octet-stream"
+      },
+      "productStatus": "Browser save requested; disk delivery unconfirmed by the application"
+    }
+  ],
+  "synthetic": {
+    "run": "2026-10-19T09-06-54.896Z",
+    "casesPassed": 99,
+    "newDownloadCases": 32,
+    "consumerRun": "consumer-2026-10-19T09-06-59.302Z",
+    "consumer": "passed"
+  },
+  "review": {
+    "standards": "no confirmed #28 defect",
+    "spec": "no confirmed #28 defect; classifier scope limitation retained",
+    "BDFL": "supplied findings evaluated with validate-gpt-code-review; no additional distinct trade-off"
+  },
+  "limits": [
+    "Selected macOS BETA development environment only; stable/Windows release matrix and final integrated candidate remain unqualified.",
+    "Product reports save requested; independent browser/filesystem observations establish acceptance.",
+    "Markup-leading, HTML/JSON/XML and empty payloads are withheld, including ambiguous legitimate files.",
+    "Installed user cancellation is not claimed; an actual browser refusal is covered in synthetic full-application checks.",
+    "Private paid contents, names, paths, identifiers and exact hash are excluded from this authored public summary.",
+    "One paid fixture was established by a separate explicitly authorized native9-credit purchase before application qualification."
+  ]
+}

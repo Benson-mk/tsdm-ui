@@ -1,0 +1,104 @@
+{
+  "schema": 2,
+  "issue": 23,
+  "kind": "authored-installed-feature-summary",
+  "candidate": {
+    "applicationVersion": "0.4.0",
+    "bytes": 1454506,
+    "sha256": "d5f25133e1b5045c7ec005c7aa9844d62176d7dc7e3ccbcd3bab96051d8595f8"
+  },
+  "library": {
+    "version": "0.6.0",
+    "bytes": 281785,
+    "sha256": "2de2a0405871eae1d932115f804cec7c014788f2ab8cf79f96c41dae3bcf416f",
+    "unchangedFromIssue": 22
+  },
+  "currentInstalled": ["edge", "chrome"],
+  "actualIME": {
+    "phrase": "輸入測試",
+    "savedSource": "[b]輸入測試[/b]",
+    "trusted": [
+      "compositionstart",
+      "compositionupdate",
+      "beforeinput",
+      "input"
+    ],
+    "untrusted": ["compositionend"],
+    "humanAttestation": "done",
+    "externalHTTP": "synthetic",
+    "chrome": "historical v4 human input, unchanged-path equivalence and current installed workflows",
+    "candidateSHA256": "81de77c7d6a779fe4a2e35b6cdfaaaa6a3ffb85d772404568e21cdc6253ec2a1",
+    "browser": "edge",
+    "chromeHistoricalCandidateSHA256": "92ea81520c66ba866e3b2ce6b1df434996ce065b094d4fa85aa784873791da39"
+  },
+  "currentE2E": {
+    "passed": 288,
+    "retries": 0,
+    "run": "2026-10-23T04-30-04.075Z",
+    "candidateSHA256": "d5f25133e1b5045c7ec005c7aa9844d62176d7dc7e3ccbcd3bab96051d8595f8"
+  },
+  "newNativeWrites": 0,
+  "releaseQualified": false,
+  "preferenceRestoration": {
+    "edge": true,
+    "chrome": true
+  },
+  "review": {
+    "initialStandardsConclusion": "superseded by independent P2 localization finding",
+    "validatedFindings": 1,
+    "resolvedFindings": 1,
+    "standardsRemainingMaterialFindings": 0,
+    "specRemainingMaterialFindings": 0,
+    "bdflRemainingCodeFindings": 0,
+    "finalInstalledAudit": "passed; portable final-correction/verify.py with verification.json and manifest.json"
+  },
+  "privateRetention": "evidence/runs/issue-23-completion-retained",
+  "broadCandidate": {
+    "applicationVersion": "0.4.0",
+    "bytes": 1451144,
+    "sha256": "81de77c7d6a779fe4a2e35b6cdfaaaa6a3ffb85d772404568e21cdc6253ec2a1"
+  },
+  "broadInstalled": {
+    "ordinaryToolsEach": 19,
+    "opaqueCasesEach": 5,
+    "syntheticPosts": {
+      "edge": 3,
+      "chrome": 3
+    },
+    "candidateSHA256": "81de77c7d6a779fe4a2e35b6cdfaaaa6a3ffb85d772404568e21cdc6253ec2a1"
+  },
+  "finalTargeted": {
+    "candidateSHA256": "d5f25133e1b5045c7ec005c7aa9844d62176d7dc7e3ccbcd3bab96051d8595f8",
+    "browsers": ["edge", "chrome"],
+    "languages": ["en", "zh-CN", "zh-TW"],
+    "localizedCasesEach": [
+      "invalid emoticon with exact source and selection retained",
+      "ambiguous-source explanation with complete source and unresolved interpretation retained"
+    ],
+    "controlledSave": "ordinary bold plus unknown source, independently read back exactly",
+    "syntheticPosts": {
+      "edge": 1,
+      "chrome": 1
+    },
+    "managerReadbackExact": true,
+    "runtimeExactCandidateOccurrencesEach": 1,
+    "publicationReadinessWarning": "final application E2E only; not observed in installed DOM",
+    "humanIMERerun": false,
+    "allNineteenToolsRerun": false
+  },
+  "broadE2E": {
+    "passed": 275,
+    "retries": 0,
+    "run": "2026-10-23T03-47-01.958Z",
+    "candidateSHA256": "81de77c7d6a779fe4a2e35b6cdfaaaa6a3ffb85d772404568e21cdc6253ec2a1"
+  },
+  "metadataCorrection": {
+    "rawCaptureAnnotations": "stale 948c35d94290e24ab7362a3ef67b46ccd364b2b4de0e0904c0e95d9a68595c89 retained unchanged",
+    "cause": "helper closures retained earlier output directory and identity annotation",
+    "authoritativeCandidateProof": "full captured runtime contains exact frozen d5f candidate once per browser; runtime and traffic tab IDs match",
+    "receipt": "final-correction/installed/metadata-correction.json",
+    "earlier948cCaptureLimit": "overwritten by final captures in original correction directory; not independently claimed"
+  },
+  "acceptanceCriteriaVerified": 5,
+  "tradeOffs": 14
+}

@@ -1,0 +1,372 @@
+{
+  "schema": 1,
+  "runId": "issue-29-integrated-installed-development-2026-10-19",
+  "timezone": "Asia/Hong_Kong",
+  "mode": "installed-development-authored-summary",
+  "status": "passed",
+  "candidate": {
+    "version": "0.3.0",
+    "bytes": 764321,
+    "userscriptSHA256": "097021995d5ba06a5ded15fac76859e9aba3c7da857079bc73f2be2e04e7b159",
+    "edgeStoredSourceSHA256": "097021995d5ba06a5ded15fac76859e9aba3c7da857079bc73f2be2e04e7b159",
+    "chromeStoredSourceSHA256": "097021995d5ba06a5ded15fac76859e9aba3c7da857079bc73f2be2e04e7b159"
+  },
+  "runtime": {
+    "os": "macOS 15.6.0",
+    "architecture": "arm64",
+    "browserVersions": {
+      "edge": "155.0.4283.62",
+      "edgeChromium": "155.0.8059.85",
+      "chrome": "155.0.8059.84"
+    },
+    "browserVersionSource": "current user-agent runtime observation",
+    "managerVersion": "BETA 5.6.6242",
+    "editorsVersion": "1.0.7",
+    "managerVersionSource": "user-reported"
+  },
+  "executionOrder": ["edge", "chrome"],
+  "sourceIdentity": {
+    "officialMCPBackupAndExactReadback": true,
+    "toolMetadataFooterExcluded": true,
+    "listedSourcesPerBrowser": 1,
+    "executingShadowRootHostsPerBrowser": 1
+  },
+  "searches": [
+    {
+      "name": "J3.edge-author-A",
+      "status": "passed",
+      "queryAlias": "author-A",
+      "queryKind": "author",
+      "outcome": "populated",
+      "nativeResultCount": null,
+      "network": {
+        "ledgerComplete": true,
+        "freshFormGET": 1,
+        "deliberatePOST": 1,
+        "normalRedirect": 302,
+        "redirectResultGET": 1,
+        "formResponse": {
+          "status": 200,
+          "contentType": "application/json"
+        },
+        "resultResponse": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "automaticRetries": 0
+      },
+      "freshIndependentCreditReadback": {
+        "beforeAfterMatch": true,
+        "observedDebit": 0
+      },
+      "actualQueriesAndAccountData": "retained privately"
+    },
+    {
+      "name": "J3.chrome-title-A",
+      "status": "passed",
+      "queryAlias": "title-A",
+      "queryKind": "title",
+      "outcome": "populated",
+      "nativeResultCount": 492,
+      "network": {
+        "ledgerComplete": true,
+        "freshFormGET": 1,
+        "deliberatePOST": 1,
+        "normalRedirect": 302,
+        "redirectResultGET": 1,
+        "formResponse": {
+          "status": 200,
+          "contentType": "application/json"
+        },
+        "resultResponse": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "automaticRetries": 0
+      },
+      "freshIndependentCreditReadback": {
+        "beforeAfterMatch": true,
+        "observedDebit": 0
+      },
+      "actualQueriesAndAccountData": "retained privately"
+    },
+    {
+      "name": "J3.chrome-zero-A",
+      "status": "passed",
+      "queryAlias": "zero-A",
+      "queryKind": "unlikely-title",
+      "outcome": "explicit-native-zero",
+      "nativeResultCount": 0,
+      "network": {
+        "ledgerComplete": true,
+        "freshFormGET": 1,
+        "deliberatePOST": 1,
+        "normalRedirect": 302,
+        "redirectResultGET": 1,
+        "formResponse": {
+          "status": 200,
+          "contentType": "application/json"
+        },
+        "resultResponse": {
+          "status": 200,
+          "contentType": "text/html"
+        },
+        "automaticRetries": 0
+      },
+      "freshIndependentCreditReadback": {
+        "beforeAfterMatch": true,
+        "observedDebit": 0
+      },
+      "actualQueriesAndAccountData": "retained privately"
+    }
+  ],
+  "pagination": {
+    "name": "J3.chrome-adjacent-reader-page-2",
+    "status": "passed",
+    "ledgerComplete": true,
+    "offeredByCurrentResult": true,
+    "sameReturnedIdentity": true,
+    "resultIdentityAlias": "result-B",
+    "page": 2,
+    "GETs": 1,
+    "POSTs": 0,
+    "statusCode": 200,
+    "contentType": "application/json",
+    "editedAndEffectiveCriteriaSeparate": true,
+    "edgeScope": "no pager offered for author-A; no invented paging request"
+  },
+  "exactTargetRemounts": [
+    {
+      "browser": "edge",
+      "status": "passed",
+      "threadAlias": "thread-A",
+      "postAlias": "post-A",
+      "nativeFullDocumentNavigation": true,
+      "exactArticleTargeted": true,
+      "searchContextRetained": true,
+      "completeNetworkLedger": true,
+      "forumGETEvents": 5,
+      "normal301Transitions": 2,
+      "manualRedirectFetchCancelled": true,
+      "postRemountJSONRead": true,
+      "searchRequests": 0
+    },
+    {
+      "browser": "chrome",
+      "status": "passed",
+      "threadAlias": "thread-B",
+      "postAlias": "post-B",
+      "nativeFullDocumentNavigation": true,
+      "exactArticleTargeted": true,
+      "searchContextRetained": true,
+      "retainedResultPage": 2,
+      "completeNetworkLedger": false,
+      "initialNetworkLedger": "truncated; excluded from complete-network claims",
+      "independentEvidence": [
+        "native navigation timing",
+        "exact targeted article",
+        "retained adjacent page-2 overview",
+        "zero current-document Search resources"
+      ]
+    }
+  ],
+  "passiveCases": [
+    {
+      "name": "J3.edge-back-reader",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 1,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 1,
+      "editedCriteriaVerifiedAfterResultReload": false
+    },
+    {
+      "name": "J3.edge-back-results",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 0,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 1,
+      "editedCriteriaVerifiedAfterResultReload": false
+    },
+    {
+      "name": "J3.edge-reload-results",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 1,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 1,
+      "editedCriteriaVerifiedAfterResultReload": true
+    },
+    {
+      "name": "J3.edge-forward-reader",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 0,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 1,
+      "editedCriteriaVerifiedAfterResultReload": false
+    },
+    {
+      "name": "J3.edge-forward-exact-target",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 1,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 1,
+      "editedCriteriaVerifiedAfterResultReload": false
+    },
+    {
+      "name": "J3.edge-reload-exact-target",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 1,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 1,
+      "editedCriteriaVerifiedAfterResultReload": false
+    },
+    {
+      "name": "J3.chrome-back-reader",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 1,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 2,
+      "editedCriteriaVerifiedAfterResultReload": false
+    },
+    {
+      "name": "J3.chrome-back-results",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 0,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 2,
+      "editedCriteriaVerifiedAfterResultReload": false
+    },
+    {
+      "name": "J3.chrome-reload-results",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 1,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 2,
+      "editedCriteriaVerifiedAfterResultReload": true
+    },
+    {
+      "name": "J3.chrome-forward-reader",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 0,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 2,
+      "editedCriteriaVerifiedAfterResultReload": false
+    },
+    {
+      "name": "J3.chrome-forward-exact-target",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 1,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 2,
+      "editedCriteriaVerifiedAfterResultReload": false
+    },
+    {
+      "name": "J3.chrome-reload-exact-target",
+      "status": "passed",
+      "ledgerComplete": true,
+      "network": {
+        "safeForumDocumentGETs": 1,
+        "searchRequests": 0,
+        "postRequests": 0
+      },
+      "searchContextRetained": true,
+      "resultPage": 2,
+      "editedCriteriaVerifiedAfterResultReload": false
+    }
+  ],
+  "sessionBudget": {
+    "authorizedSearchCount": 6,
+    "usedSearchCountAcrossCandidates": 5,
+    "finalCandidateSearchCount": 3,
+    "unusedSearchCount": 1,
+    "authorizedSearchCreditLimit": 10,
+    "observedSearchCreditDebit": 0,
+    "separatePriorFixturePurchaseCredits": 9,
+    "fixturePurchaseRepeated": false
+  },
+  "synthetic": {
+    "run": "2026-10-19T11-16-23.653Z",
+    "casesPassed": 199,
+    "searchCases": 61,
+    "manifestFiles": 192,
+    "consumerRun": "consumer-2026-10-19T10-57-37.450Z",
+    "consumer": "passed on byte-identical 12-file public library",
+    "consumerManifestFiles": 3
+  },
+  "review": {
+    "standards": "no actionable findings",
+    "spec": "sole P2 corrected failure-first; focused recheck accepted",
+    "sourceBDFL": "accepted; no outstanding local finding",
+    "installedBDFL": "accepted; all five criteria independently verified in the declared development scope",
+    "additionalProductionTradeoffs": 0
+  },
+  "privateEvidence": {
+    "edgeVerifiedFiles": 85,
+    "chromeVerifiedFiles": 64,
+    "screenshotsInspected": 6,
+    "rawRecordsPublished": false
+  },
+  "limits": [
+    "Selected macOS BETA development environment; stable-manager/browser, Windows and complete parent-spec release qualification remain later.",
+    "Complete per-action ledgers replace earlier truncated passive diagnostics; the Chrome remount itself uses independent native timing, DOM and current-document resources.",
+    "Manual direct Edge URL probe bypassed prepared application handoff and started a Boards-origin arrival; excluded from retained-Search claims.",
+    "Explicit-type input diagnostic missed default textboxes; direct textbox value readback establishes retained edits.",
+    "Read-only remount observation timeouts and transient approval-service failure did not cause repeated queries.",
+    "Native effectful arrival, expiry, missing snapshots and induced failure outcomes are verified synthetically rather than through added live effects.",
+    "Raw account/member data, exact credit balances, tokens, forum identifiers and workstation paths remain private."
+  ]
+}

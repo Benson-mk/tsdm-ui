@@ -1,0 +1,34 @@
+# Issue #24 acceptance
+
+This ticket adds table operations, hidden-block controls and resolved visual mention insertion on accepted issue #23, commit `20c2f6898d88d4f636a2189f941d8aaae049adf7`. The source reconstruction is limited to the historical ten-file delta plus one demonstrated localized-boundary correction. Later draft, upload and hongbao features are excluded.
+
+## Candidate and ownership
+
+- Application `0.4.0`; userscript **1,463,170 bytes**, SHA-256 `95a3aa932ec632c059358b3df1271a0c788ab0998b6726f7dc22fab6efcb7db2`.
+- Public forum-client `0.6.0`; entry **281,817 bytes**, SHA-256 `8940172c4a58892e18212af871353dfb2ec7aa64a81019ff089e94545fe8b21b`. The spoiler-control title fix changes its executable but not exported types or contract. The package remains an unpublished artifact pinned by its exact hash.
+- Node `24.22.0`, npm `11.21.1`; accepted locked dependencies unchanged. Codec/session ownership, native identity lookup and guarded consequential writes remain shared.
+
+## Criterion map
+
+1. **Verified.** Table creation, twelve structural/selection operations, horizontal/vertical merge and split, spoilers, reply-to-view and unwrap retain unaffected source. `advanced-table`, `advanced-table-inventory`, `advanced-rectangle`, `advanced-hidden`, `advanced-grid-guard` and `advanced-spoiler-title` cover exact source and independent rendered/readback observations. Native positional spans and spoiler title syntax retain their existing bounded provenance.
+2. **Verified.** `advanced-mention`, `advanced-mention-structure` and `advanced-mention-crlf` use the existing resolved identity path through visual and displayed-source selection. Earlier reply identity/account/target guards remain in regression scope. Additional named quotes remain separate from the addressed Quick Quote action.
+3. **Verified.** Advanced and preceding ordinary cases cover malformed/nested/unknown markup, no-op preservation, conversion refusal, undo/redo, long content, native keyboard navigation in the E2E browser, composition guards, view replacement, Text size and derived Compact spacing. `advanced-language-change` additionally proves existing hidden boundaries and invalid-dimension explanations follow all three interface languages without source mutation or POST. Synthetic composition is not real OS IME evidence.
+4. **Verified.** The nineteen ordinary format controls from #23, the explicit Indent list/Outdent list controls and advanced controls are mapped to named cases in `24-advanced-editor.md`. The independent Spec review found that list nesting lacked an invoked E2E despite the original inventory claim; two new unordered/ordered cases now exercise both commands, exact source, undo/redo, controlled publication, fresh authoritative source readback and returned nested lists. Malformed or unsupported grids retain complete source because automatic structural repair could alter unaffected content; no required tool is otherwise reclassified as source-only.
+
+## Current evidence
+
+Representative current red: `2026-10-23T04-52-03.597Z`, missing table controls on accepted #23. Language correction red: `2026-10-23T04-54-05.457Z`, existing hidden-boundary labels failed to follow the selected language. An earlier incorrect Settings selector remains a separate driver diagnostic, not a product failure. The correction updates inert visible/accessibility label attributes while preserving the editable DOM.
+
+All **11/11 advanced cases pass, zero retries**, at `2026-10-23T04-55-11.330Z`. The final combined affected regression passes **299/299**, zero retries, at `2026-10-23T04-56-02.185Z`, covering appearance, new thread, writing/recovery, replies, owned edits, ordinary editor and advanced editor. Every recorded source input and emitted userscript identity matches this candidate. Clean public-consumer verification passes at `consumer-2026-10-23T04-56-03.909Z`. Typecheck, lint, formatting, build and whitespace checks pass. Source, artifact, request/readback, screenshot and receipt manifests are retained by the standard evidence reporter. Synthetic screenshots of localized table controls and independently rendered merged cells were inspected; screenshot framing does not independently show every hidden-boundary label, which is asserted by the DOM cases.
+
+All four criteria are verified. Both installed browsers pass the affected workflows on the exact candidate; current Edge actual OS IME after table selection/merge/split survives neighboring-cell navigation, controlled save and independent source/rendered readback. Historical Chrome actual IME retains its original candidate and missing-observer attribution under the completed BDFL disposition. Final independent artifact audit passes **1,274 assertions**, with no pending gate. Standards reports no material finding, the Spec inventory P2 is resolved, and BDFL completion conditions are satisfied. No new forum write, installation, spending, upload, publication or cleanup is authorized by this document. Full stable-manager/Windows release qualification remains separate. Six distinct ticket trade-offs are recorded once in `24-advanced-editor.md`.
+
+## Inventory review correction
+
+`J5.advanced-list-nesting-unordered` and `J5.advanced-list-nesting-ordered` pass **2/2**, zero retries, at `2026-10-23T05-04-10.123Z` on the unchanged frozen userscript. They verify literal nested/sibling source, surrounding unknown/reference preservation, both undo/redo paths, one controlled save each and independent source/rendered readback. No production change was necessary. This targeted addition supplements the earlier 299-case complete pass; it is not reported as a new 301-case suite. Final Spec and BDFL dispositions verify the correction; installed/input and independent audit gates also pass.
+
+## Installed evidence and replay
+
+The [installed report](24-installed/report.md), [receipt](24-installed/receipt.json), [procedure](24-installed/procedure.md) and authored-file manifest retain candidate identity, both-browser effects, current Edge actual-input trust counts, historical Chrome limitations and the resumed Review instrumentation incident. Controlled publication totals are Edge five and Chrome four; semantic lookup POSTs are separate. No current native advanced saved-source/rendered pair is claimed. Captured native syntax/current controls and deterministic/installed returned rendering satisfy the bounded native-semantics decision without a new live publication.
+
+Private evidence is retained under ignored `evidence/runs/issue-24-completion-retained/`. Its standalone `verify.py` reads only the retained archive and reproduces `verification.json`; `manifest.json` protects the retained files. The final verifier passes 1,274 assertions and has no pending gate. Earlier failed drivers and pre-audit files remain separate. Final authored documentation is inventoried separately from the frozen executable/test inputs.

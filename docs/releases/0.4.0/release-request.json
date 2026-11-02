@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "repository": "Benson-mk/tsdm-ui",
+  "tag": "v0.4.0",
+  "title": "TSDM Workspace 0.4.0",
+  "targetCommit": "33c32655f583aa3c0738d22fbd081fce39df69c5",
+  "notesFile": "RELEASE_NOTES.md",
+  "assets": [
+    "tsdm-workspace.user.js",
+    "tsdm-forum-client-0.13.0.tgz",
+    "THIRD_PARTY_NOTICES.md",
+    "tsdm-workspace-0.4.0-release.zip",
+    "SHA256SUMS"
+  ],
+  "publicationAuthorized": false,
+  "publicationPerformed": false,
+  "downloadVerificationPerformed": false,
+  "requiredBeforePublication": [
+    "Obtain separate explicit owner authorization and public-content review.",
+    "Recheck that the target tag and Release do not already exist.",
+    "Confirm the qualified source commit is available on GitHub; any required source push belongs to the authorized handoff.",
+    "Verify the reviewed local payload and every staged asset hash without rebuilding.",
+    "Upload only these exact staged assets and the prepared release notes."
+  ],
+  "requiredAfterPublication": "Follow POST_PUBLICATION.md and retain a new actual download/hash/install receipt."
+}

@@ -1,0 +1,90 @@
+import type * as Frontier from "@tsdm/forum-client";
+import { createForumClient as createFrontierTypeClient } from "@tsdm/forum-client";
+const frontierClient: Frontier.ForumClient = createFrontierTypeClient({
+  origin: "https://fixture.example",
+  transport: {
+    async request(url) {
+      return { status: 200, url, contentType: "text/html", body: "" };
+    },
+  },
+});
+const replyContract: (
+  boardId: string,
+  target: Frontier.ReplyTarget,
+) => Promise<Frontier.PrepareWritingResult> = frontierClient.prepareReply;
+const loadEditContract: (
+  url: string,
+  postId: string,
+) => Promise<Frontier.PrepareWritingResult> = frontierClient.preparePostEdit;
+const reviewEditContract: (
+  submission: Frontier.ThreadSubmission,
+) => Promise<Frontier.PublicationPreparationResult> =
+  frontierClient.prepareEditPublication;
+const saveEditContract: (
+  attempt: Frontier.ThreadAttempt,
+) => Promise<Frontier.ThreadAttempt> = frontierClient.savePostEdit;
+const checkEditContract: (
+  attempt: Frontier.ThreadAttempt,
+) => Promise<Frontier.ThreadAttempt> = frontierClient.checkEditResult;
+const prepareDraftContract: (
+  attempt: Frontier.DraftAttempt,
+) => Promise<Frontier.DraftAttempt> = frontierClient.prepareDraftSave;
+const saveDraftContract: (
+  attempt: Frontier.DraftAttempt,
+) => Promise<Frontier.DraftAttempt> = frontierClient.saveDraft;
+const publishDraftContract: (
+  attempt: Frontier.DraftAttempt,
+) => Promise<Frontier.DraftAttempt> = frontierClient.publishDraft;
+const checkDraftContract: (
+  attempt: Frontier.DraftAttempt,
+  row?: Frontier.DraftRow,
+) => Promise<Frontier.DraftAttempt> = frontierClient.checkDraft;
+const prepareFavoriteContract: (
+  intent: Frontier.FavoriteIntent,
+  previousAttemptId?: string,
+) => Promise<Frontier.FavoritePreparation> = frontierClient.prepareFavorite;
+const changeFavoriteContract: (
+  attempt: Frontier.FavoriteAttempt,
+) => Promise<Frontier.FavoriteAttempt> = frontierClient.changeFavorite;
+const checkFavoriteContract: (
+  attempt: Frontier.FavoriteAttempt,
+) => Promise<Frontier.FavoriteAttempt> = frontierClient.checkFavoriteResult;
+void [
+  replyContract,
+  loadEditContract,
+  reviewEditContract,
+  saveEditContract,
+  checkEditContract,
+  prepareDraftContract,
+  saveDraftContract,
+  publishDraftContract,
+  checkDraftContract,
+  prepareFavoriteContract,
+  changeFavoriteContract,
+  checkFavoriteContract,
+];
+
+const packetPreparation: (
+  boardId: string,
+  redPacket?: boolean,
+) => Promise<Frontier.PrepareWritingResult> = frontierClient.prepareNewThread;
+const packetObservation: Frontier.RedPacketObservation = {
+  state: "unknown",
+  conditions: [],
+  credit: "unknown",
+  ledger: { state: "unavailable", rows: [] },
+};
+const fundedConsent: Pick<
+  Frontier.DraftAttempt,
+  "fundingReviewed" | "redPacket" | "observation"
+> = {
+  fundingReviewed: true,
+  redPacket: packetObservation,
+  observation: {
+    state: "draft",
+    content: "confirmed",
+    attachments: "confirmed",
+    packetMarker: true,
+  },
+};
+void [packetPreparation, fundedConsent];
