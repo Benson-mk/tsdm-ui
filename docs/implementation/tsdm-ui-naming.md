@@ -1,6 +1,6 @@
 # Align application naming with tsdm-ui
 
-Record: [issue #49](https://github.com/Benson-mk/tsdm-ui/issues/49).
+Record: [issue #50](https://github.com/Benson-mk/tsdm-ui/issues/50).
 
 The owner approved TSDM UI as the displayed product name, tsdm-ui.user.js as the
 download filename, and consistent README and Release titles.
@@ -47,5 +47,5 @@ The first concurrent lint invocation scanned generated CLI fixtures in the sourc
 checkout. Those outputs were moved outside the checkout and clean-source lint
 passed; no production lint rule was relaxed. Historical fixtures were not rewritten.
 No installed Tampermonkey upgrade or hosted Actions run was performed, and no
-GitHub Release, existing tag or remote branch was changed. Issue #49 records the
-owner's requested release presentation and naming decisions.
+GitHub Release, existing tag or remote branch was changed. Issue #50 records the
+owner's requested TSDM UI naming change.
