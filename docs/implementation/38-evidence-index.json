@@ -1317,10 +1317,7 @@
       "name": "Candidate and stable host identity",
       "status": "verified",
       "remaining": "Exact export, one enabled copy, clean-before owner confirmation and actual stable runtime recorded.",
-      "installedEvidence": [
-        "finalInstalledProgress",
-        "finalInstalledManifest"
-      ],
+      "installedEvidence": ["finalInstalledProgress", "finalInstalledManifest"],
       "sharedCaseMapping": null
     },
     {
@@ -1328,10 +1325,7 @@
       "name": "Installed workflow coverage",
       "status": "verified",
       "remaining": "Every distinct required preparation/control covered; no extra packet/favorite effects.",
-      "installedEvidence": [
-        "finalInstalledProgress",
-        "finalInstalledManifest"
-      ],
+      "installedEvidence": ["finalInstalledProgress", "finalInstalledManifest"],
       "sharedCaseMapping": "finalSharedRequirementMap#38.2"
     },
     {
@@ -1339,10 +1333,7 @@
       "name": "Native effects and files",
       "status": "verified",
       "remaining": "One upload and one conditional edit independently read back; both disk deliveries exact.",
-      "installedEvidence": [
-        "finalInstalledProgress",
-        "finalInstalledManifest"
-      ],
+      "installedEvidence": ["finalInstalledProgress", "finalInstalledManifest"],
       "sharedCaseMapping": "finalSharedRequirementMap#38.3"
     },
     {
@@ -1350,10 +1341,7 @@
       "name": "Actual host behavior",
       "status": "verified",
       "remaining": "Native IME/roundtrip, caret, focus, representative layout and redirect/remount covered with stated probe limitations.",
-      "installedEvidence": [
-        "finalInstalledProgress",
-        "finalInstalledManifest"
-      ],
+      "installedEvidence": ["finalInstalledProgress", "finalInstalledManifest"],
       "sharedCaseMapping": "finalSharedRequirementMap#38.4"
     },
     {
@@ -1361,10 +1349,7 @@
       "name": "Recovery and identity",
       "status": "verified",
       "remaining": "Browser-controlled absence on restart follows ADR0003; exact restored writing observed in close/restore, replacement/reload and divergence; no full startup ledger claim.",
-      "installedEvidence": [
-        "finalInstalledProgress",
-        "finalInstalledManifest"
-      ],
+      "installedEvidence": ["finalInstalledProgress", "finalInstalledManifest"],
       "sharedCaseMapping": "finalSharedRequirementMap#38.5"
     },
     {
@@ -1372,10 +1357,7 @@
       "name": "Search and notices",
       "status": "verified",
       "remaining": "Fresh effective-criteria search and notice load; no passive repeat requests; controlled breadth mapped.",
-      "installedEvidence": [
-        "finalInstalledProgress",
-        "finalInstalledManifest"
-      ],
+      "installedEvidence": ["finalInstalledProgress", "finalInstalledManifest"],
       "sharedCaseMapping": "finalSharedRequirementMap#38.6"
     },
     {
@@ -1383,10 +1365,7 @@
       "name": "Evidence and relevance",
       "status": "pending",
       "remaining": "Current evidence mapping retained; clean committed convergence and pinned freeze pending.",
-      "installedEvidence": [
-        "finalInstalledProgress",
-        "finalInstalledManifest"
-      ],
+      "installedEvidence": ["finalInstalledProgress", "finalInstalledManifest"],
       "sharedCaseMapping": null
     },
     {
@@ -1394,10 +1373,7 @@
       "name": "Final disposition",
       "status": "pending",
       "remaining": "Standards, Spec and completed-work BDFL report zero actionable source/behavior findings. Final clean-freeze/provenance disposition pending.",
-      "installedEvidence": [
-        "finalInstalledProgress",
-        "finalInstalledManifest"
-      ],
+      "installedEvidence": ["finalInstalledProgress", "finalInstalledManifest"],
       "sharedCaseMapping": null
     }
   ],
@@ -1679,10 +1655,7 @@
       "id": "38.1",
       "name": "Candidate and stable host identity",
       "status": "verified",
-      "shared": [
-        "candidate",
-        "freezeReceipt"
-      ],
+      "shared": ["candidate", "freezeReceipt"],
       "remaining": "None at specified scope. Exact predecessor/current exports and host metadata verified; one enabled copy owner-confirmed. Independent full inventory unavailable and not an additional acceptance gate.",
       "installedEvidence": [
         "installedExport",
@@ -1697,10 +1670,7 @@
       "id": "38.2",
       "name": "Installed workflow coverage",
       "status": "verified",
-      "shared": [
-        "syntheticReceipt",
-        "historicalChrome"
-      ],
+      "shared": ["syntheticReceipt", "historicalChrome"],
       "remaining": "None at specified preparation scope. Ordinary draft resumed and favorite-removal review observed; no favorite mutation.",
       "sharedCaseMapping": "sharedRequirementMap#38.2",
       "installedEvidence": [
@@ -1715,9 +1685,7 @@
       "id": "38.3",
       "name": "Native effects and files",
       "status": "verified",
-      "shared": [
-        "syntheticReceipt"
-      ],
+      "shared": ["syntheticReceipt"],
       "remaining": "Representative TXT upload and saved draft association verified with independent native readback and exact stored bytes. Earlier four image refusals retained; underlying cause unproven.",
       "sharedCaseMapping": "sharedRequirementMap#38.3",
       "installedEvidence": [
@@ -1738,9 +1706,7 @@
       "id": "38.4",
       "name": "Actual host behavior",
       "status": "verified",
-      "shared": [
-        "syntheticReceipt"
-      ],
+      "shared": ["syntheticReceipt"],
       "remaining": "None at specified representative scope. Owner performed native Cantonese composition; committed output/roundtrip independently observed. Candidate-panel lifecycle not captured. Restrictive-CSP variants have synthetic authority.",
       "sharedCaseMapping": "sharedRequirementMap#38.4",
       "installedEvidence": [
@@ -1755,9 +1721,7 @@
       "id": "38.5",
       "name": "Recovery and identity",
       "status": "failed",
-      "shared": [
-        "syntheticReceipt"
-      ],
+      "shared": ["syntheticReceipt"],
       "remaining": "Clean reinstall verified on stated owner/agent authority. Frozen candidate creates dangling origin after unavailable snapshot \u2192 Drafts, then rejects its own record on reload. Proposed isolated repair passes targeted E2Es; not installed/qualified. Original truncated replacement and restart capture limits retained.",
       "sharedCaseMapping": "sharedRequirementMap#38.5",
       "installedEvidence": [
@@ -1780,10 +1744,7 @@
       "id": "38.6",
       "name": "Search and notices",
       "status": "verified",
-      "shared": [
-        "syntheticReceipt",
-        "historicalChrome"
-      ],
+      "shared": ["syntheticReceipt", "historicalChrome"],
       "remaining": "None at the specified scope: fresh search and notice restoration observed; controlled category/pagination cases mapped and validated. Native unread count unknown; not every native category/second page observed populated.",
       "sharedCaseMapping": "sharedRequirementMap#38.6",
       "validation": "mappingValidation",
