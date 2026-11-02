@@ -84,13 +84,17 @@ check("hundred-fixes-owner-version", ["v0.1.1"], null, (output) => {
   const notices = readFileSync(join(output, "THIRD_PARTY_NOTICES.md"), "utf8");
   const script = readFileSync(join(output, "tsdm-workspace.user.js"), "utf8");
   assert(
-    script.includes(
+    !script.includes(
       notices
         .trimEnd()
         .split("\n")
         .map((line) => `// ${line}`)
         .join("\n"),
     ),
+  );
+  assert.equal(
+    script,
+    readFileSync(join(build, "tsdm-workspace.user.js"), "utf8"),
   );
   for (const line of readFileSync(join(output, "SHA256SUMS"), "utf8")
     .trim()

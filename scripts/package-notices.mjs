@@ -77,23 +77,6 @@ if (process.argv.includes("--update-readme")) {
   );
 }
 
-// Keep complete license text with the standalone public download. Line comments
-// preserve literal license content without allowing a closing block comment.
-const scriptPath = "dist/tsdm-workspace.user.js";
-const script = readFileSync(scriptPath, "utf8");
-const marker = "\n// TSDM bundled third-party notices\n";
-const previous = script.indexOf(marker);
-const executable = previous < 0 ? script : script.slice(0, previous);
-const distributed =
-  executable +
-  marker +
-  noticeText
-    .trimEnd()
-    .split("\n")
-    .map((line) => `// ${line}`)
-    .join("\n") +
-  "\n";
-writeFileSync(scriptPath, distributed);
 writeFileSync("dist/THIRD_PARTY_NOTICES.md", noticeText);
 writeFileSync("dist/forum-client/THIRD_PARTY_NOTICES.md", noticeText);
 // A packaging stage only: preserve the committed library API/version/README.
@@ -109,10 +92,6 @@ writeFileSync(
 );
 const manifest = JSON.parse(readFileSync("dist/build-manifest.json", "utf8"));
 manifest.noticeInputs = noticeInputs;
-manifest.userscript.sha256 = createHash("sha256")
-  .update(distributed)
-  .digest("hex");
-manifest.userscript.bytes = Buffer.byteLength(distributed);
 writeFileSync(
   "dist/build-manifest.json",
   JSON.stringify(manifest, null, 2) + "\n",

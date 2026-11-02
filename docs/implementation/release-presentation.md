@@ -87,3 +87,25 @@ RELEASE_TAG=v0.1.1 npm run test:e2e -- tests/e2e/foundation.spec.ts
 To exercise read-only GitHub attribution locally, set `RELEASE_GITHUB_NOTES=true`
 when running `npm run release:prepare -- TAG --preview NEW_OUTPUT`. The built
 version must match TAG. This never creates a GitHub Release.
+
+## Follow-up: keep THIRD_PARTY_NOTICES out of the userscript
+
+The owner requested removing the appended notice inventory. This supersedes the
+embedded-notice decision and acceptance criterion above; the earlier verification
+remains a record of the earlier implementation. Packaging now leaves the build's
+script bytes and recorded hash unchanged. README Acknowledgments, separate review
+notices, README synchronization checks and bundler-emitted license comments remain.
+
+Failure cases checked: packaging must not append notices or alter the script/hash;
+the review package must retain notices; the public upload list must remain one
+userscript; stale README notices must still fail. The trade-off is a smaller
+standalone download whose complete notice inventory is available separately in
+the README and review package rather than carried inside that download.
+
+Follow-up verification passed: fresh builds, all 10 packaging CLI scenarios,
+focused lint and formatting. Two consecutive notice-packaging calls preserved
+the exact script bytes and manifest identity; a stale README was still refused.
+The review artifact retained notices while its public asset list contained only
+the userscript. Evidence: `evidence/runs/release-presentation/separate-notices/`.
+All acceptance criteria for this follow-up were verified. Application logic did
+not change; browser qualification and publication were not performed.

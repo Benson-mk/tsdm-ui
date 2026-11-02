@@ -2,7 +2,7 @@
 
 Follow [README Quick Start](../../README.md#quick-start) for installation, manual
 updates and emergency native-forum access. The only public build attachment is
-`tsdm-workspace.user.js`; its runtime and third-party license text are included.
+`tsdm-workspace.user.js`; its runtime is included.
 See [Acknowledgments](../../README.md#acknowledgments) for readable license text.
 
 This file is retained inside the Actions review package. Reviewers can compare

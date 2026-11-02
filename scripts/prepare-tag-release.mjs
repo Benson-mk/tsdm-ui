@@ -60,13 +60,6 @@ for (const name of [
 ])
   if (!readFileSync(name).length)
     throw new Error(`Empty required artifact: ${name}`);
-const embeddedNotices = readFileSync("dist/THIRD_PARTY_NOTICES.md", "utf8")
-  .trimEnd()
-  .split("\n")
-  .map((line) => `// ${line}`)
-  .join("\n");
-if (!script.toString("utf8").includes(embeddedNotices))
-  throw new Error("Standalone userscript is missing its third-party notices");
 const npm = process.env.npm_execpath;
 if (!npm)
   throw new Error(

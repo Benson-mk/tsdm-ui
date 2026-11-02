@@ -80,7 +80,7 @@ work.
 The only uploaded Release attachment is **`tsdm-workspace.user.js`**. Installation
 instructions live in [README Quick Start](../../README.md#quick-start); full
 third-party notices live in [Acknowledgments](../../README.md#acknowledgments) and
-in the userscript's trailing comments. Release notes link to that commit's README.
+the Actions review package. They are not appended to the userscript. Release notes link to that commit's README.
 GitHub supplies source archives separately.
 
 The Actions review artifact still contains the library tarball, notices,
@@ -93,9 +93,10 @@ Releases. No npm publication is performed.
 
 After dependency changes, refresh README Acknowledgments with
 `node scripts/package-notices.mjs --update-readme` after building. Normal packaging
-refuses stale acknowledgments, embeds the license text idempotently, and updates
-the userscript hash before testing and approval. This changes the distributed
-bytes; historical installed qualification does not transfer to the new build.
+refuses stale acknowledgments and records notice input identities without changing
+the built userscript or its hash. Dependency license comments already emitted by
+the bundler are retained. Historical installed qualification does not transfer
+to a new build.
 The already-published v0.1.0 assets retain their original presentation.
 
 Artifacts are retained for 30 days. Download evidence you need to retain longer.

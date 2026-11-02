@@ -178,7 +178,7 @@ TSDM Workspace uses [Vue](https://vuejs.org/), [Reka UI](https://reka-ui.com/),
 and their dependencies. Thank you to their authors and contributors.
 
 The complete license and copyright texts from locked production dependencies
-are included below and in the distributed userscript. This conservative inventory
+are included below and in the Actions review package. This conservative inventory
 may include packages that do not contribute runtime bytes.
 
 <details>
