@@ -45,7 +45,13 @@ Keep earlier observations tied to their original candidate and runtime. Changed 
 
 ## Distribution and evidence
 
-Distribute versioned GitHub Release assets with checksums, instructions and notices. Installation, updates and rollback are manual. Rehearse the first update from an earlier retained candidate; later releases qualify replacement of the previous supported public version. Preserve recoverable source or explain incompatibility, retain uncertain attempts without replay, and provide emergency native access even when application startup fails.
+The owner's 2026-11-02 presentation decision makes the userscript the sole uploaded
+asset for future GitHub Releases. Installation instructions move to README Quick
+Start and complete notices to README Acknowledgments; the standalone userscript
+also carries the notices. Checksums, manifests, library tarball and prepared notes
+remain in the approval artifact, with its existing 30-day retention. This
+supersedes the earlier separate public attachment layout without changing the
+qualification requirements or the previously published v0.1.0 artifacts. Installation, updates and rollback are manual. Rehearse the first update from an earlier retained candidate; later releases qualify replacement of the previous supported public version. Preserve recoverable source or explain incompatibility, retain uncertain attempts without replay, and provide emergency native access even when application startup fails.
 
 Each run produces a machine-readable receipt and a human-readable report. Public evidence includes replay instructions, requirement-to-case coverage, synthetic artifacts and a file manifest. Keep raw authenticated captures, credentials, member screenshots and workstation paths private. Publish deliberately authored summaries with run-local aliases and inspect the public package before publication; a redacted raw capture dump is not the evidence contract.
 

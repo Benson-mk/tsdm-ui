@@ -76,12 +76,22 @@ check("hundred-fixes-owner-version", ["v0.1.1"], null, (output) => {
   const notes = readFileSync(join(output, "RELEASE_NOTES.md"), "utf8");
   assert.equal((notes.match(/synthetic correction/g) ?? []).length, 100);
   assert(!notes.includes("chore: baseline"));
-  assert(receipt.assets.includes("tsdm-workspace.user.js"));
+  assert.deepEqual(receipt.assets, ["tsdm-workspace.user.js"]);
+  assert(notes.includes("## What's Changed"));
+  assert(notes.includes("**Full Changelog**:"));
+  assert(notes.includes("README.md#quick-start"));
+  assert(!notes.includes("Read `INSTALL.md`"));
+  const notices = readFileSync(join(output, "THIRD_PARTY_NOTICES.md"), "utf8");
+  const script = readFileSync(join(output, "tsdm-workspace.user.js"), "utf8");
   assert(
-    receipt.assets.some((name) => /^tsdm-forum-client-.*\.tgz$/.test(name)),
+    script.includes(
+      notices
+        .trimEnd()
+        .split("\n")
+        .map((line) => `// ${line}`)
+        .join("\n"),
+    ),
   );
-  assert(receipt.assets.includes("THIRD_PARTY_NOTICES.md"));
-  assert(receipt.assets.includes("INSTALL.md"));
   for (const line of readFileSync(join(output, "SHA256SUMS"), "utf8")
     .trim()
     .split("\n")) {

@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -79,6 +80,8 @@ jobs:
           npm run test:e2e -- tests/e2e/foundation.spec.ts
       - name: Prepare the reviewable release files
         env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_GITHUB_NOTES: "true"
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
           RELEASE_REPOSITORY: ${{ github.repository }}
           PREVIEW: ${{ github.event_name == 'workflow_dispatch' }}
@@ -141,6 +144,6 @@ jobs:
           let object = JSON.parse(gh('api', `${api}/git/ref/tags/${release.tag}`)).object;
           for (let depth = 0; object.type === 'tag' && depth < 10; depth++) object = JSON.parse(gh('api', `${api}/git/tags/${object.sha}`)).object;
           if (object.type !== 'commit' || object.sha !== release.commit) throw new Error('Remote tag moved after preparation');
-          if (!release.assets.every(name => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name))) throw new Error('Invalid asset name');
+          if (JSON.stringify(release.assets) !== JSON.stringify(['tsdm-workspace.user.js'])) throw new Error('Unexpected public release assets');
           gh('release', 'create', release.tag, ...release.assets, '--verify-tag', '--title', `TSDM Workspace ${release.version}`, '--notes-file', 'RELEASE_NOTES.md');
           NODE

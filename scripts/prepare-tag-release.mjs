@@ -60,6 +60,13 @@ for (const name of [
 ])
   if (!readFileSync(name).length)
     throw new Error(`Empty required artifact: ${name}`);
+const embeddedNotices = readFileSync("dist/THIRD_PARTY_NOTICES.md", "utf8")
+  .trimEnd()
+  .split("\n")
+  .map((line) => `// ${line}`)
+  .join("\n");
+if (!script.toString("utf8").includes(embeddedNotices))
+  throw new Error("Standalone userscript is missing its third-party notices");
 const npm = process.env.npm_execpath;
 if (!npm)
   throw new Error(
@@ -87,29 +94,102 @@ const commits = git(
   range,
 );
 const escape = (value) => value.replace(/[\\`*_{}[\]<>]/g, "\\$&");
-const changes = commits
+let changes = commits
   ? commits.split("\n").map((line) => {
       const tab = line.indexOf("\t");
       const sha = line.slice(0, tab);
       return `- ${escape(line.slice(tab + 1))} ([${sha.slice(0, 7)}](https://github.com/${repository}/commit/${sha}))`;
     })
   : ["- No non-merge commits since the previous version tag."];
+const contributorNotes = [];
+if (process.env.RELEASE_GITHUB_NOTES === "true") {
+  // Read-only endpoints keep contents:write restricted to the approved job.
+  const pages = JSON.parse(
+    execFileSync(
+      "gh",
+      [
+        "api",
+        "--paginate",
+        "--slurp",
+        `repos/${repository}/pulls?state=closed&per_page=100`,
+      ],
+      { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+    ),
+  );
+  const reachable = new Set(git("rev-list", "HEAD").split("\n"));
+  const selected = new Set(git("rev-list", range).split("\n"));
+  const merged = pages
+    .flat()
+    .filter((pr) => pr.merged_at && reachable.has(pr.merge_commit_sha));
+  const included = merged
+    .filter((pr) => selected.has(pr.merge_commit_sha))
+    .sort(
+      (a, b) => a.merged_at.localeCompare(b.merged_at) || a.number - b.number,
+    );
+  const covered = new Set();
+  changes = included.map((pr) => {
+    const parents = git(
+      "rev-list",
+      "--parents",
+      "-n",
+      "1",
+      pr.merge_commit_sha,
+    ).split(" ");
+    const prCommits =
+      parents.length > 2
+        ? git("rev-list", `${parents[1]}..${pr.merge_commit_sha}`).split("\n")
+        : [pr.merge_commit_sha];
+    prCommits.forEach((sha) => covered.add(sha));
+    return `* ${escape(pr.title)} by @${pr.user.login} in https://github.com/${repository}/pull/${pr.number}`;
+  });
+  const earlierAuthors = new Set(
+    merged
+      .filter((pr) => !selected.has(pr.merge_commit_sha))
+      .map((pr) => pr.user.login),
+  );
+  for (const pr of included) {
+    if (!earlierAuthors.has(pr.user.login) && pr.user.type !== "Bot") {
+      contributorNotes.push(
+        `* @${pr.user.login} made their first merged pull request in https://github.com/${repository}/pull/${pr.number}`,
+      );
+      earlierAuthors.add(pr.user.login);
+    }
+  }
+  for (const line of commits ? commits.split("\n") : []) {
+    const tab = line.indexOf("\t");
+    const sha = line.slice(0, tab);
+    if (!covered.has(sha))
+      changes.push(
+        `* ${escape(line.slice(tab + 1))} in https://github.com/${repository}/commit/${sha}`,
+      );
+  }
+  if (!changes.length)
+    changes.push("* No changes since the previous version tag.");
+}
+const source = `https://github.com/${repository}/blob/${commit}/README.md`;
 const notes = [
-  `# TSDM Workspace ${version}`,
+  "## What's Changed",
   "",
-  `Source: [${commit.slice(0, 7)}](https://github.com/${repository}/commit/${commit}). The application version is selected by the owner’s tag; the forum-client library is independently versioned at ${library.version}.`,
-  "",
-  "Install the attached `tsdm-workspace.user.js` with Tampermonkey. Read `INSTALL.md` and verify `SHA256SUMS` before installation. Updates are manual.",
-  "",
-  "These are newly built artifacts. Automated build and synthetic checks do not establish installed browser qualification or transfer historical qualification to these bytes. Review the project’s release qualification requirements before approving publication.",
-  "",
-  "## Changes",
-  "",
-  previousTag
-    ? `[Compare ${previousTag}…${tag}](https://github.com/${repository}/compare/${previousTag}...${tag})`
-    : "First version tag: includes the reachable non-merge commit history.",
+  "### Other changes",
   "",
   ...changes,
+  "",
+  ...(contributorNotes.length
+    ? ["## New Contributors", "", ...contributorNotes, ""]
+    : []),
+  previousTag
+    ? `**Full Changelog**: https://github.com/${repository}/compare/${previousTag}...${tag}`
+    : `**Full Changelog**: https://github.com/${repository}/commits/${commit}`,
+  "",
+  `[Quick Start](${source}#quick-start) · [Acknowledgments](${source}#acknowledgments)`,
+  "",
+  "Build and synthetic checks do not establish installed browser qualification. Windows and actual Tampermonkey software-update recovery remain unverified.",
+  ...(process.env.RELEASE_GITHUB_NOTES === "true"
+    ? []
+    : [
+        "",
+        "Local preview: commit-only notes; GitHub PR attribution is added by the hosted workflow.",
+      ]),
   "",
 ].join("\n");
 
@@ -142,8 +222,7 @@ const [packed] = JSON.parse(
 if (packed.name !== library.name || packed.version !== library.version)
   throw new Error("Packed library identity mismatch");
 writeFileSync(join(destination, "RELEASE_NOTES.md"), notes);
-const assets = readdirSync(destination).sort();
-assets.push("release.json", "SHA256SUMS");
+const assets = ["tsdm-workspace.user.js"];
 const receipt = {
   schema: 1,
   tag,

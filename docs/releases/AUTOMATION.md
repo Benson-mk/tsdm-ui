@@ -63,18 +63,40 @@ environment configuration; keep those protections in place.
 
 ## Notes, assets and retry behavior
 
-The changelog lives in the GitHub Release description. It lists non-merge
-commits since the nearest reachable stable `vMAJOR.MINOR.PATCH` tag; the first
-release includes reachable history. The comparison boundary is a tag, even if
+The changelog lives in the GitHub Release description, using What's Changed,
+Other changes, New Contributors (when there are first merged PRs), and Full
+Changelog. Hosted preparation reads closed GitHub PRs, includes merged PRs in the
+selected Git history with their authors/links, and retains direct commits.
+Offline local previews use a clearly marked commit-only list. The range starts
+at the nearest reachable stable `vMAJOR.MINOR.PATCH` tag; the first release
+includes reachable history. PRs merged through a merge commit have their contained
+commits deduplicated; squash merges use their single merge SHA. Rebased PRs can
+also show individual rebased commits because their original commit identities
+are not guaranteed to survive rebase. The comparison boundary is a tag, even if
 that earlier tag has not been published as a Release. No root CHANGELOG.md is
 committed. Only stable numeric tags are supported; prerelease policy is future
 work.
 
-Assets are the installable `tsdm-workspace.user.js`, independently versioned
-`tsdm-forum-client-*.tgz`, `THIRD_PARTY_NOTICES.md`, `INSTALL.md`,
-`build-manifest.json`, `release.json`, `RELEASE_NOTES.md`, and `SHA256SUMS`.
-The generated notes are also in the review artifact and covered by its checksums. GitHub supplies source
-archives separately. No npm publication is performed.
+The only uploaded Release attachment is **`tsdm-workspace.user.js`**. Installation
+instructions live in [README Quick Start](../../README.md#quick-start); full
+third-party notices live in [Acknowledgments](../../README.md#acknowledgments) and
+in the userscript's trailing comments. Release notes link to that commit's README.
+GitHub supplies source archives separately.
+
+The Actions review artifact still contains the library tarball, notices,
+installation reference, build manifest, `release.json`, `RELEASE_NOTES.md` and
+`SHA256SUMS`. All files are verified before publication; `release.json.assets`
+explicitly selects only the userscript for public upload. Notes are prepared and
+checksummed before approval and are not regenerated during publication. The build
+job has read-only contents/PR access; only the approved publish job can write
+Releases. No npm publication is performed.
+
+After dependency changes, refresh README Acknowledgments with
+`node scripts/package-notices.mjs --update-readme` after building. Normal packaging
+refuses stale acknowledgments, embeds the license text idempotently, and updates
+the userscript hash before testing and approval. This changes the distributed
+bytes; historical installed qualification does not transfer to the new build.
+The already-published v0.1.0 assets retain their original presentation.
 
 Artifacts are retained for 30 days. Download evidence you need to retain longer.
 If they expire, prepare a fresh run and review its actual bytes. Never move a
