@@ -9,7 +9,7 @@ const board = `${actor}<div id="ct"><h1><a href="${boardURL}">Music</a></h1></di
 const form = `${actor}<div id="pt"><a href="${boardURL}">Music</a></div><form id="postform" method="post" action="forum.php?mod=post&action=newthread&fid=5&topicsubmit=yes"><input type="hidden" name="formhash" value="SYNTHETIC-KEYBOARD-TOKEN"><input name="subject" value="Native title"><select name="typeid"><option value="0">No category</option><option value="3">Listening</option></select><textarea name="message"></textarea><label>Thread price<input name="price" value="0"></label><label>Read permission<select name="readperm"><option value="0">Everyone</option><option value="10">Members</option></select></label><button type="submit" name="topicsubmit" value="true">Publish</button></form>`;
 
 async function open(page: Page, native = false) {
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const requests: { method: string; url: string; document: boolean }[] = [];
   await page.context().route("**/*", async (route) => {
     const request = route.request();

@@ -171,7 +171,7 @@ function collect(dir = "") {
 if (!existsSync(dist)) throw new Error("Missing build output directory");
 collect();
 for (const name of [
-  "tsdm-workspace.user.js",
+  "tsdm-ui.user.js",
   "forum-client/index.js",
   "forum-client/index.d.ts",
   "forum-client/types.d.ts",
@@ -197,7 +197,7 @@ const buildManifest = existsSync(join(dist, "build-manifest.json"))
   : null;
 if (buildManifest && buildManifest.forumClientVersion !== library.version)
   throw new Error("Library version differs from committed build manifest");
-const script = readFileSync(join(dist, "tsdm-workspace.user.js"), "utf8");
+const script = readFileSync(join(dist, "tsdm-ui.user.js"), "utf8");
 const block = script.match(
   /^\/\/ ==UserScript==\r?\n([\s\S]*?)^\/\/ ==\/UserScript==/m,
 )?.[1];
@@ -208,7 +208,7 @@ for (const m of block.matchAll(/^\/\/\s+@(\S+)\s+(.+)$/gm)) {
   meta.set(key, [...(meta.get(key) ?? []), m[2].trim()]);
 }
 const expected = {
-  name: ["TSDM Workspace"],
+  name: ["TSDM UI"],
   namespace: ["https://github.com/Benson-mk/tsdm-ui"],
   version: [pkg.version],
   match: ["https://www.tsdm39.com/*"],

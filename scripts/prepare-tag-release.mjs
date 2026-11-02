@@ -32,7 +32,7 @@ const repository = process.env.RELEASE_REPOSITORY ?? "Benson-mk/tsdm-ui";
 if (!/^[\w.-]+\/[\w.-]+$/.test(repository))
   throw new Error("Invalid release repository");
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
-const script = readFileSync("dist/tsdm-workspace.user.js");
+const script = readFileSync("dist/tsdm-ui.user.js");
 const manifest = JSON.parse(readFileSync("dist/build-manifest.json", "utf8"));
 const library = JSON.parse(
   readFileSync("dist/forum-client/package.json", "utf8"),
@@ -188,7 +188,7 @@ const notes = [
 
 mkdirSync(destination, { recursive: true });
 for (const name of [
-  "tsdm-workspace.user.js",
+  "tsdm-ui.user.js",
   "THIRD_PARTY_NOTICES.md",
   "build-manifest.json",
 ])
@@ -215,7 +215,7 @@ const [packed] = JSON.parse(
 if (packed.name !== library.name || packed.version !== library.version)
   throw new Error("Packed library identity mismatch");
 writeFileSync(join(destination, "RELEASE_NOTES.md"), notes);
-const assets = ["tsdm-workspace.user.js"];
+const assets = ["tsdm-ui.user.js"];
 const receipt = {
   schema: 1,
   tag,

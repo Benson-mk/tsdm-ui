@@ -34,7 +34,7 @@ interface FixtureOptions {
 }
 async function open(page: Page, options: FixtureOptions = {}) {
   const requests: string[] = [];
-  const source = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const source = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
     if (request.url() === `${origin}/__workspace-fixture.js`)

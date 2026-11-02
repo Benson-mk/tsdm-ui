@@ -55,7 +55,7 @@ export async function withRedirectFixture(
     ],
     { stdio: "ignore" },
   );
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const reads: string[] = [],
     redirects: string[] = [];
   const sockets = new Set<Socket>();

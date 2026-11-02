@@ -26,7 +26,7 @@ async function open(
       >,
 ) {
   const requests: { url: string; method: string; body: string | null }[] = [];
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
     if (request.url() === `${origin}/__workspace-fixture.js`)

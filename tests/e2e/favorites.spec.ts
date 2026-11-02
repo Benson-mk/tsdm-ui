@@ -19,7 +19,7 @@ function list(url: URL) {
 }
 async function open(page: Page) {
   const ledger: string[] = [],
-    built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+    built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
     if (request.url() === `${origin}/__workspace-fixture.js`)
@@ -118,7 +118,7 @@ async function mutationFixture(page: Page, kind: "thread" | "forum") {
     recordId = kind === "thread" ? "942" : "805";
   const targetURL = `${origin}/forum.php?mod=${kind === "thread" ? "viewthread&tid=42" : "forumdisplay&fid=5"}`;
   const href = `home.php?mod=spacecp&ac=favorite&type=${kind}&id=${targetId}&formhash=SYNTHETIC_PUBLIC_FORM_TOKEN`;
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const req = route.request(),
       url = new URL(req.url());

@@ -44,7 +44,7 @@ async function openThread(
   });
   await page.goto(destination);
   await page.addScriptTag({
-    content: readFileSync("dist/tsdm-workspace.user.js", "utf8"),
+    content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
   return requests;
 }
@@ -93,7 +93,7 @@ test("J1.reka-shadow-dialog: keyboard focus remains in the application and retur
   const releaseVersion =
     process.env.RELEASE_TAG?.slice(1) ??
     JSON.parse(readFileSync("package.json", "utf8")).version;
-  await expect(dialog).toContainText(`TSDM Workspace ${releaseVersion}.`);
+  await expect(dialog).toContainText(`TSDM UI ${releaseVersion}.`);
   await expect(dialog).toHaveAttribute("aria-describedby", /.+/);
   expect(
     await dialog.evaluate((node) => node.getRootNode() instanceof ShadowRoot),
@@ -264,7 +264,7 @@ test("J11.stale-account: late old response cannot replace a current account resu
   });
   await page.goto(target);
   await page.addScriptTag({
-    content: readFileSync("dist/tsdm-workspace.user.js", "utf8"),
+    content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
   await expect.poll(() => reads).toBe(1);
   await page.getByRole("button", { name: "Refresh thread" }).click();
@@ -292,7 +292,7 @@ test("J2.network: failed host read is recoverable and never becomes empty conten
   });
   await page.goto(target);
   await page.addScriptTag({
-    content: readFileSync("dist/tsdm-workspace.user.js", "utf8"),
+    content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
   await expect(page.getByRole("heading", { name: "Network" })).toBeVisible();
   await expect(
@@ -343,7 +343,7 @@ test("J1.reka-isolated-world: Escape closes the dialog in a userscript execution
     worldName: "authored-userscript-realm",
   });
   await session.send("Runtime.evaluate", {
-    expression: readFileSync("dist/tsdm-workspace.user.js", "utf8"),
+    expression: readFileSync("dist/tsdm-ui.user.js", "utf8"),
     contextId: world.executionContextId,
   });
   const trigger = page.getByRole("button", { name: "About this workspace" });
@@ -369,7 +369,7 @@ test("J1.native-background: mounted workspace hides native background controls f
   });
   await page.goto(target);
   await page.addScriptTag({
-    content: readFileSync("dist/tsdm-workspace.user.js", "utf8"),
+    content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
   await expect(
     page.getByRole("heading", { name: "Autumn listening 秋日聆聽" }),
@@ -492,7 +492,7 @@ test("J1.native-escape-handler: a forum body cancellation does not trap the appl
   });
   await page.goto(target);
   await page.addScriptTag({
-    content: readFileSync("dist/tsdm-workspace.user.js", "utf8"),
+    content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
   const trigger = page.getByRole("button", { name: "About this workspace" });
   await trigger.click();
@@ -524,7 +524,7 @@ test("J1.native-word-break: native universal styles do not split application con
   });
   await page.goto(target);
   await page.addScriptTag({
-    content: readFileSync("dist/tsdm-workspace.user.js", "utf8"),
+    content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
   const trigger = page.getByRole("button", { name: "About this workspace" });
   await expect(trigger).toHaveCSS("word-break", "normal");
@@ -572,7 +572,7 @@ test("J1.emitted-startup-measurement: populated current artifact enters and open
         dialogMs: performance.now() - dialogStarted,
         requests,
         executableBytes: Buffer.byteLength(
-          readFileSync("dist/tsdm-workspace.user.js"),
+          readFileSync("dist/tsdm-ui.user.js"),
         ),
         scope:
           "Actual full candidate in deterministic browser fixture; includes routing/automation overhead, no stable performance guarantee or budget.",

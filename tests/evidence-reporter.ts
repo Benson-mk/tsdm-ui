@@ -119,7 +119,7 @@ export default class EvidenceReporter implements Reporter {
         ).version,
       },
       candidate: {
-        userscriptSha256: digest("dist/tsdm-workspace.user.js"),
+        userscriptSha256: digest("dist/tsdm-ui.user.js"),
         installedSha256: null,
       },
       sourceManifest: files,

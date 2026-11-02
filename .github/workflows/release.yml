@@ -144,6 +144,6 @@ jobs:
           let object = JSON.parse(gh('api', `${api}/git/ref/tags/${release.tag}`)).object;
           for (let depth = 0; object.type === 'tag' && depth < 10; depth++) object = JSON.parse(gh('api', `${api}/git/tags/${object.sha}`)).object;
           if (object.type !== 'commit' || object.sha !== release.commit) throw new Error('Remote tag moved after preparation');
-          if (JSON.stringify(release.assets) !== JSON.stringify(['tsdm-workspace.user.js'])) throw new Error('Unexpected public release assets');
-          gh('release', 'create', release.tag, ...release.assets, '--verify-tag', '--title', `TSDM Workspace ${release.version}`, '--notes-file', 'RELEASE_NOTES.md');
+          if (JSON.stringify(release.assets) !== JSON.stringify(['tsdm-ui.user.js'])) throw new Error('Unexpected public release assets');
+          gh('release', 'create', release.tag, ...release.assets, '--verify-tag', '--title', `TSDM UI ${release.version}`, '--notes-file', 'RELEASE_NOTES.md');
           NODE

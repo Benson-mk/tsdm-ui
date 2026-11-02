@@ -29,7 +29,7 @@ const packetFields = `<div class="hb-postbox">
 <div class="hb-hint">紅包金額在扣款成功後才鎖定;發表後不可補塞、不可加碼。</div></div>`;
 
 async function fixture(page: Page) {
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const effects: string[] = [];
   const state = {
     effects,

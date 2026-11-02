@@ -1060,7 +1060,7 @@ if (slice === "freeze") {
     assert.equal(r.status, 0, r.stderr);
     return r.stdout.trim();
   }
-  const script = `// ==UserScript==\n// @name TSDM Workspace\n// @namespace https://github.com/Benson-mk/tsdm-ui\n// @version 0.4.0\n// @match https://www.tsdm39.com/*\n// @exclude https://www.tsdm39.com/*tsdm-native=1*\n// @grant GM_registerMenuCommand\n// @run-at document-end\n// ==/UserScript==\nconsole.log('authored package fixture');\n`;
+  const script = `// ==UserScript==\n// @name TSDM UI\n// @namespace https://github.com/Benson-mk/tsdm-ui\n// @version 0.4.0\n// @match https://www.tsdm39.com/*\n// @exclude https://www.tsdm39.com/*tsdm-native=1*\n// @grant GM_registerMenuCommand\n// @run-at document-end\n// ==/UserScript==\nconsole.log('authored package fixture');\n`;
   function checkout(name, variant = "normal") {
     const dir = join(output, name, "checkout");
     mkdirSync(dir, { recursive: true });
@@ -1087,12 +1087,12 @@ if (slice === "freeze") {
     write(
       dir,
       "build.mjs",
-      `import { mkdirSync, writeFileSync } from 'node:fs';\nconst put=(p,b)=>{mkdirSync(new URL('./dist/'+p+'/../',import.meta.url),{recursive:true});writeFileSync('dist/'+p,b);};\nput('tsdm-workspace.user.js',${JSON.stringify(script)});\nput('forum-client/index.js',"export const authored = true;\\n");\nput('forum-client/index.d.ts',"export declare const authored: boolean;\\n");\nput('forum-client/types.d.ts',"export type Authored = boolean;\\n");\nput('forum-client/package.json',JSON.stringify({name:'@tsdm/forum-client',version:'0.4.0',type:'module',exports:{'.':{types:'./index.d.ts',import:'./index.js'}}}));\nput('forum-client/README.md','Authored package fixture');\nput('THIRD_PARTY_NOTICES.md','Authored fixture has no third-party dependencies.');\n` +
+      `import { mkdirSync, writeFileSync } from 'node:fs';\nconst put=(p,b)=>{mkdirSync(new URL('./dist/'+p+'/../',import.meta.url),{recursive:true});writeFileSync('dist/'+p,b);};\nput('tsdm-ui.user.js',${JSON.stringify(script)});\nput('forum-client/index.js',"export const authored = true;\\n");\nput('forum-client/index.d.ts',"export declare const authored: boolean;\\n");\nput('forum-client/types.d.ts',"export type Authored = boolean;\\n");\nput('forum-client/package.json',JSON.stringify({name:'@tsdm/forum-client',version:'0.4.0',type:'module',exports:{'.':{types:'./index.d.ts',import:'./index.js'}}}));\nput('forum-client/README.md','Authored package fixture');\nput('THIRD_PARTY_NOTICES.md','Authored fixture has no third-party dependencies.');\n` +
         ({
           drift: "writeFileSync('src/input.ts','changed during build');\n",
           missing: "writeFileSync('dist/forum-client/index.d.ts','');\n",
           metadata:
-            "writeFileSync('dist/tsdm-workspace.user.js'," +
+            "writeFileSync('dist/tsdm-ui.user.js'," +
             JSON.stringify(
               script.replace(
                 "@grant GM_registerMenuCommand",
@@ -1101,7 +1101,7 @@ if (slice === "freeze") {
             ) +
             ");\n",
           cdn:
-            "writeFileSync('dist/tsdm-workspace.user.js'," +
+            "writeFileSync('dist/tsdm-ui.user.js'," +
             JSON.stringify(
               script.replace(
                 "// @version",
@@ -1150,8 +1150,8 @@ if (slice === "freeze") {
               r.inputs["src/input.ts"].sha256,
               hash("export const authored = true;\n"),
             );
-            assert(r.outputs["tsdm-workspace.user.js"].bytes > 0);
-            assert(r.outputs["tsdm-workspace.user.js"].gzipBytes > 0);
+            assert(r.outputs["tsdm-ui.user.js"].bytes > 0);
+            assert(r.outputs["tsdm-ui.user.js"].gzipBytes > 0);
           }
         : undefined,
     );
@@ -1226,7 +1226,7 @@ if (slice === "freeze") {
   );
   writeFileSync(join(valid.dest, "freeze.json"), originalFreeze);
   writeFileSync(join(valid.dest, "manifest.json"), originalManifest);
-  write(valid.dest, "tsdm-workspace.user.js", "changed");
+  write(valid.dest, "tsdm-ui.user.js", "changed");
   run(
     "reject-output-tamper",
     "scripts/verify-release.mjs",
@@ -1398,7 +1398,7 @@ if (slice === "notices") {
       "Authored fixture permission notice.\n",
     );
   }
-  write(dir, "dist/tsdm-workspace.user.js", "// Authored fixture\n");
+  write(dir, "dist/tsdm-ui.user.js", "// Authored fixture\n");
   write(dir, "dist/forum-client/index.js", "export const example = 1;\n");
   write(dir, "dist/forum-client/package.json", {
     name: "@tsdm/forum-client",

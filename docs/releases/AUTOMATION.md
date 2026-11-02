@@ -77,7 +77,7 @@ that earlier tag has not been published as a Release. No root CHANGELOG.md is
 committed. Only stable numeric tags are supported; prerelease policy is future
 work.
 
-The only uploaded Release attachment is **`tsdm-workspace.user.js`**. Installation
+The only uploaded Release attachment is **`tsdm-ui.user.js`**. Installation
 instructions live in [README Quick Start](../../README.md#quick-start); full
 third-party notices live in [Acknowledgments](../../README.md#acknowledgments) and
 the Actions review package. They are not appended to the userscript. Release notes link to that commit's README.
@@ -97,7 +97,9 @@ refuses stale acknowledgments and records notice input identities without changi
 the built userscript or its hash. Dependency license comments already emitted by
 the bundler are retained. Historical installed qualification does not transfer
 to a new build.
-The already-published v0.1.0 assets retain their original presentation.
+The already-published v0.1.0 assets retain their original TSDM Workspace name and
+`tsdm-workspace.user.js` filename. New builds use TSDM UI and `tsdm-ui.user.js`.
+Follow README Quick Start when replacing the old script identity.
 
 Artifacts are retained for 30 days. Download evidence you need to retain longer.
 If they expire, prepare a fresh run and review its actual bytes. Never move a

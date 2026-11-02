@@ -1,4 +1,4 @@
-# TSDM Workspace
+# TSDM UI
 
 Public application versioning starts at **0.1.0**. You choose release versions by
 pushing tags; builds and release-page notes wait for your explicit approval
@@ -9,11 +9,16 @@ preview, approval, downloadable builds and qualification requirements.
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) in your browser.
 2. Open [Releases](https://github.com/Benson-mk/tsdm-ui/releases), choose a version,
-   and download **`tsdm-workspace.user.js`** from its Assets. Import the file into
+   and download **`tsdm-ui.user.js`** from its Assets. Import the file into
    Tampermonkey and confirm the displayed version matches your chosen release.
-   Keep exactly one enabled TSDM Workspace script.
+   Keep exactly one enabled TSDM UI script.
 3. Open or reload [TSDM](https://www.tsdm39.com/). The workspace uses your current
    forum account and includes its runtime; no separate library download is needed.
+
+Releases through v0.1.0 use the old **TSDM Workspace** name and
+`tsdm-workspace.user.js` filename. When moving to **TSDM UI**, disable the old
+script before installing the renamed one, then confirm only TSDM UI is enabled.
+Tampermonkey may treat the changed name as a separate script.
 
 Updates are manual: download the new version and replace the existing script.
 Before updating or downgrading, finish writing, save a supported forum draft, or
@@ -70,7 +75,7 @@ npm run test:e2e
 npm run test:consumer
 ```
 
-`npm run dev` starts Vite's local userscript development server. The development loader is not the release artifact and is never used as installed qualification evidence. `npm run build` emits `dist/tsdm-workspace.user.js`, a build manifest with its SHA-256, and `dist/forum-client/` with the self-contained ESM library and declarations. CSS, Vue, Reka and the portable parser are bundled; no runtime CDN, update URL or download URL is emitted.
+`npm run dev` starts Vite's local userscript development server. The development loader is not the release artifact and is never used as installed qualification evidence. `npm run build` emits `dist/tsdm-ui.user.js`, a build manifest with its SHA-256, and `dist/forum-client/` with the self-contained ESM library and declarations. CSS, Vue, Reka and the portable parser are bundled; no runtime CDN, update URL or download URL is emitted.
 
 The selected dependency set is locked. Reka 2.11.0 was checked against current published peer ranges; matching the historical comparison is not its qualification. TypeScript 6.0.3 satisfies the checked lint/checker ranges. Strict checking includes declaration files; the explicit Vue component helper and Web Bluetooth type packages satisfy Reka/VueUse declaration dependencies. The core forum library imports none of those UI packages.
 
@@ -87,7 +92,7 @@ The #16 foundation candidate passed its bounded installed Chrome/Tampermonkey ch
 For the prepared release, follow the [exact-asset installation instructions](docs/releases/0.4.0/INSTALL.md). The steps below describe development candidate checks; a rebuilt artifact needs its own identity comparison and applicable qualification.
 
 1. Build once, retain those exact bytes and record `dist/build-manifest.json`. Do not rebuild during an installed run.
-2. For release qualification use stable Tampermonkey; historical feature checks used the user-selected BETA manager on macOS Edge and Chrome. Install the locally authored `dist/tsdm-workspace.user.js` only with the applicable action-time authorization. Its only manager grant is `GM_registerMenuCommand` for emergency recovery; its sole origin is `https://www.tsdm39.com/*`. Confirm one enabled TSDM Workspace identity.
+2. For release qualification use stable Tampermonkey; historical feature checks used the user-selected BETA manager on macOS Edge and Chrome. Install the locally authored `dist/tsdm-ui.user.js` only with the applicable action-time authorization. Its only manager grant is `GM_registerMenuCommand` for emergency recovery; its sole origin is `https://www.tsdm39.com/*`. Confirm one enabled TSDM UI identity.
 3. Export the manager-stored source and compare its SHA-256 to the manifest. A displayed version alone does not establish identity. Reload a matching board or thread after installation.
 4. On a known populated read-only thread, confirm current member/guest state, title, post identities/content and ShadowRoot styling. Open **About this workspace** with the keyboard, Tab through it, Escape, and confirm focus returns to the invoker. Confirm the portal stays in the application's shadow tree.
 5. On a nonmatching normal HTTPS page, confirm no workspace or style change. Check the manager's **Open this destination in native forum** entry.
@@ -102,7 +107,7 @@ The [#17 acceptance audit](docs/implementation/17-acceptance.md) marks all six c
 
 Follow the [replacement rehearsal](docs/implementation/35-replacement.md#installed-rehearsal) with the retained earlier bytes and the newly frozen candidate. Before replacing, finish writing, confirm a supported forum save, or copy complete source and necessary options somewhere you control. Replies and edits have no invented draft-save operation. Preserve unknown attempt identity and its submitted revision before replacement; never resend merely because the script changed. Resolve pending operations or retain them as uncertain. Browser page-session recovery is helpful but is not a durable backup.
 
-Replace the existing **TSDM Workspace** script with namespace `https://github.com/Benson-mk/tsdm-ui`; do not install a second identity. The script has no automatic-update metadata. Export and hash the manager-stored source before and after replacement, confirm exactly one enabled copy, and reload. Compatible theme, language and Text size restore with spacing derived from Text size. An incompatible writing record stays available through **Inspect retained recovery data**; copy its source before explicit local reset. Incompatible preferences are retained in Settings for copying until explicit reset. Changes preview on the current page without overwriting that retained preference record.
+Replace the existing **TSDM UI** script with namespace `https://github.com/Benson-mk/tsdm-ui`; do not install a second identity. The script has no automatic-update metadata. Export and hash the manager-stored source before and after replacement, confirm exactly one enabled copy, and reload. Compatible theme, language and Text size restore with spacing derived from Text size. An incompatible writing record stays available through **Inspect retained recovery data**; copy its source before explicit local reset. Incompatible preferences are retained in Settings for copying until explicit reset. Changes preview on the current page without overwriting that retained preference record.
 
 For downgrade, copy source, title, options, target/account and unknown-attempt details **before** installing older code. Older code may not understand newer records or protect them. Keep the newer exact artifact for returning. If the older code cannot recover, use your copied text deliberately with a freshly prepared current-account form; do not replay old attempts. Reset local state only after preserving what you need. Local discard, script disable and uninstall never delete forum posts, drafts or uploads; remote cleanup is a separate action.
 
@@ -173,7 +178,7 @@ Forum client 0.9.0 carries attachments through the same draft save/resume/public
 
 ## Acknowledgments
 
-TSDM Workspace uses [Vue](https://vuejs.org/), [Reka UI](https://reka-ui.com/),
+TSDM UI uses [Vue](https://vuejs.org/), [Reka UI](https://reka-ui.com/),
 [ProseMirror](https://prosemirror.net/), [parse5](https://github.com/inikulin/parse5),
 and their dependencies. Thank you to their authors and contributors.
 

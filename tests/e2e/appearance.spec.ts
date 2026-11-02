@@ -13,7 +13,7 @@ const boardTarget = `${origin}/forum.php?mod=forumdisplay&fid=5`;
 const boardFixture = `${account}<div id="ct"><h1><a href="${boardTarget}">Long board 標題與 Latin discussion</a></h1></div><table id="threadlisttableid">${Array.from({ length: 20 }, (_, i) => `<tbody id="normalthread_${42 + i}"><tr><th><a class="xst" href="forum.php?mod=viewthread&tid=${42 + i}">${i === 0 ? "Long Latin listening notes 與繁體中文閱讀記錄" : `LongResult${i}WithoutSpaces測試完整標題`.repeat(3)}</a></th><td class="by"><cite>Composer Nine</cite><em>2026-10-19</em></td><td class="num"><a>28</a><em>100</em></td><td class="by"><cite>Listener Ten</cite></td></tr></tbody>`).join("")}</table>`;
 async function open(page: Page, nativeScript = "", destination = target) {
   const requests: string[] = [];
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
     if (request.url() === `${origin}/__appearance.js`) {

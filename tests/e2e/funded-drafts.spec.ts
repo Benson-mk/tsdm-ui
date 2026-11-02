@@ -130,7 +130,7 @@ async function fixture(
           : ""
       }</div><script>var upload = new SWFUpload({upload_url:'misc.php?mod=swfupload&action=swfupload&operation=upload&fid=5',post_params:{uid:'${state.member}',hash:'PRIVATE_UPLOAD'},file_upload_limit:0,file_queue_limit:0,file_size_limit:'512',file_types:'*.jpg;*.jpeg;*.PNG;*.gif;*.txt',custom_settings:{uploadSource:'forum',uploadType:'attach',maxSizePerDay:3000000,maxAttachNum:5,filterType:{txt:524288}}});</script>`,
     );
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request(),
       url = new URL(request.url());

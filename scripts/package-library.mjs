@@ -1,6 +1,6 @@
 import { writeFileSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-const script = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+const script = readFileSync("dist/tsdm-ui.user.js", "utf8");
 const applicationVersion = script.match(/^\/\/\s+@version\s+(\S+)\s*$/m)?.[1];
 if (!applicationVersion) throw new Error("Missing built application version");
 const metadata = {
@@ -37,7 +37,7 @@ writeFileSync(
       forumClientVersion: metadata.version,
       node: process.version,
       userscript: {
-        file: "tsdm-workspace.user.js",
+        file: "tsdm-ui.user.js",
         sha256: createHash("sha256").update(script).digest("hex"),
         bytes: Buffer.byteLength(script),
       },

@@ -46,7 +46,7 @@ async function open(
 ) {
   const ledger: { url: string; method: string; effect: number }[] = [];
   let effects = 0;
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
     if (request.url() === `${origin}/__workspace-fixture.js`)

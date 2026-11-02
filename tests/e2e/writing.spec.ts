@@ -20,7 +20,7 @@ async function open(
   nativeScript = "",
 ) {
   const requests: { url: string; method: string }[] = [];
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
     if (request.url().endsWith("/__workspace-fixture.js")) {

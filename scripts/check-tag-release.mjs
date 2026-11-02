@@ -76,13 +76,13 @@ check("hundred-fixes-owner-version", ["v0.1.1"], null, (output) => {
   const notes = readFileSync(join(output, "RELEASE_NOTES.md"), "utf8");
   assert.equal((notes.match(/synthetic correction/g) ?? []).length, 100);
   assert(!notes.includes("chore: baseline"));
-  assert.deepEqual(receipt.assets, ["tsdm-workspace.user.js"]);
+  assert.deepEqual(receipt.assets, ["tsdm-ui.user.js"]);
   assert(notes.includes("## What's Changed"));
   assert(notes.includes("**Full Changelog**:"));
   assert(notes.includes("README.md#quick-start"));
   assert(!notes.includes("Read `INSTALL.md`"));
   const notices = readFileSync(join(output, "THIRD_PARTY_NOTICES.md"), "utf8");
-  const script = readFileSync(join(output, "tsdm-workspace.user.js"), "utf8");
+  const script = readFileSync(join(output, "tsdm-ui.user.js"), "utf8");
   assert(
     !script.includes(
       notices
@@ -92,10 +92,8 @@ check("hundred-fixes-owner-version", ["v0.1.1"], null, (output) => {
         .join("\n"),
     ),
   );
-  assert.equal(
-    script,
-    readFileSync(join(build, "tsdm-workspace.user.js"), "utf8"),
-  );
+  assert.match(script, /^\/\/\s+@name\s+TSDM UI\s*$/m);
+  assert.equal(script, readFileSync(join(build, "tsdm-ui.user.js"), "utf8"));
   for (const line of readFileSync(join(output, "SHA256SUMS"), "utf8")
     .trim()
     .split("\n")) {
@@ -115,9 +113,8 @@ check(
   ["v0.1.1"],
   (dist) => {
     writeFileSync(
-      join(dist, "tsdm-workspace.user.js"),
-      readFileSync(join(dist, "tsdm-workspace.user.js"), "utf8") +
-        "\n// changed\n",
+      join(dist, "tsdm-ui.user.js"),
+      readFileSync(join(dist, "tsdm-ui.user.js"), "utf8") + "\n// changed\n",
     );
   },
   null,

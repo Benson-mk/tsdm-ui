@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 const origin = "https://www.tsdm39.com";
-const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
 for (const missing of [false, true]) {
   test(`38 recovery: ${missing ? "unavailable opaque entry" : "fresh entry"} to Drafts survives reload`, async ({
     page,

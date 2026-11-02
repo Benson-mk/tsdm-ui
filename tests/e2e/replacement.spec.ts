@@ -9,7 +9,7 @@ const document =
   '<div id="um"><strong><a href="home.php?mod=space&uid=7">Reader Seven</a></strong></div><div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music</a></div><div id="postlist"><h1 id="thread_subject">Replacement fixture</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=7">Reader Seven</a></div><div class="pcb"><p>Exact retained post</p></div></div></div>';
 async function open(page: Page, raw: string, nativeAfterSeed = "") {
   const requests: { url: string; method: string }[] = [];
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
     if (request.url().endsWith("/__replacement.js")) {
@@ -112,14 +112,14 @@ const identity = (bytes: string) => ({
   bytes: Buffer.byteLength(bytes),
   sha256: createHash("sha256").update(bytes).digest("hex"),
 });
-test("J1.replacement-identity: exact retained candidate and replacement share manual manager identity", async ({
+test("J1.replacement-identity: renamed candidate preserves namespace and manual-update contract", async ({
   browser,
 }, info) => {
   info.annotations.push({
     type: "browser-version",
     description: browser.version(),
   });
-  const current = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const current = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const retained = JSON.parse(
     readFileSync("tests/fixtures/replacement-0.4.0.json", "utf8"),
   );
@@ -129,8 +129,9 @@ test("J1.replacement-identity: exact retained candidate and replacement share ma
   });
   const metadata = (source: string, field: string) =>
     source.match(new RegExp(`^// @${field}\\s+(.+)$`, "m"))?.[1];
+  expect(metadata(earlier, "name")).toBe("TSDM Workspace");
+  expect(metadata(current, "name")).toBe("TSDM UI");
   for (const script of [earlier, current]) {
-    expect(metadata(script, "name")).toBe("TSDM Workspace");
     expect(metadata(script, "namespace")).toBe(
       "https://github.com/Benson-mk/tsdm-ui",
     );
@@ -222,7 +223,7 @@ test("J1.replacement-compatible: earlier executable preferences, writing and pen
       .writing,
   }));
   expect(before.writing.attempts[0].status).toBe("pending");
-  script = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  script = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const boundary = requests.length;
   await page.reload();
   release();
@@ -292,7 +293,7 @@ test("J1.replacement-startup: blocked executable startup permits manual native b
   });
   let failStartup = true;
   const requests: string[] = [];
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
     if (request.url().endsWith("/__replacement.js"))

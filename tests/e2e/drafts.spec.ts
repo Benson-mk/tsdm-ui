@@ -8,7 +8,7 @@ test("J6.draft-list: own overview shows all returned draft rows and follows only
   page,
 }, info) => {
   const requests: string[] = [];
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request(),
       url = new URL(request.url());
@@ -76,7 +76,7 @@ async function lifecycle(
   page: import("@playwright/test").Page,
   initialFormChange = (body: string) => body,
 ) {
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const state = {
     saved: null as URLSearchParams | null,
     published: false,

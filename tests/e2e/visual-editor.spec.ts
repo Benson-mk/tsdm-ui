@@ -27,7 +27,7 @@ async function fixture(
   page: Page,
   initialForm: (body: string) => string = (body) => body,
 ) {
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const state = {
     member: "7",
     outcome: "accepted",

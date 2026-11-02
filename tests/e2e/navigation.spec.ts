@@ -32,7 +32,7 @@ async function open(
   nativeScript = "",
 ) {
   const requests: string[] = [];
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
     if (request.url() === `${origin}/__workspace-fixture.js`) {
@@ -728,7 +728,7 @@ for (const scenario of [
     });
     await page.goto(boardURL);
     await page.addScriptTag({
-      content: readFileSync("dist/tsdm-workspace.user.js", "utf8"),
+      content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
     });
     await expect(
       page.getByRole("heading", { name: scenario.heading, exact: true }),

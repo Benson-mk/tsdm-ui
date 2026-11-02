@@ -19,7 +19,7 @@ export default defineConfig({
     monkey({
       entry: "src/main.ts",
       userscript: {
-        name: "TSDM Workspace",
+        name: "TSDM UI",
         namespace: "https://github.com/Benson-mk/tsdm-ui",
         version: applicationVersion,
         description:
@@ -29,7 +29,7 @@ export default defineConfig({
         grant: ["GM_registerMenuCommand"],
         "run-at": "document-end",
       },
-      build: { fileName: "tsdm-workspace.user.js", externalGlobals: {} },
+      build: { fileName: "tsdm-ui.user.js", externalGlobals: {} },
     }),
   ],
   build: { emptyOutDir: true },

@@ -32,7 +32,7 @@ test.afterEach(async ({ page }, info) => {
 });
 
 async function fixture(page: Page, action: Action) {
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const state = {
     stored:
       action === "edit"

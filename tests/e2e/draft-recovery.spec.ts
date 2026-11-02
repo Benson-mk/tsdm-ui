@@ -55,7 +55,7 @@ async function fixture(page: Page) {
     saved: state.saved ? [...state.saved] : null,
     gate: !!state.gate,
   }));
-  const built = readFileSync("dist/tsdm-workspace.user.js", "utf8");
+  const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request(),
       url = new URL(request.url());
