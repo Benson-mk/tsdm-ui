@@ -19,6 +19,9 @@ artifact to inspect the userscript, library tarball, notices, installation guide
 build manifest and provenance. A preview has `preview: true` in `release.json`
 and cannot be published by this workflow.
 
+Before previewing, write `docs/releases/notes/vVERSION.md` for the selected
+version as described below; a missing or empty summary stops preparation.
+
 For a local preview using the pinned Node/npm pair:
 
 ```sh
@@ -33,25 +36,31 @@ creates a GitHub Release or pushes anything.
 
 ## Choose a version and approve publication
 
-1. Ensure the intended source commit is on GitHub and has passed the applicable
+1. Write and commit `docs/releases/notes/vVERSION.md` for the version you choose
+   (for example `v0.1.1.md`). Start with `## 0.1.1: a short release title`, then
+   describe the user-visible changes in a few bullets. This is the introduction
+   above What's Changed, like the reference release. Preparation refuses missing
+   or empty summaries, including previews. The bot combines your committed
+   summary with PR notes; it does not invent feature descriptions.
+2. Ensure the intended source commit is on GitHub and has passed the applicable
    checks. Check out that exact commit locally.
-2. Create and push your chosen, unused stable version tag:
+3. Create and push your chosen, unused stable version tag:
 
    ```sh
    git tag -a v0.1.0 -m "Release v0.1.0"
    git push origin v0.1.0
    ```
 
-3. Wait for the build job. Inspect the downloadable artifacts and run summary.
+4. Wait for the build job. Inspect the downloadable artifacts and run summary.
    The `publish` job waits at the **github-release** environment. No draft or
    published Release exists yet.
-4. Complete the applicable ADR0002 qualification and public-content review
+5. Complete the applicable ADR0002 qualification and public-content review
    against these exact files. Build/synthetic passes alone are not installed
    browser qualification. Do not apply historical 0.4.0 verdicts to new bytes.
-5. In the run, select **Review deployments → github-release → Approve and
+6. In the run, select **Review deployments → github-release → Approve and
    deploy**. Only **Benson-mk** is configured as required reviewer. Approval of
    your own tag-triggered run is allowed; administrator bypass is disabled.
-6. The approved job downloads the same immutable artifact, checks every checksum
+7. The approved job downloads the same immutable artifact, checks every checksum
    and the remote tag's commit, then creates the GitHub Release with its build
    assets and prepared notes. It does not rebuild. Verify downloaded assets and
    installed source after publication before claiming download/install success.
@@ -63,11 +72,24 @@ environment configuration; keep those protections in place.
 
 ## Notes, assets and retry behavior
 
-The changelog lives in the GitHub Release description, using What's Changed,
-Other changes, New Contributors (when there are first merged PRs), and Full
-Changelog. Hosted preparation reads closed GitHub PRs, includes merged PRs in the
-selected Git history with their authors/links, and retains direct commits.
-Offline local previews use a clearly marked commit-only list. The range starts
+The changelog lives in the GitHub Release description. It starts with the
+version-specific authored summary, then What's Changed, nonempty PR categories,
+New Contributors (when there are first merged PRs), and Full Changelog.
+`.github/release.yml` uses the reference label policy: `enhancement` → New features,
+`bug` → Fixes, `documentation` → Documentation, and unmatched PRs → Other changes.
+The first matching category wins; `ignore-for-release` excludes the PR and its
+covered commits. Direct commits remain in Other changes. Labels are read at
+preparation time; the resulting notes are frozen in the approval artifact.
+
+The configuration is JSON (valid YAML) to avoid a new parser dependency. Keep
+that syntax when editing it. The hosted formatter uses read-only GitHub PR data
+rather than GitHub's native generate-notes endpoint, which requires contents-write
+permission. This preserves the rule that only the approved publish job can create
+a Release. It implements the label/category subset above, not every GitHub
+configuration option. Hosted preparation reads closed GitHub PRs, includes merged
+PRs in the selected Git history with their authors/links, and retains direct commits.
+Offline local previews retain the authored summary and use a clearly marked
+commit-only list; label categories require hosted PR data. The range starts
 at the nearest reachable stable `vMAJOR.MINOR.PATCH` tag; the first release
 includes reachable history. PRs merged through a merge commit have their contained
 commits deduplicated; squash merges use their single merge SHA. Rebased PRs can

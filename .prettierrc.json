@@ -1,0 +1,5 @@
+{
+  "overrides": [
+    { "files": ".github/release.yml", "options": { "parser": "json" } }
+  ]
+}

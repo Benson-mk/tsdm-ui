@@ -1,3 +1,4 @@
+import { prepareReleaseNotes } from "./release-notes.mjs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -78,113 +79,13 @@ const previousTag = candidates.length
       "HEAD",
     )
   : null;
-const range = previousTag ? `${previousTag}..HEAD` : "HEAD";
-const commits = git(
-  "log",
-  "--no-merges",
-  "--reverse",
-  "--format=%H%x09%s",
-  range,
-);
-const escape = (value) => value.replace(/[\\`*_{}[\]<>]/g, "\\$&");
-let changes = commits
-  ? commits.split("\n").map((line) => {
-      const tab = line.indexOf("\t");
-      const sha = line.slice(0, tab);
-      return `- ${escape(line.slice(tab + 1))} ([${sha.slice(0, 7)}](https://github.com/${repository}/commit/${sha}))`;
-    })
-  : ["- No non-merge commits since the previous version tag."];
-const contributorNotes = [];
-if (process.env.RELEASE_GITHUB_NOTES === "true") {
-  // Read-only endpoints keep contents:write restricted to the approved job.
-  const pages = JSON.parse(
-    execFileSync(
-      "gh",
-      [
-        "api",
-        "--paginate",
-        "--slurp",
-        `repos/${repository}/pulls?state=closed&per_page=100`,
-      ],
-      { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
-    ),
-  );
-  const reachable = new Set(git("rev-list", "HEAD").split("\n"));
-  const selected = new Set(git("rev-list", range).split("\n"));
-  const merged = pages
-    .flat()
-    .filter((pr) => pr.merged_at && reachable.has(pr.merge_commit_sha));
-  const included = merged
-    .filter((pr) => selected.has(pr.merge_commit_sha))
-    .sort(
-      (a, b) => a.merged_at.localeCompare(b.merged_at) || a.number - b.number,
-    );
-  const covered = new Set();
-  changes = included.map((pr) => {
-    const parents = git(
-      "rev-list",
-      "--parents",
-      "-n",
-      "1",
-      pr.merge_commit_sha,
-    ).split(" ");
-    const prCommits =
-      parents.length > 2
-        ? git("rev-list", `${parents[1]}..${pr.merge_commit_sha}`).split("\n")
-        : [pr.merge_commit_sha];
-    prCommits.forEach((sha) => covered.add(sha));
-    return `* ${escape(pr.title)} by @${pr.user.login} in https://github.com/${repository}/pull/${pr.number}`;
-  });
-  const earlierAuthors = new Set(
-    merged
-      .filter((pr) => !selected.has(pr.merge_commit_sha))
-      .map((pr) => pr.user.login),
-  );
-  for (const pr of included) {
-    if (!earlierAuthors.has(pr.user.login) && pr.user.type !== "Bot") {
-      contributorNotes.push(
-        `* @${pr.user.login} made their first merged pull request in https://github.com/${repository}/pull/${pr.number}`,
-      );
-      earlierAuthors.add(pr.user.login);
-    }
-  }
-  for (const line of commits ? commits.split("\n") : []) {
-    const tab = line.indexOf("\t");
-    const sha = line.slice(0, tab);
-    if (!covered.has(sha))
-      changes.push(
-        `* ${escape(line.slice(tab + 1))} in https://github.com/${repository}/commit/${sha}`,
-      );
-  }
-  if (!changes.length)
-    changes.push("* No changes since the previous version tag.");
-}
-const source = `https://github.com/${repository}/blob/${commit}/README.md`;
-const notes = [
-  "## What's Changed",
-  "",
-  "### Other changes",
-  "",
-  ...changes,
-  "",
-  ...(contributorNotes.length
-    ? ["## New Contributors", "", ...contributorNotes, ""]
-    : []),
-  previousTag
-    ? `**Full Changelog**: https://github.com/${repository}/compare/${previousTag}...${tag}`
-    : `**Full Changelog**: https://github.com/${repository}/commits/${commit}`,
-  "",
-  `[Quick Start](${source}#quick-start) · [Acknowledgments](${source}#acknowledgments)`,
-  "",
-  "Build and synthetic checks do not establish installed browser qualification. Windows and actual Tampermonkey software-update recovery remain unverified.",
-  ...(process.env.RELEASE_GITHUB_NOTES === "true"
-    ? []
-    : [
-        "",
-        "Local preview: commit-only notes; GitHub PR attribution is added by the hosted workflow.",
-      ]),
-  "",
-].join("\n");
+const notes = prepareReleaseNotes({
+  tag,
+  commit,
+  previousTag,
+  repository,
+  github: process.env.RELEASE_GITHUB_NOTES === "true",
+});
 
 mkdirSync(destination, { recursive: true });
 for (const name of [

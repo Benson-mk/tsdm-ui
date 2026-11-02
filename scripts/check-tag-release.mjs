@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  chmodSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -22,6 +23,40 @@ assert(!existsSync(destination), "Preserve earlier verification evidence");
 mkdirSync(destination, { recursive: true });
 const root = join(destination, "fixture");
 mkdirSync(root);
+mkdirSync(join(root, "docs/releases/notes"), { recursive: true });
+const summaryPath = join(root, "docs/releases/notes/v0.1.1.md");
+const summary =
+  "## 0.1.1: a deliberately chosen patch\n\n- Keeps all 100 corrections in one owner-selected version.\n";
+writeFileSync(summaryPath, summary);
+mkdirSync(join(root, ".github"));
+writeFileSync(
+  join(root, ".github/release.yml"),
+  JSON.stringify({
+    changelog: {
+      exclude: { labels: ["ignore-for-release"] },
+      categories: [
+        { title: "New features", labels: ["enhancement"] },
+        { title: "Fixes", labels: ["bug"] },
+        { title: "Documentation", labels: ["documentation"] },
+        { title: "Other changes", labels: ["*"] },
+      ],
+    },
+  }),
+);
+const bin = join(root, "bin");
+mkdirSync(bin);
+const fakeGh = join(bin, "gh");
+writeFileSync(
+  fakeGh,
+  `#!/usr/bin/env node
+import fs from 'node:fs';
+if (process.argv.slice(2).join(' ') !== 'api --paginate --slurp repos/Benson-mk/tsdm-ui/pulls?state=closed&per_page=100') process.exit(2);
+process.stdout.write(fs.readFileSync(process.env.RELEASE_TEST_PRS, 'utf8'));
+`,
+);
+chmodSync(fakeGh, 0o755);
+const prsPath = join(root, "prs.json");
+let hosted = false;
 const git = (...args) =>
   execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
 git("init", "--initial-branch=main");
@@ -48,7 +83,13 @@ function check(name, args, setup, verify, expected = 0) {
   const result = spawnSync(process.execPath, [cli, ...args, output], {
     cwd: root,
     encoding: "utf8",
-    env: { ...process.env, RELEASE_REPOSITORY: "Benson-mk/tsdm-ui" },
+    env: {
+      ...process.env,
+      RELEASE_REPOSITORY: "Benson-mk/tsdm-ui",
+      RELEASE_GITHUB_NOTES: hosted ? "true" : "false",
+      RELEASE_TEST_PRS: prsPath,
+      PATH: `${bin}:${process.env.PATH}`,
+    },
   });
   let error = null;
   try {
@@ -77,6 +118,7 @@ check("hundred-fixes-owner-version", ["v0.1.1"], null, (output) => {
   assert.equal((notes.match(/synthetic correction/g) ?? []).length, 100);
   assert(!notes.includes("chore: baseline"));
   assert.deepEqual(receipt.assets, ["tsdm-ui.user.js"]);
+  assert(notes.startsWith(summary.trim()));
   assert(notes.includes("## What's Changed"));
   assert(notes.includes("**Full Changelog**:"));
   assert(notes.includes("README.md#quick-start"));
@@ -106,6 +148,61 @@ check("hundred-fixes-owner-version", ["v0.1.1"], null, (output) => {
     );
   }
 });
+check("missing-summary", ["v0.1.1"], () => rmSync(summaryPath), null, 1);
+writeFileSync(summaryPath, " \n");
+check("empty-summary", ["v0.1.1"], null, null, 1);
+writeFileSync(summaryPath, summary);
+const pr = (number, offset, labels, title, user = "fixture-author") => ({
+  number,
+  title,
+  labels: labels.map((name) => ({ name })),
+  merge_commit_sha: git("rev-parse", `HEAD~${offset}`),
+  merged_at: `2026-01-${String(number).padStart(2, "0")}T00:00:00Z`,
+  user: { login: user, type: "User" },
+});
+writeFileSync(
+  prsPath,
+  JSON.stringify([
+    [
+      pr(1, 0, ["enhancement", "bug"], "Feature entry"),
+      pr(2, 1, ["bug"], "Fix entry"),
+      pr(3, 2, ["documentation"], "Documentation entry"),
+      pr(4, 3, [], "Unlabelled entry"),
+      pr(
+        5,
+        4,
+        ["bug", "ignore-for-release"],
+        "Excluded entry",
+        "excluded-author",
+      ),
+      pr(6, 100, ["enhancement"], "Earlier entry"),
+    ],
+  ]),
+);
+hosted = true;
+check("categorized-hosted-notes", ["v0.1.1"], null, (output) => {
+  const notes = readFileSync(join(output, "RELEASE_NOTES.md"), "utf8");
+  assert(notes.startsWith(summary.trim()));
+  assert.match(notes, /### New features\n\n\* Feature entry/);
+  assert.match(notes, /### Fixes\n\n\* Fix entry/);
+  assert.match(notes, /### Documentation\n\n\* Documentation entry/);
+  assert.match(notes, /### Other changes\n\n\* Unlabelled entry/);
+  assert.equal((notes.match(/Feature entry/g) ?? []).length, 1);
+  assert(!notes.includes("Excluded entry"));
+  assert(!notes.includes("excluded-author"));
+  assert(!notes.includes("Earlier entry"));
+  assert.equal((notes.match(/synthetic correction/g) ?? []).length, 95);
+  assert(!notes.includes("synthetic correction 96"));
+});
+writeFileSync(prsPath, JSON.stringify([[pr(1, 0, [], "Unlabelled only")]]));
+check("omit-empty-categories", ["v0.1.1"], null, (output) => {
+  const notes = readFileSync(join(output, "RELEASE_NOTES.md"), "utf8");
+  assert(!notes.includes("### New features"));
+  assert(!notes.includes("### Fixes"));
+  assert(!notes.includes("### Documentation"));
+  assert(notes.includes("### Other changes"));
+});
+hosted = false;
 check("wrong-built-version", ["v0.2.0", "--preview"], null, null, 1);
 check("malformed-version", ["not-a-version", "--preview"], null, null, 1);
 check(
