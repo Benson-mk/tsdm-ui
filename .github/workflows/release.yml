@@ -1,0 +1,143 @@
+name: Build and approve release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      preview_tag:
+        description: "Preview version (vMAJOR.MINOR.PATCH). Never creates a Release."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.version.outputs.commit }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select the owner's version
+        id: version
+        env:
+          PUSH_TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
+          PREVIEW_TAG: ${{ inputs.preview_tag }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const tag = process.env.PUSH_TAG || process.env.PREVIEW_TAG || `v${JSON.parse(readFileSync('package.json')).version}`;
+          if (!/^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag)) throw new Error('Use vMAJOR.MINOR.PATCH');
+          const commit = execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim();
+          appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\ncommit=${commit}\n`);
+          NODE
+      - name: Confirm the owner approval gate exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh api "repos/$GH_REPO/environments/github-release" > "$RUNNER_TEMP/release-environment.json"
+          jq -e '.can_admins_bypass == false and any(.protection_rules[]; .type == "required_reviewers" and any(.reviewers[]; .reviewer.login == "Benson-mk"))' "$RUNNER_TEMP/release-environment.json"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: package.json
+          cache: npm
+      - name: Install the pinned toolchain and dependencies
+        run: |
+          npm install --global npm@11.21.1 --ignore-scripts
+          npm ci
+      - name: Check and build
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run build
+          node scripts/package-notices.mjs
+          npm run test:consumer
+      - name: Exercise the built application
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          npx playwright install --with-deps msedge
+          npm run test:e2e -- tests/e2e/foundation.spec.ts
+      - name: Prepare the reviewable release files
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          PREVIEW: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          if [ "$PREVIEW" = true ]; then
+            npm run release:prepare -- "$RELEASE_TAG" --preview "$RUNNER_TEMP/release"
+          else
+            npm run release:prepare -- "$RELEASE_TAG" "$RUNNER_TEMP/release"
+          fi
+          cat "$RUNNER_TEMP/release/RELEASE_NOTES.md" >> "$GITHUB_STEP_SUMMARY"
+          printf '\n## Asset checksums\n\n```text\n' >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/release/SHA256SUMS" >> "$GITHUB_STEP_SUMMARY"
+          printf '\n```\n\nPublication requires the owner’s separate approval. A manual preview never publishes.\n' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: upload
+        with:
+          name: release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain synthetic verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/runs/
+          if-no-files-found: ignore
+          retention-days: 30
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: github-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: release
+      - name: Verify and publish the approved files
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          SOURCE_COMMIT: ${{ needs.build.outputs.commit }}
+        run: |
+          sha256sum --check SHA256SUMS
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          const gh = (...args) => execFileSync('gh', args, {encoding: 'utf8'});
+          const release = JSON.parse(readFileSync('release.json'));
+          if (release.preview || release.tag !== process.env.RELEASE_TAG || release.commit !== process.env.SOURCE_COMMIT) throw new Error('Reviewed release identity mismatch');
+          const api = `repos/${process.env.GH_REPO}`;
+          let object = JSON.parse(gh('api', `${api}/git/ref/tags/${release.tag}`)).object;
+          for (let depth = 0; object.type === 'tag' && depth < 10; depth++) object = JSON.parse(gh('api', `${api}/git/tags/${object.sha}`)).object;
+          if (object.type !== 'commit' || object.sha !== release.commit) throw new Error('Remote tag moved after preparation');
+          if (!release.assets.every(name => /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name))) throw new Error('Invalid asset name');
+          gh('release', 'create', release.tag, ...release.assets, '--verify-tag', '--title', `TSDM Workspace ${release.version}`, '--notes-file', 'RELEASE_NOTES.md');
+          NODE

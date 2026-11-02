@@ -1644,7 +1644,10 @@ for (const [
       "winter",
     );
     await page.getByRole("button", { name: about, exact: true }).click();
-    await expect(page.getByRole("dialog")).toContainText("0.4.0");
+    await expect(page.getByRole("dialog")).toContainText(
+      process.env.RELEASE_TAG?.slice(1) ??
+        JSON.parse(readFileSync("package.json", "utf8")).version,
+    );
     await page.keyboard.press("Escape");
     await page.reload();
     await expect(search.getByLabel("Keywords", { exact: true })).toHaveValue(

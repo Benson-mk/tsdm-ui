@@ -104,8 +104,7 @@ const english = {
   storageUnavailable:
     "Preferences are available for this page only. Storage is unavailable; changes may not survive reload.",
   about: "About this workspace",
-  aboutDescription:
-    "TSDM Workspace 0.4.0. Reading uses your current forum account.",
+  aboutDescription: `TSDM Workspace ${__APP_VERSION__}. Reading uses your current forum account.`,
   nativeHelp:
     "For unsupported content or verification, continue at the same destination in the native forum.",
   snapshotMember: "Snapshot from {value}",
@@ -393,7 +392,7 @@ const simplified: Strings = {
   storageUnavailable:
     "偏好设置仅在当前页面有效。存储不可用；重新加载后可能无法保留更改。",
   about: "关于此工作区",
-  aboutDescription: "TSDM 工作区 0.4.0。阅读使用当前论坛账号。",
+  aboutDescription: `TSDM 工作区 ${__APP_VERSION__}。阅读使用当前论坛账号。`,
   nativeHelp:
     "如需查看不支持的内容或完成验证，请在原版论坛中继续访问同一目标。",
   snapshotMember: "来自 {value} 的快照",
@@ -670,7 +669,7 @@ const traditional: Strings = {
   storageUnavailable:
     "偏好設定僅在目前頁面有效。儲存空間無法使用；重新載入後可能無法保留變更。",
   about: "關於此工作區",
-  aboutDescription: "TSDM 工作區 0.4.0。閱讀使用目前論壇帳號。",
+  aboutDescription: `TSDM 工作區 ${__APP_VERSION__}。閱讀使用目前論壇帳號。`,
   nativeHelp:
     "如需查看不支援的內容或完成驗證，請在原版論壇中繼續存取同一目標。",
   snapshotMember: "來自 {value} 的快照",

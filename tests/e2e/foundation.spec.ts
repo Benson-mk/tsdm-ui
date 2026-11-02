@@ -90,6 +90,10 @@ test("J1.reka-shadow-dialog: keyboard focus remains in the application and retur
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "About this workspace" });
   await expect(dialog).toBeVisible();
+  const releaseVersion =
+    process.env.RELEASE_TAG?.slice(1) ??
+    JSON.parse(readFileSync("package.json", "utf8")).version;
+  await expect(dialog).toContainText(`TSDM Workspace ${releaseVersion}.`);
   await expect(dialog).toHaveAttribute("aria-describedby", /.+/);
   expect(
     await dialog.evaluate((node) => node.getRootNode() instanceof ShadowRoot),

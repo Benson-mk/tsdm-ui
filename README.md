@@ -1,7 +1,12 @@
 # TSDM Workspace
 
-The first release implementation is complete at the accepted macOS qualification
-scope. The prepared application is **0.4.0**, with the independently versioned
+Public application versioning starts at **0.1.0**. You choose release versions by
+pushing tags; builds and release-page notes wait for your explicit approval
+before publication. See [release automation](docs/releases/AUTOMATION.md) for
+preview, approval, downloadable builds and qualification requirements.
+
+The first release implementation was completed at the accepted macOS qualification
+scope using the historical **0.4.0** development candidate, with the independently versioned
 **0.13.0** forum-client library. It provides board/thread reading, explicit
 Search, replies and quotes, owned-post editing, source-preserving visual
 writing, ordinary and funded forum drafts, attachments/downloads, favorites,
@@ -10,7 +15,7 @@ Global Text size, derived Compact spacing, four themes and three interface
 languages preserve reading and writing context.
 
 Start with the [parent reconciliation](docs/implementation/15-reconciliation.md)
-for delivery coverage and current verification, then the
+for delivery coverage and historical verification, then the
 [release report](docs/releases/0.4.0/report.md) for exact candidate identities,
 installed evidence and accepted limitations. All 24 current-release children of
 [#15](https://github.com/Benson-mk/tsdm-ui/issues/15) are closed. Qualification
@@ -19,10 +24,11 @@ results; it does not claim a fresh final-candidate Chrome run. Windows (#39) and
 actual Tampermonkey software-update recovery (#47) remain deferred and unverified.
 
 The reviewed [release assets and replay instructions](docs/releases/0.4.0/README.md)
-are prepared locally. Publication and subsequent downloaded-asset/install checks
+were prepared locally for that candidate. New tagged CI builds do not inherit
+its installed qualification. Publication and subsequent downloaded-asset/install checks
 remain separately authorized work. Earlier feature acceptance records below
-retain their original candidate, runtime and evidence limits; they are not the
-current release verdict.
+retain their original candidate, runtime and evidence limits; they do not qualify
+new tagged CI builds.
 
 ## Reproduce the candidate
 
