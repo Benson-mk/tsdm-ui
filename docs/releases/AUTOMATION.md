@@ -97,9 +97,12 @@ refuses stale acknowledgments and records notice input identities without changi
 the built userscript or its hash. Dependency license comments already emitted by
 the bundler are retained. Historical installed qualification does not transfer
 to a new build.
-The already-published v0.1.0 assets retain their original TSDM Workspace name and
-`tsdm-workspace.user.js` filename. New builds use TSDM UI and `tsdm-ui.user.js`.
-Follow README Quick Start when replacing the old script identity.
+The owner withdrew the earlier v0.1.0 Release and tag and requested a replacement
+using the current TSDM UI name and `tsdm-ui.user.js` filename. The replacement
+reuses that version with different bytes; earlier downloaded files and their
+recorded hashes remain historical evidence. Follow README Quick Start when
+replacing the old TSDM Workspace script identity. This explicit replacement does
+not change the normal policy against moving a published tag.
 
 Artifacts are retained for 30 days. Download evidence you need to retain longer.
 If they expire, prepare a fresh run and review its actual bytes. Never move a

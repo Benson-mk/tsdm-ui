@@ -15,10 +15,12 @@ preview, approval, downloadable builds and qualification requirements.
 3. Open or reload [TSDM](https://www.tsdm39.com/). The workspace uses your current
    forum account and includes its runtime; no separate library download is needed.
 
-Releases through v0.1.0 use the old **TSDM Workspace** name and
-`tsdm-workspace.user.js` filename. When moving to **TSDM UI**, disable the old
-script before installing the renamed one, then confirm only TSDM UI is enabled.
-Tampermonkey may treat the changed name as a separate script.
+If you installed the earlier, withdrawn v0.1.0 build named **TSDM Workspace**
+(`tsdm-workspace.user.js`), disable it before installing the replacement
+**TSDM UI** build (`tsdm-ui.user.js`), then confirm only TSDM UI is enabled.
+The replacement reuses v0.1.0 with different files; its version alone cannot
+identify the old download. Tampermonkey may treat the changed name as a separate
+script, so replacement remains manual.
 
 Updates are manual: download the new version and replace the existing script.
 Before updating or downgrading, finish writing, save a supported forum draft, or
