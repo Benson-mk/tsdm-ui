@@ -34,21 +34,22 @@ gpt-6.1-sol/xhigh BDFL advisor will apply validate-gpt-code-review after complet
 
 The complete CLI and built application are the testing boundaries, not unit tests.
 
-| Failure                                                                 | Expected observation                                                                                                                  |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 100 fixes silently choose a different version                           | A fixture with 100 fixes still packages the owner's v0.1.1 and lists all 100 changes.                                                 |
-| First release has no prior tag                                          | Generate notes from the entire reachable history.                                                                                     |
-| Tag differs from the built script or manifest                           | Refuse packaging.                                                                                                                     |
-| Tag resolves to a different commit                                      | Refuse packaging.                                                                                                                     |
-| Missing or malformed tag                                                | Refuse normal packaging; an explicitly labelled preview alone permits an absent tag.                                                  |
-| Artifact was changed after its build manifest                           | Refuse packaging.                                                                                                                     |
-| Required executable or notices are absent                               | Refuse packaging.                                                                                                                     |
-| A rerun overwrites retained evidence                                    | Refuse an existing output directory.                                                                                                  |
-| UI About text retains the old development version                       | Built-application E2E checks About against the selected release tag.                                                                  |
-| Tag push or preview publishes without approval                          | Separate read-only build and protected publish jobs; inspect environment and preview's skipped publication job.                       |
-| Tag moves while approval is pending                                     | Recheck the remote tag's peeled commit against the prepared source before publication.                                                |
-| A rebuild substitutes bytes after approval                              | Download this run's immutable artifact and verify its checksum inventory; never rebuild in the publishing job.                        |
-| A previously prepared qualified release is confused with a new CI build | New provenance explicitly records that build checks do not establish installed qualification. Historical 0.4.0 evidence is unchanged. |
+| Failure                                                                   | Expected observation                                                                                                                           |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 100 fixes silently choose a different version                             | A fixture with 100 fixes still packages the owner's v0.1.1 and lists all 100 changes.                                                          |
+| First release has no prior tag                                            | Generate notes from the entire reachable history.                                                                                              |
+| Tag differs from the built script or manifest                             | Refuse packaging.                                                                                                                              |
+| Tag resolves to a different commit                                        | Refuse packaging.                                                                                                                              |
+| Missing or malformed tag                                                  | Refuse normal packaging; an explicitly labelled preview alone permits an absent tag.                                                           |
+| Artifact was changed after its build manifest                             | Refuse packaging.                                                                                                                              |
+| Required executable or notices are absent                                 | Refuse packaging.                                                                                                                              |
+| A rerun overwrites retained evidence                                      | Refuse an existing output directory.                                                                                                           |
+| UI About text retains the old development version                         | Built-application E2E checks About against the selected release tag.                                                                           |
+| Tag push or preview publishes without approval                            | Separate read-only build and protected publish jobs; inspect environment and preview's skipped publication job.                                |
+| Tag moves while approval is pending                                       | Recheck the remote tag's peeled commit against the prepared source before publication.                                                         |
+| A rebuild substitutes bytes after approval                                | Download this run's immutable artifact and verify its checksum inventory; never rebuild in the publishing job.                                 |
+| A previously prepared qualified release is confused with a new CI build   | New provenance explicitly records that build checks do not establish installed qualification. Historical 0.4.0 evidence is unchanged.          |
+| A clean hosted npm cache has tarballs but no TypeScript registry metadata | Warm the pinned TypeScript package metadata before the existing offline consumer E2E; retain the first hosted failure and a cold-cache replay. |
 
 ## Scope and trade-offs
 
@@ -92,6 +93,18 @@ Retained local artifacts (repository-relative paths):
 The original working directory's broad lint command encounters pre-existing
 ignored `.local/` archives with nested tsconfig files. An exported source tree
 passes the unchanged lint command; unrelated historical files were preserved.
+The first hosted preview (run 41408676037) passed the protection-gate check,
+typecheck, lint and builds, then exposed a cold-cache assumption in the existing
+offline consumer check: npm ci caches tarballs without necessarily caching the
+TypeScript registry metadata. A fresh isolated cache reproduced the failure;
+warming the exact pinned TypeScript package made the unchanged consumer pass.
+The workflow now performs that warming during dependency installation. The
+failed preview skipped publication and created no Release.
+
+GitHub's main-branch rules refused replacement of the already-installed setup
+commit. The owner explicitly approved a separate corrective commit for the
+cold-cache integration issue, preserving protected remote history.
+
 Initial sandbox cache/browser failures were retained and rerun with a writable
 cache or the required process permission; they are not reported as product
 failures. Hosted preview follows installation. Publication, downloaded-release
@@ -137,3 +150,8 @@ verification and new installed qualification remain unexecuted by design.
     its release events do not launch downstream event-triggered workflows.
 15. Install current stable Edge for synthetic checks: exercises a current browser
     while its exact version varies; each evidence receipt records what ran.
+16. Warm pinned TypeScript metadata during installation: adds a registry/cache
+    preparation request while preserving the consumer's offline verification.
+17. Preserve the protected, already-pushed setup commit and add the separately
+    authorized CI correction: respects the repository's no-force-push rule at
+    the cost of two commits for the setup and its discovered integration fix.

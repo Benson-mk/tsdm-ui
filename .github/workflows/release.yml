@@ -59,6 +59,9 @@ jobs:
         run: |
           npm install --global npm@11.21.1 --ignore-scripts
           npm ci
+          # npm ci fetches tarballs without necessarily caching registry metadata.
+          # The clean-consumer check deliberately installs TypeScript offline.
+          npm cache add "typescript@$(node -p 'require("./package.json").devDependencies.typescript')"
       - name: Check and build
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
