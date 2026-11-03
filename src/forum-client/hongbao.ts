@@ -14,6 +14,7 @@ import type {
   ForumTransport,
   PreparedWriting,
   RedPacketObservation,
+  WritingOption,
 } from "./types.js";
 
 /** Form-provided syntax/limits only. Backend validation may be stricter. */
@@ -36,40 +37,43 @@ export function validRedPacket(writing: PreparedWriting): boolean {
     )
       return false;
     if (["hb_total", "hb_shares"].includes(field.name)) {
-      if (
-        !/^\d+$/.test(field.value) ||
-        !Number.isSafeInteger(Number(field.value))
-      )
-        return false;
-      const n = Number(field.value),
-        min = Number(field.minimum),
-        step = Number(field.step);
-      if (
-        !Number.isSafeInteger(min) ||
-        min < 1 ||
-        !Number.isSafeInteger(step) ||
-        step < 1 ||
-        n < min ||
-        (n - min) % step !== 0
-      )
-        return false;
-      if (
-        field.maximum !== undefined &&
-        (!Number.isSafeInteger(Number(field.maximum)) ||
-          n > Number(field.maximum))
-      )
-        return false;
+      if (!packetNumberValid(field)) return false;
     }
   }
-  const perShare = writing.redPacket.hints
-    .map((h) => /每份至少\s*(\d+)/.exec(h)?.[1])
-    .filter(Boolean);
-  if (perShare.length !== 1 || !Number.isSafeInteger(Number(perShare[0])))
-    return false;
+  const perShare = packetMinimum(writing);
   return (
-    Number(value("hb_total")) >=
-    Number(value("hb_shares")) * Number(perShare[0])
+    perShare !== null &&
+    Number(value("hb_total")) >= Number(value("hb_shares")) * perShare
   );
+}
+
+/** Shared syntax/limits used by the command guard and field explanations. */
+export function packetNumberValid(field: WritingOption): boolean {
+  const n = Number(field.value),
+    min = Number(field.minimum),
+    step = Number(field.step);
+  return (
+    /^\d+$/.test(field.value) &&
+    Number.isSafeInteger(n) &&
+    Number.isSafeInteger(min) &&
+    min >= 1 &&
+    Number.isSafeInteger(step) &&
+    step >= 1 &&
+    n >= min &&
+    (n - min) % step === 0 &&
+    (field.maximum === undefined ||
+      (Number.isSafeInteger(Number(field.maximum)) &&
+        n <= Number(field.maximum)))
+  );
+}
+export function packetMinimum(writing: PreparedWriting): number | null {
+  const values =
+    writing.redPacket?.hints
+      .map((h) => /每份至少\s*(\d+)/.exec(h)?.[1])
+      .filter(Boolean) ?? [];
+  return values.length === 1 && Number.isSafeInteger(Number(values[0]))
+    ? Number(values[0])
+    : null;
 }
 
 /** Read-only status. Presence flags do not prove exact secret/recipient preservation or funding. */

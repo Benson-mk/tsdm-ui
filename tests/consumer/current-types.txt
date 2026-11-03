@@ -93,3 +93,8 @@ const legacyBoard: Frontier.Board = { id: "5", title: "Legacy", url: "https://fi
 const sourceGroup: Frontier.BoardFilterGroup = { kind: "category", sourceId: "thread_types", sourceLabel: "原生分類:", links: [{ label: "Native choice", url: legacyBoard.url }] };
 const groupedBoard: Frontier.Board = { ...legacyBoard, filterGroups: [sourceGroup] };
 void [legacyBoard, groupedBoard];
+
+const validationIssueContract: Frontier.WritingValidationIssue = { field: "option", name: "hb_total", code: "native-limit" };
+const legacyPreparationFailure: Frontier.PublicationPreparationResult = { kind: "validation", message: "Legacy refusal", account: { kind: "unknown" }, generation: 0 };
+const currentPreparationFailure: Frontier.PublicationPreparationResult = { ...legacyPreparationFailure, validation: { source: "local", issues: [validationIssueContract] }, accountVerified: false };
+void currentPreparationFailure;

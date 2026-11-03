@@ -689,5 +689,28 @@ for (const [name, response] of [
       false,
     );
   });
+await publicationCase("UX60 local refusal is serializable and invalidates older same-context send approval without HTTP", async () => {
+  const f = publicationFixture(), submission = await f.submission();
+  const ready = await f.client.prepareThreadPublication(submission);
+  publicationAssert.equal(ready.kind, "ready");
+  const requests = f.state.requests.length;
+  const invalid = await f.client.prepareThreadPublication({ ...submission, revision: 4, writing: { ...submission.writing, title: "  ", source: "\n " } });
+  publicationAssert.equal(invalid.kind, "validation");
+  publicationAssert.deepEqual(invalid.validation, { source: "local", issues: [{ field: "title", code: "required" }, { field: "source", code: "required" }] });
+  publicationAssert.deepEqual(JSON.parse(JSON.stringify(invalid)), invalid);
+  publicationAssert.equal(f.state.requests.length, requests);
+  const refused = await f.client.publishThread(f.attempt(ready.publication));
+  publicationAssert.equal(refused.status, "not-sent");
+  publicationAssert.equal(f.state.posts.length, 0);
+  publicationAssert.equal(f.state.requests.length, requests);
+});
+await publicationCase("UX60 multiline title is a local field refusal rather than account expiry", async () => {
+  const f = publicationFixture(), submission = await f.submission(), requests = f.state.requests.length;
+  const invalid = await f.client.prepareThreadPublication({ ...submission, writing: { ...submission.writing, title: "line one\nline two" } });
+  publicationAssert.equal(invalid.kind, "validation");
+  publicationAssert.deepEqual(invalid.validation, { source: "local", issues: [{ field: "title", code: "single-line" }] });
+  publicationAssert.equal(f.state.requests.length, requests);
+  publicationAssert.equal(f.state.posts.length, 0);
+});
 if (publicationFailures.length)
   throw Error(JSON.stringify({ publicationCases }, null, 2));

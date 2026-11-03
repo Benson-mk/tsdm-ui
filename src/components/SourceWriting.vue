@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch, type DeepReadonly } from "vue";
+import { computed, ref, watch, nextTick, type DeepReadonly } from "vue";
 import { attachmentText, attachmentFieldLabel } from "./attachment-text";
 import PostEditor from "./PostEditor.vue";
 import WritingDestination from "./WritingDestination.vue";
 import PreparedPublication from "./PreparedPublication.vue";
 import { reviewText } from "./review-text";
+import { validationText } from "./validation-text";
 import type { Workspace } from "../workspace";
 import { strings, insert, description } from "../layouts/strings";
 import type { WritingOption } from "../forum-client";
@@ -16,6 +17,52 @@ watch(
   () => editor.value?.focus(true),
 );
 const state = props.workspace.writing.state;
+const titleInput = ref<HTMLInputElement | null>(null);
+const categoryInput = ref<HTMLSelectElement | null>(null);
+const optionFields = ref<HTMLElement | null>(null);
+const categoryIssue = computed(() =>
+  state.value.validationIssues.find((issue) => issue.field === "category"),
+);
+const optionIssue = (name: string) =>
+  state.value.validationIssues.find(
+    (issue) => issue.field === "option" && issue.name === name,
+  );
+const optionErrorId = (name: string) =>
+  `writing-option-${encodeURIComponent(name)}-error`;
+function optionAttributes(name: string) {
+  return {
+    "aria-invalid": optionIssue(name) ? true : undefined,
+    "aria-describedby": optionIssue(name) ? optionErrorId(name) : undefined,
+    "data-writing-option": name,
+  };
+}
+const titleIssue = computed(() =>
+  state.value.validationIssues.find((issue) => issue.field === "title"),
+);
+watch(
+  () => state.value.validationFocus,
+  async () => {
+    const id = state.value.context?.id;
+    await nextTick();
+    if (state.value.composing || state.value.context?.id !== id) return;
+    if (state.value.validationIssues[0]?.field === "title")
+      titleInput.value?.focus();
+    else if (state.value.validationIssues[0]?.field === "source")
+      editor.value?.focus(false, true);
+    else if (state.value.validationIssues[0]?.field === "category")
+      categoryInput.value?.focus();
+    else if (state.value.validationIssues[0]?.field === "option") {
+      const name = state.value.validationIssues[0].name;
+      Array.from(
+        optionFields.value?.querySelectorAll<HTMLElement>(
+          "[data-writing-option]",
+        ) ?? [],
+      )
+        .find((input) => input.dataset.writingOption === name)
+        ?.focus();
+    }
+  },
+);
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
@@ -200,7 +247,17 @@ function updateOption(option: WritingOption, event: Event) {
         :language="workspace.preferences.state.value.language"
       />
       <p v-if="!state.accountVerified" role="alert">
-        {{ insert(text.writingPaused, state.context.account.name) }}
+        {{
+          insert(
+            state.accountObservation.kind === "guest"
+              ? text.writingSignedOut
+              : state.accountObservation.kind === "member" &&
+                  state.accountObservation.id !== state.context.account.id
+                ? text.writingAccountChanged
+                : text.writingPaused,
+            state.context.account.name,
+          )
+        }}
       </p>
       <p v-if="unresolved.length" role="alert">
         {{ insert(text.unresolvedAttachments, unresolved.join(", ")) }}
@@ -211,12 +268,25 @@ function updateOption(option: WritingOption, event: Event) {
         "
         >{{ text.writingTitle
         }}<input
+          ref="titleInput"
+          :aria-invalid="titleIssue ? 'true' : undefined"
+          :aria-describedby="titleIssue ? 'writing-title-error' : undefined"
           :value="state.context.title"
           @input="workspace.writing.edit({ title: value($event) })"
       /></label>
+      <p v-if="titleIssue" id="writing-title-error" role="alert">
+        {{
+          validationText(titleIssue, workspace.preferences.state.value.language)
+        }}
+      </p>
       <label v-if="state.context.category"
         >{{ text.writingCategory
         }}<select
+          ref="categoryInput"
+          :aria-invalid="categoryIssue ? 'true' : undefined"
+          :aria-describedby="
+            categoryIssue ? 'writing-category-error' : undefined
+          "
           :aria-label="text.writingCategory"
           :value="state.context.category.value"
           :disabled="state.context.category.disabled"
@@ -234,6 +304,14 @@ function updateOption(option: WritingOption, event: Event) {
           </option>
         </select></label
       >
+      <p v-if="categoryIssue" id="writing-category-error" role="alert">
+        {{
+          validationText(
+            categoryIssue,
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </p>
       <PostEditor
         ref="editor"
         :key="state.context.id"
@@ -1042,12 +1120,14 @@ function updateOption(option: WritingOption, event: Event) {
       <p v-for="hint in state.context.redPacket?.hints" :key="hint">
         {{ hint }}
       </p>
-      <fieldset>
+      <fieldset ref="optionFields">
         <legend>{{ text.currentFormOptions }}</legend>
         <label v-for="option in currentOptions" :key="option.name">
           <template v-if="option.kind === 'checkbox'"
             ><input
               type="checkbox"
+              v-bind="optionAttributes(option.name)"
+              :aria-label="optionCaption(option as WritingOption)"
               :checked="option.checked"
               :value="option.value"
               :disabled="option.disabled"
@@ -1058,6 +1138,7 @@ function updateOption(option: WritingOption, event: Event) {
             >{{ optionCaption(option as WritingOption)
             }}<select
               v-if="option.kind === 'select'"
+              v-bind="optionAttributes(option.name)"
               :aria-label="optionCaption(option as WritingOption)"
               :value="option.value"
               :disabled="option.disabled"
@@ -1073,6 +1154,8 @@ function updateOption(option: WritingOption, event: Event) {
               </option></select
             ><input
               v-else
+              v-bind="optionAttributes(option.name)"
+              :aria-label="optionCaption(option as WritingOption)"
               :value="option.value"
               :disabled="option.disabled"
               :maxlength="option.maxLength ?? undefined"
@@ -1082,6 +1165,17 @@ function updateOption(option: WritingOption, event: Event) {
               :step="option.step"
               @input="updateOption(option as WritingOption, $event)"
           /></template>
+          <span
+            v-if="optionIssue(option.name)"
+            :id="optionErrorId(option.name)"
+            role="alert"
+            >{{
+              validationText(
+                optionIssue(option.name)!,
+                workspace.preferences.state.value.language,
+              )
+            }}</span
+          >
         </label>
       </fieldset>
     </div>

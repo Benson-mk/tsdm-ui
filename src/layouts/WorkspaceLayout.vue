@@ -895,7 +895,17 @@ function boardIdFrom(url: string) {
         />
       </details>
       <p v-if="!writing.accountVerified" role="alert">
-        {{ insert(text.writingPaused, writing.context.account.name) }}
+        {{
+          insert(
+            writing.accountObservation.kind === "guest"
+              ? text.writingSignedOut
+              : writing.accountObservation.kind === "member" &&
+                  writing.accountObservation.id !== writing.context.account.id
+                ? text.writingAccountChanged
+                : text.writingPaused,
+            writing.context.account.name,
+          )
+        }}
       </p>
       <p v-if="writing.recoveryAvailable === false" role="alert">
         {{ text.writingRecoveryUnavailable }}

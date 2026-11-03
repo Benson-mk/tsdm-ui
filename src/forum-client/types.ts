@@ -528,6 +528,18 @@ export interface ThreadPublication {
   submission: ThreadSubmission;
   replyBefore?: ReplyBefore;
 }
+export interface WritingValidationIssue {
+  field: "title" | "source" | "category" | "option";
+  name?: string;
+  code:
+    | "required"
+    | "unavailable"
+    | "too-long"
+    | "single-line"
+    | "native-limit"
+    | "packet-minimum";
+  limit?: number;
+}
 export type PublicationPreparationResult =
   | {
       kind: "ready";
@@ -544,6 +556,12 @@ export type PublicationPreparationResult =
     }
   | {
       kind: FailureKind | "validation";
+      validation?: {
+        source: "local" | "form";
+        issues: WritingValidationIssue[];
+      };
+      /** A fresh response identified the original actor; this is not send approval. */
+      accountVerified?: boolean;
       message: string;
       account: Account;
       generation: number;

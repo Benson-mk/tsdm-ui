@@ -22,6 +22,7 @@ import { editorNode, editorMark } from "./editor-dom";
 import { editorTableProps, type EditorSnapshot } from "../editor/session.js";
 import { Plugin } from "prosemirror-state";
 import { CellSelection } from "prosemirror-tables";
+import { validationText } from "./validation-text";
 import { editorText } from "./editor-strings";
 import { strings } from "../layouts/strings";
 const props = defineProps<{ workspace: Workspace; expanded: boolean }>();
@@ -32,6 +33,26 @@ const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
 const source = ref<HTMLTextAreaElement | null>(null);
+const sourceError = ref<HTMLParagraphElement | null>(null);
+const sourceIssue = computed(() =>
+  writing.state.value.validationIssues.find(
+    (issue) => issue.field === "source",
+  ),
+);
+function editorAttributes() {
+  return {
+    role: "textbox",
+    "aria-label": t("Visual post content"),
+    "aria-multiline": "true",
+    ...(sourceIssue.value
+      ? { "aria-invalid": "true", "aria-describedby": "writing-source-error" }
+      : {}),
+  };
+}
+watch(
+  () => writing.state.value.validationIssues,
+  () => view?.setProps({ attributes: editorAttributes() }),
+);
 const mount = ref<HTMLDivElement | null>(null);
 let view: EditorView | null = null;
 let unsubscribe = () => {};
@@ -140,7 +161,7 @@ function chooseTool(name: string) {
     apply(name);
   }
 }
-function focus(automaticEntry = false) {
+function focus(automaticEntry = false, showValidation = false) {
   const contextId = writing.state.value.context?.id;
   void nextTick(() => {
     if (
@@ -158,6 +179,7 @@ function focus(automaticEntry = false) {
       const range = session.sourceSelection;
       source.value?.setSelectionRange(range.from, range.to, range.direction);
     }
+    if (showValidation) sourceError.value?.scrollIntoView({ block: "nearest" });
   });
 }
 defineExpose({ focus });
@@ -282,11 +304,7 @@ onMounted(() => {
         },
       }),
     ],
-    attributes: {
-      role: "textbox",
-      "aria-label": t("Visual post content"),
-      "aria-multiline": "true",
-    },
+    attributes: editorAttributes(),
     nodeViews: nodes,
     markViews: { format: editorMark, literal: editorMark },
     dispatchTransaction: (transaction) => {
@@ -357,11 +375,7 @@ watch(
   () => props.workspace.preferences.state.value.language,
   () => {
     view?.setProps({
-      attributes: {
-        role: "textbox",
-        "aria-label": t("Visual post content"),
-        "aria-multiline": "true",
-      },
+      attributes: editorAttributes(),
     });
     // Refresh only presentation attributes: keep editable DOM and native selection.
     for (const section of view?.dom.querySelectorAll<HTMLElement>(
@@ -560,11 +574,23 @@ onBeforeUnmount(() => {
         {{ t("Interpret complete source as BBCode") }}
       </button>
     </p>
+    <p
+      v-if="sourceIssue"
+      id="writing-source-error"
+      ref="sourceError"
+      role="alert"
+    >
+      {{
+        validationText(sourceIssue, workspace.preferences.state.value.language)
+      }}
+    </p>
     <div v-show="state.mode === 'visual'" ref="mount" class="visual-editor" />
     <label v-show="state.mode === 'source'"
       >{{ text.completeSource
       }}<textarea
         ref="source"
+        :aria-invalid="sourceIssue ? 'true' : undefined"
+        :aria-describedby="sourceIssue ? 'writing-source-error' : undefined"
         :value="state.display"
         :rows="expanded ? 14 : 6"
         spellcheck="false"

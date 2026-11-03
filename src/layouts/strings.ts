@@ -257,7 +257,11 @@ const english = {
   writingAs: "Writing as {value}",
   writingBoard: "Board {value}",
   writingPaused:
-    "Sending paused — the current account is expired, changed or not yet rechecked. Original writing remains bound to {value}.",
+    "Sending paused — the current account has not been rechecked. Original writing remains bound to {value}.",
+  writingAccountChanged:
+    "Sending paused — the current account differs from {value}. Original writing remains bound to that author.",
+  writingSignedOut:
+    "Sending paused — the forum reports a signed-out session. Original writing remains bound to {value}.",
   unresolvedAttachments:
     "Attachment references need reattachment or explicit removal: {value}. Source is preserved; uploads are not transferred.",
   checkWriting: "Check current account and form",
@@ -566,7 +570,11 @@ const simplified: Strings = {
   writingAs: "写作账号：{value}",
   writingBoard: "版块 {value}",
   writingPaused:
-    "发送已暂停 — 当前账号已过期、已变更或尚未重新检查。原写作内容仍属于 {value}。",
+    "发送已暂停 — 当前账号尚未重新检查。原写作内容仍属于 {value}。",
+  writingAccountChanged:
+    "发送已暂停 — 当前账号与 {value} 不同。原写作内容仍属于原作者。",
+  writingSignedOut:
+    "发送已暂停 — 论坛显示当前会话已退出登录。原写作内容仍属于 {value}。",
   unresolvedAttachments:
     "附件引用需要重新附加或明确移除：{value}。源码已保留；上传文件不会转移。",
   checkWriting: "检查当前账号和表单",
@@ -871,7 +879,11 @@ const traditional: Strings = {
   writingAs: "寫作帳號：{value}",
   writingBoard: "版塊 {value}",
   writingPaused:
-    "傳送已暫停 — 目前帳號已過期、已變更或尚未重新檢查。原寫作內容仍屬於 {value}。",
+    "傳送已暫停 — 目前帳號尚未重新檢查。原寫作內容仍屬於 {value}。",
+  writingAccountChanged:
+    "傳送已暫停 — 目前帳號與 {value} 不同。原寫作內容仍屬於原作者。",
+  writingSignedOut:
+    "傳送已暫停 — 論壇顯示目前工作階段已登出。原寫作內容仍屬於 {value}。",
   unresolvedAttachments:
     "附件引用需要重新附加或明確移除：{value}。原始碼已保留；上傳檔案不會轉移。",
   checkWriting: "檢查目前帳號和表單",
@@ -1676,11 +1688,20 @@ const descriptions: Record<string, readonly [string, string]> = {
       "当前原生选项已变化或无法取得。发布前请检查当前表单；没有重设任何值。",
       "目前原生選項已變更或無法取得。發佈前請檢查目前表單；沒有重設任何值。",
     ],
-  "The current native successful controls or required values are unsupported. Nothing was sent.":
+  "The current native form has unsupported successful controls or required values. Nothing was sent.":
     [
       "不支持当前原生表单的提交控件或必要值。没有发送任何内容。",
       "不支援目前原生表單的提交控制項或必要值。沒有傳送任何內容。",
     ],
+  "The current account could not be verified from the preparation response. Check the current account and form again.":
+    [
+      "无法从准备响应中验证当前账号。请重新检查当前账号和表单。",
+      "無法從準備回應驗證目前帳號。請重新檢查目前帳號和表單。",
+    ],
+  "Correct the highlighted fields required by the current native form.": [
+    "请更正当前原生表单要求的突出显示字段。",
+    "請更正目前原生表單要求的醒目欄位。",
+  ],
   "Fresh publication preparation failed. Your writing remains here.": [
     "重新准备发布失败。写作内容仍保留在这里。",
     "重新準備發佈失敗。寫作內容仍保留在這裡。",

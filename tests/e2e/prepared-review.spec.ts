@@ -33,6 +33,7 @@ function state() {
     }[],
     postGate: null as Promise<void> | null,
     outcome: "accepted",
+    formChange: (html: string) => html,
   };
 }
 async function fixture(
@@ -98,7 +99,7 @@ async function fixture(
         '<div id="e_attachlist"><input type="hidden" name="attachupdate[77]" value=""><input name="attachnew[77][description]" value="Fixture attachment"><select name="attachnew[77][readperm]" disabled><option value="10" selected>Members</option></select><input name="attachnew[77][price]" value="2" disabled></div><div id="e_imgattachlist"></div>';
     return route.fulfill({
       contentType: "application/json; charset=utf-8",
-      body: JSON.stringify({ document: html }),
+      body: JSON.stringify({ document: f.formChange(html) }),
     });
   });
   await page.goto(entry === "new-thread" ? boardURL : threadURL);
@@ -723,3 +724,411 @@ test("UX59.attachment-labels: review describes frozen attachment identity metada
   ]);
   expect(f.posts).toHaveLength(0);
 });
+
+for (const entry of [
+  "new-thread",
+  "reply",
+  "addressed",
+  "edit-opening",
+  "edit-reply",
+] as const)
+  for (const mode of ["source", "visual"] as const)
+    test(`UX60.body-${entry}-${mode}: empty body identifies its active editor without inventing a title or changing the writing target`, async ({
+      page,
+    }) => {
+      const f = await fixture(page, entry);
+      if (await page.getByLabel("Title", { exact: true }).count())
+        await page.getByLabel("Title", { exact: true }).fill("Retained title");
+      await page.getByLabel("Complete source", { exact: true }).fill("  \n ");
+      if (mode === "visual")
+        await page
+          .getByRole("button", { name: "Visual editor", exact: true })
+          .click();
+      const before = await retained(page),
+        requests = f.requests.length;
+      await page
+        .getByRole("button", {
+          name: entry.startsWith("edit") ? "Review edit" : "Review publication",
+          exact: true,
+        })
+        .click();
+      const editor = page.getByRole("textbox", {
+        name: mode === "source" ? "Complete source" : "Visual post content",
+        exact: true,
+      });
+      await expect(editor).toHaveAttribute("aria-invalid", "true");
+      await expect(editor).toHaveAccessibleDescription("Enter the post body.");
+      await expect(editor).toBeFocused();
+      await expect(
+        page.getByText("Enter a title.", { exact: true }),
+      ).toHaveCount(0);
+      await expect(page.getByText(/Sending paused/)).toHaveCount(0);
+      const after = await retained(page);
+      expect(after.source).toBe("  \n ");
+      for (const key of [
+        "id",
+        "title",
+        "category",
+        "options",
+        "account",
+        "board",
+        "replyTarget",
+        "editTarget",
+        "uploads",
+        "uploadedReferences",
+        "attachmentFields",
+      ])
+        expect(after[key]).toEqual(before[key]);
+      expect(f.requests).toHaveLength(requests);
+      expect(f.posts).toHaveLength(0);
+    });
+
+test("UX60.edit-form: same-actor unsupported native edit form is a form refusal rather than asserted account expiry", async ({
+  page,
+}) => {
+  const f = await fixture(page, "edit-opening");
+  await page.getByLabel("Complete source", { exact: true }).fill(body);
+  f.formChange = (html) =>
+    html.replace('name="formhash"', 'name="missing-token"');
+  await page.getByRole("button", { name: "Review edit", exact: true }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: /current form|current source/ })
+      .first(),
+  ).toBeVisible();
+  await expect(page.getByText(/Sending paused/)).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Save edit", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    body,
+  );
+  expect(f.posts).toHaveLength(0);
+});
+
+for (const profile of [
+  {
+    width: 390,
+    height: 844,
+    textSize: 100,
+    theme: "light",
+    language: "en",
+    mode: "source",
+    title: "Title",
+    prepare: "Review publication",
+    source: "Complete source",
+    titleError: "Enter a title.",
+    bodyError: "Enter the post body.",
+  },
+  {
+    width: 390,
+    height: 844,
+    textSize: 150,
+    theme: "dark",
+    language: "zh-CN",
+    mode: "visual",
+    title: "标题",
+    prepare: "检查发布",
+    source: "完整源码",
+    titleError: "请输入标题。",
+    bodyError: "请输入正文。",
+  },
+  {
+    width: 768,
+    height: 900,
+    textSize: 70,
+    theme: "mono",
+    language: "zh-TW",
+    mode: "source",
+    title: "標題",
+    prepare: "檢查發佈",
+    source: "完整原始碼",
+    titleError: "請輸入標題。",
+    bodyError: "請輸入正文。",
+  },
+  {
+    width: 1440,
+    height: 900,
+    textSize: 150,
+    theme: "alias",
+    language: "en",
+    mode: "visual",
+    title: "Title",
+    prepare: "Review publication",
+    source: "Complete source",
+    titleError: "Enter a title.",
+    bodyError: "Enter the post body.",
+  },
+])
+  test(`UX60.layout-${profile.width}-${profile.textSize}-${profile.theme}-${profile.language}-${profile.mode}: localized errors remain associated bounded keyboard reachable and source preserving across resize`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({
+      width: profile.width,
+      height: profile.height,
+    });
+    await page.addInitScript(
+      (p) =>
+        localStorage.setItem(
+          "tsdm.workspace.preferences",
+          JSON.stringify({
+            schema: 1,
+            theme: p.theme,
+            textSize: p.textSize,
+            language: p.language,
+          }),
+        ),
+      profile,
+    );
+    const f = await fixture(page);
+    const titleInput = page.getByLabel(profile.title, { exact: true });
+    await titleInput.fill("  ");
+    await page.getByLabel(profile.source, { exact: true }).fill("  \n ");
+    if (profile.mode === "visual")
+      await page
+        .getByRole("button", {
+          name: /^(Visual editor|可视编辑|視覺編輯)$/,
+          exact: true,
+        })
+        .click();
+    const before = await retained(page),
+      requests = f.requests.length;
+    const review = page.getByRole("button", {
+      name: profile.prepare,
+      exact: true,
+    });
+    await review.focus();
+    await review.press("Enter");
+    await expect(titleInput).toHaveAccessibleDescription(profile.titleError);
+    await expect(titleInput).toBeFocused();
+    const activeEditor = page.getByRole("textbox", {
+      name:
+        profile.mode === "source"
+          ? profile.source
+          : /^(Visual post content|可视帖子内容|視覺文章內容)$/,
+      exact: true,
+    });
+    await expect(activeEditor).toHaveAccessibleDescription(profile.bodyError);
+    for (const width of [profile.width, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+      const metrics = await page
+        .locator("#writing-title-error")
+        .evaluate((node) => ({
+          client: node.clientWidth,
+          scroll: node.scrollWidth,
+          left: node.getBoundingClientRect().left,
+          right: node.getBoundingClientRect().right,
+          width: innerWidth,
+        }));
+      expect(metrics.scroll).toBeLessThanOrEqual(metrics.client + 1);
+      expect(metrics.left).toBeGreaterThanOrEqual(0);
+      expect(metrics.right).toBeLessThanOrEqual(metrics.width + 1);
+      await expect(titleInput).toBeFocused();
+    }
+    const after = await retained(page);
+    expect(after).toEqual(before);
+    expect(f.requests).toHaveLength(requests);
+    expect(f.posts).toHaveLength(0);
+    await page.setViewportSize({
+      width: profile.width,
+      height: profile.height,
+    });
+    await titleInput.scrollIntoViewIfNeeded();
+    await capture(page, info);
+  });
+
+test("UX60.language-composition: language updates field errors without source/history changes and composition blocks deliberate review focus", async ({
+  page,
+}) => {
+  const f = await fixture(page);
+  const titleInput = page.getByLabel("Title", { exact: true }),
+    editor = page.getByLabel("Complete source", { exact: true });
+  await titleInput.fill("");
+  await editor.fill(body);
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(titleInput).toBeFocused();
+  const before = await retained(page),
+    requests = f.requests.length;
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.locator("#interface-language").focus();
+  await page.locator("#interface-language").selectOption("zh-CN");
+  await expect(
+    page.getByLabel("标题", { exact: true }),
+  ).toHaveAccessibleDescription("请输入标题。");
+  await expect(page.locator("#interface-language")).toBeFocused();
+  await page.locator("#interface-language").selectOption("zh-TW");
+  await expect(
+    page.getByLabel("標題", { exact: true }),
+  ).toHaveAccessibleDescription("請輸入標題。");
+  await page.getByRole("button", { name: "關閉", exact: true }).click();
+  expect(await retained(page)).toEqual(before);
+  const sourceInput = page.getByLabel("完整原始碼", { exact: true });
+  await sourceInput.focus();
+  await sourceInput.dispatchEvent("compositionstart", { data: "jat" });
+  await page
+    .getByRole("button", { name: "檢查發佈", exact: true })
+    .dispatchEvent("click");
+  await expect(sourceInput).toBeFocused();
+  expect(f.requests).toHaveLength(requests);
+  expect(await retained(page)).toEqual(before);
+  await sourceInput.dispatchEvent("compositionend", { data: "一" });
+  expect(f.posts).toHaveLength(0);
+});
+
+test("UX60.new-context: deliberate owned-edit replacement does not inherit previous new-thread field refusals", async ({
+  page,
+}) => {
+  const f = await fixture(page);
+  await page.getByLabel("Title", { exact: true }).fill("");
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(page.getByLabel("Title", { exact: true })).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Existing thread", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Edit post 101", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Discard local writing and edit post",
+      exact: true,
+    })
+    .click();
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue(
+    "Original title",
+  );
+  await expect(page.getByLabel("Title", { exact: true })).not.toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  await expect(
+    page.getByLabel("Complete source", { exact: true }),
+  ).not.toHaveAttribute("aria-invalid", "true");
+  expect(f.posts).toHaveLength(0);
+});
+
+for (const scenario of ["body-limit", "unsupported-form"] as const)
+  test(`UX60.edit-native-${scenario}: current native edit refusal preserves actor distinction and associates supported limits`, async ({
+    page,
+  }) => {
+    const f = await fixture(page, "edit-opening");
+    await page
+      .getByLabel("Complete source", { exact: true })
+      .fill("Retained complete source");
+    f.formChange = (html) =>
+      html.replace(
+        scenario === "body-limit" ? 'name="message"' : 'id="postform"',
+        scenario === "body-limit"
+          ? 'name="message" maxlength="3"'
+          : 'id="unsupported-form"',
+      );
+    await page
+      .getByRole("button", { name: "Review edit", exact: true })
+      .click();
+    if (scenario === "unsupported-form")
+      await expect(
+        page
+          .getByRole("alert")
+          .filter({ hasText: /current source|current form/ })
+          .first(),
+      ).toBeVisible();
+    await expect(page.getByText(/Sending paused/)).toHaveCount(0);
+    await expect(
+      page.getByRole("region", {
+        name: "Prepared publication review",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    const editor = page.getByLabel("Complete source", { exact: true });
+    await expect(editor).toHaveValue("Retained complete source");
+    if (scenario === "body-limit") {
+      await expect(editor).toHaveAccessibleDescription(
+        "Use at most 3 characters.",
+      );
+      await expect(editor).toBeFocused();
+    } else
+      await expect(
+        page
+          .getByRole("alert")
+          .filter({ hasText: /current source|current form/ })
+          .first(),
+      ).toBeVisible();
+    expect(f.posts).toHaveLength(0);
+  });
+
+for (const mode of ["source", "visual"] as const)
+  test(`UX60.error-viewport-${mode}: enlarged desktop body error is fully visible with the invalid active editor focused and original history retained`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.addInitScript(() =>
+      localStorage.setItem(
+        "tsdm.workspace.preferences",
+        JSON.stringify({
+          schema: 1,
+          theme: "dark",
+          textSize: 150,
+          language: "en",
+        }),
+      ),
+    );
+    const f = await fixture(page);
+    await page.getByLabel("Title", { exact: true }).fill("Retained title 完整");
+    await page.getByLabel("Complete source", { exact: true }).fill(" \n ");
+    if (mode === "visual")
+      await page
+        .getByRole("button", { name: "Visual editor", exact: true })
+        .click();
+    const before = await retained(page),
+      requests = f.requests.length;
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    const active = page.getByRole("textbox", {
+      name: mode === "source" ? "Complete source" : "Visual post content",
+      exact: true,
+    });
+    await expect(active).toBeFocused();
+    await expect(active).toHaveAccessibleDescription("Enter the post body.");
+    const error = page.locator("#writing-source-error");
+    await info.attach("focused-body-error.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    const metrics = await page.locator(".writing-content").evaluate((node) => {
+      const host = node.getRootNode() as ShadowRoot,
+        error = host.querySelector("#writing-source-error")!,
+        active = host.activeElement!;
+      const bounds = (element: Element) => {
+        const b = element.getBoundingClientRect();
+        return { top: b.top, bottom: b.bottom, left: b.left, right: b.right };
+      };
+      return {
+        scroller: bounds(node),
+        error: bounds(error),
+        active: bounds(active),
+        viewport: { width: innerWidth, height: innerHeight },
+      };
+    });
+    await info.attach("focused-body-error-metrics.json", {
+      body: JSON.stringify(metrics),
+      contentType: "application/json",
+    });
+    await expect(error).toBeInViewport({ ratio: 1 });
+    expect(metrics.error.top).toBeGreaterThanOrEqual(metrics.scroller.top);
+    expect(metrics.error.bottom).toBeLessThanOrEqual(metrics.scroller.bottom);
+    expect(await retained(page)).toEqual(before);
+    expect(f.requests).toHaveLength(requests);
+    expect(f.posts).toHaveLength(0);
+  });

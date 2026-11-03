@@ -4,7 +4,38 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
+const validationReceipts = new WeakMap<Page, () => unknown>();
 test.afterEach(async ({ page }, info) => {
+  if (info.title.startsWith("UX60.")) {
+    await info.attach("validation-state-requests.json", {
+      body: JSON.stringify(
+        {
+          fixture: validationReceipts.get(page)?.(),
+          recovery: await page.evaluate(() =>
+            JSON.parse(
+              sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
+            ),
+          ),
+          invalidFields: await page
+            .locator('[aria-invalid="true"]')
+            .evaluateAll((nodes) =>
+              nodes.map((node) => ({
+                name: node.getAttribute("aria-label"),
+                describedBy: node.getAttribute("aria-describedby"),
+                focused: node.matches(":focus"),
+              })),
+            ),
+        },
+        null,
+        2,
+      ),
+      contentType: "application/json",
+    });
+    await info.attach("validation-final.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  }
   if (info.status !== info.expectedStatus)
     await info.attach("failed-application.png", {
       body: await page.screenshot(),
@@ -41,6 +72,7 @@ async function fixture(
     formGate: null as Promise<void> | null,
     formChange: initialForm,
     renderFailure: false,
+    preparationFailure: false,
     sourceChange: initialForm,
     threadChange: (body: string) => body,
     posts: [] as URLSearchParams[],
@@ -50,6 +82,10 @@ async function fixture(
       fresh: string | undefined;
     }[],
   };
+  validationReceipts.set(page, () => ({
+    requests: state.requests,
+    posts: state.posts.map((fields) => [...fields]),
+  }));
   await page.context().route("**/*", async (route) => {
     const request = route.request(),
       url = new URL(request.url());
@@ -112,6 +148,7 @@ async function fixture(
       if (state.sourceGate) await state.sourceGate;
       body = state.sourceChange(form(state.member, state.posts.at(-1)));
     } else if (url.searchParams.get("mod") === "post") {
+      if (state.preparationFailure) return route.abort("failed");
       if (state.formGate) await state.formGate;
       body = state.formChange(form(state.member));
     } else if (url.searchParams.get("mod") === "viewthread")
@@ -1273,12 +1310,21 @@ for (const [name, change] of [
     await page
       .getByRole("button", { name: "Review publication", exact: true })
       .click();
-    await expect(
-      page
-        .getByRole("alert")
-        .filter({ hasText: /unsupported|form targets|unambiguous/ })
-        .first(),
-    ).toBeVisible();
+    if (name === "required empty control")
+      await expect(
+        page.getByLabel("Thread price", { exact: true }),
+      ).toHaveAccessibleDescription("Complete this field.");
+    else if (name === "source maximum")
+      await expect(
+        page.getByLabel("Complete source", { exact: true }),
+      ).toHaveAccessibleDescription("Use at most 3 characters.");
+    else
+      await expect(
+        page
+          .getByRole("alert")
+          .filter({ hasText: /unsupported|form targets|unambiguous/ })
+          .first(),
+      ).toBeVisible();
     expect(state.posts).toHaveLength(0);
     await expect(
       page.getByLabel("Complete source", { exact: true }),
@@ -1310,7 +1356,11 @@ for (const member of ["guest", ""] as const)
       .getByRole("button", { name: "Review publication", exact: true })
       .click();
     await expect(
-      page.getByText(/account changed or expired during preparation/),
+      page.getByText(
+        member === ""
+          ? /current account could not be verified/
+          : /account changed or expired during preparation/,
+      ),
     ).toBeVisible();
     expect(state.posts).toHaveLength(0);
     await expect(
@@ -1573,7 +1623,7 @@ for (const [name, submitter] of [
       .getByRole("button", { name: "Review publication", exact: true })
       .click();
     await expect(
-      page.getByText(/successful controls.*unsupported/),
+      page.getByText(/current native form.*unsupported successful controls/),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Publish thread", exact: true }),
@@ -1943,3 +1993,312 @@ for (const altered of [false, true]) {
     });
   });
 }
+
+test("UX60.local-title: deliberate review identifies and focuses an empty title without pausing the checked account or changing source", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  await page.getByLabel("Title", { exact: true }).fill("   ");
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Retained 正文 [unknown]literal[/unknown]");
+  const requests = state.requests.length;
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  const title = page.getByLabel("Title", { exact: true });
+  await expect(title).toHaveAttribute("aria-invalid", "true");
+  await expect(title).toHaveAccessibleDescription("Enter a title.");
+  await expect(title).toBeFocused();
+  await expect(page.getByText(/Sending paused/)).toHaveCount(0);
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    "Retained 正文 [unknown]literal[/unknown]",
+  );
+  await expect(
+    page.getByRole("button", { name: "Publish thread", exact: true }),
+  ).toHaveCount(0);
+  expect(state.posts).toHaveLength(0);
+  expect(state.requests).toHaveLength(requests);
+  await info.attach("local-title.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await info.attach("local-title-requests.json", {
+    body: Buffer.from(JSON.stringify(state.requests)),
+    contentType: "application/json",
+  });
+});
+
+for (const [name, change, field, error, correction] of [
+  [
+    "category",
+    (html: string) =>
+      html.replace('<option value="3"', '<option selected disabled value="3"'),
+    "Category",
+    "Choose an available category.",
+    "0",
+  ],
+  [
+    "option-length",
+    (html: string) =>
+      html.replace(
+        'name="price" value="0"',
+        'name="price" maxlength="2" value="123"',
+      ),
+    "Thread price",
+    "Use at most 2 characters.",
+    "12",
+  ],
+  [
+    "body-limit",
+    (html: string) =>
+      html.replace('name="message"', 'name="message" maxlength="3"'),
+    "Complete source",
+    "Use at most 3 characters.",
+    "ok",
+  ],
+] as const)
+  test(`UX60.field-${name}: native field refusal is associated and correction preserves source settings while fresh review remains deliberate`, async ({
+    page,
+  }, info) => {
+    const state = await fixture(page, change);
+    const original = name === "body-limit" ? "too long" : "Retained body 完整";
+    await page.getByLabel("Complete source", { exact: true }).fill(original);
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    const input = page.getByLabel(field, { exact: true });
+    await expect(input).toHaveAttribute("aria-invalid", "true");
+    await expect(input).toHaveAccessibleDescription(error);
+    await expect(input).toBeFocused();
+    await info.attach("invalid-native-field.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await expect(page.getByText(/Sending paused/)).toHaveCount(0);
+    expect(state.posts).toHaveLength(0);
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(original);
+    await expect(page.getByLabel("Title", { exact: true })).toHaveValue(
+      "Native title",
+    );
+    if (name === "category") await input.selectOption(correction);
+    else await input.fill(correction);
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await expect(
+      page.getByRole("region", {
+        name: "Prepared publication review",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Publish thread", exact: true }),
+    ).toBeVisible();
+    expect(state.posts).toHaveLength(0);
+    await info.attach("validation-field.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("validation-requests.json", {
+      body: Buffer.from(JSON.stringify(state.requests)),
+      contentType: "application/json",
+    });
+  });
+
+test("UX60.account-form: a current-account form rejection is distinct from local invalidity and expiry", async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Retained body");
+  state.formChange = (html) =>
+    html.replace('name="formhash"', 'name="missing-token"');
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: /current.*form|native.*form/ })
+      .first(),
+  ).toBeVisible();
+  await expect(page.getByText(/Sending paused/)).toHaveCount(0);
+  await expect(page.getByText(/Enter a title|Enter the post body/)).toHaveCount(
+    0,
+  );
+  expect(state.posts).toHaveLength(0);
+});
+
+for (const [name, warning] of [
+  ["changed", /Sending paused — the current account differs from Writer 7/],
+  ["guest", /Sending paused — the forum reports a signed-out session/],
+  ["unknown", /Sending paused — the current account has not been rechecked/],
+  ["network", /Sending paused — the current account has not been rechecked/],
+] as const)
+  test(`UX60.account-${name}: observation explains only what was actually established while preserving original writing`, async ({
+    page,
+  }, info) => {
+    const f = await fixture(page);
+    await page.getByLabel("Complete source", { exact: true }).fill(source);
+    if (name === "changed") f.member = "8";
+    if (name === "guest") f.member = "guest";
+    if (name === "unknown")
+      f.formChange = (html) => html.replace(/<div id="um">.*?<\/div>/, "");
+    if (name === "network") f.preparationFailure = true;
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await expect(page.getByText(warning)).toBeVisible();
+    if (name === "network")
+      await expect(
+        page.getByText(/Fresh publication preparation failed/),
+      ).toBeVisible();
+    if (name === "unknown" || name === "network")
+      await expect(
+        page.getByText(/changed or expired during preparation/),
+      ).toHaveCount(0);
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue(source);
+    await expect(
+      page.getByRole("button", { name: "Publish thread", exact: true }),
+    ).toHaveCount(0);
+    expect(f.posts).toHaveLength(0);
+    await info.attach("account-observation.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("account-requests.json", {
+      body: Buffer.from(JSON.stringify(f.requests)),
+      contentType: "application/json",
+    });
+  });
+
+for (const field of ["category", "option"] as const)
+  test(`UX60.returned-${field}: changed native choice is associated without silently replacing retained choices or values`, async ({
+    page,
+  }) => {
+    const f = await fixture(page);
+    await page.getByLabel("Complete source", { exact: true }).fill(source);
+    const input = page.getByLabel(
+      field === "category" ? "Category" : "Read permission",
+      { exact: true },
+    );
+    await input.selectOption(field === "category" ? "3" : "10");
+    f.formChange = (html) =>
+      html.replace(
+        field === "category" ? '<option value="3"' : '<option value="10"',
+        field === "category"
+          ? '<option disabled value="3"'
+          : '<option disabled value="10"',
+      );
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await expect(input).toHaveAccessibleDescription(
+      field === "category"
+        ? "Choose an available category."
+        : "Choose an available option.",
+    );
+    await expect(input).toBeFocused();
+    await expect(input).toHaveValue(field === "category" ? "3" : "10");
+    await expect(page.getByText(/Sending paused/)).toHaveCount(0);
+    expect(f.posts).toHaveLength(0);
+  });
+
+test("UX60.order-history: empty fields focus title then body and deliberate corrected review retains source Undo and Redo without old approval", async ({
+  page,
+}, info) => {
+  const f = await fixture(page);
+  const titleInput = page.getByLabel("Title", { exact: true }),
+    editor = page.getByLabel("Complete source", { exact: true });
+  await titleInput.fill("");
+  await editor.fill("");
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(titleInput).toBeFocused();
+  await expect(editor).toHaveAccessibleDescription("Enter the post body.");
+  await titleInput.fill("Retained correction");
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(editor).toBeFocused();
+  await editor.fill(source);
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Publish thread", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "Cancel review and return to writing",
+      exact: true,
+    })
+    .click();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(editor).toHaveValue("");
+  const requests = f.requests.length;
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(editor).toBeFocused();
+  expect(f.requests).toHaveLength(requests);
+  await expect(
+    page.getByRole("button", { name: "Publish thread", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(editor).toHaveValue(source);
+  await expect(titleInput).toHaveValue("Retained correction");
+  await expect(
+    page.getByRole("button", { name: "Publish thread", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Publish thread", exact: true }),
+  ).toBeVisible();
+  expect(f.requests.length).toBeGreaterThan(requests);
+  expect(f.posts).toHaveLength(0);
+  await info.attach("corrected-source-history.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UX60.required-option: native required supported option is localized associated and corrected only through fresh review", async ({
+  page,
+}) => {
+  const f = await fixture(page, (html) =>
+    html.replace('name="price"', 'name="price" required'),
+  );
+  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  const price = page.getByLabel("Thread price", { exact: true });
+  await price.fill("");
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(price).toHaveAccessibleDescription("Complete this field.");
+  await expect(price).toBeFocused();
+  await expect(page.getByText(/Sending paused/)).toHaveCount(0);
+  await price.fill("2");
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(
+    page.getByRole("region", {
+      name: "Prepared publication review",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    source,
+  );
+  expect(f.posts).toHaveLength(0);
+});
