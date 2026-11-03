@@ -290,6 +290,34 @@ test("J5.editor-fallback: unfamiliar and malformed syntax stay inert; pasted BBC
   await expect(
     page.getByText(/Some visual input has no unambiguous/),
   ).toBeVisible();
+  const unresolvedBefore = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+  const requestsBeforeReading = server.requests.length;
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: /Some visual input has no unambiguous/ })
+      .filter({ visible: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(unresolvedBefore);
+  expect(server.requests).toHaveLength(requestsBeforeReading);
+  await info.attach("retained-ambiguous-reading.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Review publication", exact: true })
     .click();

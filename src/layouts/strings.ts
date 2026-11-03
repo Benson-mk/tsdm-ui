@@ -239,6 +239,13 @@ const english = {
   openConfirmedPost: "Open confirmed post",
   newThread: "New thread",
   returnWriting: "Return to writing",
+  retainedWriting: "Retained writing",
+  expandWriting: "Expand writing",
+  compactWriting: "Compact writing",
+  retainedAttemptWarning:
+    "A retained operation is pending or its outcome needs checking. Return to writing to inspect it; no attempt is repeated by resuming.",
+  retainedFinancialWarning:
+    "Red-packet writing is retained. Return to writing to inspect credit and packet consequences before any operation.",
   preparingForm: "Preparing current form…",
   replaceWritingWarning:
     "Another writing context is already retained. Replacing it discards local changes; existing forum content and uploads are unchanged.",
@@ -541,6 +548,13 @@ const simplified: Strings = {
   openConfirmedPost: "打开已确认的帖子",
   newThread: "新主题",
   returnWriting: "返回写作",
+  retainedWriting: "保留的写作",
+  expandWriting: "展开写作",
+  compactWriting: "紧凑写作",
+  retainedAttemptWarning:
+    "保留的操作仍在进行或结果需要核查。返回写作查看；恢复写作不会重复尝试。",
+  retainedFinancialWarning:
+    "已保留红包写作。执行操作前请返回写作查看积分与红包的影响。",
   preparingForm: "正在准备当前表单…",
   replaceWritingWarning:
     "已保留另一份写作内容。替换将丢弃本地更改；现有论坛内容和上传文件保持不变。",
@@ -839,6 +853,13 @@ const traditional: Strings = {
   openConfirmedPost: "開啟已確認的帖子",
   newThread: "新主題",
   returnWriting: "返回寫作",
+  retainedWriting: "保留的寫作",
+  expandWriting: "展開寫作",
+  compactWriting: "精簡寫作",
+  retainedAttemptWarning:
+    "保留的操作仍在進行或結果需要核查。返回寫作查看；恢復寫作不會重複嘗試。",
+  retainedFinancialWarning:
+    "已保留紅包寫作。執行操作前請返回寫作查看積分與紅包的影響。",
   preparingForm: "正在準備目前表單…",
   replaceWritingWarning:
     "已保留另一份寫作內容。替換將捨棄本機變更；現有論壇內容和上傳檔案保持不變。",

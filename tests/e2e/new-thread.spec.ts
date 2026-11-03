@@ -1,3 +1,4 @@
+import { writingPresentationRoundTrip } from "./combined-authoring";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -600,9 +601,12 @@ test("J5.attempt-recovery: pending refresh never replays and explicit candidate 
       JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
         .attempts[0],
   );
+  await writingPresentationRoundTrip(page, info);
+  expect(state.posts).toHaveLength(1);
   await page.reload();
   release();
   await expect(page.getByText(/restored as uncertain/i)).toBeVisible();
+  await writingPresentationRoundTrip(page, info);
   expect(state.posts).toHaveLength(1);
   await page
     .getByLabel("Candidate thread URL", { exact: true })

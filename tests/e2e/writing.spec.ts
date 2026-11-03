@@ -119,7 +119,7 @@ test("J5.revision-recovery: fast edits and options survive unmount and refresh i
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
-  await expect(editor).toHaveCount(0);
+  await expect(editor).toBeHidden();
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   await expect(editor).toHaveValue(source);
   expect(
@@ -356,7 +356,7 @@ test("J5.ime-selection: composition defers navigation and preserves source selec
     page.getByText(/Finish the current input composition/),
   ).toBeVisible();
   await editor.dispatchEvent("compositionend", { data: "中" });
-  await expect(editor).toHaveCount(0);
+  await expect(editor).toBeHidden();
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();
@@ -1145,7 +1145,7 @@ test("J5.composing-section: section navigation waits for final composition input
       }),
     );
   }, source + "中文");
-  await expect(editor).toHaveCount(0);
+  await expect(editor).toBeHidden();
   await expect(
     page.getByRole("heading", { name: "Notices", exact: true, level: 1 }),
   ).toBeVisible();
@@ -1789,7 +1789,7 @@ test("J5.composing-search: Search preparation waits for final composition input 
       }),
     );
   }, source + "中文");
-  await expect(editor).toHaveCount(0);
+  await expect(editor).toBeHidden();
   await expect(
     page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
   ).toBeVisible();

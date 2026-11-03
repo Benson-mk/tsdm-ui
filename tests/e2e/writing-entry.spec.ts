@@ -328,7 +328,7 @@ for (const entry of [
     await page
       .getByRole("button", { name: "Return to reading", exact: true })
       .click();
-    await expect(editor).toHaveCount(0);
+    await expect(editor).toBeHidden();
     await enter(page, entry);
     const visible =
       entry === "reply" || entry === "edit-reply"

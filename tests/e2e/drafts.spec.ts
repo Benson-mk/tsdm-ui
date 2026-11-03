@@ -1,3 +1,4 @@
+import { writingPresentationRoundTrip } from "./combined-authoring";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -300,6 +301,8 @@ test("J6.uncertain-draft: lost response retains original attempt across reload a
     .getByRole("button", { name: "Save forum draft", exact: true })
     .click();
   await expect(page.getByText(/Draft saving may have succeeded/)).toBeVisible();
+  await writingPresentationRoundTrip(page, info);
+  expect(state.posts).toHaveLength(1);
   await page.reload();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "[unknown]full source[/unknown] [attach]88[/attach]",

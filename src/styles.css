@@ -858,13 +858,60 @@ select {
   align-items: center;
 }
 .source-writing {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   width: 100%;
   max-width: 1000px;
   margin: 0 auto;
   padding: 24px;
+}
+.source-writing:not(.writing-expanded) {
+  flex: 1 1 0;
+  max-height: 48dvh;
+  border-bottom: 1px solid var(--separator);
+}
+.writing-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.writing-presentation-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block: 8px;
+  background: var(--surface);
+}
+.writing-presentation-actions button {
+  min-height: 44px;
+}
+.retained-writing {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-inline: 24px;
+  max-height: 30dvh;
+}
+.retained-writing summary {
+  min-height: 44px;
+  padding-block: 8px;
+  cursor: pointer;
+}
+.retained-writing .writing-destination {
+  margin-block: 0 8px;
+}
+.source-writing:not(.writing-expanded) .visual-editor .ProseMirror {
+  min-height: 6em;
+  max-height: 24dvh;
+  overflow: auto;
+}
+.source-writing.writing-expanded textarea,
+.source-writing.writing-expanded .visual-editor .ProseMirror {
+  min-height: 45dvh;
 }
 .writing-destination {
   border-inline-start: 3px solid var(--boundary);

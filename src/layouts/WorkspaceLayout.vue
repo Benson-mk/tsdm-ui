@@ -15,6 +15,8 @@ import { favoriteText } from "../components/favorite-labels";
 import FavoritesView from "../components/FavoritesView.vue";
 import NoticesView from "../components/NoticesView.vue";
 import SourceWriting from "../components/SourceWriting.vue";
+import WritingDestination from "../components/WritingDestination.vue";
+import { editorText } from "../components/editor-strings";
 import ContentView from "../components/ContentView";
 import SettingsDialog from "../components/SettingsDialog.vue";
 import type { Workspace } from "../workspace";
@@ -252,6 +254,38 @@ watch(download, async (value) => {
       ?.scrollIntoView({ block: "nearest" });
 });
 const writing = props.workspace.writing.state;
+const writingExpanded = ref(false);
+watch(
+  () => writing.value.context?.id,
+  () => {
+    const context = writing.value.context;
+    writingExpanded.value = Boolean(context && !context.replyTarget);
+  },
+  { immediate: true },
+);
+function resizeWriting(expanded: boolean) {
+  const change = () => {
+    writingExpanded.value = expanded;
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
+const retainedAttemptWarning = computed(() => {
+  const context = writing.value.context;
+  return (
+    writing.value.publishing ||
+    context?.attempts?.some((a) =>
+      ["pending", "uncertain", "moderation"].includes(a.status),
+    ) ||
+    context?.draftAttempts?.some((a) =>
+      ["pending", "uncertain", "moderation"].includes(a.status),
+    ) ||
+    context?.uploads?.some((u) =>
+      ["uploading", "removing", "uncertain", "removal-uncertain"].includes(
+        u.status,
+      ),
+    )
+  );
+});
 function prepareWriting(redPacket = false) {
   const url = pickerBoard.value?.url;
   const id = url && new URL(url).searchParams.get("fid");
@@ -847,7 +881,65 @@ function boardIdFrom(url: string) {
         </button>
       </section>
     </div>
-    <SourceWriting v-if="writing.visible" :workspace="workspace" />
+    <section
+      v-if="writing.context && !writing.visible"
+      class="retained-writing"
+      :aria-label="text.retainedWriting"
+    >
+      <details>
+        <summary>{{ text.retainedWriting }}</summary>
+        <WritingDestination
+          :writing="writing.context"
+          :language="workspace.preferences.state.value.language"
+          compact
+        />
+      </details>
+      <p v-if="!writing.accountVerified" role="alert">
+        {{ insert(text.writingPaused, writing.context.account.name) }}
+      </p>
+      <p v-if="writing.recoveryAvailable === false" role="alert">
+        {{ text.writingRecoveryUnavailable }}
+      </p>
+      <p
+        v-if="workspace.writing.unresolvedAttachments.value.length"
+        role="alert"
+      >
+        {{
+          insert(
+            text.unresolvedAttachments,
+            workspace.writing.unresolvedAttachments.value.join(", "),
+          )
+        }}
+      </p>
+      <p v-if="retainedAttemptWarning" role="alert">
+        {{ text.retainedAttemptWarning }}
+      </p>
+      <p v-if="writing.conflict" role="alert">
+        {{ text.latestServerVersion }}. {{ text.editCompare }}
+      </p>
+      <p v-if="writing.context.editorUnresolved" role="alert">
+        {{
+          editorText(
+            "Some visual input has no unambiguous BBCode representation. Complete source is retained. Review it before choosing how it should be interpreted.",
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </p>
+      <p
+        v-if="writing.context.redPacket || writing.context.existingRedPacket"
+        role="alert"
+      >
+        {{ text.retainedFinancialWarning }}
+      </p>
+    </section>
+    <SourceWriting
+      v-if="writing.context"
+      v-show="writing.visible"
+      :key="writing.context.id"
+      :workspace="workspace"
+      :expanded="writingExpanded"
+      @resize="resizeWriting"
+    />
     <div class="workspace-status">
       <section
         v-if="state.recoveryProblem?.kind === 'incompatible'"
@@ -1022,7 +1114,7 @@ function boardIdFrom(url: string) {
       </article>
     </section>
     <main
-      v-show="!writing.visible"
+      v-show="!writing.visible || !writingExpanded"
       class="workspace-body"
       :class="{ 'thread-without-results': threadWithoutResults }"
       :data-view="state.result?.kind ?? 'unavailable'"

@@ -324,7 +324,10 @@ test("J6.J8.draft-upload-lifecycle: upload save resume revise resave publish pre
     .getByRole("button", { name: "Publish saved draft", exact: true })
     .click();
   await expect(
-    page.getByText(/Confirmed publication of forum draft 42/).last(),
+    page
+      .getByText(/Confirmed publication of forum draft 42/)
+      .filter({ visible: true })
+      .last(),
   ).toBeVisible();
   expect(state.commands).toHaveLength(3);
   expect(
@@ -794,7 +797,10 @@ for (const outcome of [
         .getByRole("button", { name: /Check original draft attempt/ })
         .click();
       await expect(
-        page.getByText(/Confirmed publication of forum draft 42/).last(),
+        page
+          .getByText(/Confirmed publication of forum draft 42/)
+          .filter({ visible: true })
+          .last(),
       ).toBeVisible();
     }
     expect(state.commands).toHaveLength(2);
@@ -815,7 +821,10 @@ test("J6.J8.draft-delivered-bytes: independently delivered saved attachment matc
     .getByRole("button", { name: "Publish saved draft", exact: true })
     .click();
   await expect(
-    page.getByText(/Confirmed publication of forum draft 42/).last(),
+    page
+      .getByText(/Confirmed publication of forum draft 42/)
+      .filter({ visible: true })
+      .last(),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
@@ -1264,7 +1273,10 @@ for (const probe of [
       .getByRole("button", { name: "Publish saved draft", exact: true })
       .click();
     await expect(
-      page.getByText(/Confirmed publication of forum draft 42/).last(),
+      page
+        .getByText(/Confirmed publication of forum draft 42/)
+        .filter({ visible: true })
+        .last(),
     ).toBeVisible();
     expect(state.commands).toHaveLength(3);
     expect(state.uploads).toHaveLength(1);
@@ -1480,7 +1492,10 @@ for (const continuation of ["same-context", "fresh-resume"] as const)
         .getByRole("button", { name: "Publish saved draft", exact: true })
         .click();
       await expect(
-        page.getByText(/Confirmed publication of forum draft 42/).last(),
+        page
+          .getByText(/Confirmed publication of forum draft 42/)
+          .filter({ visible: true })
+          .last(),
       ).toBeVisible();
       expect(state.commands).toHaveLength(3);
       expect(state.uploads).toEqual(["first.png", "second.txt"]);

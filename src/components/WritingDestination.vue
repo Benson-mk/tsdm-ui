@@ -7,6 +7,7 @@ const props = defineProps<{
   writing: DeepReadonly<PreparedWriting>;
   language: Preferences["language"];
   review?: boolean;
+  compact?: boolean;
 }>();
 const text = computed(() => strings(props.language));
 const action = computed(() =>
@@ -56,9 +57,11 @@ const action = computed(() =>
             )
       }}
     </p>
-    <p v-if="writing.replyTarget?.postId && !review">
+    <p v-if="writing.replyTarget?.postId && !review && !compact">
       {{ text.addressedExplanation }}
     </p>
-    <p v-else-if="writing.replyTarget">{{ text.replyDeliveryUnknown }}</p>
+    <p v-else-if="writing.replyTarget && !compact">
+      {{ text.replyDeliveryUnknown }}
+    </p>
   </div>
 </template>

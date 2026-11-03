@@ -8,7 +8,7 @@ const account =
   '<div id="um"><strong><a href="home.php?mod=space&uid=7">Writer Seven</a></strong></div>';
 const board = `${account}<div id="ct"><h1><a href="${boardURL}">Music discussion 音樂</a></h1></div><div id="thread_types"><a class="a" href="${boardURL}">Listening notes</a></div><table id="threadlisttableid">${Array.from({ length: 30 }, (_, i) => `<tbody id="normalthread_${42 + i}"><tr><th><a class="xst" href="forum.php?mod=viewthread&tid=${42 + i}">Listening ${i} 音樂筆記</a></th><td class="by"><cite>Writer Seven</cite></td></tr></tbody>`).join("")}</table><div class="pg"><strong>2</strong><a href="forum.php?mod=forumdisplay&fid=5&filter=typeid&typeid=3&page=3">3</a></div>`;
 const thread = `${account}<div id="pt"><a href="${boardURL}">Music discussion 音樂</a></div><div id="postlist"><h1 id="thread_subject">Listening notes 音樂閱讀</h1>${Array.from({ length: 15 }, (_, i) => `<div id="post_${100 + i}"><div class="authi"><a href="home.php?mod=space&uid=9">Composer Nine</a></div><a id="postnum${100 + i}">${i + 1}</a><div class="pcb"><p>${`Complete reading block ${i}. 音樂與閱讀。 `.repeat(60)}</p></div></div>`).join("")}</div>`;
-const form = `${account}<div id="pt"><a href="${boardURL}">Music discussion 音樂</a></div><form id="postform" method="post" action="forum.php?mod=post&action=newthread&fid=5&topicsubmit=yes"><input name="formhash" value="PRIVATE-TOKEN"><input name="subject" value=""><textarea name="message"></textarea><label><input type="checkbox" name="usesig" value="1" checked>Signature</label><button name="topicsubmit">Publish</button></form>`;
+const form = `${account}<div id="pt"><a href="${boardURL}">Music discussion 音樂</a></div><form id="postform" method="post" action="forum.php?mod=post&action=newthread&fid=5&topicsubmit=yes"><input name="formhash" value="PRIVATE-TOKEN"><input name="subject" value=""><textarea name="message"></textarea><label><input type="checkbox" name="usesig" value="1" checked>Signature</label><input name="attachnew[321][description]" value="Previously uploaded"><button name="topicsubmit">Publish</button></form>`;
 async function open(page: Page, destination = threadURL) {
   const requests: { url: string; method: string }[] = [];
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
@@ -67,7 +67,7 @@ test("UX53.compact-reader: disclosed navigation preserves retained writing, focu
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
-  await expect(page.locator(".source-writing")).toHaveCount(0);
+  await expect(page.locator(".source-writing")).toBeHidden();
   const measured = await geometry(page);
   await info.attach("reader-geometry.json", {
     body: Buffer.from(JSON.stringify(measured, null, 2)),

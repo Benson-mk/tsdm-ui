@@ -307,7 +307,10 @@ test("J6.authoring-draft-publication-ambiguity: preserve unresolved input and pu
   await verifyStored(state, "draft", ambiguous, 2);
   await button(page, "Publish saved draft").click();
   await expect(
-    page.getByText(/Confirmed publication of forum draft 42/).last(),
+    page
+      .getByText(/Confirmed publication of forum draft 42/)
+      .filter({ visible: true })
+      .last(),
   ).toBeVisible();
   expect(state.effects).toHaveLength(3);
   expect(state.published).toBe(true);

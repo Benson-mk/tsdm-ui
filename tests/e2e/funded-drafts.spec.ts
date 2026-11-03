@@ -1,4 +1,8 @@
-import { combinedSource, richRoundTrip } from "./combined-authoring";
+import {
+  combinedSource,
+  richRoundTrip,
+  writingPresentationRoundTrip,
+} from "./combined-authoring";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -505,6 +509,36 @@ test("J6.J7.funded-draft-lifecycle: save revise fresh resume publish and owned e
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     source!,
   );
+  const resumedBefore = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+  expect(resumedBefore.existingRedPacket).toBe(true);
+  expect(resumedBefore.redPacket).toBeUndefined();
+  const commandsBeforeReading = state.commands.length;
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("region", { name: "Retained writing", exact: true })
+      .getByRole("alert")
+      .filter({ hasText: /Red-packet writing is retained/ }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(resumedBefore);
+  expect(state.commands).toHaveLength(commandsBeforeReading);
+  await info.attach("retained-existing-packet-reading.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
   await page
     .getByLabel("Title", { exact: true })
     .fill("Funded published title");
@@ -515,7 +549,10 @@ test("J6.J7.funded-draft-lifecycle: save revise fresh resume publish and owned e
     .getByRole("button", { name: "Publish saved draft", exact: true })
     .click();
   await expect(
-    page.getByText(/Confirmed publication of forum draft 42/).last(),
+    page
+      .getByText(/Confirmed publication of forum draft 42/)
+      .filter({ visible: true })
+      .last(),
   ).toBeVisible();
   expect(state.commands).toHaveLength(4);
   page = await page.context().newPage();
@@ -744,7 +781,10 @@ for (const outcome of ["expired", "moderation", "remaining-draft"] as const)
       ).toBeVisible();
     if (outcome === "expired") {
       await expect(
-        page.getByText(/Confirmed publication of forum draft 42/).last(),
+        page
+          .getByText(/Confirmed publication of forum draft 42/)
+          .filter({ visible: true })
+          .last(),
       ).toBeVisible();
       await page
         .getByRole("button", { name: "Return to writing", exact: true })
@@ -933,6 +973,8 @@ test("J6.J7.funded-draft-original-check: fresh recovered session reobserves orig
   state.saveOutcome = "lost";
   await fund(page);
   await expect(page.getByText(/Draft saving may have succeeded/)).toBeVisible();
+  await writingPresentationRoundTrip(page, info);
+  expect(state.commands).toHaveLength(1);
   const original = (await recovered(page)).draftAttempts![0]!.submission;
   await page
     .getByLabel("Complete source", { exact: true })

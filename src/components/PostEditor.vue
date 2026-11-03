@@ -24,7 +24,7 @@ import { Plugin } from "prosemirror-state";
 import { CellSelection } from "prosemirror-tables";
 import { editorText } from "./editor-strings";
 import { strings } from "../layouts/strings";
-const props = defineProps<{ workspace: Workspace }>();
+const props = defineProps<{ workspace: Workspace; expanded: boolean }>();
 const writing = props.workspace.writing;
 const session = writing.editor();
 const state = shallowRef<EditorSnapshot>(session.state);
@@ -120,6 +120,13 @@ function focus(automaticEntry = false) {
     }
   });
 }
+defineExpose({ focus });
+watch(
+  () => writing.state.value.visible,
+  (visible) => {
+    if (visible) focus(true);
+  },
+);
 function mode(value: "source" | "visual") {
   if (writing.deferViewChange(() => mode(value))) return;
   session.setMode(value);
@@ -450,7 +457,7 @@ onBeforeUnmount(() => {
       }}<textarea
         ref="source"
         :value="state.display"
-        rows="14"
+        :rows="expanded ? 14 : 6"
         spellcheck="false"
         @input="input"
         @select="selected"

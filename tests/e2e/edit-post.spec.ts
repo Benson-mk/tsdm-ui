@@ -210,6 +210,61 @@ test("J5.edit-conflict: retain local revision and show latest source/options/ref
     original + " local",
   );
   expect(state.posts).toHaveLength(0);
+  const retainedBefore = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: /The server post changed/ })
+      .filter({ visible: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Check current account and form",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Check current account and form",
+      exact: true,
+    }),
+  ).toBeEnabled();
+  await expect(
+    page.getByLabel("Latest server source", { exact: true }),
+  ).toHaveValue(original + " server");
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: /Latest server version/ })
+      .filter({ visible: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(retainedBefore);
+  expect(state.posts).toHaveLength(0);
+  await info.attach("retained-conflict-reading.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+
   await page
     .getByRole("button", { name: "Save my version", exact: true })
     .click();
