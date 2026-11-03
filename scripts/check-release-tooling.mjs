@@ -1060,7 +1060,7 @@ if (slice === "freeze") {
     assert.equal(r.status, 0, r.stderr);
     return r.stdout.trim();
   }
-  const script = `// ==UserScript==\n// @name TSDM UI\n// @namespace https://github.com/Benson-mk/tsdm-ui\n// @version 0.4.0\n// @updateURL https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.meta.js\n// @downloadURL https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.user.js\n// @match https://www.tsdm39.com/*\n// @exclude https://www.tsdm39.com/*tsdm-native=1*\n// @grant GM_registerMenuCommand\n// @run-at document-end\n// ==/UserScript==\nconsole.log('authored package fixture');\n`;
+  const script = `// ==UserScript==\n// @name TSDM UI\n// @author Benson-mk\n// @namespace https://github.com/Benson-mk/tsdm-ui\n// @version 0.4.0\n// @updateURL https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.meta.js\n// @downloadURL https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.user.js\n// @match https://www.tsdm39.com/*\n// @exclude https://www.tsdm39.com/*tsdm-native=1*\n// @grant GM_registerMenuCommand\n// @run-at document-end\n// ==/UserScript==\nconsole.log('authored package fixture');\n`;
   function checkout(name, variant = "normal") {
     const dir = join(output, name, "checkout");
     mkdirSync(dir, { recursive: true });

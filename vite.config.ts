@@ -20,9 +20,11 @@ export default defineConfig({
       entry: "src/main.ts",
       userscript: {
         name: "TSDM UI",
+        author: "Benson-mk",
         namespace: "https://github.com/Benson-mk/tsdm-ui",
         version: applicationVersion,
-        description: "Current-account forum workspace.",
+        description:
+          "A modern TSDM forum interface for browsing boards and threads, searching, writing posts and replies, managing forum drafts and attachments, and customizing themes, text size and language with your current account.",
         updateURL:
           "https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.meta.js",
         downloadURL:

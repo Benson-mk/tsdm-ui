@@ -69,3 +69,38 @@ No release was published and no installed script was changed. The stable metadat
 URL becomes usable only when an approved Latest release contains the companion.
 Actual hosted download and Tampermonkey auto-update qualification remain separate
 from the completed local build/distribution acceptance above.
+
+## Description and author follow-up — 2026-11-03
+
+Requested: expand the userscript description and add the author. Before editing,
+identified the failure cases: missing or inconsistent fields between emitted
+files, an unsupported feature claim, and the freeze allowlist rejecting the new
+author field. Verify the real production build and freeze CLI, compare both
+headers, and confirm that the executable body is unchanged.
+
+Trade-offs: use the public repository handle `Benson-mk` for attribution rather
+than infer a personal name; use one detailed English description covering the
+main supported features rather than duplicate the full feature list or introduce
+localized metadata.
+
+Verification: the pinned-toolchain production build and all 22 freeze CLI
+scenarios passed, as did typecheck, targeted lint, formatting and diff checks.
+Direct artifact comparison confirmed the requested author/description in both
+matching headers and byte-for-byte unchanged executable code after the header.
+Receipts are retained in `evidence/runs/userscript-metadata-author-header/` and
+`evidence/runs/userscript-metadata-author-freeze/`. The first build was blocked
+by sandbox access to Vite's shared dependency cache, leaving old artifacts; the
+header check correctly rejected those old files. The authorized build retry and
+subsequent header check passed. No browser rerun was needed for unchanged
+executable code; this focused verification does not claim manager installation.
+
+Replay the build with `RELEASE_TAG=v0.1.1 npm run build`, inspect
+`dist/tsdm-ui.meta.js`, compare it with the full script's leading header, and
+use the freeze replay command above with a new output directory. The description
+and author are defined in `vite.config.ts`; the receipt records the expected
+values and both artifact hashes.
+
+- [x] Emit the detailed feature description and `@author Benson-mk` in both artifacts.
+- [x] Preserve matching header and manifest identities with unchanged executable body.
+- [x] Pass all 22 freeze scenarios and relevant static checks.
+- [x] Complete final gpt-6.1-sol xhigh BDFL validation using `validate-gpt-code-review`: no evidence-backed findings or additional trade-offs.

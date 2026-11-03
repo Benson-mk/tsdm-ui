@@ -215,6 +215,7 @@ for (const m of block.matchAll(/^\/\/\s+@(\S+)\s+(.+)$/gm)) {
 }
 const expected = {
   name: ["TSDM UI"],
+  author: ["Benson-mk"],
   namespace: ["https://github.com/Benson-mk/tsdm-ui"],
   version: [pkg.version],
   updateURL: [
