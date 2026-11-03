@@ -1,3 +1,4 @@
+import { revealNavigation } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { withRedirectFixture } from "../http-redirect-fixture";
 import { readFileSync } from "node:fs";
@@ -1087,6 +1088,7 @@ test("J5.composing-section: section navigation waits for final composition input
 }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const requests = await open(page);
+  await revealNavigation(page);
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(source);
@@ -1729,6 +1731,7 @@ test("J5.composing-search: Search preparation waits for final composition input 
         ? form()
         : board(),
   );
+  await revealNavigation(page);
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(source);

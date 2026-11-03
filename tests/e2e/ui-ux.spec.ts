@@ -1,3 +1,4 @@
+import { revealNavigation } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -98,6 +99,7 @@ test("UX.directory: filter locally, clear accessibly, retain on Back and reset o
   await expect(
     page.getByRole("heading", { name: "Music discussion", exact: true }),
   ).toBeVisible();
+  await revealNavigation(page);
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(input).toHaveValue("composers");
   await expect(cards).toHaveCount(1);
@@ -199,6 +201,7 @@ test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back
   expect(requests).toHaveLength(2);
   expect(requests[1]).toContain("authorid=9");
   expect(requests[1]).toContain("page=2");
+  await revealNavigation(page);
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(top).toContainText("Page 1");
   await expect(second).toBeInViewport();
@@ -217,6 +220,7 @@ test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back
   await bottom.click();
   await expect(top).toContainText("Page 2");
   expect(requests).toHaveLength(3);
+  await revealNavigation(page);
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(top).toContainText("Page 1");
   await expect

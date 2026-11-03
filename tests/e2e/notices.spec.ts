@@ -1,3 +1,4 @@
+import { revealNavigation } from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -1068,6 +1069,7 @@ for (const width of [390, 1000]) {
     const server = await open(page, (url) =>
       fail ? { body: "", abort: true } : notices(url),
     );
+    await revealNavigation(page);
     if (width < 960)
       await page
         .getByRole("combobox", { name: "Main destinations", exact: true })

@@ -27,6 +27,33 @@ const state = props.workspace.state;
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
+const compactNavigation = ref(window.innerWidth <= 959);
+const navigationOpen = ref(false);
+const navigationTrigger = ref<HTMLButtonElement | null>(null);
+function changeNavigation(open: boolean, returnFocus = false) {
+  const change = () => {
+    const positions = capturePositions();
+    navigationOpen.value = open;
+    if (returnFocus) navigationTrigger.value?.focus();
+    void nextTick().then(() => {
+      restorePositions(positions, true);
+      appearanceAnchors = [];
+    });
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
+function closeNavigation(event: KeyboardEvent) {
+  if (
+    event.defaultPrevented ||
+    event.isComposing ||
+    event.keyCode === 229 ||
+    !compactNavigation.value ||
+    !navigationOpen.value
+  )
+    return;
+  event.stopPropagation();
+  changeNavigation(false, true);
+}
 const sections: Section[] = ["boards", "search", "saved", "notices", "drafts"];
 const sectionInfo = computed(() => {
   const section = state.value.section;
@@ -60,7 +87,7 @@ type PanePosition = {
   paneTop: number;
 };
 let viewportPositions: PanePosition[] = [];
-type RestoredAnchor = Pick<PanePosition, "pane" | "anchor"> & {
+type RestoredAnchor = PanePosition & {
   scrollTop: number;
 };
 let appearanceAnchors: RestoredAnchor[] = [];
@@ -97,8 +124,8 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
           {
             pane,
             anchor,
-            offset: anchor.getBoundingClientRect().top,
-            paneTop: bounds.top,
+            offset: previous?.offset ?? anchor.getBoundingClientRect().top,
+            paneTop: previous?.paneTop ?? bounds.top,
           },
         ]
       : [];
@@ -128,6 +155,8 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
         (relativeToPane ? pane.getBoundingClientRect().top - paneTop : 0);
 }
 function resize() {
+  appearanceAnchors = [];
+  compactNavigation.value = window.innerWidth <= 959;
   restorePositions(viewportPositions, true);
   viewportWidth = window.innerWidth;
   viewportHeight = window.innerHeight;
@@ -172,10 +201,9 @@ watch(
     host.lang = props.workspace.preferences.state.value.language;
     void nextTick().then(() => {
       restorePositions(positions);
-      appearanceAnchors = positions.map(({ pane, anchor }) => ({
-        pane,
-        anchor,
-        scrollTop: pane.scrollTop,
+      appearanceAnchors = positions.map((position) => ({
+        ...position,
+        scrollTop: position.pane.scrollTop,
       }));
       rememberPositions();
     });
@@ -230,6 +258,14 @@ const favoriteContext = computed(() =>
       : state.value.origin?.kind === "favorites"
         ? state.value.origin.favorites
         : null,
+);
+const threadWithoutResults = computed(
+  () =>
+    state.value.result?.kind === "thread" &&
+    !boardContext.value &&
+    !searchContext.value &&
+    !favoriteContext.value &&
+    !noticeContext.value,
 );
 const selectedThread = computed(() =>
   state.value.result?.kind === "thread" ? state.value.result.thread.id : null,
@@ -497,28 +533,50 @@ function boardIdFrom(url: string) {
 }
 </script>
 <template>
-  <div class="workspace" @click="navigate">
+  <div class="workspace" @click="navigate" @keydown.esc="closeNavigation">
     <header>
       <a class="brand" href="https://www.tsdm39.com/">TSDM</a
-      ><span>{{ accountLabel }}</span>
+      ><span class="header-account">{{ accountLabel }}</span>
       <SettingsDialog :workspace="workspace" :portal="portal" />
-      <DialogRoot :open="aboutOpen" @update:open="changeAboutOpen"
-        ><DialogTrigger>{{ text.about }}</DialogTrigger
-        ><DialogPortal :to="portal"
-          ><DialogOverlay class="dialog-overlay" /><DialogContent
-            class="dialog-content"
-            @keydown.esc="closeAboutOnEscape"
-            ><DialogTitle>{{ text.about }}</DialogTitle
-            ><DialogDescription>{{ text.aboutDescription }}</DialogDescription>
-            <p>
-              {{ text.nativeHelp }}
-            </p>
-            <DialogClose>{{ text.close }}</DialogClose></DialogContent
-          ></DialogPortal
-        ></DialogRoot
+      <button
+        v-if="compactNavigation"
+        ref="navigationTrigger"
+        class="navigation-trigger"
+        :aria-expanded="navigationOpen"
+        aria-controls="navigation-preferences navigation-tools navigation-writing-actions"
+        @click="changeNavigation(!navigationOpen)"
       >
+        {{ text.navigation }} · {{ text[state.section] }}
+      </button>
+      <div
+        v-show="!compactNavigation || navigationOpen"
+        id="navigation-preferences"
+        class="navigation-preferences"
+      >
+        <DialogRoot :open="aboutOpen" @update:open="changeAboutOpen"
+          ><DialogTrigger>{{ text.about }}</DialogTrigger
+          ><DialogPortal :to="portal"
+            ><DialogOverlay class="dialog-overlay" /><DialogContent
+              class="dialog-content"
+              @keydown.esc="closeAboutOnEscape"
+              ><DialogTitle>{{ text.about }}</DialogTitle
+              ><DialogDescription>{{
+                text.aboutDescription
+              }}</DialogDescription>
+              <p>
+                {{ text.nativeHelp }}
+              </p>
+              <DialogClose>{{ text.close }}</DialogClose></DialogContent
+            ></DialogPortal
+          ></DialogRoot
+        >
+      </div>
     </header>
-    <div class="workspace-tools">
+    <div
+      v-show="!compactNavigation || navigationOpen"
+      id="navigation-tools"
+      class="workspace-tools"
+    >
       <nav :aria-label="text.actions">
         <a
           v-if="state.result?.kind !== 'directory'"
@@ -625,7 +683,11 @@ function boardIdFrom(url: string) {
         </select></label
       >
     </div>
-    <div class="writing-actions">
+    <div
+      v-show="!compactNavigation || navigationOpen"
+      id="navigation-writing-actions"
+      class="writing-actions secondary-writing-actions"
+    >
       <button
         v-if="pickerBoard"
         :disabled="writing.preparing"
@@ -664,6 +726,18 @@ function boardIdFrom(url: string) {
           )
         }}
       </button>
+    </div>
+    <div
+      v-if="
+        writing.context ||
+        writing.preparing ||
+        writing.message ||
+        writing.editReplacement ||
+        writing.replacement ||
+        writing.draftReplacement
+      "
+      class="writing-actions"
+    >
       <button v-if="writing.context" @click="workspace.writing.show()">
         {{ text.returnWriting }}
       </button>
@@ -895,6 +969,7 @@ function boardIdFrom(url: string) {
     <main
       v-show="!writing.visible"
       class="workspace-body"
+      :class="{ 'thread-without-results': threadWithoutResults }"
       :data-view="state.result?.kind ?? 'unavailable'"
     >
       <nav :aria-label="text.mainDestinations" class="main-destinations pane">

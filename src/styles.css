@@ -1031,3 +1031,65 @@ select {
   font-weight: 600;
   opacity: 0.75;
 }
+
+.navigation-preferences {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.workspace-body.thread-without-results {
+  grid-template-columns: 128px 200px minmax(0, 1fr);
+}
+.thread-without-results .reading-pane {
+  grid-column: 3;
+}
+@media (min-width: 960px) and (max-width: 1279px) {
+  .workspace-body.thread-without-results {
+    grid-template-columns: 128px minmax(0, 1fr);
+  }
+  .thread-without-results .reading-pane {
+    grid-column: 2;
+  }
+}
+@media (max-width: 959px) {
+  .workspace > header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 64px;
+  }
+  .header-account {
+    font-size: calc(0.875rem * var(--text-scale, 1));
+    overflow-wrap: anywhere;
+  }
+  .navigation-trigger {
+    grid-column: 1 / -1;
+    justify-self: start;
+    font-size: calc(0.875rem * var(--text-scale, 1));
+    padding: 8px 12px;
+    max-width: 180px;
+    overflow-wrap: anywhere;
+  }
+  .navigation-preferences {
+    grid-column: 1 / -1;
+  }
+  .workspace-tools {
+    flex: 0 0 auto;
+    max-height: 40dvh;
+    overflow: auto;
+  }
+  .workspace-tools > *,
+  .workspace-tools select {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .workspace-body.thread-without-results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .thread-without-results .reading-pane {
+    grid-column: 1;
+  }
+  .secondary-writing-actions {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+}

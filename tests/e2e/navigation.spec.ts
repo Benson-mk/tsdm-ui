@@ -1,3 +1,4 @@
+import { revealNavigation } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -616,6 +617,7 @@ test("J2.refresh-stale: failed refresh retains visibly stale content and does no
     requests.push(route.request().url());
     await route.abort("failed");
   });
+  await revealNavigation(page);
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(
     page.getByText("Previous results are stale.", { exact: true }),
@@ -785,6 +787,7 @@ for (const scenario of [
     ).toBeVisible();
     expect(requests).toHaveLength(2);
     refreshing = true;
+    await revealNavigation(page);
     await page
       .getByRole("button", { name: "Refresh thread", exact: true })
       .click();
@@ -948,6 +951,7 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(reading).toBeVisible();
   await expect(results).not.toBeVisible();
+  await revealNavigation(page);
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(results).toBeVisible();
   await expect(reading).not.toBeVisible();
