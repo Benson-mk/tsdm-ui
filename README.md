@@ -22,7 +22,17 @@ The replacement reuses v0.1.0 with different files; its version alone cannot
 identify the old download. Tampermonkey may treat the changed name as a separate
 script, so replacement remains manual.
 
-Updates are manual: download the new version and replace the existing script.
+New builds include update URLs for the latest stable GitHub Release. For existing
+installations, replace the script manually once to ensure these metadata URLs
+are adopted. With Tampermonkey update checks enabled globally and for
+this script, the manager periodically reads `tsdm-ui.meta.js` and downloads
+`tsdm-ui.user.js` when its `@version` is newer. The `.meta.js` file is for update
+checks; install the `.user.js` file. You can also use Tampermonkey's manual update
+check or download and replace the script yourself. Availability depends on
+publication and your manager's check interval; updates are not immediate.
+
+To keep a development preview or an intentional rollback pinned, disable update
+checks for that script; otherwise a newer public release can replace it.
 Before updating or downgrading, finish writing, save a supported forum draft, or
 copy your text somewhere you control. Browser page-session recovery is conditional;
 refreshing, closing or restarting can lose local writing. Check an unresolved
@@ -77,7 +87,7 @@ npm run test:e2e
 npm run test:consumer
 ```
 
-`npm run dev` starts Vite's local userscript development server. The development loader is not the release artifact and is never used as installed qualification evidence. `npm run build` emits `dist/tsdm-ui.user.js`, a build manifest with its SHA-256, and `dist/forum-client/` with the self-contained ESM library and declarations. CSS, Vue, Reka and the portable parser are bundled; no runtime CDN, update URL or download URL is emitted.
+`npm run dev` starts Vite's local userscript development server. The development loader is not the release artifact and is never used as installed qualification evidence. `npm run build` emits `dist/tsdm-ui.user.js`, its metadata-only companion `dist/tsdm-ui.meta.js`, a build manifest with both files' SHA-256 identities, and `dist/forum-client/` with the self-contained ESM library and declarations. Both userscript headers point to the latest stable Release for updates. CSS, Vue, Reka and the portable parser are bundled; no runtime CDN is required.
 
 The selected dependency set is locked. Reka 2.11.0 was checked against current published peer ranges; matching the historical comparison is not its qualification. TypeScript 6.0.3 satisfies the checked lint/checker ranges. Strict checking includes declaration files; the explicit Vue component helper and Web Bluetooth type packages satisfy Reka/VueUse declaration dependencies. The core forum library imports none of those UI packages.
 

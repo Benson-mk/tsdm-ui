@@ -45,6 +45,18 @@ Keep earlier observations tied to their original candidate and runtime. Changed 
 
 ## Distribution and evidence
 
+The owner's 2026-11-03 metadata request supersedes the single-asset and manual-update
+parts of the earlier distribution decision below for future builds. Publish
+`tsdm-ui.meta.js` alongside `tsdm-ui.user.js`, generated from the same header.
+Point update and download metadata at GitHub Releases `latest/download` assets;
+only approved published stable releases are offered through that channel. Keep
+owner-selected increasing versions, initial manual installation and manual
+rollback. Users can disable manager update checks to pin a version. Existing
+installs need a manual replacement to adopt these URLs. This adds a small public
+asset to reduce update-check transfers; it does not change installed qualification
+or claim that automatic updates have been observed. Historical evidence keeps
+its original manual-update scope.
+
 The owner's 2026-11-02 presentation decision makes the userscript the sole uploaded
 asset for future GitHub Releases. Installation instructions move to README Quick
 Start and complete notices to README Acknowledgments. The owner subsequently

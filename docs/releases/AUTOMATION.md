@@ -15,7 +15,7 @@ This builds a preview, checks the application and library, and uploads a
 dispatch always skips publication, even when dispatched against a tag.
 
 The run summary contains release-page changelog text and checksums. Download the
-artifact to inspect the userscript, library tarball, notices, installation guide,
+artifact to inspect the userscript, update metadata, library tarball, notices, installation guide,
 build manifest and provenance. A preview has `preview: true` in `release.json`
 and cannot be published by this workflow.
 
@@ -99,7 +99,21 @@ that earlier tag has not been published as a Release. No root CHANGELOG.md is
 committed. Only stable numeric tags are supported; prerelease policy is future
 work.
 
-The only uploaded Release attachment is **`tsdm-ui.user.js`**. Installation
+The uploaded Release attachments are **`tsdm-ui.user.js`** (the installable script)
+and **`tsdm-ui.meta.js`** (its metadata header for smaller update checks). The
+existing Vite userscript plugin generates both from the same version and metadata;
+packaging rejects a missing or inconsistent companion file. Both are checksummed.
+The script uses these stable URLs:
+
+- `@updateURL`: `https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.meta.js`
+- `@downloadURL`: `https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.user.js`
+
+Choose a higher version for each update and ensure GitHub's Latest release is the
+intended stable version with both assets. Do not mark an older maintenance release
+as Latest. Existing installations need one manual replacement to adopt the new
+metadata. Tampermonkey controls update checks and their interval. Development
+previews use these same URLs; disable their update checks to keep them pinned.
+The release approval gate still controls when new bytes become available. Installation
 instructions live in [README Quick Start](../../README.md#quick-start); full
 third-party notices live in [Acknowledgments](../../README.md#acknowledgments) and
 the Actions review package. They are not appended to the userscript. Release notes link to that commit's README.
@@ -108,7 +122,7 @@ GitHub supplies source archives separately.
 The Actions review artifact still contains the library tarball, notices,
 installation reference, build manifest, `release.json`, `RELEASE_NOTES.md` and
 `SHA256SUMS`. All files are verified before publication; `release.json.assets`
-explicitly selects only the userscript for public upload. Notes are prepared and
+explicitly selects the userscript and metadata companion for public upload. Notes are prepared and
 checksummed before approval and are not regenerated during publication. The build
 job has read-only contents/PR access; only the approved publish job can write
 Releases. No npm publication is performed.

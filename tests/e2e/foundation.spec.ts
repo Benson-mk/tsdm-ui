@@ -546,6 +546,21 @@ test("J1.native-word-break: native universal styles do not split application con
 test("J1.emitted-startup-measurement: populated current artifact enters and opens selected Reka dialog", async ({
   page,
 }, info) => {
+  const script = readFileSync("dist/tsdm-ui.user.js", "utf8");
+  const meta = readFileSync("dist/tsdm-ui.meta.js", "utf8");
+  expect(meta.trimEnd()).toBe(
+    script.split("// ==/UserScript==")[0] + "// ==/UserScript==",
+  );
+  expect(meta).toMatch(
+    /^\/\/\s+@updateURL\s+https:\/\/github\.com\/Benson-mk\/tsdm-ui\/releases\/latest\/download\/tsdm-ui\.meta\.js$/m,
+  );
+  expect(meta).toMatch(
+    /^\/\/\s+@downloadURL\s+https:\/\/github\.com\/Benson-mk\/tsdm-ui\/releases\/latest\/download\/tsdm-ui\.user\.js$/m,
+  );
+  await info.attach("userscript-metadata.txt", {
+    body: Buffer.from(meta),
+    contentType: "text/plain",
+  });
   const started = performance.now();
   const requests = await openThread(page);
   await expect(

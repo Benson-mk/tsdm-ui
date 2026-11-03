@@ -1,8 +1,9 @@
 # Install a tagged TSDM UI build
 
-Follow [README Quick Start](../../README.md#quick-start) for installation, manual
-updates and emergency native-forum access. The only public build attachment is
-`tsdm-ui.user.js`; its runtime is included.
+Follow [README Quick Start](../../README.md#quick-start) for installation, automatic or manual
+updates and emergency native-forum access. Install `tsdm-ui.user.js`; its runtime is included.
+The companion `tsdm-ui.meta.js` contains only metadata for update checks and is
+not the script to install.
 See [Acknowledgments](../../README.md#acknowledgments) for readable license text.
 
 This file is retained inside the Actions review package. Reviewers can compare

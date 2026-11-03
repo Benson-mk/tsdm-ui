@@ -117,7 +117,15 @@ check("hundred-fixes-owner-version", ["v0.1.1"], null, (output) => {
   const notes = readFileSync(join(output, "RELEASE_NOTES.md"), "utf8");
   assert.equal((notes.match(/synthetic correction/g) ?? []).length, 100);
   assert(!notes.includes("chore: baseline"));
-  assert.deepEqual(receipt.assets, ["tsdm-ui.user.js"]);
+  assert.deepEqual(receipt.assets, ["tsdm-ui.user.js", "tsdm-ui.meta.js"]);
+  const meta = readFileSync(join(output, "tsdm-ui.meta.js"), "utf8");
+  assert.equal(
+    meta.trimEnd(),
+    readFileSync(join(output, "tsdm-ui.user.js"), "utf8").split(
+      "// ==/UserScript==",
+    )[0] + "// ==/UserScript==",
+  );
+  assert.equal(meta, readFileSync(join(build, "tsdm-ui.meta.js"), "utf8"));
   assert(notes.startsWith(summary.trim()));
   assert(notes.includes("## What's Changed"));
   assert(notes.includes("**Full Changelog**:"));
@@ -148,6 +156,46 @@ check("hundred-fixes-owner-version", ["v0.1.1"], null, (output) => {
     );
   }
 });
+for (const [name, mutate] of [
+  [
+    "missing-metadata",
+    (dist) => rmSync(join(dist, "tsdm-ui.meta.js"), { force: true }),
+  ],
+  [
+    "stale-metadata",
+    (dist) =>
+      writeFileSync(
+        join(dist, "tsdm-ui.meta.js"),
+        readFileSync(join(dist, "tsdm-ui.meta.js"), "utf8").replace(
+          "@version",
+          "@old-version",
+        ),
+      ),
+  ],
+  [
+    "executable-metadata",
+    (dist) =>
+      writeFileSync(
+        join(dist, "tsdm-ui.meta.js"),
+        readFileSync(join(dist, "tsdm-ui.meta.js"), "utf8") +
+          "\nalert('unexpected');\n",
+      ),
+  ],
+  [
+    "metadata-manifest-mismatch",
+    (dist) => {
+      const path = join(dist, "build-manifest.json");
+      const manifest = read(path);
+      manifest.userscriptMetadata = {
+        file: "tsdm-ui.meta.js",
+        bytes: 0,
+        sha256: "0".repeat(64),
+      };
+      writeFileSync(path, JSON.stringify(manifest));
+    },
+  ],
+])
+  check(name, ["v0.1.1"], mutate, null, 1);
 check("missing-summary", ["v0.1.1"], () => rmSync(summaryPath), null, 1);
 writeFileSync(summaryPath, " \n");
 check("empty-summary", ["v0.1.1"], null, null, 1);
