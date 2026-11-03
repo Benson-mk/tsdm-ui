@@ -1093,3 +1093,27 @@ select {
     gap: 8px;
   }
 }
+
+.board-filters {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.board-filter-group {
+  min-width: 0;
+  padding-block: 8px;
+  border-block-start: 1px solid var(--separator);
+}
+.board-filter-group h2 {
+  margin: 0 0 8px;
+}
+.board-filter-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.board-filter-links a {
+  overflow-wrap: anywhere;
+  min-width: 0;
+  max-width: 100%;
+}

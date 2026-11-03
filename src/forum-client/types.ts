@@ -175,6 +175,14 @@ export interface ThreadRow extends ForumLink {
   views: string;
   lastPost: ForumLink | null;
 }
+/** Native source-menu provenance; semantics never inferred from link labels. */
+export interface BoardFilterGroup {
+  kind: "category" | "order" | "type" | "time" | "unclassified";
+  sourceId: string;
+  /** Actual native subgroup label, without its choice links or separators. */
+  sourceLabel?: string;
+  links: ForumLink[];
+}
 export interface Board {
   id: string;
   title: string;
@@ -182,6 +190,8 @@ export interface Board {
   boards: BoardLink[];
   threads: ThreadRow[];
   filters: ForumLink[];
+  /** Added in 0.14.0. Legacy models omit this and retain flat filters. */
+  filterGroups?: BoardFilterGroup[];
   criteria: ForumLink[];
   pages: Pagination;
   empty: string;

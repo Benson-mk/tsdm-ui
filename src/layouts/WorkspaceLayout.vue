@@ -239,6 +239,33 @@ const boardContext = computed(() =>
         ? state.value.origin.board
         : null,
 );
+const boardFilterGroups = computed(() => {
+  const board = boardContext.value;
+  if (!board) return [];
+  return (
+    board.filterGroups ??
+    (board.filters.length
+      ? [
+          {
+            kind: "unclassified" as const,
+            sourceId: "legacy",
+            links: board.filters,
+          },
+        ]
+      : [])
+  ).map((group) => ({
+    ...group,
+    label:
+      group.sourceLabel ||
+      {
+        category: text.value.filterCategory,
+        order: text.value.filterOrder,
+        type: text.value.filterType,
+        time: text.value.filterTime,
+        unclassified: text.value.filterOther,
+      }[group.kind],
+  }));
+});
 const searchContext = computed(() =>
   state.value.section !== "search"
     ? null
@@ -1243,17 +1270,34 @@ function boardIdFrom(url: string) {
               :href="board.url"
               :aria-label="board.label"
               class="board-card"
-              >{{ board.label }}</a
+              ><strong>{{ board.label }}</strong
+              ><span v-if="board.description">{{ board.description }}</span
+              ><small v-if="board.stats">{{ board.stats }}</small></a
             >
           </div>
         </section>
-        <nav :aria-label="text.boardFilters">
-          <a
-            v-for="filter in boardContext.filters"
-            :key="filter.url"
-            :href="filter.url"
-            >{{ filter.label }}</a
+        <nav
+          v-if="boardFilterGroups.length"
+          class="board-filters"
+          :aria-label="text.boardFilters"
+        >
+          <div
+            v-for="(group, index) in boardFilterGroups"
+            :key="`${group.sourceId}:${index}`"
+            role="group"
+            :aria-label="group.label"
+            class="board-filter-group"
           >
+            <h2>{{ group.label }}</h2>
+            <div class="board-filter-links">
+              <a
+                v-for="filter in group.links"
+                :key="filter.url"
+                :href="filter.url"
+                >{{ filter.label }}</a
+              >
+            </div>
+          </div>
         </nav>
         <ul :aria-label="text.criteria">
           <li v-for="criterion in boardContext.criteria" :key="criterion.label">

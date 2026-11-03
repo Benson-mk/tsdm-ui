@@ -88,3 +88,8 @@ const fundedConsent: Pick<
   },
 };
 void [packetPreparation, fundedConsent];
+
+const legacyBoard: Frontier.Board = { id: "5", title: "Legacy", url: "https://fixture.example/forum.php?mod=forumdisplay&fid=5", boards: [], threads: [], filters: [], criteria: [], pages: { current: "1", links: [] }, empty: "" };
+const sourceGroup: Frontier.BoardFilterGroup = { kind: "category", sourceId: "thread_types", sourceLabel: "原生分類:", links: [{ label: "Native choice", url: legacyBoard.url }] };
+const groupedBoard: Frontier.Board = { ...legacyBoard, filterGroups: [sourceGroup] };
+void [legacyBoard, groupedBoard];

@@ -342,6 +342,19 @@ function result(value: unknown): boolean {
           (row.lastPost === null || link(row.lastPost)),
       ) &&
       list(b.filters, link) &&
+      (b.filterGroups === undefined ||
+        list(
+          b.filterGroups,
+          (group) =>
+            object(group) &&
+            string(group.kind) &&
+            ["category", "order", "type", "time", "unclassified"].includes(
+              group.kind,
+            ) &&
+            string(group.sourceId) &&
+            (group.sourceLabel === undefined || string(group.sourceLabel)) &&
+            list(group.links, link),
+        )) &&
       list(b.criteria, link) &&
       pages(b.pages) &&
       string(b.empty)
