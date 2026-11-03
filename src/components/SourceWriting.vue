@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch, type DeepReadonly } from "vue";
-import { attachmentText } from "./attachment-text";
+import { attachmentText, attachmentFieldLabel } from "./attachment-text";
 import PostEditor from "./PostEditor.vue";
 import WritingDestination from "./WritingDestination.vue";
+import PreparedPublication from "./PreparedPublication.vue";
+import { reviewText } from "./review-text";
 import type { Workspace } from "../workspace";
 import { strings, insert, description } from "../layouts/strings";
 import type { WritingOption } from "../forum-client";
@@ -115,16 +117,10 @@ function effectLabel(
   );
 }
 function attachmentLabel(name: string) {
-  const match =
-    /^attach(?:new|update)\[([1-9]\d*)\](?:\[(description|readperm|price)\])?$/.exec(
-      name,
-    );
-  const labels = {
-    description: text.value.attachmentDescription,
-    readperm: text.value.attachmentReadPermission,
-    price: text.value.attachmentPrice,
-  };
-  return `${text.value.attachments} ${match?.[1] ?? ""} · ${match?.[2] ? labels[match[2] as keyof typeof labels] : text.value.attachmentAssociation}`;
+  return attachmentFieldLabel(
+    name,
+    props.workspace.preferences.state.value.language,
+  );
 }
 
 function packetText(value: string) {
@@ -134,6 +130,11 @@ function optionCaption(option: WritingOption) {
   return state.value.context?.redPacket && option.name.startsWith("hb_")
     ? packetText(option.label)
     : option.label;
+}
+function cancelReview() {
+  if (props.workspace.writing.deferViewChange(cancelReview)) return;
+  props.workspace.writing.cancelPublicationReview();
+  editor.value?.focus();
 }
 function value(event: Event) {
   return (event.target as HTMLInputElement).value;
@@ -752,7 +753,8 @@ function updateOption(option: WritingOption, event: Event) {
         </section>
       </section>
       <WritingDestination
-        :writing="state.publication?.submission.writing ?? state.context"
+        v-if="!state.publication"
+        :writing="state.context"
         :language="workspace.preferences.state.value.language"
         review
       />
@@ -768,7 +770,19 @@ function updateOption(option: WritingOption, event: Event) {
               : text.reviewPublication
           }}
         </button>
-        <section v-if="state.publication" role="alert">
+        <PreparedPublication
+          v-if="state.publication"
+          :publication="state.publication"
+          :language="workspace.preferences.state.value.language"
+        >
+          <button :disabled="state.publishing" @click="cancelReview">
+            {{
+              reviewText(
+                "Cancel review and return to writing",
+                workspace.preferences.state.value.language,
+              )
+            }}
+          </button>
           <template v-if="state.publication.submission.writing.redPacket">
             <p>
               {{
@@ -789,7 +803,7 @@ function updateOption(option: WritingOption, event: Event) {
                 )"
                 :key="option.name"
               >
-                {{ optionCaption(option as WritingOption) }}:
+                {{ packetText(option.label) }}:
                 {{
                   option.name === "hb_password"
                     ? packetText(
@@ -810,11 +824,17 @@ function updateOption(option: WritingOption, event: Event) {
               }}
             </p>
           </template>
-          <p v-if="state.context.action === 'edit-post'">
+          <p v-if="state.publication.submission.writing.action === 'edit-post'">
             {{
               insert(text.editReview, state.publication.submission.revision)
-                .replace("{post}", state.context.editTarget?.postId ?? "")
-                .replace("{account}", state.context.account.name)
+                .replace(
+                  "{post}",
+                  state.publication.submission.writing.editTarget?.postId ?? "",
+                )
+                .replace(
+                  "{account}",
+                  state.publication.submission.writing.account.name,
+                )
             }}
           </p>
           <p v-else>
@@ -830,8 +850,14 @@ function updateOption(option: WritingOption, event: Event) {
                   state.publication.submission.writing.replyTarget?.threadId ??
                     "",
                 )
-                .replace("{account}", state.context.account.name)
-                .replace("{board}", state.context.board.label)
+                .replace(
+                  "{account}",
+                  state.publication.submission.writing.account.name,
+                )
+                .replace(
+                  "{board}",
+                  state.publication.submission.writing.board.label,
+                )
             }}
           </p>
           <button
@@ -839,16 +865,16 @@ function updateOption(option: WritingOption, event: Event) {
             @click="workspace.writing.publish()"
           >
             {{
-              state.context.action === "edit-post"
+              state.publication.submission.writing.action === "edit-post"
                 ? text.saveEditedPost
-                : state.context.replyTarget
+                : state.publication.submission.writing.replyTarget
                   ? text.sendReply
-                  : state.context.redPacket
+                  : state.publication.submission.writing.redPacket
                     ? packetText("Publish red packet")
                     : text.publishThread
             }}
           </button>
-        </section>
+        </PreparedPublication>
       </div>
       <p v-if="state.recoveryAvailable === false" role="alert">
         {{ text.writingRecoveryUnavailable }}

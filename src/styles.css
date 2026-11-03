@@ -1239,3 +1239,38 @@ select {
 .format-notices summary {
   cursor: pointer;
 }
+
+.prepared-review {
+  width: 100%;
+  min-width: 0;
+  padding: 16px;
+  border: 2px solid var(--boundary);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.prepared-fields dd {
+  margin: 0 0 12px;
+}
+.prepared-fields dt {
+  font-weight: bold;
+}
+.prepared-body {
+  white-space: pre-wrap;
+}
+.prepared-source {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.prepared-overflow {
+  max-width: 100%;
+  overflow: auto;
+}
+.prepared-review summary {
+  min-height: 44px;
+  padding-block: 10px;
+  cursor: pointer;
+}
+.prepared-body .editor-protected {
+  white-space: pre-wrap;
+}

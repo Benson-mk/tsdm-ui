@@ -1247,10 +1247,16 @@ for (const locale of [
       await page
         .getByRole("button", { name: locale.review, exact: true })
         .click();
-      const review = page.getByRole("alert").filter({
-        has: page.getByRole("button", { name: locale.send, exact: true }),
+      const review = page.getByRole("region", {
+        name:
+          locale.language === "en"
+            ? "Prepared publication review"
+            : locale.language === "zh-CN"
+              ? "发布前审阅"
+              : "發佈前審閱",
+        exact: true,
       });
-      await expect(review.locator("p")).toHaveText(locale.summary);
+      await expect(review.getByText(locale.summary)).toBeVisible();
       if (addressed)
         await expect(
           page.getByText(locale.addressed, { exact: true }),

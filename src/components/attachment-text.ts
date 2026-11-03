@@ -1,3 +1,6 @@
+import { strings } from "../layouts/strings";
+import type { Preferences } from "../workspace/preferences";
+
 const translations: Record<string, readonly [string, string]> = {
   "This attachment has no verified insertion instruction. Continue in the native editor.":
     [
@@ -215,4 +218,22 @@ export function attachmentText(value: string, language: string): string {
         ? translated[1]
         : value
     : value;
+}
+
+/** The same member-facing metadata labels serve conflict and frozen review. */
+export function attachmentFieldLabel(
+  name: string,
+  language: Preferences["language"],
+) {
+  const text = strings(language);
+  const match =
+    /^attach(?:new|update)\[([1-9]\d*)\](?:\[(description|readperm|price)\])?$/.exec(
+      name,
+    );
+  const labels = {
+    description: text.attachmentDescription,
+    readperm: text.attachmentReadPermission,
+    price: text.attachmentPrice,
+  };
+  return `${text.attachments} ${match?.[1] ?? ""} · ${match?.[2] ? labels[match[2] as keyof typeof labels] : text.attachmentAssociation}`;
 }

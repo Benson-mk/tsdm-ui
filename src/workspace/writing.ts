@@ -1637,6 +1637,18 @@ export function createWriting(
     state.value = { ...state.value, mentionPeople: [] };
   }
   function observe(account: Account, verified = true) {
+    const publication = state.value.publication;
+    state.value = {
+      ...state.value,
+      publication:
+        publication &&
+        verified &&
+        account.kind === "member" &&
+        account.id === publication.submission.writing.account.id &&
+        client.generation === publication.generation
+          ? publication
+          : null,
+    };
     state.value = {
       ...state.value,
       accountVerified:
@@ -1800,6 +1812,10 @@ export function createWriting(
     searchMention,
     insertMention,
     reviewPublication,
+    cancelPublicationReview: () => {
+      if (state.value.publishing || state.value.composing) return;
+      state.value = { ...state.value, publication: null };
+    },
     resumeDraft,
     checkDraft,
     canResendDraft,
