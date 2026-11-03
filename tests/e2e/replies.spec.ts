@@ -1,3 +1,4 @@
+import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -242,6 +243,7 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("Literal @Other author stays literal. ");
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -595,6 +597,7 @@ test("J4.reply-mention-drift: selected UID changing before send refuses without 
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -849,6 +852,7 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -876,6 +880,7 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
   ).toBeVisible();
   release();
   state.mentionGate = null;
+  await revealAdvanced(page);
   await expect(
     page.getByRole("button", { name: "Find mention", exact: true }),
   ).toBeEnabled();
@@ -885,6 +890,7 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
       exact: true,
     }),
   ).toHaveCount(0);
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -919,6 +925,7 @@ async function readySupplement(page: Page) {
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("[quote]Additional own source[/quote]\nLiteral @Writer 7 stays. ");
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Writer 7");
@@ -1154,6 +1161,7 @@ test("J4.reply-native-person-link: a new reply preserves complete source with se
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("Literal @Writer 7. ");
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Writer 7");
@@ -1276,9 +1284,7 @@ for (const addressed of [false, true])
       field.setSelectionRange(field.value.length - 9, field.value.length);
       field.dispatchEvent(new Event("select", { bubbles: true }));
     });
-    await page
-      .getByRole("button", { name: "Apply formatting", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Bold", exact: true }).click();
     await expect(
       page
         .getByRole("textbox", { name: "Visual post content", exact: true })

@@ -1,3 +1,4 @@
+import { revealAdvanced } from "./editor-controls";
 import { writingPresentationRoundTrip } from "./combined-authoring";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -1715,6 +1716,7 @@ for (const scenario of [
       .getByLabel("Complete source", { exact: true })
       .fill(scenario.input);
     if (scenario.select) {
+      await revealAdvanced(page);
       await page
         .getByLabel("Find a person to mention", { exact: true })
         .fill("Other author");
@@ -1808,6 +1810,7 @@ test("J5.thread-mention-original-recheck: check the restored immutable publicati
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("Original selected identity ");
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");

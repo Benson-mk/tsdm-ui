@@ -1,3 +1,4 @@
+import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const fixtureStates = new WeakMap<Page, () => unknown>();
@@ -807,6 +808,7 @@ for (const mode of ["implicit", "explicit-empty"]) {
 }
 
 async function selectEditMention(page: Page) {
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("SelectedPerson");
@@ -921,6 +923,7 @@ test("J11.edit-mention-lookup-account: a changed session during initial lookup r
   const state = await fixture(page);
   state.mentionAccountChangeAt = 1;
   await open(page);
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("SelectedPerson");
@@ -950,9 +953,7 @@ test("J5.editor-shared-edit: ordinary visual formatting preserves owned unknown 
     field.setSelectionRange(field.value.length - 9, field.value.length);
     field.dispatchEvent(new Event("select", { bubbles: true }));
   });
-  await page
-    .getByRole("button", { name: "Apply formatting", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Bold", exact: true }).click();
   await expect(
     page
       .getByRole("textbox", { name: "Visual post content", exact: true })

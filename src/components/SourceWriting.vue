@@ -69,7 +69,6 @@ function uploadLabel(
   return `${attachment(status)} · ${upload.name}`;
 }
 const removeUpload = ref<string | null>(null);
-const mentionQuery = ref("");
 const currentOptions = computed(
   () =>
     state.value.context?.options.filter(
@@ -868,26 +867,6 @@ function updateOption(option: WritingOption, event: Event) {
           )
         }}
       </p>
-      <section :aria-label="text.mentions">
-        <label
-          >{{ text.findMentionPerson }}<input v-model="mentionQuery"
-        /></label>
-        <button
-          :disabled="state.findingMention || state.publishing"
-          @click="workspace.writing.searchMention(mentionQuery)"
-        >
-          {{ text.findMention }}
-        </button>
-        <button
-          v-for="person in state.mentionPeople"
-          :key="person.id"
-          @click="workspace.writing.insertMention(person.id)"
-        >
-          {{
-            insert(text.mentionPerson, person.name).replace("{id}", person.id)
-          }}
-        </button>
-      </section>
       <section :aria-label="attachment('Attachment authoring')">
         <div v-if="removeUpload" role="alert">
           <p>

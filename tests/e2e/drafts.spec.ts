@@ -1,3 +1,4 @@
+import { revealAdvanced } from "./editor-controls";
 import { writingPresentationRoundTrip } from "./combined-authoring";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -1184,6 +1185,7 @@ async function selectDraftMention(
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("Mention source ");
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Draft person");

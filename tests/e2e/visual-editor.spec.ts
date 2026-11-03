@@ -1,3 +1,4 @@
+import { applyFormatting, revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -225,11 +226,7 @@ test("J5.editor-tools: ordinary controls preserve selected text and generate for
     await source.fill("words");
     await source.selectText();
     await source.dispatchEvent("select");
-    await page.getByLabel("Formatting", { exact: true }).selectOption(tool!);
-    await page.getByLabel("Format value", { exact: true }).fill(argument!);
-    await page
-      .getByRole("button", { name: "Apply formatting", exact: true })
-      .click();
+    await applyFormatting(page, tool!, argument!);
     await page
       .getByRole("button", { name: "Source editor", exact: true })
       .click();
@@ -714,13 +711,7 @@ for (const locale of editorLocales) {
         field.setSelectionRange(field.value.length - 5, field.value.length);
         field.dispatchEvent(new Event("select", { bubbles: true }));
       });
-      await page
-        .getByLabel(locale.formatting, { exact: true })
-        .selectOption(tool);
-      await page.getByLabel(locale.argument, { exact: true }).fill(invalid);
-      await page
-        .getByRole("button", { name: locale.apply, exact: true })
-        .click();
+      await applyFormatting(page, tool, invalid, locale.language);
       await expect(page.getByText(locale[tool], { exact: true })).toBeVisible();
       await info.attach("localized-diagnostic.png", {
         body: await page.getByText(locale[tool], { exact: true }).screenshot(),
@@ -796,11 +787,7 @@ test("J5.editor-diagnostic-language-change: an existing refusal follows language
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("[unknown]原文[/unknown] unchanged");
-  await page.getByLabel("Formatting", { exact: true }).selectOption("emoticon");
-  await page.getByLabel("Format value", { exact: true }).fill("invalid");
-  await page
-    .getByRole("button", { name: "Apply formatting", exact: true })
-    .click();
+  await applyFormatting(page, "emoticon", "invalid");
   for (const locale of [editorLocales[1], editorLocales[2], editorLocales[0]]) {
     await page.locator(".workspace > header button").first().click();
     await page.locator("#interface-language").selectOption(locale.language);
@@ -823,3 +810,364 @@ test("J5.editor-diagnostic-language-change: an existing refusal follows language
     contentType: "application/json",
   });
 });
+
+// UX58 expectations precede feature code at the confirmed application seam.
+const toolProfiles58 = [
+  {
+    width: 390,
+    height: 844,
+    size: 100,
+    theme: "light",
+    language: "en",
+    source: "Complete source",
+    sourceMode: "Source editor",
+    visualMode: "Visual editor",
+    visual: "Visual post content",
+    bold: "Bold",
+    advanced: "Advanced authoring tools",
+    undo: "Undo",
+    redo: "Redo",
+  },
+  {
+    width: 390,
+    height: 844,
+    size: 150,
+    theme: "dark",
+    language: "zh-CN",
+    source: "完整源码",
+    sourceMode: "源码编辑",
+    visualMode: "可视编辑",
+    visual: "可视帖子内容",
+    bold: "粗体",
+    advanced: "高级写作工具",
+    undo: "撤销",
+    redo: "重做",
+  },
+  {
+    width: 768,
+    height: 900,
+    size: 70,
+    theme: "mono",
+    language: "zh-TW",
+    source: "完整原始碼",
+    sourceMode: "原始碼編輯",
+    visualMode: "視覺編輯",
+    visual: "視覺文章內容",
+    bold: "粗體",
+    advanced: "進階寫作工具",
+    undo: "復原",
+    redo: "重做",
+  },
+  {
+    width: 1440,
+    height: 900,
+    size: 150,
+    theme: "alias",
+    language: "en",
+    source: "Complete source",
+    sourceMode: "Source editor",
+    visualMode: "Visual editor",
+    visual: "Visual post content",
+    bold: "Bold",
+    advanced: "Advanced authoring tools",
+    undo: "Undo",
+    redo: "Redo",
+  },
+] as const;
+for (const profile of toolProfiles58)
+  for (const editorMode of ["source", "visual"] as const)
+    test(`UX58.direct-${editorMode}-${profile.width}-${profile.size}-${profile.language}: named formatting retains source, selection and editing history across disclosure and resize`, async ({
+      page,
+    }, info) => {
+      const server = await fixture(page);
+      await page.setViewportSize({
+        width: profile.width,
+        height: profile.height,
+      });
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page
+        .getByLabel("Text size", { exact: true })
+        .fill(String(profile.size));
+      await page
+        .locator(`input[name="theme"][value="${profile.theme}"]`)
+        .check();
+      await page.locator("#interface-language").selectOption(profile.language);
+      await page.keyboard.press("Escape");
+      const source = page.getByLabel(profile.source, { exact: true });
+      const original = "[unknown=x]保留[/unknown] words [attach]99[/attach]";
+      await source.fill(original);
+      await source.evaluate((el) => {
+        const field = el as HTMLTextAreaElement;
+        const start = field.value.indexOf("words");
+        field.setSelectionRange(start, start + 5);
+        field.dispatchEvent(new Event("select", { bubbles: true }));
+      });
+      if (editorMode === "visual")
+        await page
+          .getByRole("button", { name: profile.visualMode, exact: true })
+          .click();
+      await expect(
+        page.getByRole("button", {
+          name:
+            editorMode === "source" ? profile.sourceMode : profile.visualMode,
+          exact: true,
+        }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await expect(
+        page.getByRole("button", {
+          name:
+            editorMode === "source" ? profile.sourceMode : profile.visualMode,
+          exact: true,
+        }),
+      ).toHaveCSS("font-weight", "700");
+      const before = await page.evaluate(
+        () =>
+          JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
+            .writing,
+      );
+      const requestCount = server.requests.length;
+      const advanced = page.getByText(profile.advanced, { exact: true });
+      await advanced.press("Enter");
+      await advanced.press("Enter");
+      expect(
+        await page.evaluate(
+          () =>
+            JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
+              .writing,
+        ),
+      ).toEqual(before);
+      expect(server.requests).toHaveLength(requestCount);
+      const bold = page.getByRole("button", {
+        name: profile.bold,
+        exact: true,
+      });
+      await expect(bold).toBeVisible();
+      if (editorMode === "source") await bold.click();
+      else {
+        await bold.focus();
+        await bold.press("Enter");
+      }
+      const expected =
+        "[unknown=x]保留[/unknown] [b]words[/b] [attach]99[/attach]";
+      const visual = page.getByRole("textbox", {
+        name: profile.visual,
+        exact: true,
+      });
+      await expect(visual).toBeFocused();
+      await page
+        .getByRole("button", { name: profile.sourceMode, exact: true })
+        .click();
+      await expect(source).toHaveValue(expected);
+      await page
+        .getByRole("button", { name: profile.undo, exact: true })
+        .click();
+      await expect(source).toHaveValue(original);
+      await page
+        .getByRole("button", { name: profile.redo, exact: true })
+        .click();
+      await expect(source).toHaveValue(expected);
+      // Place a new deliberate caret after the preserved word; history does not
+      // promise the old generic command's PM-to-source offset is a word end.
+      await source.evaluate((el) => {
+        const field = el as HTMLTextAreaElement;
+        const end = field.value.indexOf("words") + 5;
+        field.setSelectionRange(end, end);
+        field.dispatchEvent(new Event("select", { bubbles: true }));
+      });
+      await source.press("X");
+      await expect(source).toHaveValue(expected.replace("words", "wordsX"));
+      await page
+        .getByRole("button", { name: profile.undo, exact: true })
+        .click();
+      await expect(source).toHaveValue(expected);
+      await page
+        .getByRole("button", { name: profile.redo, exact: true })
+        .click();
+      await expect(source).toHaveValue(expected.replace("words", "wordsX"));
+      for (const width of [390, 768, 1440])
+        await page.setViewportSize({ width, height: profile.height });
+      await page.setViewportSize({
+        width: profile.width,
+        height: profile.height,
+      });
+      const geometry = await page.locator(".post-editor").evaluate((el) => ({
+        width: el.clientWidth,
+        scroll: el.scrollWidth,
+        controls: [...el.querySelectorAll("button")]
+          .filter((b) => b.getBoundingClientRect().height > 0)
+          .map((b) => ({
+            label: b.textContent,
+            width: b.getBoundingClientRect().width,
+            height: b.getBoundingClientRect().height,
+          })),
+      }));
+      expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1);
+      expect(server.requests).toHaveLength(requestCount);
+      expect(server.posts).toHaveLength(0);
+      await info.attach("direct-tools-state-requests.json", {
+        body: JSON.stringify(
+          {
+            before,
+            after: await page.evaluate(
+              () =>
+                JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
+                  .writing,
+            ),
+            requests: server.requests,
+            geometry,
+          },
+          null,
+          2,
+        ),
+        contentType: "application/json",
+      });
+      await info.attach("direct-tools.png", {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
+    });
+
+test("UX58.advanced-disclosure: named advanced groups show only applicable arguments without source conversion or automatic requests", async ({
+  page,
+}, info) => {
+  const server = await fixture(page);
+  const source = page.getByLabel("Complete source", { exact: true });
+  const original =
+    "[B]Keep[/B]\n[table][tr][td]A[/td][/tr][/table] [hide]secret[/hide] [attach]99[/attach]";
+  await source.fill(original);
+  const before = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+  const requests = server.requests.length;
+  await expect(
+    page.getByRole("button", { name: "Insert table", exact: true }),
+  ).toBeHidden();
+  await page.getByText("Advanced authoring tools", { exact: true }).click();
+  for (const group of [
+    "Text appearance",
+    "Links and media",
+    "Quotes and hidden content",
+    "Table",
+    "Mentions",
+  ])
+    await expect(
+      page.getByRole("group", { name: group, exact: true }),
+    ).toBeVisible();
+  await expect(page.getByLabel("Font", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Font", exact: true }).click();
+  await expect(page.getByLabel("Font", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Link URL", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Link URL", exact: true }).click();
+  await expect(page.getByLabel("Font", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Link URL", { exact: true })).toBeVisible();
+  await expect(source).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Source editor", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(before);
+  expect(server.requests).toHaveLength(requests);
+  expect(server.posts).toHaveLength(0);
+  await info.attach("advanced-disclosure.json", {
+    body: JSON.stringify({ before, requests: server.requests }),
+    contentType: "application/json",
+  });
+  await info.attach("advanced-disclosure.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UX58.argument-lifetime: choosing a command without arguments closes the previous tool's argument field", async ({
+  page,
+}, info) => {
+  const server = await fixture(page);
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill("words");
+  await source.selectText();
+  await source.dispatchEvent("select");
+  await revealAdvanced(page);
+  await page.getByRole("button", { name: "Font", exact: true }).click();
+  await expect(page.getByLabel("Font", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Bold", exact: true }).click();
+  await expect(page.getByLabel("Font", { exact: true })).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Source editor", exact: true })
+    .click();
+  await expect(source).toHaveValue("[b]words[/b]");
+  expect(server.posts).toHaveLength(0);
+  await info.attach("argument-lifetime.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+for (const editorMode of ["source", "visual"] as const)
+  test(`UX58.direct-crlf-${editorMode}: direct selection formatting and history preserve untouched raw line endings and protected references`, async ({
+    page,
+  }, info) => {
+    const original =
+      "[unknown=x]保留[/unknown]\r\nwords\r\n[attach]99[/attach]";
+    const server = await fixture(page, (body) =>
+      body.replace(
+        '<textarea name="message"></textarea>',
+        `<textarea name="message">${escape(original).replaceAll("\r", "&#13;")}</textarea>`,
+      ),
+    );
+    const source = page.getByLabel("Complete source", { exact: true });
+    await source.evaluate((element) => {
+      const field = element as HTMLTextAreaElement;
+      const start = field.value.indexOf("words");
+      field.setSelectionRange(start, start + 5);
+      field.dispatchEvent(new Event("select", { bubbles: true }));
+    });
+    if (editorMode === "visual")
+      await page
+        .getByRole("button", { name: "Visual editor", exact: true })
+        .click();
+    const bold = page.getByRole("button", { name: "Bold", exact: true });
+    await bold.scrollIntoViewIfNeeded();
+    await info.attach("direct-toolbar.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    const requests = server.requests.length;
+    await bold.click();
+    // The unchanged generic command projects this source boundary through the
+    // visual document and marks its following line break too. Preserve that
+    // existing serialization; both raw CRLF sequences remain unchanged.
+    const expected =
+      "[unknown=x]保留[/unknown]\r\n[b]words[/b][b]\r\n[/b][attach]99[/attach]";
+    const stored = () =>
+      page.evaluate(
+        () =>
+          JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
+            .writing,
+      );
+    expect((await stored()).source).toBe(expected);
+    expect((await stored()).source.match(/\r\n/g)).toHaveLength(2);
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    expect((await stored()).source).toBe(original);
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    expect((await stored()).source).toBe(expected);
+    await page
+      .getByRole("button", { name: "Source editor", exact: true })
+      .click();
+    await expect(source).toHaveValue(expected.replaceAll("\r\n", "\n"));
+    expect(server.requests).toHaveLength(requests);
+    expect(server.posts).toHaveLength(0);
+    await info.attach("direct-crlf.json", {
+      body: JSON.stringify({
+        original,
+        expected,
+        stored: await stored(),
+        requests: server.requests,
+      }),
+      contentType: "application/json",
+    });
+  });

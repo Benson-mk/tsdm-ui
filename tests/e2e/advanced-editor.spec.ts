@@ -1,3 +1,4 @@
+import { applyFormatting, revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -135,6 +136,7 @@ async function fixture(
   });
   await page.goto(boardURL);
   await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await revealAdvanced(page);
   return state;
 }
 
@@ -160,6 +162,7 @@ async function visual(page: Page, value?: string) {
   });
 }
 async function operation(page: Page, name: string) {
+  await revealAdvanced(page);
   await page
     .getByLabel("Table operation", { exact: true })
     .selectOption({ label: name });
@@ -410,18 +413,11 @@ test("J5.advanced-hidden: nested spoilers and reply-to-view blocks retain source
   await page
     .getByLabel("Complete source", { exact: true })
     .dispatchEvent("select");
-  await page.getByLabel("Formatting", { exact: true }).selectOption("spoiler");
-  await page.getByLabel("Format value", { exact: true }).fill("Reveal");
-  await page
-    .getByRole("button", { name: "Apply formatting", exact: true })
-    .click();
+  await applyFormatting(page, "spoiler", "Reveal");
   expect(await sourceValue(page)).toBe("[spoiler=Reveal]Secret[/spoiler]");
   let body = await visual(page);
   await body.locator("p").first().click();
-  await page.getByLabel("Formatting", { exact: true }).selectOption("hide");
-  await page
-    .getByRole("button", { name: "Apply formatting", exact: true })
-    .click();
+  await applyFormatting(page, "hide");
   await expect(body.locator('[data-editor-section="hide"]')).toBeVisible();
   await expect(body.locator('[data-editor-section="spoiler"]')).toBeVisible();
   const expected = "[spoiler=Reveal][hide]Secret[/hide][/spoiler]";
@@ -433,10 +429,7 @@ test("J5.advanced-hidden: nested spoilers and reply-to-view blocks retain source
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   body = await visual(page);
   await body.locator("p").first().click();
-  await page.getByLabel("Formatting", { exact: true }).selectOption("unwrap");
-  await page
-    .getByRole("button", { name: "Apply formatting", exact: true })
-    .click();
+  await applyFormatting(page, "unwrap");
   expect(await sourceValue(page)).toBe("[spoiler=Reveal]Secret[/spoiler]");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("Hidden content");
@@ -855,7 +848,7 @@ test("J5.advanced-appearance-composition: long nested content survives Compact b
     page.getByRole("button", { name: "Insert table", exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("button", { name: "Apply formatting", exact: true }),
+    page.getByRole("button", { name: "Bold", exact: true }),
   ).toBeDisabled();
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
@@ -1036,18 +1029,11 @@ test("J5.advanced-spoiler-title: empty title uses native named syntax and unsafe
   const server = await fixture(page);
   const body = await visual(page, "Secret");
   await body.locator("p").click();
-  await page.getByLabel("Formatting", { exact: true }).selectOption("spoiler");
-  await page.getByLabel("Format value", { exact: true }).fill("");
-  await page
-    .getByRole("button", { name: "Apply formatting", exact: true })
-    .click();
+  await applyFormatting(page, "spoiler");
   expect(await sourceValue(page)).toBe("[spoiler=Spoiler]Secret[/spoiler]");
   await visual(page);
   await body.locator("p").click();
-  await page.getByLabel("Format value", { exact: true }).fill("bad]title");
-  await page
-    .getByRole("button", { name: "Apply formatting", exact: true })
-    .click();
+  await applyFormatting(page, "spoiler", "bad]title");
   await expect(
     page.getByText("This attribute cannot be represented safely."),
   ).toBeVisible();
@@ -1176,12 +1162,7 @@ for (const list of [
   }, info) => {
     const server = await fixture(page);
     const command = async (name: string) => {
-      await page
-        .getByLabel("Formatting", { exact: true })
-        .selectOption({ label: name });
-      await page
-        .getByRole("button", { name: "Apply formatting", exact: true })
-        .click();
+      await applyFormatting(page, name);
     };
     let body = await visual(page, list.original);
     await body

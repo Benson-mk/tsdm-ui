@@ -39,7 +39,8 @@ const t = (value: string) =>
   editorText(value, props.workspace.preferences.state.value.language);
 const inputMessage = ref("");
 const argument = ref("");
-const tool = ref("b");
+const activeTool = ref<string | null>(null);
+const mentionQuery = ref("");
 const rows = ref(2);
 const columns = ref(2);
 const tableOperation = ref("rowAfter");
@@ -74,32 +75,71 @@ function tableAction(insert = false) {
     : "Select a table cell or a rectangular group of cells for this operation.";
   focus();
 }
-const tools = [
+const commonTools = [
   ["b", "Bold"],
   ["i", "Italic"],
   ["u", "Underline"],
   ["s", "Strike"],
-  ["font", "Font"],
-  ["size", "Size"],
-  ["color", "Color"],
-  ["sub", "Subscript"],
-  ["sup", "Superscript"],
-  ["align", "Alignment"],
   ["ul", "Unordered list"],
   ["ol", "Ordered list"],
-  ["indent", "Indent"],
-  ["listIndent", "Indent list"],
-  ["outdent", "Outdent list"],
-  ["url", "Link URL"],
-  ["email", "Email"],
-  ["img", "Image URL"],
-  ["emoticon", "Emoticon code"],
-  ["quote", "Named quote"],
   ["code", "Code"],
-  ["spoiler", "Spoiler"],
-  ["hide", "Reply-to-view hidden block"],
-  ["unwrap", "Unwrap block"],
 ];
+const advancedGroups = [
+  {
+    name: "Text appearance",
+    tools: [
+      ["font", "Font"],
+      ["size", "Size"],
+      ["color", "Color"],
+      ["sub", "Subscript"],
+      ["sup", "Superscript"],
+      ["align", "Alignment"],
+      ["indent", "Indent"],
+      ["listIndent", "Indent list"],
+      ["outdent", "Outdent list"],
+    ],
+  },
+  {
+    name: "Links and media",
+    tools: [
+      ["url", "Link URL"],
+      ["email", "Email"],
+      ["img", "Image URL"],
+      ["emoticon", "Emoticon code"],
+    ],
+  },
+  {
+    name: "Quotes and hidden content",
+    tools: [
+      ["quote", "Named quote"],
+      ["spoiler", "Spoiler"],
+      ["hide", "Reply-to-view hidden block"],
+      ["unwrap", "Unwrap block"],
+    ],
+  },
+];
+const parameterized = [
+  "font",
+  "size",
+  "color",
+  "align",
+  "url",
+  "email",
+  "img",
+  "emoticon",
+  "quote",
+  "spoiler",
+];
+function chooseTool(name: string) {
+  if (state.value.composing) return;
+  if (parameterized.includes(name)) {
+    if (activeTool.value !== name) argument.value = "";
+    activeTool.value = name;
+  } else {
+    activeTool.value = null;
+    apply(name);
+  }
+}
 function focus(automaticEntry = false) {
   const contextId = writing.state.value.context?.id;
   void nextTick(() => {
@@ -164,11 +204,10 @@ function travel(direction: "undo" | "redo") {
   session[direction]();
   focus();
 }
-function apply() {
+function apply(name: string) {
   if (state.value.composing) return;
   if (state.value.mode !== "visual") session.setMode("visual");
-  const name = tool.value,
-    value = argument.value;
+  const value = argument.value;
   if (["ul", "ol"].includes(name))
     session.command("list", { ordered: name === "ol" });
   else if (name === "listIndent" || name === "outdent")
@@ -376,49 +415,119 @@ onBeforeUnmount(() => {
         {{ t("Redo") }}
       </button>
     </div>
-    <div class="editor-tools">
-      <label
-        >{{ t("Formatting")
-        }}<select v-model="tool" :aria-label="t('Formatting')">
-          <option v-for="item in tools" :key="item[0]" :value="item[0]">
-            {{ t(item[1] ?? "") }}
-          </option>
-        </select></label
+    <div
+      class="editor-tools common-formatting"
+      role="group"
+      :aria-label="t('Common formatting')"
+    >
+      <button
+        v-for="item in commonTools"
+        :key="item[0]"
+        :disabled="state.composing"
+        @mousedown.prevent
+        @click="chooseTool(item[0]!)"
       >
-      <label>{{ t("Format value") }}<input v-model="argument" /></label>
-      <button :disabled="state.composing" @mousedown.prevent @click="apply">
-        {{ t("Apply formatting") }}
+        {{ t(item[1]!) }}
       </button>
     </div>
-    <fieldset class="editor-tools" :disabled="state.composing">
-      <legend>{{ t("Table") }}</legend>
-      <label
-        >{{ t("Table rows")
-        }}<input v-model="rows" type="number" min="1" max="20"
-      /></label>
-      <label
-        >{{ t("Table columns")
-        }}<input v-model="columns" type="number" min="1" max="20"
-      /></label>
-      <button @mousedown.prevent @click="tableAction(true)">
-        {{ t("Insert table") }}
-      </button>
-      <label
-        >{{ t("Table operation")
-        }}<select v-model="tableOperation" :aria-label="t('Table operation')">
-          <option
-            v-for="item in tableOperations"
-            :key="item[0]"
-            :value="item[0]"
-          >
-            {{ t(item[1] ?? "") }}
-          </option>
-        </select></label
+    <details class="advanced-authoring">
+      <summary>{{ t("Advanced authoring tools") }}</summary>
+      <fieldset
+        v-for="group in advancedGroups"
+        :key="group.name"
+        class="editor-tools"
+        :disabled="state.composing"
       >
-      <button @mousedown.prevent @click="tableAction()">
-        {{ t("Apply table operation") }}
-      </button>
-    </fieldset>
+        <legend>{{ t(group.name) }}</legend>
+        <button
+          v-for="item in group.tools"
+          :key="item[0]"
+          :aria-expanded="
+            parameterized.includes(item[0]!)
+              ? activeTool === item[0]
+              : undefined
+          "
+          @mousedown.prevent
+          @click="chooseTool(item[0]!)"
+        >
+          {{ t(item[1]!) }}
+        </button>
+        <div
+          v-if="
+            activeTool &&
+            group.tools.some((item) => item[0] === activeTool) &&
+            parameterized.includes(activeTool)
+          "
+          class="editor-tool-argument"
+        >
+          <label
+            >{{
+              t(group.tools.find((item) => item[0] === activeTool)?.[1] ?? "")
+            }}<input v-model="argument"
+          /></label>
+          <button @mousedown.prevent @click="apply(activeTool)">
+            {{ t("Apply") }}
+            {{
+              t(group.tools.find((item) => item[0] === activeTool)?.[1] ?? "")
+            }}
+          </button>
+        </div>
+      </fieldset>
+      <fieldset class="editor-tools" :disabled="state.composing">
+        <legend>{{ t("Table") }}</legend>
+        <label
+          >{{ t("Table rows")
+          }}<input v-model="rows" type="number" min="1" max="20"
+        /></label>
+        <label
+          >{{ t("Table columns")
+          }}<input v-model="columns" type="number" min="1" max="20"
+        /></label>
+        <button @mousedown.prevent @click="tableAction(true)">
+          {{ t("Insert table") }}
+        </button>
+        <label
+          >{{ t("Table operation")
+          }}<select v-model="tableOperation" :aria-label="t('Table operation')">
+            <option
+              v-for="item in tableOperations"
+              :key="item[0]"
+              :value="item[0]"
+            >
+              {{ t(item[1] ?? "") }}
+            </option>
+          </select></label
+        >
+        <button @mousedown.prevent @click="tableAction()">
+          {{ t("Apply table operation") }}
+        </button>
+      </fieldset>
+      <fieldset class="editor-tools">
+        <legend>{{ text.mentions }}</legend>
+        <label
+          >{{ text.findMentionPerson }}<input v-model="mentionQuery"
+        /></label>
+        <button
+          :disabled="
+            writing.state.value.findingMention || writing.state.value.publishing
+          "
+          @click="writing.searchMention(mentionQuery)"
+        >
+          {{ text.findMention }}
+        </button>
+        <button
+          v-for="person in writing.state.value.mentionPeople"
+          :key="person.id"
+          @click="writing.insertMention(person.id)"
+        >
+          {{
+            text.mentionPerson
+              .replace("{value}", person.name)
+              .replace("{id}", person.id)
+          }}
+        </button>
+      </fieldset>
+    </details>
     <p
       v-if="state.issues.some((issue) => issue.kind === 'protected')"
       role="status"

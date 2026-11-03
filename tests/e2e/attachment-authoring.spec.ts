@@ -1,3 +1,4 @@
+import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { combinedSource, richRoundTrip } from "./combined-authoring";
@@ -897,6 +898,7 @@ test("J8.repair-selection-cells: attachment insertion preserves selected row str
     exact: true,
   });
   await body.locator("td").first().click();
+  await revealAdvanced(page);
   await page
     .getByLabel("Table operation", { exact: true })
     .selectOption({ label: "Select row" });
@@ -942,9 +944,7 @@ test("J8.repair-selection-composition: attachment insertion waits for compositio
   ).toBeDisabled();
   await expect
     .poll(async () =>
-      page
-        .getByRole("button", { name: "Apply formatting", exact: true })
-        .isEnabled(),
+      page.getByRole("button", { name: "Bold", exact: true }).isEnabled(),
     )
     .toBe(true);
   await page
@@ -1162,6 +1162,7 @@ for (const route of [
     const source = page.getByLabel("Complete source", { exact: true });
     await source.fill(combinedSource);
     await source.press("ControlOrMeta+End");
+    await revealAdvanced(page);
     await page
       .getByLabel("Find a person to mention", { exact: true })
       .fill("Other author");
