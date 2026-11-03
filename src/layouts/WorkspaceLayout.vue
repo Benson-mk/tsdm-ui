@@ -248,6 +248,32 @@ const boardChoices = computed(() =>
     ? state.value.result.directory.groups.flatMap((group) => group.boards)
     : (boardContext.value?.boards ?? []),
 );
+const boardFilter = ref("");
+const boardFilterInput = ref<HTMLInputElement | null>(null);
+const filteredBoardGroups = computed(() => {
+  if (state.value.result?.kind !== "directory") return [];
+  const query = boardFilter.value.trim().toLocaleLowerCase();
+  return state.value.result.directory.groups
+    .map((group) => ({
+      ...group,
+      boards: group.boards.filter((board) =>
+        [group.title, board.label, board.description].some((value) =>
+          value.toLocaleLowerCase().includes(query),
+        ),
+      ),
+    }))
+    .filter((group) => group.boards.length);
+});
+const filteredBoardCount = computed(() =>
+  filteredBoardGroups.value.reduce(
+    (count, group) => count + group.boards.length,
+    0,
+  ),
+);
+function clearBoardFilter() {
+  boardFilter.value = "";
+  boardFilterInput.value?.focus();
+}
 const pickerBoard = computed(() => {
   if (state.value.result?.kind === "directory") return null;
   if (boardContext.value)
@@ -1072,8 +1098,33 @@ function boardIdFrom(url: string) {
       >
         <h1>{{ text.boards }}</h1>
         <p>{{ text.chooseBoardDescription }}</p>
+        <div class="board-filter">
+          <label for="board-filter">{{ text.filterBoards }}</label>
+          <input
+            id="board-filter"
+            ref="boardFilterInput"
+            v-model="boardFilter"
+            type="search"
+            aria-describedby="board-filter-scope"
+          />
+          <button v-if="boardFilter" @click="clearBoardFilter">
+            {{ text.clearBoardFilter }}
+          </button>
+        </div>
+        <p id="board-filter-scope" class="board-filter-scope">
+          {{ text.boardFilterScope }}
+        </p>
+        <p class="board-filter-status" role="status">
+          {{
+            insert(
+              text.boardsShown,
+              `${filteredBoardCount} / ${boardChoices.length}`,
+            )
+          }}
+        </p>
+        <p v-if="!filteredBoardGroups.length">{{ text.noBoardMatches }}</p>
         <section
-          v-for="group in state.result.directory.groups"
+          v-for="group in filteredBoardGroups"
           :key="group.title"
           class="board-group"
         >
@@ -1185,13 +1236,28 @@ function boardIdFrom(url: string) {
         <section class="thread-heading">
           <p class="eyebrow">{{ text.thread }} {{ state.result.thread.id }}</p>
           <h1>{{ state.result.thread.title }}</h1>
-          <p>{{ text.page }} {{ state.result.thread.pages.current }}</p>
+          <p v-if="!state.result.thread.pages.links.length">
+            {{ text.page }} {{ state.result.thread.pages.current }}
+          </p>
           <a
             v-if="state.result.thread.parent"
             :href="state.result.thread.parent.url"
             >{{ state.result.thread.parent.label }}</a
           >
         </section>
+        <nav
+          v-if="state.result.thread.pages.links.length"
+          class="thread-top-pages"
+          :aria-label="text.threadPagesTop"
+        >
+          <span>{{ text.page }} {{ state.result.thread.pages.current }}</span>
+          <a
+            v-for="link in state.result.thread.pages.links"
+            :key="link.url"
+            :href="link.url"
+            >{{ link.label }}</a
+          >
+        </nav>
         <nav :aria-label="text.threadFilters">
           <a
             v-for="filter in state.result.thread.filters"
