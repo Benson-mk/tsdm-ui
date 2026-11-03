@@ -1285,3 +1285,98 @@ for (const drift of [
     });
   });
 }
+
+test("UX61.conflict-disclosure: closing recovery detail keeps full conflict comparisons and deliberate controls visible without effects", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  await open(page);
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(original + " local");
+  state.source = original + " server";
+  await review(page);
+  const latest = page.getByLabel("Latest server source", { exact: true });
+  await expect(latest).toHaveValue(original + " server");
+  const baseline = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+    reads = state.reads.length;
+  expect(await latest.evaluate((n) => n.closest("details"))).toBeNull();
+  await page.getByText("Recovery details", { exact: true }).click();
+  await page.getByText("Recovery details", { exact: true }).click();
+  for (const name of ["Reload latest", "Reconcile manually", "Save my version"])
+    await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "Local writing is retained. Compare complete source, options and attachment references. The forum provides no atomic conflict lock.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(baseline);
+  expect(state.posts).toEqual([]);
+  expect(state.reads).toHaveLength(reads);
+  await info.attach("conflict-disclosure.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UX61.uncertain-disclosure: original lost edit remains inspectable outside details with no automatic repeat after reading return", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  await open(page);
+  state.outcome = "lost";
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(original + " sent");
+  await review(page);
+  await save(page);
+  const outcome = page.getByText(/edit response was lost/);
+  await expect(outcome).toBeVisible();
+  expect(await outcome.evaluate((n) => n.closest("details"))).toBeNull();
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(original + " later local");
+  const baseline = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+    reads = state.reads.length;
+  await page.getByText("Recovery details", { exact: true }).click();
+  await page.getByText("Recovery details", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .locator(".retained-writing")
+      .getByRole("alert")
+      .filter({ hasText: /outcome needs checking/ }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Check result", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(baseline);
+  expect(state.posts).toHaveLength(1);
+  expect(state.reads).toHaveLength(reads);
+  await info.attach("uncertain-disclosure.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});

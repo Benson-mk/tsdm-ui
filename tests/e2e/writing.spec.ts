@@ -125,6 +125,7 @@ test("J5.revision-recovery: fast edits and options survive unmount and refresh i
   expect(
     requests.filter((r) => new URL(r.url).searchParams.get("mod") === "post"),
   ).toHaveLength(1);
+  await page.getByText("Recovery details", { exact: true }).click();
   await expect(
     page.getByText(/Recovery acknowledged for revision/),
   ).toBeVisible();
@@ -814,6 +815,7 @@ test("J5.unacknowledged: quota refusal after an acknowledged revision recovers o
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(source);
+  await page.getByText("Recovery details", { exact: true }).click();
   await expect(
     page.getByText(/Recovery acknowledged for revision/),
   ).toBeVisible();
@@ -822,7 +824,9 @@ test("J5.unacknowledged: quota refusal after an acknowledged revision recovers o
   const newer = source + " unacknowledged ".repeat(1000);
   await editor.fill(newer);
   await expect(
-    page.getByText(/unacknowledged changes may be lost/),
+    page
+      .locator(".writing-recovery > p")
+      .filter({ hasText: /copy it before reload/ }),
   ).toBeVisible();
   await expect(editor).toHaveValue(newer);
   const stored = await page.evaluate(() =>
@@ -2105,3 +2109,314 @@ for (const member of ["guest", "8"])
           contentType: "application/json",
         });
       });
+
+// UX61 expectations precede the recovery presentation changes.
+async function ux61Writing(page: Page) {
+  return page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+}
+
+test("UX61.local-recovery: plain local status and closed revision details retain exact writing with keyboard disclosure and no requests", async ({
+  page,
+}, info) => {
+  const requests = await open(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await page.getByLabel("Category", { exact: true }).selectOption("3");
+  await page.getByLabel("Signature", { exact: true }).uncheck();
+  await expect(
+    page.getByText(
+      "Changes here are local. Sending or saving a forum draft is a separate action.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Browser recovery is up to date for this page session.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const details = page
+    .locator("details")
+    .filter({ has: page.getByText("Recovery details", { exact: true }) });
+  await expect(details).not.toHaveAttribute("open", "");
+  await expect(
+    details.getByText(/Recovery acknowledged for revision/),
+  ).toBeHidden();
+  const before = await ux61Writing(page),
+    count = requests.length;
+  await details.locator("summary").focus();
+  await details.locator("summary").press("Enter");
+  await expect(
+    details.getByText(/Recovery acknowledged for revision/),
+  ).toBeVisible();
+  await expect(details).toContainText("Restoration depends on the browser");
+  await details.locator("summary").press("Space");
+  await expect(details).not.toHaveAttribute("open", "");
+  expect(await ux61Writing(page)).toEqual(before);
+  expect(requests).toHaveLength(count);
+  expect(requests.every((r) => r.method === "GET")).toBe(true);
+  await info.attach("recovery-status-state-requests.json", {
+    body: JSON.stringify({ writing: await ux61Writing(page), requests }),
+    contentType: "application/json",
+  });
+  await info.attach("recovery-status.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UX61.recovery-refusal: real storage quota keeps copy guidance and unavailable recovery outside closed details without fallback or effects", async ({
+  page,
+}, info) => {
+  const quota = `let filled='';for(let size=65536;size>=1;size=Math.floor(size/2)){const block='x'.repeat(size);try{while(true){sessionStorage.setItem('native-fixture-capacity',filled+block);filled+=block;}}catch{}}`;
+  const requests = await open(page, undefined, quota);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  const status = page.getByRole("region", {
+    name: "Browser recovery",
+    exact: true,
+  });
+  await expect(status.getByRole("alert").filter({ visible: true })).toHaveText(
+    "Browser recovery is unavailable. Live writing remains here; copy it before reload. Sending and uploads are paused.",
+  );
+  await expect(
+    status.getByText("Browser recovery is up to date for this page session.", {
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(status.locator("details")).not.toHaveAttribute("open", "");
+  await expect(page.getByText(/Live writing remains here/)).toHaveCount(1);
+  const before = requests.length;
+  await status.locator("summary").click();
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    source,
+  );
+  expect(requests).toHaveLength(before);
+  expect(requests.every((r) => r.method === "GET")).toBe(true);
+  expect(
+    await page.evaluate(() => ({
+      session: Object.keys(sessionStorage),
+      local: Object.keys(localStorage),
+    })),
+  ).toEqual({ session: ["native-fixture-capacity"], local: [] });
+  await info.attach("refused-recovery.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await info.attach("refused-requests.json", {
+    body: JSON.stringify(requests),
+    contentType: "application/json",
+  });
+});
+
+test("UX61.incompatible-recovery: retained raw data and plain send pause remain visible outside routine details without overwriting", async ({
+  page,
+}, info) => {
+  const raw = JSON.stringify({
+    schema: 999,
+    writing: { source: "Future source must stay available" },
+  });
+  const requests = await open(
+    page,
+    undefined,
+    `sessionStorage.setItem('tsdm.workspace.recovery',${JSON.stringify(raw)});`,
+  );
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  const status = page.getByRole("region", {
+    name: "Browser recovery",
+    exact: true,
+  });
+  await expect(status.getByRole("alert").filter({ visible: true })).toHaveText(
+    "Saved recovery data needs attention. This version cannot use it; copy needed source before resetting it. Sending and uploads are paused.",
+  );
+  await expect(status.locator("details")).not.toHaveAttribute("open", "");
+  await page
+    .getByRole("button", {
+      name: "Inspect retained recovery data",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByLabel("Retained recovery data", { exact: true }),
+  ).toHaveValue(raw);
+  expect(
+    await page.evaluate(() =>
+      sessionStorage.getItem("tsdm.workspace.recovery"),
+    ),
+  ).toBe(raw);
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    source,
+  );
+  expect(requests.every((r) => r.method === "GET")).toBe(true);
+  await info.attach("incompatible-recovery.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await info.attach("incompatible-requests.json", {
+    body: JSON.stringify(requests),
+    contentType: "application/json",
+  });
+});
+
+const ux61Profiles = [
+  {
+    width: 390,
+    height: 844,
+    textSize: 100,
+    theme: "light",
+    language: "en",
+    body: "Complete source",
+    details: "Recovery details",
+    status: "Browser recovery is up to date for this page session.",
+    reading: "Return to reading",
+    resume: "Return to writing",
+  },
+  {
+    width: 390,
+    height: 844,
+    textSize: 150,
+    theme: "dark",
+    language: "zh-CN",
+    body: "完整源码",
+    details: "恢复详情",
+    status: "此页面会话的浏览器恢复记录已是最新。",
+    reading: "返回阅读",
+    resume: "返回写作",
+  },
+  {
+    width: 768,
+    height: 900,
+    textSize: 70,
+    theme: "mono",
+    language: "zh-TW",
+    body: "完整原始碼",
+    details: "恢復詳情",
+    status: "此頁面工作階段的瀏覽器恢復紀錄已是最新。",
+    reading: "返回閱讀",
+    resume: "返回寫作",
+  },
+  {
+    width: 1440,
+    height: 900,
+    textSize: 150,
+    theme: "alias",
+    language: "en",
+    body: "Complete source",
+    details: "Recovery details",
+    status: "Browser recovery is up to date for this page session.",
+    reading: "Return to reading",
+    resume: "Return to writing",
+  },
+] as const;
+for (const profile of ux61Profiles)
+  test(`UX61.appearance-${profile.width}-${profile.textSize}-${profile.language}: localized recovery disclosure and resizing retain complete writing without requests or overflow`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({
+      width: profile.width,
+      height: profile.height,
+    });
+    await page.addInitScript(
+      (p) =>
+        localStorage.setItem(
+          "tsdm.workspace.preferences",
+          JSON.stringify({
+            schema: 1,
+            textSize: p.textSize,
+            theme: p.theme,
+            language: p.language,
+          }),
+        ),
+      profile,
+    );
+    const requests = await open(page);
+    await revealNavigation(page);
+    await page.locator(".secondary-writing-actions button").first().click();
+    const editor = page.getByLabel(profile.body, { exact: true });
+    await editor.fill(source);
+    await expect(page.getByText(profile.status, { exact: true })).toBeVisible();
+    const before = await ux61Writing(page),
+      count = requests.length;
+    const summary = page.getByText(profile.details, { exact: true });
+    await summary.focus();
+    await summary.press("Enter");
+    const geometry = await summary.locator("..").evaluate((node) => ({
+      width: node.clientWidth,
+      scrollWidth: node.scrollWidth,
+      text: node.textContent,
+    }));
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width + 1);
+    expect(await editor.inputValue()).toBe(source);
+    await summary.press("Space");
+    await page
+      .getByRole("button", { name: profile.reading, exact: true })
+      .click();
+    for (const width of [390, 768, 1440])
+      await page.setViewportSize({ width, height: 900 });
+    await page
+      .getByRole("button", { name: profile.resume, exact: true })
+      .click();
+    expect(await ux61Writing(page)).toEqual(before);
+    expect(requests).toHaveLength(count);
+    const overflow = await page
+      .locator(".source-writing")
+      .evaluate((n) => ({ width: n.clientWidth, scrollWidth: n.scrollWidth }));
+    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.width + 1);
+    await page.setViewportSize({
+      width: profile.width,
+      height: profile.height,
+    });
+    await summary.click();
+    await info.attach("recovery-appearance-state.json", {
+      body: JSON.stringify({
+        profile,
+        writing: await ux61Writing(page),
+        requests,
+        geometry,
+        overflow,
+      }),
+      contentType: "application/json",
+    });
+    await info.attach("recovery-appearance.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+
+for (const [language, expected] of [
+  [
+    "zh-CN",
+    "浏览器恢复不可用。当前写作内容仍在此处；刷新前请复制内容。发送和上传已暂停。",
+  ],
+  [
+    "zh-TW",
+    "瀏覽器恢復無法使用。目前寫作內容仍在此處；重新載入前請複製內容。傳送和上傳已暫停。",
+  ],
+] as const)
+  test(`UX61.refusal-locale-${language}: localized copy and send pause explain actual quota refusal without account-expiry claim`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      (language) =>
+        localStorage.setItem(
+          "tsdm.workspace.preferences",
+          JSON.stringify({
+            schema: 1,
+            textSize: 100,
+            theme: "light",
+            language,
+          }),
+        ),
+      language,
+    );
+    await open(
+      page,
+      undefined,
+      `let filled='';for(let size=65536;size>=1;size=Math.floor(size/2)){const block='x'.repeat(size);try{while(true){sessionStorage.setItem('native-fixture-capacity',filled+block);filled+=block;}}catch{}}`,
+    );
+    await page.locator(".secondary-writing-actions button").first().click();
+    await expect(page.locator(".writing-recovery > p")).toHaveText(expected);
+  });

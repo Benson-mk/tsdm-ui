@@ -49,7 +49,7 @@ const english = {
     "Initial creation instructions are retained with the original save. Draft updates and publication use current native controls; feed or notification delivery is not confirmed.",
   draftIn: "Forum draft in {value}",
   draftIdentity:
-    "Forum draft identity: {value}. Saving is explicit; local retention does not update the forum.",
+    "Editing forum draft {value} locally. Only an explicit save updates its forum content; browser recovery is separate.",
   publishSavedDraft: "Publish saved draft",
   loadDrafts: "Load forum drafts",
   resumeDraft: "Resume {value}",
@@ -273,9 +273,25 @@ const english = {
   keepWriting: "Keep original writing",
   replaceTextCopy: "Replace with text copy",
   localWriting:
-    "Local writing only. Nothing has been submitted or saved as a forum draft.",
+    "Changes here are local. Sending or saving a forum draft is a separate action.",
+  writingFinancialConsequences:
+    "Sending or saving this red packet can deduct credits immediately. A funded forum draft's packet can be active before publication. Check thread, packet and credits separately; a failed response does not confirm a refund.",
+  writingRecovery: "Browser recovery",
+  writingRecoveryDetails: "Recovery details",
+  writingRecoveryRevisions:
+    "Current writing revision {value}; last acknowledged revision {acknowledged}.",
+  writingRecoveryCurrent:
+    "Browser recovery is up to date for this page session.",
+  writingRecoveryPending:
+    "Browser recovery has not yet acknowledged these changes. Keep this page open.",
+  writingRecoveryIncompatible:
+    "Saved recovery data needs attention. This version cannot use it; copy needed source before resetting it. Sending and uploads are paused.",
+  writingRecoveryRefused:
+    "The browser refused access to recovery data. Keep this page open and copy your writing; sending and uploads are paused.",
+  writingRecoveryLimits:
+    "Restoration depends on the browser retaining this page session, including after reload, tab restoration or browser restart. This is not a forum draft or a permanent backup; other pages on this forum origin can access this session data.",
   writingRecoveryUnavailable:
-    "Refresh recovery unavailable. Live writing remains here; unacknowledged changes may be lost on reload.",
+    "Browser recovery is unavailable. Live writing remains here; copy it before reload. Sending and uploads are paused.",
   writingAcknowledged:
     "Recovery acknowledged for revision {value} in this browser page session. Restoration depends on the browser.",
   writingPending:
@@ -371,7 +387,7 @@ const simplified: Strings = {
     "初次创建指令与原保存操作一起保留。草稿更新及发布使用当前原版控件；未确认动态或通知已送达。",
   draftIn: "{value} 中的论坛草稿",
   draftIdentity:
-    "论坛草稿编号：{value}。保存需要明确操作；本地保留不会更新论坛。",
+    "正在本地编辑论坛草稿 {value}。只有明确保存才会更新论坛内容；浏览器恢复是独立的。",
   publishSavedDraft: "发布已保存的草稿",
   loadDrafts: "载入论坛草稿",
   resumeDraft: "继续编辑 {value}",
@@ -584,9 +600,23 @@ const simplified: Strings = {
     "仅复制标题和完整源码。分类、权限和积分设置来自新表单；上传文件和所有权不会转移。",
   keepWriting: "保留原写作内容",
   replaceTextCopy: "替换为文字副本",
-  localWriting: "仅在本地写作。尚未提交内容或保存论坛草稿。",
+  localWriting: "此处的更改仅保留在本地。发送或保存论坛草稿需要单独操作。",
+  writingFinancialConsequences:
+    "发送或保存此红包可能立即扣除积分。已注资论坛草稿的红包可能在发布前生效。请分别检查帖子、红包和积分；响应失败不能证明已退款。",
+  writingRecovery: "浏览器恢复",
+  writingRecoveryDetails: "恢复详情",
+  writingRecoveryRevisions:
+    "当前写作版本 {value}；上次已确认的版本 {acknowledged}。",
+  writingRecoveryCurrent: "此页面会话的浏览器恢复记录已是最新。",
+  writingRecoveryPending: "浏览器恢复尚未确认这些更改。请保持此页面打开。",
+  writingRecoveryIncompatible:
+    "保存的恢复数据需要处理。此版本无法使用它；重置前请复制所需源码。发送和上传已暂停。",
+  writingRecoveryRefused:
+    "浏览器拒绝访问恢复数据。请保持此页面打开并复制写作内容；发送和上传已暂停。",
+  writingRecoveryLimits:
+    "恢复取决于浏览器是否保留此页面会话，包括刷新、恢复标签页或重启浏览器之后。这不是论坛草稿或永久备份；此论坛同源的其他页面可以访问这些会话数据。",
   writingRecoveryUnavailable:
-    "刷新恢复不可用。当前写作内容仍在此处；未经确认的更改可能在重新加载时丢失。",
+    "浏览器恢复不可用。当前写作内容仍在此处；刷新前请复制内容。发送和上传已暂停。",
   writingAcknowledged:
     "已确认此浏览器页面会话中版本 {value} 的恢复记录。能否恢复取决于浏览器。",
   writingPending: "版本 {value} 的恢复记录待确认；已确认版本 {acknowledged}。",
@@ -679,7 +709,7 @@ const traditional: Strings = {
     "初次建立指令與原儲存操作一起保留。草稿更新及發佈使用目前原版控制項；未確認動態或通知已送達。",
   draftIn: "{value} 中的論壇草稿",
   draftIdentity:
-    "論壇草稿編號：{value}。儲存需要明確操作；本機保留不會更新論壇。",
+    "正在本機編輯論壇草稿 {value}。只有明確儲存才會更新論壇內容；瀏覽器恢復是獨立的。",
   publishSavedDraft: "發佈已儲存的草稿",
   loadDrafts: "載入論壇草稿",
   resumeDraft: "繼續編輯 {value}",
@@ -893,9 +923,23 @@ const traditional: Strings = {
     "僅複製標題和完整原始碼。分類、權限和積分設定來自新表單；上傳檔案和所有權不會轉移。",
   keepWriting: "保留原寫作內容",
   replaceTextCopy: "替換為文字副本",
-  localWriting: "僅在本機寫作。尚未提交內容或儲存論壇草稿。",
+  localWriting: "此處的變更僅保留在本機。傳送或儲存論壇草稿需要另外操作。",
+  writingFinancialConsequences:
+    "傳送或儲存此紅包可能立即扣除積分。已注資論壇草稿的紅包可能在發佈前生效。請分別檢查帖子、紅包和積分；回應失敗不能證明已退款。",
+  writingRecovery: "瀏覽器恢復",
+  writingRecoveryDetails: "恢復詳情",
+  writingRecoveryRevisions:
+    "目前寫作版本 {value}；上次已確認的版本 {acknowledged}。",
+  writingRecoveryCurrent: "此頁面工作階段的瀏覽器恢復紀錄已是最新。",
+  writingRecoveryPending: "瀏覽器恢復尚未確認這些變更。請保持此頁面開啟。",
+  writingRecoveryIncompatible:
+    "儲存的恢復資料需要處理。此版本無法使用它；重設前請複製所需原始碼。傳送和上傳已暫停。",
+  writingRecoveryRefused:
+    "瀏覽器拒絕存取恢復資料。請保持此頁面開啟並複製寫作內容；傳送和上傳已暫停。",
+  writingRecoveryLimits:
+    "恢復取決於瀏覽器是否保留此頁面工作階段，包括重新整理、還原分頁或重啟瀏覽器之後。這不是論壇草稿或永久備份；此論壇同源的其他頁面可以存取這些工作階段資料。",
   writingRecoveryUnavailable:
-    "重新載入復原無法使用。目前寫作內容仍在此處；未經確認的變更可能在重新載入時遺失。",
+    "瀏覽器恢復無法使用。目前寫作內容仍在此處；重新載入前請複製內容。傳送和上傳已暫停。",
   writingAcknowledged:
     "已確認此瀏覽器頁面工作階段中版本 {value} 的復原記錄。能否復原取決於瀏覽器。",
   writingPending: "版本 {value} 的復原記錄待確認；已確認版本 {acknowledged}。",

@@ -961,6 +961,7 @@ test("J5.pending-persistence: native quota refusal preserves the acknowledged re
 }, info) => {
   const state = await fixture(page);
   await review(page);
+  await page.getByText("Recovery details", { exact: true }).click();
   await expect(
     page.getByText(/Recovery acknowledged for revision/),
   ).toBeVisible();

@@ -1188,7 +1188,13 @@ test("J6.J7.funded-draft-later-settings: delayed target adoption retains unappli
   });
   await expect(retained).toBeVisible();
   await expect(retained).toContainText("40");
-  await expect(retained).toContainText("Later unsent secret");
+  await expect(retained).not.toContainText("Later unsent secret");
+  await expect(retained).toContainText("present (not displayed)");
+  expect(
+    (await recovered(page)).unappliedPacketOptions?.find(
+      (option) => option.name === "hb_password",
+    )?.value,
+  ).toBe("Later unsent secret");
   await expect(retained).toContainText("Selected");
   await expect(page.getByLabel("Total credits", { exact: true })).toHaveCount(
     0,
@@ -1216,7 +1222,13 @@ test("J6.J7.funded-draft-later-settings: delayed target adoption retains unappli
   await page.keyboard.press("Escape");
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.reload();
-  await expect(retained).toContainText("Later unsent secret");
+  await expect(retained).not.toContainText("Later unsent secret");
+  await expect(retained).toContainText("present (not displayed)");
+  expect(
+    (await recovered(page)).unappliedPacketOptions?.find(
+      (option) => option.name === "hb_password",
+    )?.value,
+  ).toBe("Later unsent secret");
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Later ordinary source",
   );
@@ -1228,7 +1240,13 @@ test("J6.J7.funded-draft-later-settings: delayed target adoption retains unappli
   );
   expect(state.packet?.get("hb_total")).toBe("20");
   expect(state.credits.filter((c) => c.operation === "HBS")).toHaveLength(1);
-  await expect(retained).toContainText("Later unsent secret");
+  await expect(retained).not.toContainText("Later unsent secret");
+  await expect(retained).toContainText("present (not displayed)");
+  expect(
+    (await recovered(page)).unappliedPacketOptions?.find(
+      (option) => option.name === "hb_password",
+    )?.value,
+  ).toBe("Later unsent secret");
   await evidence(page, info, state);
 });
 
@@ -1975,3 +1993,80 @@ for (const kind of ["direct", "funded"] as const)
     ).toHaveValue("[unknown]Draft source[/unknown]");
     await evidence(page, info, state);
   });
+
+test("UX61.financial-consequences: immediate debit, pre-publication activity and independent uncertainty stay outside recovery disclosure before funded save", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  const warning = page.getByRole("alert").filter({
+    hasText:
+      "Sending or saving this red packet can deduct credits immediately.",
+  });
+  await expect(warning).toBeVisible();
+  await expect(warning).toContainText(
+    "A funded forum draft's packet can be active before publication.",
+  );
+  await expect(warning).toContainText(
+    "Check thread, packet and credits separately; a failed response does not confirm a refund.",
+  );
+  expect(await warning.evaluate((n) => n.closest("details"))).toBeNull();
+  const before = await recovered(page),
+    reads = state.reads.length;
+  await page.getByText("Recovery details", { exact: true }).click();
+  expect(await recovered(page)).toEqual(before);
+  expect(state.reads).toHaveLength(reads);
+  expect(state.commands).toEqual([]);
+  await save(page);
+  await expect(
+    page.getByRole("heading", {
+      name: "Fund draft — deduct 20 credits now",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Cancel funded draft save", exact: true })
+    .click();
+  expect(state.commands).toEqual([]);
+  await evidence(page, info, state);
+});
+
+test("UX61.mask-unapplied-passphrase: later local secret stays retained but masked after delayed funding and reload", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  let release!: () => void;
+  state.saveGate = new Promise<void>((resolve) => (release = resolve));
+  await fund(page);
+  await expect.poll(() => state.commands.length).toBe(1);
+  await page
+    .getByLabel("Passphrase", { exact: true })
+    .fill("Unsent private phrase — 測試");
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Later retained source");
+  release();
+  await expect(page.getByText(/Confirmed forum draft 42/).last()).toBeVisible();
+  const retained = page.getByRole("region", {
+    name: "Unapplied packet settings",
+    exact: true,
+  });
+  await expect(retained).toBeVisible();
+  await expect(retained).not.toContainText("Unsent private phrase — 測試");
+  await expect(retained).toContainText("present (not displayed)");
+  expect(
+    (await recovered(page)).unappliedPacketOptions?.find(
+      (o) => o.name === "hb_password",
+    )?.value,
+  ).toBe("Unsent private phrase — 測試");
+  expect(state.packet?.get("hb_password")).toBe("");
+  await page.reload();
+  await expect(retained).toContainText("present (not displayed)");
+  await expect(retained).not.toContainText("Unsent private phrase — 測試");
+  expect(
+    (await recovered(page)).unappliedPacketOptions?.find(
+      (o) => o.name === "hb_password",
+    )?.value,
+  ).toBe("Unsent private phrase — 測試");
+  expect(state.commands).toHaveLength(1);
+  await evidence(page, info, state);
+});

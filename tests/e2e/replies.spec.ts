@@ -656,6 +656,7 @@ for (const mutation of [
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
     await page.getByLabel("Complete source", { exact: true }).fill(source);
+    await page.getByText("Recovery details", { exact: true }).click();
     await expect(
       page.getByText(/Recovery acknowledged for revision/),
     ).toBeVisible();

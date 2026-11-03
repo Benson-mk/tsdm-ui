@@ -2902,3 +2902,47 @@ for (const phase of ["review", "preflight"]) {
     });
   }
 }
+
+test("UX61.attachment-uncertainty: upload outcome and recovery details retain original attachment attempt without save removal or retry", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  state.outcome = "lost";
+  await select(page);
+  await upload(page);
+  const outcome = page.getByText("Upload outcome uncertain · note.txt", {
+    exact: true,
+  });
+  await expect(outcome).toBeVisible();
+  expect(await outcome.evaluate((n) => n.closest("details"))).toBeNull();
+  const before = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+    requests = state.requests.length;
+  await page.getByText("Recovery details", { exact: true }).click();
+  await page.getByText("Recovery details", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .locator(".retained-writing")
+      .getByRole("alert")
+      .filter({ hasText: /outcome needs checking/ }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(before);
+  expect(state.requests).toHaveLength(requests);
+  expect(state.uploads).toHaveLength(1);
+  expect(state.saves).toEqual([]);
+  expect(state.removals).toEqual([]);
+  await receipt(page, state, info);
+});

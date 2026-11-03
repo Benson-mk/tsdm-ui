@@ -1539,3 +1539,66 @@ test("J8.draft-reference-boundary: resumed existing references remain preserved 
     contentType: "image/png",
   });
 });
+
+test("UX61.forum-draft-local: known draft identity and unsaved-change explanation stay separate from browser acknowledgement", async ({
+  page,
+}, info) => {
+  const state = await lifecycle(page);
+  await page
+    .getByLabel("Title", { exact: true })
+    .fill("Local draft distinction");
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Saved source");
+  await page
+    .getByRole("button", { name: "Save forum draft", exact: true })
+    .click();
+  await expect(page.getByText(/Confirmed forum draft 42/).last()).toBeVisible();
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Later local source [attach]88[/attach]");
+  await expect(
+    page.getByText(
+      "Editing forum draft 42 locally. Only an explicit save updates its forum content; browser recovery is separate.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Browser recovery is up to date for this page session.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Changes here are local. Sending or saving a forum draft is a separate action.",
+      { exact: true },
+    ),
+  ).toHaveCount(0);
+  const before = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+    reads = state.reads.length;
+  await page.getByText("Recovery details", { exact: true }).click();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(before);
+  expect(state.saved?.get("message")).toBe("Saved source");
+  expect(state.posts).toHaveLength(1);
+  expect(state.reads).toHaveLength(reads);
+  await info.attach("draft-recovery-distinction.json", {
+    body: JSON.stringify({
+      writing: before,
+      saved: state.saved && [...state.saved],
+      requests: state.reads,
+    }),
+    contentType: "application/json",
+  });
+  await info.attach("draft-recovery-distinction.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});

@@ -66,6 +66,18 @@ watch(
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
+const recoverySummary = computed(() => {
+  const problem = props.workspace.state.value.recoveryProblem;
+  if (problem?.kind === "incompatible")
+    return text.value.writingRecoveryIncompatible;
+  if (problem?.kind === "refused") return text.value.writingRecoveryRefused;
+  if (state.value.recoveryAvailable === false)
+    return text.value.writingRecoveryUnavailable;
+  return state.value.recoveryAvailable &&
+    state.value.acknowledged === state.value.context?.revision
+    ? text.value.writingRecoveryCurrent
+    : text.value.writingRecoveryPending;
+});
 const attachment = (value: string) =>
   attachmentText(
     description(value, props.workspace.preferences.state.value.language),
@@ -246,6 +258,41 @@ function updateOption(option: WritingOption, event: Event) {
         :writing="state.context"
         :language="workspace.preferences.state.value.language"
       />
+      <p v-if="!state.context.draft">{{ text.localWriting }}</p>
+      <section class="writing-recovery" :aria-label="text.writingRecovery">
+        <p :role="state.recoveryAvailable === false ? 'alert' : 'status'">
+          {{ recoverySummary }}
+        </p>
+        <details>
+          <summary>{{ text.writingRecoveryDetails }}</summary>
+          <p v-if="state.recoveryAvailable === false">
+            {{
+              insert(
+                text.writingRecoveryRevisions,
+                state.context.revision,
+              ).replace("{acknowledged}", String(state.acknowledged))
+            }}
+          </p>
+          <p
+            v-else-if="state.acknowledged === state.context.revision"
+            role="status"
+          >
+            {{ insert(text.writingAcknowledged, state.acknowledged) }}
+          </p>
+          <p v-else role="status">
+            {{
+              insert(text.writingPending, state.context.revision).replace(
+                "{acknowledged}",
+                String(state.acknowledged),
+              )
+            }}
+          </p>
+          <p>{{ text.writingRecoveryLimits }}</p>
+        </details>
+      </section>
+      <p v-if="state.context.redPacket" role="alert">
+        {{ text.writingFinancialConsequences }}
+      </p>
       <p v-if="!state.accountVerified" role="alert">
         {{
           insert(
@@ -546,15 +593,6 @@ function updateOption(option: WritingOption, event: Event) {
           {{ text.confirmDraftResend }}
         </button>
       </section>
-      <p
-        v-if="
-          !state.context.draft &&
-          !state.context.attempts?.length &&
-          !state.context.draftAttempts?.length
-        "
-      >
-        {{ text.localWriting }}
-      </p>
       <section
         v-for="attempt in state.context.attempts"
         :key="attempt.id"
@@ -954,23 +992,6 @@ function updateOption(option: WritingOption, event: Event) {
           </button>
         </PreparedPublication>
       </div>
-      <p v-if="state.recoveryAvailable === false" role="alert">
-        {{ text.writingRecoveryUnavailable }}
-      </p>
-      <p
-        v-else-if="state.acknowledged === state.context.revision"
-        role="status"
-      >
-        {{ insert(text.writingAcknowledged, state.acknowledged) }}
-      </p>
-      <p v-else role="status">
-        {{
-          insert(text.writingPending, state.context.revision).replace(
-            "{acknowledged}",
-            String(state.acknowledged),
-          )
-        }}
-      </p>
       <section :aria-label="attachment('Attachment authoring')">
         <div v-if="removeUpload" role="alert">
           <p>
@@ -1107,11 +1128,15 @@ function updateOption(option: WritingOption, event: Event) {
             <dt>{{ packetText(option.label) }}</dt>
             <dd>
               {{
-                option.kind === "checkbox"
-                  ? packetText(option.checked ? "Selected" : "Not selected")
-                  : (option.choices.find(
-                      (choice) => choice.value === option.value,
-                    )?.label ?? option.value)
+                option.name === "hb_password"
+                  ? packetText(
+                      option.value ? "present (not displayed)" : "none",
+                    )
+                  : option.kind === "checkbox"
+                    ? packetText(option.checked ? "Selected" : "Not selected")
+                    : (option.choices.find(
+                        (choice) => choice.value === option.value,
+                      )?.label ?? option.value)
               }}
             </dd>
           </template>
