@@ -414,6 +414,14 @@ export function createWriting(
       };
       return;
     }
+    const current = ++sequence;
+    state.value = {
+      ...state.value,
+      preparing: false,
+      ...(!replace
+        ? { replacement: null, editReplacement: null, draftReplacement: null }
+        : {}),
+    };
     if (existing && !replace) {
       if (sameAction) {
         state.value = { ...state.value, visible: true, replacement: null };
@@ -429,16 +437,15 @@ export function createWriting(
       };
       return;
     }
-    const current = ++sequence;
     state.value = { ...state.value, preparing: true, message: "" };
     const result = await (replyTarget
       ? client.prepareReply(boardId, replyTarget)
       : client.prepareNewThread(boardId, redPacket));
+    if (current !== sequence) return;
     if (result.kind !== "stale") {
       accountObserved(result.account);
       observe(result.account, result.kind === "prepared");
     }
-    if (current !== sequence) return;
     if (result.kind !== "prepared") {
       state.value = {
         ...state.value,
@@ -502,7 +509,15 @@ export function createWriting(
       })
     )
       return;
-    if (state.value.publishing || state.value.preparing) return;
+    if (state.value.publishing) return;
+    const current = ++sequence;
+    state.value = {
+      ...state.value,
+      preparing: false,
+      ...(!replace
+        ? { replacement: null, editReplacement: null, draftReplacement: null }
+        : {}),
+    };
     const existing = state.value.context;
     if (existing && !replace) {
       if (
@@ -515,12 +530,11 @@ export function createWriting(
       state.value = { ...state.value, editReplacement: { threadURL, postId } };
       return;
     }
-    const current = ++sequence;
     state.value = { ...state.value, preparing: true, message: "" };
     const result = await client.preparePostEdit(threadURL, postId);
+    if (current !== sequence) return;
     accountObserved(result.account);
     observe(result.account, result.kind === "prepared");
-    if (current !== sequence) return;
     if (result.kind !== "prepared") {
       state.value = {
         ...state.value,
@@ -1767,7 +1781,8 @@ export function createWriting(
     },
     reconcileEdit,
     cancelEditReplacement: () => {
-      state.value = { ...state.value, editReplacement: null };
+      ++sequence;
+      state.value = { ...state.value, editReplacement: null, preparing: false };
     },
     replaceWithEdit: () => {
       const target = state.value.editReplacement;
@@ -2097,6 +2112,7 @@ export function createWriting(
           ...state.value,
           visible: true,
           replacement: null,
+          editReplacement: null,
           draftReplacement: null,
           preparing: false,
         };
@@ -2105,7 +2121,8 @@ export function createWriting(
     },
     hide: () => {
       const hide = () => {
-        state.value = { ...state.value, visible: false };
+        ++sequence;
+        state.value = { ...state.value, visible: false, preparing: false };
       };
       if (!deferViewChange(hide)) hide();
     },

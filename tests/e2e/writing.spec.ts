@@ -269,7 +269,11 @@ for (const member of ["guest", "8"])
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue(source);
-    await expect(page.getByText(/Writing as Writer 7/)).toBeVisible();
+    await expect(
+      page
+        .getByRole("group", { name: "Writing destination", exact: true })
+        .getByText(/Writing as Writer 7/),
+    ).toBeVisible();
     current = "8";
     await page
       .getByRole("button", {
@@ -297,7 +301,11 @@ for (const member of ["guest", "8"])
     await page
       .getByRole("button", { name: "Replace with text copy", exact: true })
       .click();
-    await expect(page.getByText(/Writing as Writer 8/)).toBeVisible();
+    await expect(
+      page
+        .getByRole("group", { name: "Writing destination", exact: true })
+        .getByText(/Writing as Writer 8/),
+    ).toBeVisible();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue(source);
@@ -745,7 +753,11 @@ test("J11.stale-preparation: an older form cannot replace a newer observed accou
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     source,
   );
-  await expect(page.getByText(/Writing as Writer 7/)).toBeVisible();
+  await expect(
+    page
+      .getByRole("group", { name: "Writing destination", exact: true })
+      .getByText(/Writing as Writer 7/),
+  ).toBeVisible();
 });
 
 for (const change of ["return", "edit"])
@@ -936,7 +948,12 @@ test("J5.short-window-focus: opening writing with keyboard places its focused so
   await expect(editor).toBeFocused();
   await expect(editor).toBeInViewport();
   await editor.press("Tab");
-  await expect(page.getByLabel("Signature", { exact: true })).toBeFocused();
+  await expect(
+    page.getByRole("button", {
+      name: "Check current account and form",
+      exact: true,
+    }),
+  ).toBeFocused();
   await info.attach("short-window-writing-keyboard.png", {
     body: await page.screenshot(),
     contentType: "image/png",
@@ -994,7 +1011,11 @@ for (const failure of [
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue(source);
-    await expect(page.getByText(/Writing as Writer 7/)).toBeVisible();
+    await expect(
+      page
+        .getByRole("group", { name: "Writing destination", exact: true })
+        .getByText(/Writing as Writer 7/),
+    ).toBeVisible();
     await expect(page.getByText(/Sending paused/)).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Replace with text copy", exact: true }),

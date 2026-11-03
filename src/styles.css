@@ -866,6 +866,15 @@ select {
   margin: 0 auto;
   padding: 24px;
 }
+.writing-destination {
+  border-inline-start: 3px solid var(--boundary);
+  padding-inline-start: 12px;
+  margin-block: 16px;
+  overflow-wrap: anywhere;
+}
+.writing-destination p {
+  margin-block: 6px;
+}
 .source-writing label {
   display: block;
   margin: 12px 0;

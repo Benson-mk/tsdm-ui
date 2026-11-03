@@ -753,7 +753,12 @@ test("J6.save-continue: replacement proceeds only after exact version is indepen
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "",
   );
-  await expect(page.getByText("Writing as Writer 7 · Board 6")).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Writing as Writer 7");
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Board 6");
   expect(state.posts).toHaveLength(1);
   expect(state.saved?.get("message")).toContain("[unknown]");
   await info.attach("saved-and-continued.png", {
@@ -874,7 +879,12 @@ test("J6.next-composition: a completed publication remains in history without bl
       exact: true,
     })
     .click();
-  await expect(page.getByText("Writing as Writer 7 · Board 6")).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Writing as Writer 7");
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Board 6");
   await page.getByLabel("Title", { exact: true }).fill("Second composition");
   await page
     .getByLabel("Complete source", { exact: true })

@@ -2,6 +2,7 @@
 import { computed, ref, type DeepReadonly } from "vue";
 import { attachmentText } from "./attachment-text";
 import PostEditor from "./PostEditor.vue";
+import WritingDestination from "./WritingDestination.vue";
 import type { Workspace } from "../workspace";
 import { strings, insert, description } from "../layouts/strings";
 import type { WritingOption } from "../forum-client";
@@ -175,28 +176,47 @@ function updateOption(option: WritingOption, event: Event) {
               )
       }}
     </h1>
-    <p v-if="state.context.replyTarget?.postId">
-      {{
-        insert(text.addressedTo, state.context.replyTarget.author).replace(
-          "{post}",
-          state.context.replyTarget.postId,
-        )
-      }}
-    </p>
-    <p v-if="state.context.replyTarget">{{ text.replyDeliveryUnknown }}</p>
     <p v-if="state.context.draft">
       {{ insert(text.draftIdentity, state.context.draft.threadId) }}
     </p>
-    <p>
-      {{ insert(text.writingAs, state.context.account.name) }} ·
-      {{ insert(text.writingBoard, state.context.board.id) }}
-    </p>
+    <WritingDestination
+      :writing="state.context"
+      :language="workspace.preferences.state.value.language"
+    />
     <p v-if="!state.accountVerified" role="alert">
       {{ insert(text.writingPaused, state.context.account.name) }}
     </p>
     <p v-if="unresolved.length" role="alert">
       {{ insert(text.unresolvedAttachments, unresolved.join(", ")) }}
     </p>
+    <label
+      v-if="
+        !state.context.replyTarget && state.context.titleAvailable !== false
+      "
+      >{{ text.writingTitle
+      }}<input
+        :value="state.context.title"
+        @input="workspace.writing.edit({ title: value($event) })"
+    /></label>
+    <label v-if="state.context.category"
+      >{{ text.writingCategory
+      }}<select
+        :aria-label="text.writingCategory"
+        :value="state.context.category.value"
+        :disabled="state.context.category.disabled"
+        @change="updateOption(state.context.category as WritingOption, $event)"
+      >
+        <option
+          v-for="choice in state.context.category.choices"
+          :key="choice.value"
+          :value="choice.value"
+          :disabled="choice.disabled"
+        >
+          {{ choice.label }}
+        </option>
+      </select></label
+    >
+    <PostEditor :key="state.context.id" :workspace="workspace" />
     <div class="writing-actions">
       <button
         :disabled="state.preparing || state.publishing"
@@ -696,6 +716,11 @@ function updateOption(option: WritingOption, event: Event) {
         </button>
       </section>
     </section>
+    <WritingDestination
+      :writing="state.publication?.submission.writing ?? state.context"
+      :language="workspace.preferences.state.value.language"
+      review
+    />
     <div class="writing-actions">
       <button
         v-if="!state.context.draft"
@@ -919,34 +944,6 @@ function updateOption(option: WritingOption, event: Event) {
         </li>
       </ul>
     </section>
-    <label
-      v-if="
-        !state.context.replyTarget && state.context.titleAvailable !== false
-      "
-      >{{ text.writingTitle
-      }}<input
-        :value="state.context.title"
-        @input="workspace.writing.edit({ title: value($event) })"
-    /></label>
-    <label v-if="state.context.category"
-      >{{ text.writingCategory
-      }}<select
-        :aria-label="text.writingCategory"
-        :value="state.context.category.value"
-        :disabled="state.context.category.disabled"
-        @change="updateOption(state.context.category as WritingOption, $event)"
-      >
-        <option
-          v-for="choice in state.context.category.choices"
-          :key="choice.value"
-          :value="choice.value"
-          :disabled="choice.disabled"
-        >
-          {{ choice.label }}
-        </option>
-      </select></label
-    >
-    <PostEditor :key="state.context.id" :workspace="workspace" />
     <p
       v-if="
         state.context.draft &&

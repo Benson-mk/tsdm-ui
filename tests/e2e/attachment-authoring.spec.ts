@@ -250,7 +250,7 @@ async function fixture(
             ? "New thread"
             : context === "reply"
               ? "Reply to thread"
-              : "Quick Quote",
+              : "Reply to this post",
       exact: true,
     })
     .click();

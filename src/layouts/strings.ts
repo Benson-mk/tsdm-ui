@@ -224,7 +224,12 @@ const english = {
   findMentionPerson: "Find a person to mention",
   findMention: "Find mention",
   mentionPerson: "Mention {value} (UID {id})",
-  quickQuote: "Quick Quote",
+  quickQuote: "Reply to this post",
+  writingDestination: "Writing destination",
+  reviewDestination: "Review destination",
+  writingThread: "Thread {value}",
+  addressedExplanation:
+    "Starts with a blank body and addresses one author/post. No quoted text is inserted. Additional quote blocks do not change this target; notification delivery is unverified.",
   addressedTo: "Addressed to {value} · Post {post}",
   replyDeliveryUnknown:
     "Quoted source does not change the addressed post. Quote and mention notification delivery is unverified.",
@@ -521,7 +526,12 @@ const simplified: Strings = {
   findMentionPerson: "查找要提及的用户",
   findMention: "查找用户",
   mentionPerson: "提及 {value}（UID {id}）",
-  quickQuote: "快速引用",
+  quickQuote: "回复这篇帖子",
+  writingDestination: "写作目标",
+  reviewDestination: "审阅目标",
+  writingThread: "主题 {value}",
+  addressedExplanation:
+    "以空白正文开始，仅指定一位作者和一篇帖子。不会自动插入引用文字。其他引用块不会改变此目标；无法保证通知送达。",
   addressedTo: "回复对象：{value} · 帖子 {post}",
   replyDeliveryUnknown:
     "引用源码不会更改回复对象。引用和提及的通知送达状态未确认。",
@@ -814,7 +824,12 @@ const traditional: Strings = {
   findMentionPerson: "尋找要提及的用戶",
   findMention: "尋找用戶",
   mentionPerson: "提及 {value}（UID {id}）",
-  quickQuote: "快速引用",
+  quickQuote: "回覆這篇帖子",
+  writingDestination: "寫作目標",
+  reviewDestination: "檢閱目標",
+  writingThread: "主題 {value}",
+  addressedExplanation:
+    "以空白內文開始，僅指定一位作者和一篇帖子。不會自動插入引用文字。其他引用區塊不會改變此目標；無法保證通知送達。",
   addressedTo: "回覆對象：{value} · 帖子 {post}",
   replyDeliveryUnknown:
     "引用原始碼不會更改回覆對象。引用和提及的通知送達狀態未確認。",

@@ -100,10 +100,20 @@ const tools = [
   ["hide", "Reply-to-view hidden block"],
   ["unwrap", "Unwrap block"],
 ];
-function focus() {
+function focus(automaticEntry = false) {
+  const contextId = writing.state.value.context?.id;
   void nextTick(() => {
-    if (state.value.mode === "visual") view?.focus();
-    else {
+    if (
+      !writing.state.value.visible ||
+      writing.state.value.context?.id !== contextId ||
+      (automaticEntry && writing.state.value.preparing) ||
+      writing.state.value.composing
+    )
+      return;
+    if (state.value.mode === "visual") {
+      view?.focus();
+      view?.dom.scrollIntoView({ block: "nearest" });
+    } else {
       source.value?.focus();
       const range = session.sourceSelection;
       source.value?.setSelectionRange(range.from, range.to, range.direction);
@@ -295,7 +305,7 @@ onMounted(() => {
     if (view && view.state !== session.pmState)
       view.updateState(session.pmState);
   });
-  focus();
+  focus(true);
 });
 watch(
   () => props.workspace.preferences.state.value.language,
