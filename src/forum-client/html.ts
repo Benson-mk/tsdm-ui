@@ -90,6 +90,7 @@ export function content(
   node: Node,
   base: string,
   inlineImages?: ReadonlyMap<Element, string>,
+  nativeLayout?: ReadonlySet<Element>,
 ): ContentNode[] {
   return children(node).flatMap((child): ContentNode[] => {
     if ("value" in child) return [{ kind: "text", text: child.value }];
@@ -147,7 +148,7 @@ export function content(
                 },
               ],
             },
-            ...content(spoilerBody, base, inlineImages),
+            ...content(spoilerBody, base, inlineImages, nativeLayout),
           ],
         },
       ];
@@ -170,13 +171,13 @@ export function content(
         },
       ];
     if (child.tagName === "ignore_js_op")
-      return content(child, base, inlineImages);
+      return content(child, base, inlineImages, nativeLayout);
     if (interactive.has(child.tagName))
       return [
         {
           kind: "unsupported",
           description: "Unsupported interactive content",
-          children: content(child, base, inlineImages),
+          children: content(child, base, inlineImages, nativeLayout),
         },
       ];
     if (!allowed.has(child.tagName))
@@ -184,9 +185,16 @@ export function content(
         {
           kind: "unsupported",
           description: `Unsupported formatting (${child.tagName})`,
-          children: content(child, base, inlineImages),
+          children: content(child, base, inlineImages, nativeLayout),
         },
       ];
+    if (
+      nativeLayout?.has(child) &&
+      !["locked", "showhide", "attach_nopermission"].some((name) =>
+        hasClass(child, name),
+      )
+    )
+      return content(child, base, inlineImages, nativeLayout);
     const attributes: Record<string, string> = {};
     if (
       ["locked", "showhide", "attach_nopermission"].some((name) =>
@@ -246,7 +254,7 @@ export function content(
         kind: "element",
         tag: child.tagName,
         attributes,
-        children: content(child, base, inlineImages),
+        children: content(child, base, inlineImages, nativeLayout),
       },
     ];
   });

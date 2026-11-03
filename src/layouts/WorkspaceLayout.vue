@@ -15,6 +15,8 @@ import { favoriteText } from "../components/favorite-labels";
 import FavoritesView from "../components/FavoritesView.vue";
 import NoticesView from "../components/NoticesView.vue";
 import SourceWriting from "../components/SourceWriting.vue";
+import WritingDestination from "../components/WritingDestination.vue";
+import { editorText } from "../components/editor-strings";
 import ContentView from "../components/ContentView";
 import SettingsDialog from "../components/SettingsDialog.vue";
 import type { Workspace } from "../workspace";
@@ -27,6 +29,61 @@ const state = props.workspace.state;
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
+const threadFilters = computed(() => {
+  const result = state.value.result;
+  if (result?.kind !== "thread") return [];
+  return result.thread.filters.map((filter) => {
+    const url = new URL(filter.url);
+    const authorId = url.searchParams.get("authorid");
+    const authors = result.thread.posts.filter(
+      (post) => post.authorId === authorId && authorId !== null,
+    );
+    const known =
+      url.origin === new URL(result.thread.url).origin &&
+      url.searchParams.get("tid") === result.thread.id &&
+      authors.length > 0 &&
+      new Set(authors.map((post) => post.author)).size === 1;
+    const author = known ? authors[0]! : null;
+    return {
+      ...filter,
+      authorId: author?.authorId ?? null,
+      label: author
+        ? filter.label.includes(author.author)
+          ? filter.label
+          : `${filter.label}: ${author.author}`
+        : authorId !== null
+          ? `${text.value.authorFilter}: ${filter.label}`
+          : filter.label,
+    };
+  });
+});
+const compactNavigation = ref(window.innerWidth <= 959);
+const navigationOpen = ref(false);
+const navigationTrigger = ref<HTMLButtonElement | null>(null);
+function changeNavigation(open: boolean, returnFocus = false) {
+  const change = () => {
+    const positions = capturePositions();
+    navigationOpen.value = open;
+    if (returnFocus) navigationTrigger.value?.focus();
+    void nextTick().then(() => {
+      restorePositions(positions, true);
+      appearanceAnchors = [];
+    });
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
+function closeNavigation(event: KeyboardEvent) {
+  if (
+    event.defaultPrevented ||
+    event.isComposing ||
+    event.keyCode === 229 ||
+    !compactNavigation.value ||
+    !navigationOpen.value
+  )
+    return;
+  event.stopPropagation();
+  changeNavigation(false, true);
+}
 const sections: Section[] = ["boards", "search", "saved", "notices", "drafts"];
 const sectionInfo = computed(() => {
   const section = state.value.section;
@@ -60,7 +117,7 @@ type PanePosition = {
   paneTop: number;
 };
 let viewportPositions: PanePosition[] = [];
-type RestoredAnchor = Pick<PanePosition, "pane" | "anchor"> & {
+type RestoredAnchor = PanePosition & {
   scrollTop: number;
 };
 let appearanceAnchors: RestoredAnchor[] = [];
@@ -97,8 +154,8 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
           {
             pane,
             anchor,
-            offset: anchor.getBoundingClientRect().top,
-            paneTop: bounds.top,
+            offset: previous?.offset ?? anchor.getBoundingClientRect().top,
+            paneTop: previous?.paneTop ?? bounds.top,
           },
         ]
       : [];
@@ -128,6 +185,8 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
         (relativeToPane ? pane.getBoundingClientRect().top - paneTop : 0);
 }
 function resize() {
+  appearanceAnchors = [];
+  compactNavigation.value = window.innerWidth <= 959;
   restorePositions(viewportPositions, true);
   viewportWidth = window.innerWidth;
   viewportHeight = window.innerHeight;
@@ -172,10 +231,9 @@ watch(
     host.lang = props.workspace.preferences.state.value.language;
     void nextTick().then(() => {
       restorePositions(positions);
-      appearanceAnchors = positions.map(({ pane, anchor }) => ({
-        pane,
-        anchor,
-        scrollTop: pane.scrollTop,
+      appearanceAnchors = positions.map((position) => ({
+        ...position,
+        scrollTop: position.pane.scrollTop,
       }));
       rememberPositions();
     });
@@ -196,6 +254,38 @@ watch(download, async (value) => {
       ?.scrollIntoView({ block: "nearest" });
 });
 const writing = props.workspace.writing.state;
+const writingExpanded = ref(false);
+watch(
+  () => writing.value.context?.id,
+  () => {
+    const context = writing.value.context;
+    writingExpanded.value = Boolean(context && !context.replyTarget);
+  },
+  { immediate: true },
+);
+function resizeWriting(expanded: boolean) {
+  const change = () => {
+    writingExpanded.value = expanded;
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
+const retainedAttemptWarning = computed(() => {
+  const context = writing.value.context;
+  return (
+    writing.value.publishing ||
+    context?.attempts?.some((a) =>
+      ["pending", "uncertain", "moderation"].includes(a.status),
+    ) ||
+    context?.draftAttempts?.some((a) =>
+      ["pending", "uncertain", "moderation"].includes(a.status),
+    ) ||
+    context?.uploads?.some((u) =>
+      ["uploading", "removing", "uncertain", "removal-uncertain"].includes(
+        u.status,
+      ),
+    )
+  );
+});
 function prepareWriting(redPacket = false) {
   const url = pickerBoard.value?.url;
   const id = url && new URL(url).searchParams.get("fid");
@@ -211,6 +301,33 @@ const boardContext = computed(() =>
         ? state.value.origin.board
         : null,
 );
+const boardFilterGroups = computed(() => {
+  const board = boardContext.value;
+  if (!board) return [];
+  return (
+    board.filterGroups ??
+    (board.filters.length
+      ? [
+          {
+            kind: "unclassified" as const,
+            sourceId: "legacy",
+            links: board.filters,
+          },
+        ]
+      : [])
+  ).map((group) => ({
+    ...group,
+    label:
+      group.sourceLabel ||
+      {
+        category: text.value.filterCategory,
+        order: text.value.filterOrder,
+        type: text.value.filterType,
+        time: text.value.filterTime,
+        unclassified: text.value.filterOther,
+      }[group.kind],
+  }));
+});
 const searchContext = computed(() =>
   state.value.section !== "search"
     ? null
@@ -231,6 +348,14 @@ const favoriteContext = computed(() =>
         ? state.value.origin.favorites
         : null,
 );
+const threadWithoutResults = computed(
+  () =>
+    state.value.result?.kind === "thread" &&
+    !boardContext.value &&
+    !searchContext.value &&
+    !favoriteContext.value &&
+    !noticeContext.value,
+);
 const selectedThread = computed(() =>
   state.value.result?.kind === "thread" ? state.value.result.thread.id : null,
 );
@@ -248,6 +373,32 @@ const boardChoices = computed(() =>
     ? state.value.result.directory.groups.flatMap((group) => group.boards)
     : (boardContext.value?.boards ?? []),
 );
+const boardFilter = ref("");
+const boardFilterInput = ref<HTMLInputElement | null>(null);
+const filteredBoardGroups = computed(() => {
+  if (state.value.result?.kind !== "directory") return [];
+  const query = boardFilter.value.trim().toLocaleLowerCase();
+  return state.value.result.directory.groups
+    .map((group) => ({
+      ...group,
+      boards: group.boards.filter((board) =>
+        [group.title, board.label, board.description].some((value) =>
+          value.toLocaleLowerCase().includes(query),
+        ),
+      ),
+    }))
+    .filter((group) => group.boards.length);
+});
+const filteredBoardCount = computed(() =>
+  filteredBoardGroups.value.reduce(
+    (count, group) => count + group.boards.length,
+    0,
+  ),
+);
+function clearBoardFilter() {
+  boardFilter.value = "";
+  boardFilterInput.value?.focus();
+}
 const pickerBoard = computed(() => {
   if (state.value.result?.kind === "directory") return null;
   if (boardContext.value)
@@ -471,28 +622,50 @@ function boardIdFrom(url: string) {
 }
 </script>
 <template>
-  <div class="workspace" @click="navigate">
+  <div class="workspace" @click="navigate" @keydown.esc="closeNavigation">
     <header>
       <a class="brand" href="https://www.tsdm39.com/">TSDM</a
-      ><span>{{ accountLabel }}</span>
+      ><span class="header-account">{{ accountLabel }}</span>
       <SettingsDialog :workspace="workspace" :portal="portal" />
-      <DialogRoot :open="aboutOpen" @update:open="changeAboutOpen"
-        ><DialogTrigger>{{ text.about }}</DialogTrigger
-        ><DialogPortal :to="portal"
-          ><DialogOverlay class="dialog-overlay" /><DialogContent
-            class="dialog-content"
-            @keydown.esc="closeAboutOnEscape"
-            ><DialogTitle>{{ text.about }}</DialogTitle
-            ><DialogDescription>{{ text.aboutDescription }}</DialogDescription>
-            <p>
-              {{ text.nativeHelp }}
-            </p>
-            <DialogClose>{{ text.close }}</DialogClose></DialogContent
-          ></DialogPortal
-        ></DialogRoot
+      <button
+        v-if="compactNavigation"
+        ref="navigationTrigger"
+        class="navigation-trigger"
+        :aria-expanded="navigationOpen"
+        aria-controls="navigation-preferences navigation-tools navigation-writing-actions"
+        @click="changeNavigation(!navigationOpen)"
       >
+        {{ text.navigation }} · {{ text[state.section] }}
+      </button>
+      <div
+        v-show="!compactNavigation || navigationOpen"
+        id="navigation-preferences"
+        class="navigation-preferences"
+      >
+        <DialogRoot :open="aboutOpen" @update:open="changeAboutOpen"
+          ><DialogTrigger>{{ text.about }}</DialogTrigger
+          ><DialogPortal :to="portal"
+            ><DialogOverlay class="dialog-overlay" /><DialogContent
+              class="dialog-content"
+              @keydown.esc="closeAboutOnEscape"
+              ><DialogTitle>{{ text.about }}</DialogTitle
+              ><DialogDescription>{{
+                text.aboutDescription
+              }}</DialogDescription>
+              <p>
+                {{ text.nativeHelp }}
+              </p>
+              <DialogClose>{{ text.close }}</DialogClose></DialogContent
+            ></DialogPortal
+          ></DialogRoot
+        >
+      </div>
     </header>
-    <div class="workspace-tools">
+    <div
+      v-show="!compactNavigation || navigationOpen"
+      id="navigation-tools"
+      class="workspace-tools"
+    >
       <nav :aria-label="text.actions">
         <a
           v-if="state.result?.kind !== 'directory'"
@@ -599,7 +772,11 @@ function boardIdFrom(url: string) {
         </select></label
       >
     </div>
-    <div class="writing-actions">
+    <div
+      v-show="!compactNavigation || navigationOpen"
+      id="navigation-writing-actions"
+      class="writing-actions secondary-writing-actions"
+    >
       <button
         v-if="pickerBoard"
         :disabled="writing.preparing"
@@ -638,6 +815,18 @@ function boardIdFrom(url: string) {
           )
         }}
       </button>
+    </div>
+    <div
+      v-if="
+        writing.context ||
+        writing.preparing ||
+        writing.message ||
+        writing.editReplacement ||
+        writing.replacement ||
+        writing.draftReplacement
+      "
+      class="writing-actions"
+    >
       <button v-if="writing.context" @click="workspace.writing.show()">
         {{ text.returnWriting }}
       </button>
@@ -692,7 +881,75 @@ function boardIdFrom(url: string) {
         </button>
       </section>
     </div>
-    <SourceWriting v-if="writing.visible" :workspace="workspace" />
+    <section
+      v-if="writing.context && !writing.visible"
+      class="retained-writing"
+      :aria-label="text.retainedWriting"
+    >
+      <details>
+        <summary>{{ text.retainedWriting }}</summary>
+        <WritingDestination
+          :writing="writing.context"
+          :language="workspace.preferences.state.value.language"
+          compact
+        />
+      </details>
+      <p v-if="!writing.accountVerified" role="alert">
+        {{
+          insert(
+            writing.accountObservation.kind === "guest"
+              ? text.writingSignedOut
+              : writing.accountObservation.kind === "member" &&
+                  writing.accountObservation.id !== writing.context.account.id
+                ? text.writingAccountChanged
+                : text.writingPaused,
+            writing.context.account.name,
+          )
+        }}
+      </p>
+      <p v-if="writing.recoveryAvailable === false" role="alert">
+        {{ text.writingRecoveryUnavailable }}
+      </p>
+      <p
+        v-if="workspace.writing.unresolvedAttachments.value.length"
+        role="alert"
+      >
+        {{
+          insert(
+            text.unresolvedAttachments,
+            workspace.writing.unresolvedAttachments.value.join(", "),
+          )
+        }}
+      </p>
+      <p v-if="retainedAttemptWarning" role="alert">
+        {{ text.retainedAttemptWarning }}
+      </p>
+      <p v-if="writing.conflict" role="alert">
+        {{ text.latestServerVersion }}. {{ text.editCompare }}
+      </p>
+      <p v-if="writing.context.editorUnresolved" role="alert">
+        {{
+          editorText(
+            "Some visual input has no unambiguous BBCode representation. Complete source is retained. Review it before choosing how it should be interpreted.",
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </p>
+      <p
+        v-if="writing.context.redPacket || writing.context.existingRedPacket"
+        role="alert"
+      >
+        {{ text.retainedFinancialWarning }}
+      </p>
+    </section>
+    <SourceWriting
+      v-if="writing.context"
+      v-show="writing.visible"
+      :key="writing.context.id"
+      :workspace="workspace"
+      :expanded="writingExpanded"
+      @resize="resizeWriting"
+    />
     <div class="workspace-status">
       <section
         v-if="state.recoveryProblem?.kind === 'incompatible'"
@@ -867,8 +1124,9 @@ function boardIdFrom(url: string) {
       </article>
     </section>
     <main
-      v-show="!writing.visible"
+      v-show="!writing.visible || !writingExpanded"
       class="workspace-body"
+      :class="{ 'thread-without-results': threadWithoutResults }"
       :data-view="state.result?.kind ?? 'unavailable'"
     >
       <nav :aria-label="text.mainDestinations" class="main-destinations pane">
@@ -1072,8 +1330,33 @@ function boardIdFrom(url: string) {
       >
         <h1>{{ text.boards }}</h1>
         <p>{{ text.chooseBoardDescription }}</p>
+        <div class="board-filter">
+          <label for="board-filter">{{ text.filterBoards }}</label>
+          <input
+            id="board-filter"
+            ref="boardFilterInput"
+            v-model="boardFilter"
+            type="search"
+            aria-describedby="board-filter-scope"
+          />
+          <button v-if="boardFilter" @click="clearBoardFilter">
+            {{ text.clearBoardFilter }}
+          </button>
+        </div>
+        <p id="board-filter-scope" class="board-filter-scope">
+          {{ text.boardFilterScope }}
+        </p>
+        <p class="board-filter-status" role="status">
+          {{
+            insert(
+              text.boardsShown,
+              `${filteredBoardCount} / ${boardChoices.length}`,
+            )
+          }}
+        </p>
+        <p v-if="!filteredBoardGroups.length">{{ text.noBoardMatches }}</p>
         <section
-          v-for="group in state.result.directory.groups"
+          v-for="group in filteredBoardGroups"
           :key="group.title"
           class="board-group"
         >
@@ -1117,17 +1400,34 @@ function boardIdFrom(url: string) {
               :href="board.url"
               :aria-label="board.label"
               class="board-card"
-              >{{ board.label }}</a
+              ><strong>{{ board.label }}</strong
+              ><span v-if="board.description">{{ board.description }}</span
+              ><small v-if="board.stats">{{ board.stats }}</small></a
             >
           </div>
         </section>
-        <nav :aria-label="text.boardFilters">
-          <a
-            v-for="filter in boardContext.filters"
-            :key="filter.url"
-            :href="filter.url"
-            >{{ filter.label }}</a
+        <nav
+          v-if="boardFilterGroups.length"
+          class="board-filters"
+          :aria-label="text.boardFilters"
+        >
+          <div
+            v-for="(group, index) in boardFilterGroups"
+            :key="`${group.sourceId}:${index}`"
+            role="group"
+            :aria-label="group.label"
+            class="board-filter-group"
           >
+            <h2>{{ group.label }}</h2>
+            <div class="board-filter-links">
+              <a
+                v-for="filter in group.links"
+                :key="filter.url"
+                :href="filter.url"
+                >{{ filter.label }}</a
+              >
+            </div>
+          </div>
         </nav>
         <ul :aria-label="text.criteria">
           <li v-for="criterion in boardContext.criteria" :key="criterion.label">
@@ -1185,16 +1485,31 @@ function boardIdFrom(url: string) {
         <section class="thread-heading">
           <p class="eyebrow">{{ text.thread }} {{ state.result.thread.id }}</p>
           <h1>{{ state.result.thread.title }}</h1>
-          <p>{{ text.page }} {{ state.result.thread.pages.current }}</p>
+          <p v-if="!state.result.thread.pages.links.length">
+            {{ text.page }} {{ state.result.thread.pages.current }}
+          </p>
           <a
             v-if="state.result.thread.parent"
             :href="state.result.thread.parent.url"
             >{{ state.result.thread.parent.label }}</a
           >
         </section>
+        <nav
+          v-if="state.result.thread.pages.links.length"
+          class="thread-top-pages"
+          :aria-label="text.threadPagesTop"
+        >
+          <span>{{ text.page }} {{ state.result.thread.pages.current }}</span>
+          <a
+            v-for="link in state.result.thread.pages.links"
+            :key="link.url"
+            :href="link.url"
+            >{{ link.label }}</a
+          >
+        </nav>
         <nav :aria-label="text.threadFilters">
           <a
-            v-for="filter in state.result.thread.filters"
+            v-for="filter in threadFilters.filter((filter) => !filter.authorId)"
             :key="filter.url"
             :href="filter.url"
             >{{ filter.label }}</a
@@ -1234,43 +1549,69 @@ function boardIdFrom(url: string) {
           :data-targeted="state.result.thread.target === post.id"
           tabindex="-1"
         >
-          <header>
-            <strong>{{ post.author }}</strong
-            ><span>{{ text.floor }} {{ post.floor || text.unknown }}</span
-            ><time>{{ post.date }}</time
-            ><a :href="post.url">{{ text.post }} {{ post.id }}</a>
+          <header class="post-header">
+            <strong class="post-author">{{ post.author }}</strong>
+            <div class="post-metadata">
+              <span>{{ text.floor }} {{ post.floor || text.unknown }}</span>
+              <time>{{ post.date }}</time>
+              <a :href="post.url">{{ text.post }} {{ post.id }}</a>
+            </div>
           </header>
-          <button
-            v-if="state.result.thread.parent"
-            @click="
-              workspace.writing.prepareReply(
-                boardIdFrom(state.result.thread.parent.url),
-                {
-                  threadId: state.result.thread.id,
-                  postId: post.id,
-                  author: post.author,
-                  authorId: post.authorId,
-                },
-              )
-            "
-          >
-            {{ text.quickQuote }}
-          </button>
-          <button
-            v-if="
-              state.result.account.kind === 'member' &&
-              post.authorId === state.result.account.id
-            "
-            @click="
-              workspace.writing.prepareEdit(state.result.thread.url, post.id)
-            "
-          >
-            {{ insert(text.editPost, post.id) }}
-          </button>
           <ContentView
             :nodes="post.content"
             :language="workspace.preferences.state.value.language"
+            summarize-formatting
           />
+          <footer
+            v-if="
+              state.result.thread.parent ||
+              (state.result.account.kind === 'member' &&
+                post.authorId === state.result.account.id) ||
+              threadFilters.some(
+                (filter) =>
+                  filter.authorId === post.authorId && filter.authorId !== null,
+              )
+            "
+            class="post-actions"
+          >
+            <button
+              v-if="state.result.thread.parent"
+              @click="
+                workspace.writing.prepareReply(
+                  boardIdFrom(state.result.thread.parent.url),
+                  {
+                    threadId: state.result.thread.id,
+                    postId: post.id,
+                    author: post.author,
+                    authorId: post.authorId,
+                  },
+                )
+              "
+            >
+              {{ text.quickQuote }}
+            </button>
+            <button
+              v-if="
+                state.result.account.kind === 'member' &&
+                post.authorId === state.result.account.id
+              "
+              @click="
+                workspace.writing.prepareEdit(state.result.thread.url, post.id)
+              "
+            >
+              {{ insert(text.editPost, post.id) }}
+            </button>
+            <a
+              v-for="filter in threadFilters.filter(
+                (filter) =>
+                  filter.authorId === post.authorId && filter.authorId !== null,
+              )"
+              :key="filter.url"
+              :href="filter.url"
+              class="author-filter"
+              >{{ filter.label }}</a
+            >
+          </footer>
           <ul v-if="post.attachments?.length" :aria-label="text.attachments">
             <li v-for="attachment in post.attachments" :key="attachment.id">
               <button

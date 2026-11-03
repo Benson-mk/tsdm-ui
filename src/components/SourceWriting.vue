@@ -1,15 +1,83 @@
 <script setup lang="ts">
-import { computed, ref, type DeepReadonly } from "vue";
-import { attachmentText } from "./attachment-text";
+import { computed, ref, watch, nextTick, type DeepReadonly } from "vue";
+import { attachmentText, attachmentFieldLabel } from "./attachment-text";
 import PostEditor from "./PostEditor.vue";
+import WritingDestination from "./WritingDestination.vue";
+import PreparedPublication from "./PreparedPublication.vue";
+import { reviewText } from "./review-text";
+import { validationText } from "./validation-text";
 import type { Workspace } from "../workspace";
 import { strings, insert, description } from "../layouts/strings";
 import type { WritingOption } from "../forum-client";
-const props = defineProps<{ workspace: Workspace }>();
+const props = defineProps<{ workspace: Workspace; expanded: boolean }>();
+const emit = defineEmits<{ resize: [expanded: boolean] }>();
+const editor = ref<InstanceType<typeof PostEditor> | null>(null);
+watch(
+  () => props.expanded,
+  () => editor.value?.focus(true),
+);
 const state = props.workspace.writing.state;
+const titleInput = ref<HTMLInputElement | null>(null);
+const categoryInput = ref<HTMLSelectElement | null>(null);
+const optionFields = ref<HTMLElement | null>(null);
+const categoryIssue = computed(() =>
+  state.value.validationIssues.find((issue) => issue.field === "category"),
+);
+const optionIssue = (name: string) =>
+  state.value.validationIssues.find(
+    (issue) => issue.field === "option" && issue.name === name,
+  );
+const optionErrorId = (name: string) =>
+  `writing-option-${encodeURIComponent(name)}-error`;
+function optionAttributes(name: string) {
+  return {
+    "aria-invalid": optionIssue(name) ? true : undefined,
+    "aria-describedby": optionIssue(name) ? optionErrorId(name) : undefined,
+    "data-writing-option": name,
+  };
+}
+const titleIssue = computed(() =>
+  state.value.validationIssues.find((issue) => issue.field === "title"),
+);
+watch(
+  () => state.value.validationFocus,
+  async () => {
+    const id = state.value.context?.id;
+    await nextTick();
+    if (state.value.composing || state.value.context?.id !== id) return;
+    if (state.value.validationIssues[0]?.field === "title")
+      titleInput.value?.focus();
+    else if (state.value.validationIssues[0]?.field === "source")
+      editor.value?.focus(false, true);
+    else if (state.value.validationIssues[0]?.field === "category")
+      categoryInput.value?.focus();
+    else if (state.value.validationIssues[0]?.field === "option") {
+      const name = state.value.validationIssues[0].name;
+      Array.from(
+        optionFields.value?.querySelectorAll<HTMLElement>(
+          "[data-writing-option]",
+        ) ?? [],
+      )
+        .find((input) => input.dataset.writingOption === name)
+        ?.focus();
+    }
+  },
+);
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
+const recoverySummary = computed(() => {
+  const problem = props.workspace.state.value.recoveryProblem;
+  if (problem?.kind === "incompatible")
+    return text.value.writingRecoveryIncompatible;
+  if (problem?.kind === "refused") return text.value.writingRecoveryRefused;
+  if (state.value.recoveryAvailable === false)
+    return text.value.writingRecoveryUnavailable;
+  return state.value.recoveryAvailable &&
+    state.value.acknowledged === state.value.context?.revision
+    ? text.value.writingRecoveryCurrent
+    : text.value.writingRecoveryPending;
+});
 const attachment = (value: string) =>
   attachmentText(
     description(value, props.workspace.preferences.state.value.language),
@@ -62,7 +130,6 @@ function uploadLabel(
   return `${attachment(status)} · ${upload.name}`;
 }
 const removeUpload = ref<string | null>(null);
-const mentionQuery = ref("");
 const currentOptions = computed(
   () =>
     state.value.context?.options.filter(
@@ -109,16 +176,10 @@ function effectLabel(
   );
 }
 function attachmentLabel(name: string) {
-  const match =
-    /^attach(?:new|update)\[([1-9]\d*)\](?:\[(description|readperm|price)\])?$/.exec(
-      name,
-    );
-  const labels = {
-    description: text.value.attachmentDescription,
-    readperm: text.value.attachmentReadPermission,
-    price: text.value.attachmentPrice,
-  };
-  return `${text.value.attachments} ${match?.[1] ?? ""} · ${match?.[2] ? labels[match[2] as keyof typeof labels] : text.value.attachmentAssociation}`;
+  return attachmentFieldLabel(
+    name,
+    props.workspace.preferences.state.value.language,
+  );
 }
 
 function packetText(value: string) {
@@ -128,6 +189,11 @@ function optionCaption(option: WritingOption) {
   return state.value.context?.redPacket && option.name.startsWith("hb_")
     ? packetText(option.label)
     : option.label;
+}
+function cancelReview() {
+  if (props.workspace.writing.deferViewChange(cancelReview)) return;
+  props.workspace.writing.cancelPublicationReview();
+  editor.value?.focus();
 }
 function value(event: Event) {
   return (event.target as HTMLInputElement).value;
@@ -156,6 +222,7 @@ function updateOption(option: WritingOption, event: Event) {
   <section
     v-if="state.context"
     class="source-writing"
+    :class="{ 'writing-expanded': expanded }"
     :aria-label="text.writingContext"
     @compositionstart="workspace.writing.startComposition()"
     @compositionend="workspace.writing.endComposition()"
@@ -163,880 +230,979 @@ function updateOption(option: WritingOption, event: Event) {
     <p v-if="state.compositionDeferred" role="status">
       {{ text.finishComposition }}
     </p>
-    <h1>
-      {{
-        state.context.action === "edit-post"
-          ? insert(text.editPost, state.context.editTarget?.postId ?? "")
-          : state.context.replyTarget
-            ? insert(text.replyIn, state.context.replyTarget.threadId)
-            : insert(
-                state.context.draft ? text.draftIn : text.newThreadIn,
-                state.context.board.label,
-              )
-      }}
-    </h1>
-    <p v-if="state.context.replyTarget?.postId">
-      {{
-        insert(text.addressedTo, state.context.replyTarget.author).replace(
-          "{post}",
-          state.context.replyTarget.postId,
-        )
-      }}
-    </p>
-    <p v-if="state.context.replyTarget">{{ text.replyDeliveryUnknown }}</p>
-    <p v-if="state.context.draft">
-      {{ insert(text.draftIdentity, state.context.draft.threadId) }}
-    </p>
-    <p>
-      {{ insert(text.writingAs, state.context.account.name) }} ·
-      {{ insert(text.writingBoard, state.context.board.id) }}
-    </p>
-    <p v-if="!state.accountVerified" role="alert">
-      {{ insert(text.writingPaused, state.context.account.name) }}
-    </p>
-    <p v-if="unresolved.length" role="alert">
-      {{ insert(text.unresolvedAttachments, unresolved.join(", ")) }}
-    </p>
-    <div class="writing-actions">
-      <button
-        :disabled="state.preparing || state.publishing"
-        @click="workspace.writing.check()"
-      >
-        {{ text.checkWriting }}
+    <div class="writing-presentation-actions">
+      <button :aria-expanded="expanded" @click="emit('resize', !expanded)">
+        {{ expanded ? text.compactWriting : text.expandWriting }}
       </button>
-      <button
-        :disabled="state.preparing || state.publishing"
-        @click="workspace.writing.check(true)"
-      >
-        {{ text.prepareTextCopy }}
+      <button @click="workspace.writing.hide()">
+        {{ text.returnReading }}
       </button>
     </div>
-    <section v-if="state.copy" role="alert">
-      <p>
+    <div class="writing-content">
+      <h1>
         {{
-          insert(text.copyWritingPrompt, state.context.account.name).replace(
-            "{account}",
-            state.copy.prepared.account.name,
-          )
+          state.context.action === "edit-post"
+            ? insert(text.editPost, state.context.editTarget?.postId ?? "")
+            : state.context.replyTarget
+              ? insert(text.replyIn, state.context.replyTarget.threadId)
+              : insert(
+                  state.context.draft ? text.draftIn : text.newThreadIn,
+                  state.context.board.label,
+                )
         }}
+      </h1>
+      <p v-if="state.context.draft">
+        {{ insert(text.draftIdentity, state.context.draft.threadId) }}
       </p>
-      <p>{{ text.copyWritingLimits }}</p>
-      <button @click="workspace.writing.cancelCopy()">
-        {{ text.keepWriting }}
-      </button>
-      <button
-        :disabled="state.publishing"
-        @click="workspace.writing.confirmCopy()"
-      >
-        {{ text.replaceTextCopy }}
-      </button>
-    </section>
-    <button
-      v-if="state.context.draftSaveAvailable"
-      :disabled="state.preparing || state.publishing"
-      @click="workspace.writing.saveDraft()"
-    >
-      {{ text.saveForumDraft }}
-    </button>
-    <section v-if="state.fundedDraftReview" aria-label="Funded draft review">
-      <h3>
-        {{
-          packetText("Fund draft — deduct {amount} credits now").replace(
-            "{amount}",
-            state.fundedDraftReview.writing.options.find(
-              (o) => o.name === "hb_total",
-            )?.value ?? "",
-          )
-        }}
-      </h3>
-      <p>
-        {{
-          packetText(
-            "The packet is active before thread publication. Its conditions and expiry apply immediately; an unpublished draft does not make the packet private or inactive.",
-          )
-        }}
-      </p>
-      <ul>
-        <li
-          v-for="option in state.fundedDraftReview.writing.options.filter((o) =>
-            o.name.startsWith('hb_'),
-          )"
-          :key="option.name"
-        >
-          {{ packetText(option.label) }}:
-          {{
-            option.name === "hb_password"
-              ? packetText(option.value ? "present (not displayed)" : "none")
-              : option.kind === "checkbox"
-                ? option.checked
-                : (option.choices.find((c) => c.value === option.value)
-                    ?.label ?? option.value)
-          }}
-        </li>
-      </ul>
-      <button @click="workspace.writing.cancelFundedDraft()">
-        {{ packetText("Cancel funded draft save") }}
-      </button>
-      <button
-        :disabled="state.publishing || state.preparing || state.composing"
-        @click="workspace.writing.confirmFundedDraft()"
-      >
-        {{ packetText("Confirm funded draft save") }}
-      </button>
-    </section>
-    <button
-      v-if="state.context.draft"
-      :disabled="state.preparing || state.publishing"
-      @click="workspace.writing.publishDraft()"
-    >
-      {{ text.publishSavedDraft }}
-    </button>
-    <section
-      v-for="attempt in state.context.draftAttempts"
-      :key="attempt.id"
-      role="status"
-    >
-      <p>{{ draftSummary(attempt) }}</p>
-      <p>
-        {{
-          description(
-            attempt.message,
-            workspace.preferences.state.value.language,
-          )
-        }}
-      </p>
-      <section v-if="attempt.redPacket" aria-label="Red-packet result">
-        <p>
-          {{ packetText("Packet state:") }}
-          {{ packetText(attempt.redPacket.state) }}
+      <WritingDestination
+        :writing="state.context"
+        :language="workspace.preferences.state.value.language"
+      />
+      <p v-if="!state.context.draft">{{ text.localWriting }}</p>
+      <section class="writing-recovery" :aria-label="text.writingRecovery">
+        <p :role="state.recoveryAvailable === false ? 'alert' : 'status'">
+          {{ recoverySummary }}
         </p>
-        <p v-for="condition in attempt.redPacket.conditions" :key="condition">
-          {{
-            condition.startsWith("Greeting: ")
-              ? packetText("Greeting") + ": " + condition.slice(10)
-              : condition.split(": ").map(packetText).join(": ")
-          }}
-        </p>
-        <p>
-          {{
-            packetText(
-              "Exact passphrase, recipients, total, shares and expiry deadline are not confirmed by presence flags.",
-            )
-          }}
-        </p>
-        <section v-if="attempt.redPacket.ledger?.state === 'observed'">
-          <p>
+        <details>
+          <summary>{{ text.writingRecoveryDetails }}</summary>
+          <p v-if="state.recoveryAvailable === false">
             {{
-              packetText("Observed credit rows (current returned page only)")
+              insert(
+                text.writingRecoveryRevisions,
+                state.context.revision,
+              ).replace("{acknowledged}", String(state.acknowledged))
             }}
           </p>
-          <ul>
-            <li
-              v-for="(row, index) in attempt.redPacket.ledger.rows"
-              :key="index"
-            >
-              {{ row.operation }} · {{ row.change }} · {{ row.details }} ·
-              {{ row.time }}
-            </li>
-          </ul>
-          <p v-if="!attempt.redPacket.ledger.rows.length">
-            {{
-              packetText(
-                "No packet-credit rows were observed on this page. This does not prove no debit or refund occurred.",
-              )
-            }}
-          </p>
-        </section>
-        <p v-else>
-          {{
-            packetText(
-              "Credit ledger unavailable. No financial effect has been confirmed.",
-            )
-          }}
-        </p>
-        <p>
-          {{
-            packetText(
-              "Credit attribution remains unknown. A thread or packet label does not establish a debit or refund.",
-            )
-          }}
-        </p>
-        <p
-          v-if="
-            ['expired', 'withdrawn', 'closed'].includes(
-              attempt.redPacket.state,
-            ) || attempt.status === 'moderation'
-          "
-        >
-          {{
-            packetText(
-              "If an expected refund is missing, contact a moderator for assistance. Refund conditions and timing have not been verified.",
-            )
-          }}
-        </p>
-      </section>
-      <p
-        v-else-if="
-          attempt.submission.writing.redPacket ||
-          attempt.submission.writing.existingRedPacket
-        "
-      >
-        {{
-          packetText(
-            "Packet and credit observations were not retained. Their outcomes remain unknown.",
-          )
-        }}
-      </p>
-      <button
-        v-if="['uncertain', 'moderation'].includes(attempt.status)"
-        :aria-label="insert(text.checkOriginalDraft, attempt.id)"
-        :disabled="state.publishing || state.preparing"
-        @click="workspace.writing.checkDraft(attempt.id)"
-      >
-        {{ text.checkThreadResult }}
-      </button>
-      <button
-        v-if="workspace.writing.canResendDraft(attempt.id)"
-        :aria-label="insert(text.reviewDraftResend, attempt.id)"
-        @click="workspace.writing.warnDraftResend(attempt.id)"
-      >
-        {{ text.prepareAnotherAttempt }}
-      </button>
-    </section>
-    <section v-if="state.draftResend && resendDraftAttempt" role="alert">
-      <p>{{ text.draftResendWarning }}</p>
-      <p v-if="resendDraftAttempt.submission.writing.redPacket">
-        {{
-          packetText(
-            "A further red-packet attempt can deduct additional credits and create a duplicate thread or packet. The original unknown attempt remains unresolved.",
-          )
-        }}
-      </p>
-      <p>{{ draftSummary(resendDraftAttempt, state.draftResend.revision) }}</p>
-      <button @click="workspace.writing.cancelDraftResend()">
-        {{ text.cancelDraftResend }}
-      </button>
-      <button
-        :disabled="state.publishing || state.preparing || state.composing"
-        @click="workspace.writing.confirmDraftResend()"
-      >
-        {{ text.confirmDraftResend }}
-      </button>
-    </section>
-    <p
-      v-if="
-        !state.context.draft &&
-        !state.context.attempts?.length &&
-        !state.context.draftAttempts?.length
-      "
-    >
-      {{ text.localWriting }}
-    </p>
-    <section
-      v-for="attempt in state.context.attempts"
-      :key="attempt.id"
-      role="status"
-    >
-      <p>
-        {{
-          description(
-            attempt.message,
-            workspace.preferences.state.value.language,
-          )
-        }}
-      </p>
-      <section v-if="attempt.redPacket" aria-label="Red-packet result">
-        <p>
-          {{ packetText("Packet state:") }}
-          {{ packetText(attempt.redPacket.state) }}
-        </p>
-        <p v-for="condition in attempt.redPacket.conditions" :key="condition">
-          {{
-            condition.startsWith("Greeting: ")
-              ? packetText("Greeting") + ": " + condition.slice(10)
-              : condition.split(": ").map(packetText).join(": ")
-          }}
-        </p>
-        <p>
-          {{
-            packetText(
-              "Exact passphrase, recipients, total, shares and expiry deadline are not confirmed by presence flags.",
-            )
-          }}
-        </p>
-        <section v-if="attempt.redPacket.ledger?.state === 'observed'">
-          <p>
-            {{
-              packetText("Observed credit rows (current returned page only)")
-            }}
-          </p>
-          <ul>
-            <li
-              v-for="(row, index) in attempt.redPacket.ledger.rows"
-              :key="index"
-            >
-              {{ row.operation }} · {{ row.change }} · {{ row.details }} ·
-              {{ row.time }}
-            </li>
-          </ul>
-          <p v-if="!attempt.redPacket.ledger.rows.length">
-            {{
-              packetText(
-                "No packet-credit rows were observed on this page. This does not prove no debit or refund occurred.",
-              )
-            }}
-          </p>
-        </section>
-        <p v-else>
-          {{
-            packetText(
-              "Credit ledger unavailable. No financial effect has been confirmed.",
-            )
-          }}
-        </p>
-        <p>
-          {{
-            packetText(
-              "Credit attribution remains unknown. A thread or packet label does not establish a debit or refund.",
-            )
-          }}
-        </p>
-        <p
-          v-if="
-            ['expired', 'withdrawn', 'closed'].includes(
-              attempt.redPacket.state,
-            ) || attempt.status === 'moderation'
-          "
-        >
-          {{
-            packetText(
-              "If an expected refund is missing, contact a moderator for assistance. Refund conditions and timing have not been verified.",
-            )
-          }}
-        </p>
-      </section>
-      <details v-if="attempt.replyComparison" open>
-        <summary>{{ text.replyComparison }}</summary>
-        <p>{{ text.replyComparisonLimits }}</p>
-        <label v-if="attempt.replyComparison.before"
-          >{{ text.replyBeforeSource
-          }}<textarea readonly :value="attempt.replyComparison.before.source" />
-        </label>
-        <p v-else>{{ text.replyBeforeUnknown }}</p>
-        <label
-          >{{ text.replyObservedSource
-          }}<textarea
-            readonly
-            :value="attempt.replyComparison.observed.source"
-          />
-        </label>
-      </details>
-      <template v-if="attempt.result?.verification">
-        <p
-          v-for="normalization in attempt.result.verification.normalizations"
-          :key="normalization.name"
-        >
-          {{ text.normalizedStoredPrice }}
-        </p>
-        <p
-          v-for="normalization in attempt.result.verification
-            .attachmentNormalizations ?? []"
-          :key="normalization.name"
-        >
-          {{
-            insert(
-              text.normalizedStoredAttachmentPrice,
-              /^attachnew\[([1-9]\d*)\]\[price\]$/.exec(
-                normalization.name,
-              )?.[1] ?? "",
-            )
-          }}
-        </p>
-        <ul v-if="attempt.result.verification.creationEffects.length">
-          <li
-            v-for="effect in attempt.result.verification.creationEffects"
-            :key="effect.name"
+          <p
+            v-else-if="state.acknowledged === state.context.revision"
+            role="status"
           >
+            {{ insert(text.writingAcknowledged, state.acknowledged) }}
+          </p>
+          <p v-else role="status">
             {{
-              effectLabel(
-                attempt.publication.submission.writing.options,
-                effect.name,
+              insert(text.writingPending, state.context.revision).replace(
+                "{acknowledged}",
+                String(state.acknowledged),
               )
-            }}:
-            <span>{{
-              effect.outcome === "unknown"
-                ? text.deliveryUnverified
-                : text.effectNotRequested
-            }}</span>
-            <span v-if="effect.requested && !effect.included">
-              · {{ text.effectNotIncluded }}</span
-            >
-          </li>
-        </ul>
-      </template>
-      <p v-else-if="attempt.result">{{ text.legacyStoredConfirmation }}</p>
-      <a
-        v-if="attempt.result"
-        :href="attempt.result.url"
-        @click.prevent="workspace.openThread(attempt.result.url)"
-        >{{
-          attempt.publication.submission.writing.replyTarget
-            ? text.openConfirmedPost
-            : text.openConfirmedThread
-        }}</a
-      >
-      <template
+            }}
+          </p>
+          <p>{{ text.writingRecoveryLimits }}</p>
+        </details>
+      </section>
+      <p v-if="state.context.redPacket" role="alert">
+        {{ text.writingFinancialConsequences }}
+      </p>
+      <p v-if="!state.accountVerified" role="alert">
+        {{
+          insert(
+            state.accountObservation.kind === "guest"
+              ? text.writingSignedOut
+              : state.accountObservation.kind === "member" &&
+                  state.accountObservation.id !== state.context.account.id
+                ? text.writingAccountChanged
+                : text.writingPaused,
+            state.context.account.name,
+          )
+        }}
+      </p>
+      <p v-if="unresolved.length" role="alert">
+        {{ insert(text.unresolvedAttachments, unresolved.join(", ")) }}
+      </p>
+      <label
         v-if="
-          attempt.status === 'uncertain' ||
-          attempt.status === 'moderation' ||
-          attempt.redPacket
+          !state.context.replyTarget && state.context.titleAvailable !== false
         "
+        >{{ text.writingTitle
+        }}<input
+          ref="titleInput"
+          :aria-invalid="titleIssue ? 'true' : undefined"
+          :aria-describedby="titleIssue ? 'writing-title-error' : undefined"
+          :value="state.context.title"
+          @input="workspace.writing.edit({ title: value($event) })"
+      /></label>
+      <p v-if="titleIssue" id="writing-title-error" role="alert">
+        {{
+          validationText(titleIssue, workspace.preferences.state.value.language)
+        }}
+      </p>
+      <label v-if="state.context.category"
+        >{{ text.writingCategory
+        }}<select
+          ref="categoryInput"
+          :aria-invalid="categoryIssue ? 'true' : undefined"
+          :aria-describedby="
+            categoryIssue ? 'writing-category-error' : undefined
+          "
+          :aria-label="text.writingCategory"
+          :value="state.context.category.value"
+          :disabled="state.context.category.disabled"
+          @change="
+            updateOption(state.context.category as WritingOption, $event)
+          "
+        >
+          <option
+            v-for="choice in state.context.category.choices"
+            :key="choice.value"
+            :value="choice.value"
+            :disabled="choice.disabled"
+          >
+            {{ choice.label }}
+          </option>
+        </select></label
       >
-        <label v-if="state.context.action !== 'edit-post'"
-          >{{ text.candidateThreadURL
-          }}<input
-            v-model="candidateURLs[attempt.id]"
-            type="url"
-            :placeholder="attempt.candidateURL ?? ''"
-        /></label>
+      <p v-if="categoryIssue" id="writing-category-error" role="alert">
+        {{
+          validationText(
+            categoryIssue,
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </p>
+      <PostEditor
+        ref="editor"
+        :key="state.context.id"
+        :workspace="workspace"
+        :expanded="expanded"
+      />
+      <div class="writing-actions">
+        <button
+          :disabled="state.preparing || state.publishing"
+          @click="workspace.writing.check()"
+        >
+          {{ text.checkWriting }}
+        </button>
+        <button
+          :disabled="state.preparing || state.publishing"
+          @click="workspace.writing.check(true)"
+        >
+          {{ text.prepareTextCopy }}
+        </button>
+      </div>
+      <section v-if="state.copy" role="alert">
+        <p>
+          {{
+            insert(text.copyWritingPrompt, state.context.account.name).replace(
+              "{account}",
+              state.copy.prepared.account.name,
+            )
+          }}
+        </p>
+        <p>{{ text.copyWritingLimits }}</p>
+        <button @click="workspace.writing.cancelCopy()">
+          {{ text.keepWriting }}
+        </button>
         <button
           :disabled="state.publishing"
-          @click="
-            workspace.writing.checkResult(attempt.id, candidateURLs[attempt.id])
+          @click="workspace.writing.confirmCopy()"
+        >
+          {{ text.replaceTextCopy }}
+        </button>
+      </section>
+      <button
+        v-if="state.context.draftSaveAvailable"
+        :disabled="state.preparing || state.publishing"
+        @click="workspace.writing.saveDraft()"
+      >
+        {{ text.saveForumDraft }}
+      </button>
+      <section v-if="state.fundedDraftReview" aria-label="Funded draft review">
+        <h3>
+          {{
+            packetText("Fund draft — deduct {amount} credits now").replace(
+              "{amount}",
+              state.fundedDraftReview.writing.options.find(
+                (o) => o.name === "hb_total",
+              )?.value ?? "",
+            )
+          }}
+        </h3>
+        <p>
+          {{
+            packetText(
+              "The packet is active before thread publication. Its conditions and expiry apply immediately; an unpublished draft does not make the packet private or inactive.",
+            )
+          }}
+        </p>
+        <ul>
+          <li
+            v-for="option in state.fundedDraftReview.writing.options.filter(
+              (o) => o.name.startsWith('hb_'),
+            )"
+            :key="option.name"
+          >
+            {{ packetText(option.label) }}:
+            {{
+              option.name === "hb_password"
+                ? packetText(option.value ? "present (not displayed)" : "none")
+                : option.kind === "checkbox"
+                  ? option.checked
+                  : (option.choices.find((c) => c.value === option.value)
+                      ?.label ?? option.value)
+            }}
+          </li>
+        </ul>
+        <button @click="workspace.writing.cancelFundedDraft()">
+          {{ packetText("Cancel funded draft save") }}
+        </button>
+        <button
+          :disabled="state.publishing || state.preparing || state.composing"
+          @click="workspace.writing.confirmFundedDraft()"
+        >
+          {{ packetText("Confirm funded draft save") }}
+        </button>
+      </section>
+      <button
+        v-if="state.context.draft"
+        :disabled="state.preparing || state.publishing"
+        @click="workspace.writing.publishDraft()"
+      >
+        {{ text.publishSavedDraft }}
+      </button>
+      <section
+        v-for="attempt in state.context.draftAttempts"
+        :key="attempt.id"
+        role="status"
+      >
+        <p>{{ draftSummary(attempt) }}</p>
+        <p>
+          {{
+            description(
+              attempt.message,
+              workspace.preferences.state.value.language,
+            )
+          }}
+        </p>
+        <section v-if="attempt.redPacket" aria-label="Red-packet result">
+          <p>
+            {{ packetText("Packet state:") }}
+            {{ packetText(attempt.redPacket.state) }}
+          </p>
+          <p v-for="condition in attempt.redPacket.conditions" :key="condition">
+            {{
+              condition.startsWith("Greeting: ")
+                ? packetText("Greeting") + ": " + condition.slice(10)
+                : condition.split(": ").map(packetText).join(": ")
+            }}
+          </p>
+          <p>
+            {{
+              packetText(
+                "Exact passphrase, recipients, total, shares and expiry deadline are not confirmed by presence flags.",
+              )
+            }}
+          </p>
+          <section v-if="attempt.redPacket.ledger?.state === 'observed'">
+            <p>
+              {{
+                packetText("Observed credit rows (current returned page only)")
+              }}
+            </p>
+            <ul>
+              <li
+                v-for="(row, index) in attempt.redPacket.ledger.rows"
+                :key="index"
+              >
+                {{ row.operation }} · {{ row.change }} · {{ row.details }} ·
+                {{ row.time }}
+              </li>
+            </ul>
+            <p v-if="!attempt.redPacket.ledger.rows.length">
+              {{
+                packetText(
+                  "No packet-credit rows were observed on this page. This does not prove no debit or refund occurred.",
+                )
+              }}
+            </p>
+          </section>
+          <p v-else>
+            {{
+              packetText(
+                "Credit ledger unavailable. No financial effect has been confirmed.",
+              )
+            }}
+          </p>
+          <p>
+            {{
+              packetText(
+                "Credit attribution remains unknown. A thread or packet label does not establish a debit or refund.",
+              )
+            }}
+          </p>
+          <p
+            v-if="
+              ['expired', 'withdrawn', 'closed'].includes(
+                attempt.redPacket.state,
+              ) || attempt.status === 'moderation'
+            "
+          >
+            {{
+              packetText(
+                "If an expected refund is missing, contact a moderator for assistance. Refund conditions and timing have not been verified.",
+              )
+            }}
+          </p>
+        </section>
+        <p
+          v-else-if="
+            attempt.submission.writing.redPacket ||
+            attempt.submission.writing.existingRedPacket
           "
+        >
+          {{
+            packetText(
+              "Packet and credit observations were not retained. Their outcomes remain unknown.",
+            )
+          }}
+        </p>
+        <button
+          v-if="['uncertain', 'moderation'].includes(attempt.status)"
+          :aria-label="insert(text.checkOriginalDraft, attempt.id)"
+          :disabled="state.publishing || state.preparing"
+          @click="workspace.writing.checkDraft(attempt.id)"
         >
           {{ text.checkThreadResult }}
         </button>
         <button
-          v-if="attempt.status === 'uncertain'"
-          :disabled="!attempt.checked || state.publishing"
-          @click="workspace.writing.warnResend(attempt.id)"
+          v-if="workspace.writing.canResendDraft(attempt.id)"
+          :aria-label="insert(text.reviewDraftResend, attempt.id)"
+          @click="workspace.writing.warnDraftResend(attempt.id)"
         >
           {{ text.prepareAnotherAttempt }}
         </button>
-      </template>
-    </section>
-    <section v-if="state.resend" role="alert">
-      <p v-if="state.context.redPacket">
-        {{
-          packetText(
-            "A further red-packet attempt can deduct additional credits and create a duplicate thread or packet. The original unknown attempt remains unresolved.",
-          )
-        }}
-      </p>
-      <p>
-        {{
-          state.context.action === "edit-post"
-            ? text.editRepeatWarning
-            : text.duplicatePublicationWarning
-        }}
-      </p>
-      <button @click="workspace.writing.cancelResend()">
-        {{ text.keepOriginalAttempt }}
-      </button>
-      <button @click="workspace.writing.confirmResend()">
-        {{ text.acceptDuplicateReview }}
-      </button>
-    </section>
-    <section v-if="state.conflict" role="alert">
-      <h2>{{ text.latestServerVersion }}</h2>
-      <p>{{ text.editCompare }}</p>
-      <p>{{ text.writingTitle }}: {{ state.conflict.title }}</p>
-      <label
-        >{{ text.latestServerSource
-        }}<textarea readonly :value="state.conflict.source" rows="8" />
-      </label>
-      <ul>
-        <li
-          v-for="option in [
-            ...(state.conflict.category ? [state.conflict.category] : []),
-            ...state.conflict.options,
-          ]"
-          :key="option.name"
+      </section>
+      <section v-if="state.draftResend && resendDraftAttempt" role="alert">
+        <p>{{ text.draftResendWarning }}</p>
+        <p v-if="resendDraftAttempt.submission.writing.redPacket">
+          {{
+            packetText(
+              "A further red-packet attempt can deduct additional credits and create a duplicate thread or packet. The original unknown attempt remains unresolved.",
+            )
+          }}
+        </p>
+        <p>
+          {{ draftSummary(resendDraftAttempt, state.draftResend.revision) }}
+        </p>
+        <button @click="workspace.writing.cancelDraftResend()">
+          {{ text.cancelDraftResend }}
+        </button>
+        <button
+          :disabled="state.publishing || state.preparing || state.composing"
+          @click="workspace.writing.confirmDraftResend()"
         >
-          {{ optionCaption(option as WritingOption) }}:
-          {{ option.kind === "checkbox" ? option.checked : option.value
-          }}{{ option.disabled ? ` (${text.disabledOption})` : "" }}
-        </li>
-      </ul>
-      <p>
-        {{ text.attachmentReferences }}:
-        {{ state.conflict.uploadedReferences.join(", ") || text.noReferences }}
-      </p>
-      <ul>
-        <li v-for="field in state.conflict.attachmentFields" :key="field.name">
-          {{ attachmentLabel(field.name) }}: {{ field.value
-          }}{{ field.disabled ? ` (${text.disabledOption})` : "" }}
-        </li>
-      </ul>
-      <button @click="workspace.writing.warnReload()">
-        {{ text.reloadLatest }}
-      </button>
-      <p>{{ text.manualEditExplanation }}</p>
-      <button @click="workspace.writing.reconcileEdit('manual')">
-        {{ text.reconcileManually }}
-      </button>
-      <button @click="workspace.writing.warnOverwrite()">
-        {{ text.saveMyVersion }}
-      </button>
-      <section v-if="state.reloadWarning">
-        <p>{{ text.reloadEditWarning }}</p>
-        <button @click="workspace.writing.cancelConflictWarning()">
-          {{ text.keepLocalWriting }}</button
-        ><button @click="workspace.writing.reconcileEdit('reload')">
-          {{ text.discardReloadLatest }}
+          {{ text.confirmDraftResend }}
         </button>
       </section>
-      <section v-if="state.overwriteWarning">
-        <p>{{ text.overwriteEditWarning }}</p>
-        <button @click="workspace.writing.cancelConflictWarning()">
-          {{ text.keepLocalWriting }}</button
-        ><button @click="workspace.writing.reconcileEdit('overwrite')">
-          {{ text.acceptOverwriteReview }}
-        </button>
-      </section>
-    </section>
-    <div class="writing-actions">
-      <button
-        v-if="!state.context.draft"
-        :disabled="state.preparing || state.publishing"
-        @click="workspace.writing.reviewPublication()"
+      <section
+        v-for="attempt in state.context.attempts"
+        :key="attempt.id"
+        role="status"
       >
-        {{
-          state.context.action === "edit-post"
-            ? text.reviewEdit
-            : text.reviewPublication
-        }}
-      </button>
-      <section v-if="state.publication" role="alert">
-        <template v-if="state.publication.submission.writing.redPacket">
+        <p>
+          {{
+            description(
+              attempt.message,
+              workspace.preferences.state.value.language,
+            )
+          }}
+        </p>
+        <section v-if="attempt.redPacket" aria-label="Red-packet result">
+          <p>
+            {{ packetText("Packet state:") }}
+            {{ packetText(attempt.redPacket.state) }}
+          </p>
+          <p v-for="condition in attempt.redPacket.conditions" :key="condition">
+            {{
+              condition.startsWith("Greeting: ")
+                ? packetText("Greeting") + ": " + condition.slice(10)
+                : condition.split(": ").map(packetText).join(": ")
+            }}
+          </p>
           <p>
             {{
               packetText(
-                "Publish red packet — deduct {amount} credits",
-              ).replace(
-                "{amount}",
-                state.publication.submission.writing.options.find(
-                  (o) => o.name === "hb_total",
-                )?.value ?? "",
+                "Exact passphrase, recipients, total, shares and expiry deadline are not confirmed by presence flags.",
               )
             }}
           </p>
-          <ul>
+          <section v-if="attempt.redPacket.ledger?.state === 'observed'">
+            <p>
+              {{
+                packetText("Observed credit rows (current returned page only)")
+              }}
+            </p>
+            <ul>
+              <li
+                v-for="(row, index) in attempt.redPacket.ledger.rows"
+                :key="index"
+              >
+                {{ row.operation }} · {{ row.change }} · {{ row.details }} ·
+                {{ row.time }}
+              </li>
+            </ul>
+            <p v-if="!attempt.redPacket.ledger.rows.length">
+              {{
+                packetText(
+                  "No packet-credit rows were observed on this page. This does not prove no debit or refund occurred.",
+                )
+              }}
+            </p>
+          </section>
+          <p v-else>
+            {{
+              packetText(
+                "Credit ledger unavailable. No financial effect has been confirmed.",
+              )
+            }}
+          </p>
+          <p>
+            {{
+              packetText(
+                "Credit attribution remains unknown. A thread or packet label does not establish a debit or refund.",
+              )
+            }}
+          </p>
+          <p
+            v-if="
+              ['expired', 'withdrawn', 'closed'].includes(
+                attempt.redPacket.state,
+              ) || attempt.status === 'moderation'
+            "
+          >
+            {{
+              packetText(
+                "If an expected refund is missing, contact a moderator for assistance. Refund conditions and timing have not been verified.",
+              )
+            }}
+          </p>
+        </section>
+        <details v-if="attempt.replyComparison" open>
+          <summary>{{ text.replyComparison }}</summary>
+          <p>{{ text.replyComparisonLimits }}</p>
+          <label v-if="attempt.replyComparison.before"
+            >{{ text.replyBeforeSource
+            }}<textarea
+              readonly
+              :value="attempt.replyComparison.before.source"
+            />
+          </label>
+          <p v-else>{{ text.replyBeforeUnknown }}</p>
+          <label
+            >{{ text.replyObservedSource
+            }}<textarea
+              readonly
+              :value="attempt.replyComparison.observed.source"
+            />
+          </label>
+        </details>
+        <template v-if="attempt.result?.verification">
+          <p
+            v-for="normalization in attempt.result.verification.normalizations"
+            :key="normalization.name"
+          >
+            {{ text.normalizedStoredPrice }}
+          </p>
+          <p
+            v-for="normalization in attempt.result.verification
+              .attachmentNormalizations ?? []"
+            :key="normalization.name"
+          >
+            {{
+              insert(
+                text.normalizedStoredAttachmentPrice,
+                /^attachnew\[([1-9]\d*)\]\[price\]$/.exec(
+                  normalization.name,
+                )?.[1] ?? "",
+              )
+            }}
+          </p>
+          <ul v-if="attempt.result.verification.creationEffects.length">
             <li
-              v-for="option in state.publication.submission.writing.options.filter(
-                (o) => o.name.startsWith('hb_'),
-              )"
-              :key="option.name"
+              v-for="effect in attempt.result.verification.creationEffects"
+              :key="effect.name"
             >
-              {{ optionCaption(option as WritingOption) }}:
+              {{
+                effectLabel(
+                  attempt.publication.submission.writing.options,
+                  effect.name,
+                )
+              }}:
+              <span>{{
+                effect.outcome === "unknown"
+                  ? text.deliveryUnverified
+                  : text.effectNotRequested
+              }}</span>
+              <span v-if="effect.requested && !effect.included">
+                · {{ text.effectNotIncluded }}</span
+              >
+            </li>
+          </ul>
+        </template>
+        <p v-else-if="attempt.result">{{ text.legacyStoredConfirmation }}</p>
+        <a
+          v-if="attempt.result"
+          :href="attempt.result.url"
+          @click.prevent="workspace.openThread(attempt.result.url)"
+          >{{
+            attempt.publication.submission.writing.replyTarget
+              ? text.openConfirmedPost
+              : text.openConfirmedThread
+          }}</a
+        >
+        <template
+          v-if="
+            attempt.status === 'uncertain' ||
+            attempt.status === 'moderation' ||
+            attempt.redPacket
+          "
+        >
+          <label v-if="state.context.action !== 'edit-post'"
+            >{{ text.candidateThreadURL
+            }}<input
+              v-model="candidateURLs[attempt.id]"
+              type="url"
+              :placeholder="attempt.candidateURL ?? ''"
+          /></label>
+          <button
+            :disabled="state.publishing"
+            @click="
+              workspace.writing.checkResult(
+                attempt.id,
+                candidateURLs[attempt.id],
+              )
+            "
+          >
+            {{ text.checkThreadResult }}
+          </button>
+          <button
+            v-if="attempt.status === 'uncertain'"
+            :disabled="!attempt.checked || state.publishing"
+            @click="workspace.writing.warnResend(attempt.id)"
+          >
+            {{ text.prepareAnotherAttempt }}
+          </button>
+        </template>
+      </section>
+      <section v-if="state.resend" role="alert">
+        <p v-if="state.context.redPacket">
+          {{
+            packetText(
+              "A further red-packet attempt can deduct additional credits and create a duplicate thread or packet. The original unknown attempt remains unresolved.",
+            )
+          }}
+        </p>
+        <p>
+          {{
+            state.context.action === "edit-post"
+              ? text.editRepeatWarning
+              : text.duplicatePublicationWarning
+          }}
+        </p>
+        <button @click="workspace.writing.cancelResend()">
+          {{ text.keepOriginalAttempt }}
+        </button>
+        <button @click="workspace.writing.confirmResend()">
+          {{ text.acceptDuplicateReview }}
+        </button>
+      </section>
+      <section v-if="state.conflict" role="alert">
+        <h2>{{ text.latestServerVersion }}</h2>
+        <p>{{ text.editCompare }}</p>
+        <p>{{ text.writingTitle }}: {{ state.conflict.title }}</p>
+        <label
+          >{{ text.latestServerSource
+          }}<textarea readonly :value="state.conflict.source" rows="8" />
+        </label>
+        <ul>
+          <li
+            v-for="option in [
+              ...(state.conflict.category ? [state.conflict.category] : []),
+              ...state.conflict.options,
+            ]"
+            :key="option.name"
+          >
+            {{ optionCaption(option as WritingOption) }}:
+            {{ option.kind === "checkbox" ? option.checked : option.value
+            }}{{ option.disabled ? ` (${text.disabledOption})` : "" }}
+          </li>
+        </ul>
+        <p>
+          {{ text.attachmentReferences }}:
+          {{
+            state.conflict.uploadedReferences.join(", ") || text.noReferences
+          }}
+        </p>
+        <ul>
+          <li
+            v-for="field in state.conflict.attachmentFields"
+            :key="field.name"
+          >
+            {{ attachmentLabel(field.name) }}: {{ field.value
+            }}{{ field.disabled ? ` (${text.disabledOption})` : "" }}
+          </li>
+        </ul>
+        <button @click="workspace.writing.warnReload()">
+          {{ text.reloadLatest }}
+        </button>
+        <p>{{ text.manualEditExplanation }}</p>
+        <button @click="workspace.writing.reconcileEdit('manual')">
+          {{ text.reconcileManually }}
+        </button>
+        <button @click="workspace.writing.warnOverwrite()">
+          {{ text.saveMyVersion }}
+        </button>
+        <section v-if="state.reloadWarning">
+          <p>{{ text.reloadEditWarning }}</p>
+          <button @click="workspace.writing.cancelConflictWarning()">
+            {{ text.keepLocalWriting }}</button
+          ><button @click="workspace.writing.reconcileEdit('reload')">
+            {{ text.discardReloadLatest }}
+          </button>
+        </section>
+        <section v-if="state.overwriteWarning">
+          <p>{{ text.overwriteEditWarning }}</p>
+          <button @click="workspace.writing.cancelConflictWarning()">
+            {{ text.keepLocalWriting }}</button
+          ><button @click="workspace.writing.reconcileEdit('overwrite')">
+            {{ text.acceptOverwriteReview }}
+          </button>
+        </section>
+      </section>
+      <WritingDestination
+        v-if="!state.publication"
+        :writing="state.context"
+        :language="workspace.preferences.state.value.language"
+        review
+      />
+      <div class="writing-actions">
+        <button
+          v-if="!state.context.draft"
+          :disabled="state.preparing || state.publishing"
+          @click="workspace.writing.reviewPublication()"
+        >
+          {{
+            state.context.action === "edit-post"
+              ? text.reviewEdit
+              : text.reviewPublication
+          }}
+        </button>
+        <PreparedPublication
+          v-if="state.publication"
+          :publication="state.publication"
+          :language="workspace.preferences.state.value.language"
+        >
+          <button :disabled="state.publishing" @click="cancelReview">
+            {{
+              reviewText(
+                "Cancel review and return to writing",
+                workspace.preferences.state.value.language,
+              )
+            }}
+          </button>
+          <template v-if="state.publication.submission.writing.redPacket">
+            <p>
+              {{
+                packetText(
+                  "Publish red packet — deduct {amount} credits",
+                ).replace(
+                  "{amount}",
+                  state.publication.submission.writing.options.find(
+                    (o) => o.name === "hb_total",
+                  )?.value ?? "",
+                )
+              }}
+            </p>
+            <ul>
+              <li
+                v-for="option in state.publication.submission.writing.options.filter(
+                  (o) => o.name.startsWith('hb_'),
+                )"
+                :key="option.name"
+              >
+                {{ packetText(option.label) }}:
+                {{
+                  option.name === "hb_password"
+                    ? packetText(
+                        option.value ? "present (not displayed)" : "none",
+                      )
+                    : option.kind === "checkbox"
+                      ? option.checked
+                      : (option.choices.find((c) => c.value === option.value)
+                          ?.label ?? option.value)
+                }}
+              </li>
+            </ul>
+            <p>
+              {{
+                packetText(
+                  "Credits may be deducted when sent. No top-ups or silent re-funding are supported.",
+                )
+              }}
+            </p>
+          </template>
+          <p v-if="state.publication.submission.writing.action === 'edit-post'">
+            {{
+              insert(text.editReview, state.publication.submission.revision)
+                .replace(
+                  "{post}",
+                  state.publication.submission.writing.editTarget?.postId ?? "",
+                )
+                .replace(
+                  "{account}",
+                  state.publication.submission.writing.account.name,
+                )
+            }}
+          </p>
+          <p v-else>
+            {{
+              insert(
+                state.publication.submission.writing.replyTarget
+                  ? text.replyPublicationReview
+                  : text.publicationReview,
+                state.publication.submission.revision,
+              )
+                .replace(
+                  "{thread}",
+                  state.publication.submission.writing.replyTarget?.threadId ??
+                    "",
+                )
+                .replace(
+                  "{account}",
+                  state.publication.submission.writing.account.name,
+                )
+                .replace(
+                  "{board}",
+                  state.publication.submission.writing.board.label,
+                )
+            }}
+          </p>
+          <button
+            :disabled="state.publishing"
+            @click="workspace.writing.publish()"
+          >
+            {{
+              state.publication.submission.writing.action === "edit-post"
+                ? text.saveEditedPost
+                : state.publication.submission.writing.replyTarget
+                  ? text.sendReply
+                  : state.publication.submission.writing.redPacket
+                    ? packetText("Publish red packet")
+                    : text.publishThread
+            }}
+          </button>
+        </PreparedPublication>
+      </div>
+      <section :aria-label="attachment('Attachment authoring')">
+        <div v-if="removeUpload" role="alert">
+          <p>
+            {{
+              attachment(
+                "This removes the server file immediately and cannot be undone by discarding local writing. Body references are separate.",
+              )
+            }}
+          </p>
+          <button
+            @click="
+              workspace.writing.removeServerAttachment(removeUpload);
+              removeUpload = null;
+            "
+          >
+            {{ attachment("Confirm immediate file removal") }}
+          </button>
+          <button @click="removeUpload = null">
+            {{ attachment("Keep server file") }}
+          </button>
+        </div>
+        <label
+          >{{ attachment("Select attachments")
+          }}<input
+            type="file"
+            multiple
+            :disabled="!state.accountVerified || state.publishing"
+            @change="selectAttachments"
+        /></label>
+        <ul>
+          <li v-for="upload in state.context.uploads ?? []" :key="upload.key">
+            <p>{{ uploadLabel(upload) }}</p>
+            <button
+              v-if="
+                upload.status === 'associated' &&
+                upload.originalSha256 &&
+                upload.storedPost
+              "
+              :aria-label="`${attachment('Check stored bytes')} ${upload.name}`"
+              @click="workspace.writing.checkStoredAttachment(upload.key)"
+            >
+              {{ attachment("Check stored bytes") }}
+            </button>
+            <button
+              v-if="['uploaded', 'associated'].includes(upload.status)"
+              :aria-label="`${attachment('Remove server file')} ${upload.name}`"
+              @click="removeUpload = upload.key"
+            >
+              {{ attachment("Remove server file") }}
+            </button>
+            <button
+              v-if="upload.status === 'removal-uncertain'"
+              @click="
+                workspace.writing.removeServerAttachment(upload.key, true)
+              "
+            >
+              {{ attachment("Check file removal result") }}
+            </button>
+            <button
+              v-if="
+                [
+                  'selected',
+                  'uploading',
+                  'rejected',
+                  'reselect',
+                  'uncertain',
+                  'removed',
+                ].includes(upload.status)
+              "
+              :disabled="state.publishing"
+              :aria-label="`${attachment('Remove local selection')} ${upload.name}`"
+              @click="workspace.writing.removeLocalAttachment(upload.key)"
+            >
+              {{ attachment("Remove local selection") }}
+            </button>
+            <p>{{ attachment(upload.message) }}</p>
+            <progress
+              v-if="upload.status === 'uploading'"
+              :aria-label="attachment('Attachment upload progress')"
+              :value="upload.loaded"
+              :max="upload.size"
+            />
+            <button
+              v-if="upload.status === 'selected'"
+              :aria-label="`${attachment('Upload')} ${upload.name}`"
+              @click="workspace.writing.uploadAttachment(upload.key)"
+            >
+              {{ attachment("Upload") }}
+            </button>
+            <button
+              v-if="['uploaded', 'associated'].includes(upload.status)"
+              :aria-label="`${attachment('Insert')} ${upload.name}`"
+              @click="workspace.writing.insertAttachment(upload.key)"
+            >
+              {{ attachment("Insert") }}
+            </button>
+          </li>
+        </ul>
+      </section>
+      <p
+        v-if="
+          state.context.draft &&
+          state.context.options.some((o) =>
+            ['addfeed', 'adddynamic', 'adddynamic_doing'].includes(o.name),
+          )
+        "
+      >
+        {{ text.draftCreationInstructions }}
+      </p>
+      <p v-if="state.context.existingRedPacket">
+        {{
+          packetText(
+            "Existing red packet: content edits do not change its conditions, top up, refund or re-fund it. Packet and credit outcomes require separate checking.",
+          )
+        }}
+      </p>
+      <section
+        v-if="state.context.unappliedPacketOptions?.length"
+        :aria-label="packetText('Unapplied packet settings')"
+      >
+        <h2>{{ packetText("Unapplied packet settings") }}</h2>
+        <p>
+          {{
+            packetText(
+              "These later local settings were not sent with the saved packet. They are retained for reference only; saving or publishing this draft will not apply them or fund another packet.",
+            )
+          }}
+        </p>
+        <dl>
+          <template
+            v-for="option in state.context.unappliedPacketOptions"
+            :key="option.name"
+          >
+            <dt>{{ packetText(option.label) }}</dt>
+            <dd>
               {{
                 option.name === "hb_password"
                   ? packetText(
                       option.value ? "present (not displayed)" : "none",
                     )
                   : option.kind === "checkbox"
-                    ? option.checked
-                    : (option.choices.find((c) => c.value === option.value)
-                        ?.label ?? option.value)
+                    ? packetText(option.checked ? "Selected" : "Not selected")
+                    : (option.choices.find(
+                        (choice) => choice.value === option.value,
+                      )?.label ?? option.value)
               }}
-            </li>
-          </ul>
-          <p>
-            {{
-              packetText(
-                "Credits may be deducted when sent. No top-ups or silent re-funding are supported.",
-              )
-            }}
-          </p>
-        </template>
-        <p v-if="state.context.action === 'edit-post'">
-          {{
-            insert(text.editReview, state.publication.submission.revision)
-              .replace("{post}", state.context.editTarget?.postId ?? "")
-              .replace("{account}", state.context.account.name)
-          }}
-        </p>
-        <p v-else>
-          {{
-            insert(
-              state.publication.submission.writing.replyTarget
-                ? text.replyPublicationReview
-                : text.publicationReview,
-              state.publication.submission.revision,
-            )
-              .replace(
-                "{thread}",
-                state.publication.submission.writing.replyTarget?.threadId ??
-                  "",
-              )
-              .replace("{account}", state.context.account.name)
-              .replace("{board}", state.context.board.label)
-          }}
-        </p>
-        <button
-          :disabled="state.publishing"
-          @click="workspace.writing.publish()"
-        >
-          {{
-            state.context.action === "edit-post"
-              ? text.saveEditedPost
-              : state.context.replyTarget
-                ? text.sendReply
-                : state.context.redPacket
-                  ? packetText("Publish red packet")
-                  : text.publishThread
-          }}
-        </button>
+            </dd>
+          </template>
+        </dl>
       </section>
-    </div>
-    <p v-if="state.recoveryAvailable === false" role="alert">
-      {{ text.writingRecoveryUnavailable }}
-    </p>
-    <p v-else-if="state.acknowledged === state.context.revision" role="status">
-      {{ insert(text.writingAcknowledged, state.acknowledged) }}
-    </p>
-    <p v-else role="status">
-      {{
-        insert(text.writingPending, state.context.revision).replace(
-          "{acknowledged}",
-          String(state.acknowledged),
-        )
-      }}
-    </p>
-    <section :aria-label="text.mentions">
-      <label
-        >{{ text.findMentionPerson }}<input v-model="mentionQuery"
-      /></label>
-      <button
-        :disabled="state.findingMention || state.publishing"
-        @click="workspace.writing.searchMention(mentionQuery)"
-      >
-        {{ text.findMention }}
-      </button>
-      <button
-        v-for="person in state.mentionPeople"
-        :key="person.id"
-        @click="workspace.writing.insertMention(person.id)"
-      >
-        {{ insert(text.mentionPerson, person.name).replace("{id}", person.id) }}
-      </button>
-    </section>
-    <section :aria-label="attachment('Attachment authoring')">
-      <div v-if="removeUpload" role="alert">
-        <p>
-          {{
-            attachment(
-              "This removes the server file immediately and cannot be undone by discarding local writing. Body references are separate.",
-            )
-          }}
-        </p>
-        <button
-          @click="
-            workspace.writing.removeServerAttachment(removeUpload);
-            removeUpload = null;
-          "
-        >
-          {{ attachment("Confirm immediate file removal") }}
-        </button>
-        <button @click="removeUpload = null">
-          {{ attachment("Keep server file") }}
-        </button>
-      </div>
-      <label
-        >{{ attachment("Select attachments")
-        }}<input
-          type="file"
-          multiple
-          :disabled="!state.accountVerified || state.publishing"
-          @change="selectAttachments"
-      /></label>
-      <ul>
-        <li v-for="upload in state.context.uploads ?? []" :key="upload.key">
-          <p>{{ uploadLabel(upload) }}</p>
-          <button
-            v-if="
-              upload.status === 'associated' &&
-              upload.originalSha256 &&
-              upload.storedPost
-            "
-            :aria-label="`${attachment('Check stored bytes')} ${upload.name}`"
-            @click="workspace.writing.checkStoredAttachment(upload.key)"
-          >
-            {{ attachment("Check stored bytes") }}
-          </button>
-          <button
-            v-if="['uploaded', 'associated'].includes(upload.status)"
-            :aria-label="`${attachment('Remove server file')} ${upload.name}`"
-            @click="removeUpload = upload.key"
-          >
-            {{ attachment("Remove server file") }}
-          </button>
-          <button
-            v-if="upload.status === 'removal-uncertain'"
-            @click="workspace.writing.removeServerAttachment(upload.key, true)"
-          >
-            {{ attachment("Check file removal result") }}
-          </button>
-          <button
-            v-if="
-              [
-                'selected',
-                'uploading',
-                'rejected',
-                'reselect',
-                'uncertain',
-                'removed',
-              ].includes(upload.status)
-            "
-            :disabled="state.publishing"
-            :aria-label="`${attachment('Remove local selection')} ${upload.name}`"
-            @click="workspace.writing.removeLocalAttachment(upload.key)"
-          >
-            {{ attachment("Remove local selection") }}
-          </button>
-          <p>{{ attachment(upload.message) }}</p>
-          <progress
-            v-if="upload.status === 'uploading'"
-            :aria-label="attachment('Attachment upload progress')"
-            :value="upload.loaded"
-            :max="upload.size"
-          />
-          <button
-            v-if="upload.status === 'selected'"
-            :aria-label="`${attachment('Upload')} ${upload.name}`"
-            @click="workspace.writing.uploadAttachment(upload.key)"
-          >
-            {{ attachment("Upload") }}
-          </button>
-          <button
-            v-if="['uploaded', 'associated'].includes(upload.status)"
-            :aria-label="`${attachment('Insert')} ${upload.name}`"
-            @click="workspace.writing.insertAttachment(upload.key)"
-          >
-            {{ attachment("Insert") }}
-          </button>
-        </li>
-      </ul>
-    </section>
-    <label
-      v-if="
-        !state.context.replyTarget && state.context.titleAvailable !== false
-      "
-      >{{ text.writingTitle
-      }}<input
-        :value="state.context.title"
-        @input="workspace.writing.edit({ title: value($event) })"
-    /></label>
-    <label v-if="state.context.category"
-      >{{ text.writingCategory
-      }}<select
-        :aria-label="text.writingCategory"
-        :value="state.context.category.value"
-        :disabled="state.context.category.disabled"
-        @change="updateOption(state.context.category as WritingOption, $event)"
-      >
-        <option
-          v-for="choice in state.context.category.choices"
-          :key="choice.value"
-          :value="choice.value"
-          :disabled="choice.disabled"
-        >
-          {{ choice.label }}
-        </option>
-      </select></label
-    >
-    <PostEditor :key="state.context.id" :workspace="workspace" />
-    <p
-      v-if="
-        state.context.draft &&
-        state.context.options.some((o) =>
-          ['addfeed', 'adddynamic', 'adddynamic_doing'].includes(o.name),
-        )
-      "
-    >
-      {{ text.draftCreationInstructions }}
-    </p>
-    <p v-if="state.context.existingRedPacket">
-      {{
-        packetText(
-          "Existing red packet: content edits do not change its conditions, top up, refund or re-fund it. Packet and credit outcomes require separate checking.",
-        )
-      }}
-    </p>
-    <section
-      v-if="state.context.unappliedPacketOptions?.length"
-      :aria-label="packetText('Unapplied packet settings')"
-    >
-      <h2>{{ packetText("Unapplied packet settings") }}</h2>
-      <p>
-        {{
-          packetText(
-            "These later local settings were not sent with the saved packet. They are retained for reference only; saving or publishing this draft will not apply them or fund another packet.",
-          )
-        }}
+      <p v-for="hint in state.context.redPacket?.hints" :key="hint">
+        {{ hint }}
       </p>
-      <dl>
-        <template
-          v-for="option in state.context.unappliedPacketOptions"
-          :key="option.name"
-        >
-          <dt>{{ packetText(option.label) }}</dt>
-          <dd>
-            {{
-              option.kind === "checkbox"
-                ? packetText(option.checked ? "Selected" : "Not selected")
-                : (option.choices.find(
-                    (choice) => choice.value === option.value,
-                  )?.label ?? option.value)
-            }}
-          </dd>
-        </template>
-      </dl>
-    </section>
-    <p v-for="hint in state.context.redPacket?.hints" :key="hint">{{ hint }}</p>
-    <fieldset>
-      <legend>{{ text.currentFormOptions }}</legend>
-      <label v-for="option in currentOptions" :key="option.name">
-        <template v-if="option.kind === 'checkbox'"
-          ><input
-            type="checkbox"
-            :checked="option.checked"
-            :value="option.value"
-            :disabled="option.disabled"
-            @change="updateOption(option as WritingOption, $event)"
-          />{{ optionCaption(option as WritingOption) }}</template
-        >
-        <template v-else
-          >{{ optionCaption(option as WritingOption)
-          }}<select
-            v-if="option.kind === 'select'"
-            :aria-label="optionCaption(option as WritingOption)"
-            :value="option.value"
-            :disabled="option.disabled"
-            @change="updateOption(option as WritingOption, $event)"
+      <fieldset ref="optionFields">
+        <legend>{{ text.currentFormOptions }}</legend>
+        <label v-for="option in currentOptions" :key="option.name">
+          <template v-if="option.kind === 'checkbox'"
+            ><input
+              type="checkbox"
+              v-bind="optionAttributes(option.name)"
+              :aria-label="optionCaption(option as WritingOption)"
+              :checked="option.checked"
+              :value="option.value"
+              :disabled="option.disabled"
+              @change="updateOption(option as WritingOption, $event)"
+            />{{ optionCaption(option as WritingOption) }}</template
           >
-            <option
-              v-for="choice in option.choices"
-              :key="choice.value"
-              :value="choice.value"
-              :disabled="choice.disabled"
+          <template v-else
+            >{{ optionCaption(option as WritingOption)
+            }}<select
+              v-if="option.kind === 'select'"
+              v-bind="optionAttributes(option.name)"
+              :aria-label="optionCaption(option as WritingOption)"
+              :value="option.value"
+              :disabled="option.disabled"
+              @change="updateOption(option as WritingOption, $event)"
             >
-              {{ choice.label }}
-            </option></select
-          ><input
-            v-else
-            :value="option.value"
-            :disabled="option.disabled"
-            :maxlength="option.maxLength ?? undefined"
-            :type="option.minimum !== undefined ? 'number' : 'text'"
-            :min="option.minimum"
-            :max="option.maximum"
-            :step="option.step"
-            @input="updateOption(option as WritingOption, $event)"
-        /></template>
-      </label>
-    </fieldset>
-    <button @click="workspace.writing.hide()">{{ text.returnReading }}</button>
+              <option
+                v-for="choice in option.choices"
+                :key="choice.value"
+                :value="choice.value"
+                :disabled="choice.disabled"
+              >
+                {{ choice.label }}
+              </option></select
+            ><input
+              v-else
+              v-bind="optionAttributes(option.name)"
+              :aria-label="optionCaption(option as WritingOption)"
+              :value="option.value"
+              :disabled="option.disabled"
+              :maxlength="option.maxLength ?? undefined"
+              :type="option.minimum !== undefined ? 'number' : 'text'"
+              :min="option.minimum"
+              :max="option.maximum"
+              :step="option.step"
+              @input="updateOption(option as WritingOption, $event)"
+          /></template>
+          <span
+            v-if="optionIssue(option.name)"
+            :id="optionErrorId(option.name)"
+            role="alert"
+            >{{
+              validationText(
+                optionIssue(option.name)!,
+                workspace.preferences.state.value.language,
+              )
+            }}</span
+          >
+        </label>
+      </fieldset>
+    </div>
   </section>
 </template>

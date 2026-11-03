@@ -1,3 +1,4 @@
+import { revealNavigation } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -30,8 +31,9 @@ async function open(
   destination = directoryURL,
   supplied?: (url: URL) => string,
   nativeScript = "",
+  representation: "json" | "html" = "json",
 ) {
-  const requests: string[] = [];
+  const requests = Object.assign([] as string[], { effectful: [] as string[] });
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
@@ -50,6 +52,8 @@ async function open(
       return;
     }
     requests.push(request.url());
+    if (request.method() !== "GET")
+      requests.effectful.push(`${request.method()} ${request.url()}`);
     const url = new URL(request.url());
     const body = supplied
       ? supplied(url)
@@ -61,8 +65,9 @@ async function open(
             ? thread
             : directory;
     await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({ document: body }),
+      contentType: representation === "json" ? "application/json" : "text/html",
+      body:
+        representation === "json" ? JSON.stringify({ document: body }) : body,
     });
   });
   await page.context().setOffline(true);
@@ -616,6 +621,7 @@ test("J2.refresh-stale: failed refresh retains visibly stale content and does no
     requests.push(route.request().url());
     await route.abort("failed");
   });
+  await revealNavigation(page);
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(
     page.getByText("Previous results are stale.", { exact: true }),
@@ -693,6 +699,12 @@ for (const scenario of [
     status: 429,
   },
   {
+    name: "unsupported-variables-profile",
+    body: '{"Variables":{"forum":{"fid":"5","name":"Structured board"},"forum_threadlist":[]}}',
+    heading: "Content unavailable",
+    status: 200,
+  },
+  {
     name: "missing-document",
     body: '{"ok":1}',
     heading: "Content unavailable",
@@ -707,7 +719,7 @@ for (const scenario of [
 ]) {
   test(`J2.board-response-${scenario.name}: complete data or named failure without another representation request`, async ({
     page,
-  }) => {
+  }, info) => {
     const reads: string[] = [];
     await page.route("**/*", async (route) => {
       if (route.request().isNavigationRequest())
@@ -733,8 +745,43 @@ for (const scenario of [
     await expect(
       page.getByRole("heading", { name: scenario.heading, exact: true }),
     ).toBeVisible();
+    const continuation = page.getByRole("link", {
+      name: "Continue in native forum",
+      exact: true,
+    });
+    await expect(continuation).toHaveAttribute(
+      "href",
+      `${boardURL}&tsdm-native=1`,
+    );
     expect(reads).toHaveLength(1);
     expect(reads[0]).toContain("tsdmapp=json");
+    if (
+      [
+        "unsupported-variables-profile",
+        "picture-wall-with-subboards",
+        "permission",
+      ].includes(scenario.name)
+    ) {
+      await info.attach("bounded-response.png", {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
+      await info.attach("bounded-response.json", {
+        body: Buffer.from(
+          JSON.stringify(
+            {
+              response: scenario.name,
+              heading: scenario.heading,
+              reads,
+              nativeURL: await continuation.getAttribute("href"),
+            },
+            null,
+            2,
+          ),
+        ),
+        contentType: "application/json",
+      });
+    }
   });
 }
 for (const scenario of [
@@ -785,6 +832,7 @@ for (const scenario of [
     ).toBeVisible();
     expect(requests).toHaveLength(2);
     refreshing = true;
+    await revealNavigation(page);
     await page
       .getByRole("button", { name: "Refresh thread", exact: true })
       .click();
@@ -948,6 +996,7 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(reading).toBeVisible();
   await expect(results).not.toBeVisible();
+  await revealNavigation(page);
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(results).toBeVisible();
   await expect(reading).not.toBeVisible();
@@ -1293,5 +1342,490 @@ test("J2.session-contexts: independent tabs need explicit reload while opener co
   await info.attach("inherited-session-diverged.png", {
     body: await copy.screenshot(),
     contentType: "image/png",
+  });
+});
+
+for (const representation of ["html", "json"] as const) {
+  test(`UX54.grouped-${representation}: source menus retain meaning, returned order, destinations and passive Back`, async ({
+    page,
+  }, info) => {
+    const categoryURL = `${boardURL}&filter=typeid&typeid=3&orderby=dateline`;
+    const menus = `<div id="filter_dateline_menu"><a href="${boardURL}&dateline=604800">Any date 日期</a></div><div id="thread_types"><a href="${categoryURL}">Last 7 days 七日 — 音樂分類</a></div><div id="filter_special_menu"><a href="${boardURL}&filter=specialtype&specialtype=1">Polls 投票</a></div><div id="filter_orderby_menu"><a href="${boardURL}&orderby=dateline">Newest threads</a></div><div id="dhnav"><a href="${boardURL}&authorid=9">Newest threads 未知語義</a></div>`;
+    const requests = await open(
+      page,
+      boardURL,
+      (url) =>
+        board(Number(url.searchParams.get("page") ?? 1)).replace(
+          /<div id="thread_types">.*?<\/div><div id="filter_orderby_menu">.*?<\/div>/,
+          menus,
+        ),
+      "",
+      representation,
+    );
+    const filters = page.getByRole("navigation", {
+      name: "Board filters",
+      exact: true,
+    });
+    await expect(filters.getByRole("heading")).toHaveText([
+      "Time",
+      "Category",
+      "Thread type",
+      "Order",
+      "Other filters",
+    ]);
+    const categories = filters.getByRole("group", {
+      name: "Category",
+      exact: true,
+    });
+    const choice = categories.getByRole("link", {
+      name: "Last 7 days 七日 — 音樂分類",
+      exact: true,
+    });
+    await expect(choice).toHaveAttribute("href", categoryURL);
+    await expect(
+      filters
+        .getByRole("group", { name: "Other filters", exact: true })
+        .getByRole("link"),
+    ).toHaveAttribute("href", `${boardURL}&authorid=9`);
+    await choice.focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("list", { name: "Effective criteria" }),
+    ).toContainText("Category: Last 7 days 七日 — 音樂分類");
+    await page
+      .getByRole("navigation", { name: "Board pages" })
+      .getByRole("link", { name: "2", exact: true })
+      .click();
+    await expect(
+      page.getByRole("link", {
+        name: "Autumn listening — page 2",
+        exact: true,
+      }),
+    ).toBeVisible();
+    const clean = (value: string) => {
+      const url = new URL(value);
+      url.searchParams.delete("tsdmapp");
+      return url.href;
+    };
+    expect(requests.map(clean)).toEqual([boardURL, categoryURL, secondURL]);
+    const before = requests.length;
+    await revealNavigation(page);
+    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await expect(page.getByText("Page 1", { exact: true })).toBeVisible();
+    await expect(choice).toHaveAttribute("href", categoryURL);
+    expect(requests).toHaveLength(before);
+    expect(requests.effectful).toEqual([]);
+    await info.attach("grouped-filters.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("returned-requests.json", {
+      body: Buffer.from(JSON.stringify(requests, null, 2)),
+      contentType: "application/json",
+    });
+  });
+}
+
+for (const appearance of [
+  {
+    width: 390,
+    height: 844,
+    language: "en",
+    textSize: 100,
+    theme: "light",
+    category: "Category",
+    subboards: "Subordinate boards",
+  },
+  {
+    width: 768,
+    height: 900,
+    language: "zh-CN",
+    textSize: 150,
+    theme: "dark",
+    category: "分类",
+    subboards: "子版块",
+  },
+  {
+    width: 1440,
+    height: 900,
+    language: "zh-TW",
+    textSize: 70,
+    theme: "mono",
+    category: "分類",
+    subboards: "子版塊",
+  },
+]) {
+  test(`UX54.discovery-${appearance.width}: dense multilingual directory and subordinate metadata remain distinct and usable`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({
+      width: appearance.width,
+      height: appearance.height,
+    });
+    await page.addInitScript(
+      (value) =>
+        localStorage.setItem(
+          "tsdm.workspace.preferences",
+          JSON.stringify({ schema: 1, ...value }),
+        ),
+      appearance,
+    );
+    const longName =
+      "音樂與創作交流 Music and composition — 長い多言語の版面名稱";
+    const cards = Array.from({ length: 16 }, (_, i) =>
+      boardLink(100 + i, `${longName} ${i + 1}`),
+    ).join("");
+    const populated = `<div class="bm"><div class="bm_h"><span>分区版主: Moderator Nine</span><h2>音樂 Listening</h2></div><div id="category_1"><table><tr>${boardLink(5, "Music discussion")}${cards}</tr></table></div></div><div class="bm"><div class="bm_h"><h2>精選 Featured</h2></div><div id="category_2"><table><tr>${boardLink(5, "Music discussion")}</tr></table></div></div><div class="pg"><strong>1</strong><a href="${directoryURL}?gid=2">2</a></div>`;
+    const requests = await open(page, directoryURL, (url) =>
+      url.searchParams.get("mod") === "forumdisplay"
+        ? board()
+            .replace("Live recordings", longName)
+            .replaceAll(
+              "Listening notes",
+              `Listening notes ${longName.repeat(2)}`,
+            )
+        : populated,
+    );
+    await expect(page.locator(".board-group > h2")).toHaveText([
+      "音樂 Listening",
+      "精選 Featured",
+    ]);
+    await expect(page.locator(".overview .board-card")).toHaveCount(18);
+    await expect(
+      page
+        .locator(".board-group")
+        .first()
+        .getByRole("link", { name: "Music discussion", exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      page
+        .locator(".board-group")
+        .nth(1)
+        .getByRole("link", { name: "Music discussion", exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      page
+        .locator(".overview")
+        .getByText("Complete board description 5", { exact: true }),
+    ).toHaveCount(2);
+    await page
+      .locator(".board-group")
+      .first()
+      .getByRole("link", { name: "Music discussion", exact: true })
+      .click();
+    const subordinate = page.locator(".results-pane section").filter({
+      has: page.getByRole("heading", {
+        name: appearance.subboards,
+        exact: true,
+      }),
+    });
+    await expect(
+      subordinate.getByRole("link", { name: longName, exact: true }),
+    ).toHaveAttribute("href", `${directoryURL}?mod=forumdisplay&fid=7`);
+    await expect(
+      subordinate.getByText("Complete board description 7", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      subordinate.getByText("25 threads", { exact: true }),
+    ).toBeVisible();
+    const choice = page
+      .getByRole("group", { name: appearance.category, exact: true })
+      .getByRole("link", {
+        name: `Listening notes ${longName.repeat(2)}`,
+        exact: true,
+      });
+    await choice.focus();
+    await expect(choice).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("link", {
+        name: "Autumn listening — page 1",
+        exact: true,
+      }),
+    ).toBeVisible();
+    const geometry = await page
+      .locator(".results-pane")
+      .evaluate((element) => ({
+        width: element.clientWidth,
+        scroll: element.scrollWidth,
+      }));
+    expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1);
+    await page.setViewportSize({
+      width: appearance.width === 390 ? 1440 : 390,
+      height: 900,
+    });
+    await expect(choice).toBeVisible();
+    await expect(
+      subordinate.getByText("Complete board description 7", { exact: true }),
+    ).toBeVisible();
+    await page.setViewportSize({
+      width: appearance.width,
+      height: appearance.height,
+    });
+    await expect(page.locator(".workspace")).toHaveCount(1);
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    expect(requests).toHaveLength(3);
+    expect(requests.effectful).toEqual([]);
+    await info.attach("discovery-responsive.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("discovery-state.json", {
+      body: Buffer.from(
+        JSON.stringify({ appearance, geometry, requests }, null, 2),
+      ),
+      contentType: "application/json",
+    });
+  });
+}
+
+test("UX54.nested-empty: unknown menus retain choices around known nested menus without duplicate ownership", async ({
+  page,
+}, info) => {
+  const timeURL = `${boardURL}&dateline=86400`;
+  const otherURL = `${boardURL}&digest=1`;
+  const empty = `<div id="ct"><h1>Empty board</h1></div><div id="dhnav"><a href="${otherURL}">Mystery 精華</a><div id="filter_dateline_menu"><a href="${timeURL}">All threads 全部</a></div><a href="${boardURL}&authorid=9">Recent 未知</a></div><table id="threadlisttableid"><tr><td class="emp">No threads available</td></tr></table>`;
+  const requests = await open(page, boardURL, () => empty);
+  const filters = page.getByRole("navigation", {
+    name: "Board filters",
+    exact: true,
+  });
+  await expect(filters.getByRole("heading")).toHaveText([
+    "Other filters",
+    "Time",
+  ]);
+  await expect(
+    filters
+      .getByRole("group", { name: "Other filters", exact: true })
+      .getByRole("link"),
+  ).toHaveText(["Mystery 精華", "Recent 未知"]);
+  await expect(
+    filters.getByRole("link", { name: "All threads 全部", exact: true }),
+  ).toHaveCount(1);
+  await filters
+    .getByRole("group", { name: "Time", exact: true })
+    .getByRole("link")
+    .click();
+  await expect(
+    page.getByRole("list", { name: "Effective criteria" }),
+  ).toContainText("Time: All threads 全部");
+  await expect(
+    page.getByText("No threads available", { exact: true }),
+  ).toBeVisible();
+  expect(requests).toHaveLength(2);
+  expect(requests.effectful).toEqual([]);
+  expect(requests[1]).toContain("dateline=86400");
+  await info.attach("nested-empty.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+for (const legacy of [true, false]) {
+  test(`UX54.recovery-${legacy ? "legacy" : "invalid"}: retained board filters are compatible or fail visibly without automatic requests`, async ({
+    page,
+  }, info) => {
+    const nativeScript = `const raw = sessionStorage.getItem('tsdm.workspace.recovery'); if (raw) { const record = JSON.parse(raw); for (const entry of Object.values(record.entries)) { if (entry.result?.kind === 'board') { ${legacy ? "delete entry.result.board.filterGroups" : "entry.result.board.filterGroups = [{kind: 'constructor', sourceId: 'bad', links: []}]"}; } } sessionStorage.setItem('tsdm.workspace.recovery', JSON.stringify(record)); }`;
+    const requests = await open(page, boardURL, undefined, nativeScript);
+    await expect(
+      page.getByRole("group", { name: "Category", exact: true }),
+    ).toBeVisible();
+    await page.reload();
+    if (legacy) {
+      await expect(
+        page
+          .getByRole("group", { name: "Other filters", exact: true })
+          .getByRole("link"),
+      ).toHaveText(["Listening notes", "Newest threads"]);
+      await expect(
+        page.getByRole("group", { name: "Category", exact: true }),
+      ).toHaveCount(0);
+    } else {
+      await expect(
+        page.getByText("This navigation snapshot is unavailable.", {
+          exact: true,
+        }),
+      ).toBeVisible();
+    }
+    expect(requests).toHaveLength(1);
+    expect(requests.effectful).toEqual([]);
+    await info.attach("recovered-board.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+}
+
+test("UX54.unrecognized-source-menu: unfamiliar returned menu choices remain available without invented meaning", async ({
+  page,
+}) => {
+  const unknownURL = `${boardURL}&filter=nativeextra&orderby=heats`;
+  const requests = await open(page, boardURL, () =>
+    board().replace(
+      '<div id="thread_types">',
+      `<div id="filter_nativeextra_menu"><a href="${unknownURL}">分類 Category Sort 排序</a></div><div id="thread_types">`,
+    ),
+  );
+  const other = page.getByRole("group", { name: "Other filters", exact: true });
+  await expect(
+    other.getByRole("link", { name: "分類 Category Sort 排序", exact: true }),
+  ).toHaveAttribute("href", unknownURL);
+  await other.getByRole("link").click();
+  await expect(
+    page.getByRole("list", { name: "Effective criteria" }),
+  ).toContainText("Sort: heats");
+  expect(requests).toHaveLength(2);
+  expect(requests.effectful).toEqual([]);
+});
+
+test("UX54.recovery-array-kind: coercible nonstring grouping metadata is rejected without automatic reads", async ({
+  page,
+}) => {
+  const nativeScript = `const raw = sessionStorage.getItem('tsdm.workspace.recovery'); if (raw) { const record = JSON.parse(raw); for (const entry of Object.values(record.entries)) { if (entry.result?.kind === 'board') entry.result.board.filterGroups[0].kind = ['category']; } sessionStorage.setItem('tsdm.workspace.recovery', JSON.stringify(record)); }`;
+  const requests = await open(page, boardURL, undefined, nativeScript);
+  await expect(
+    page.getByRole("group", { name: "Category", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText("This navigation snapshot is unavailable.", { exact: true }),
+  ).toBeVisible();
+  expect(requests).toHaveLength(1);
+  expect(requests.effectful).toEqual([]);
+});
+
+test("UX54.mixed-native-menu: More preserves actual order/time subgroup labels without guessed semantics", async ({
+  page,
+}, info) => {
+  const orderURL = `${boardURL}&filter=author&orderby=dateline`;
+  const repliesURL = `${boardURL}&filter=reply&orderby=replies`;
+  const allTimeURL = `${boardURL}&orderby=lastpost&filter=dateline`;
+  const weekURL = `${boardURL}&orderby=lastpost&filter=dateline&dateline=604800`;
+  const menus = `<a id="filter_dateline">更多</a><div id="filter_dateline_menu" class="p_pop"><ul class="pop_moremenu"><li>排序: <a href="${orderURL}">发帖时间</a><span class="pipe">|</span><a href="${repliesURL}">回复数量</a></li><li>时间: <a href="${allTimeURL}" class="xw1">全部时间</a><span class="pipe">|</span><a href="${weekURL}">一周</a></li><li><a href="${boardURL}&digest=1">Unlabelled native choice</a></li></ul></div>`;
+  const requests = await open(page, boardURL, () =>
+    board().replace(
+      /<div id="thread_types">.*?<\/div><div id="filter_orderby_menu">.*?<\/div>/,
+      menus,
+    ),
+  );
+  const filters = page.getByRole("navigation", {
+    name: "Board filters",
+    exact: true,
+  });
+  await expect(filters.getByRole("heading")).toHaveText([
+    "排序:",
+    "时间:",
+    "Other filters",
+  ]);
+  await expect(
+    filters
+      .getByRole("group", { name: "排序:", exact: true })
+      .getByRole("link"),
+  ).toHaveText(["发帖时间", "回复数量"]);
+  await expect(
+    filters
+      .getByRole("group", { name: "时间:", exact: true })
+      .getByRole("link"),
+  ).toHaveText(["全部时间", "一周"]);
+  await expect(
+    filters
+      .getByRole("group", { name: "Other filters", exact: true })
+      .getByRole("link"),
+  ).toHaveText("Unlabelled native choice");
+  await filters
+    .getByRole("group", { name: "排序:", exact: true })
+    .getByRole("link", { name: "回复数量", exact: true })
+    .click();
+  await expect(
+    page.getByRole("list", { name: "Effective criteria" }),
+  ).toContainText("Sort:");
+  expect(requests[1]).toContain("filter=reply&orderby=replies");
+  await filters
+    .getByRole("group", { name: "时间:", exact: true })
+    .getByRole("link", { name: "一周", exact: true })
+    .click();
+  await expect(
+    page.getByRole("list", { name: "Effective criteria" }),
+  ).toContainText("Time: 一周");
+  await expect(
+    page.getByRole("list", { name: "Effective criteria" }),
+  ).toContainText("Sort: lastpost");
+  await expect(
+    page.getByRole("list", { name: "Effective criteria" }),
+  ).not.toContainText("Sort: 全部时间");
+  expect(requests[2]).toContain(
+    "orderby=lastpost&filter=dateline&dateline=604800",
+  );
+  expect(requests.effectful).toEqual([]);
+  await info.attach("native-mixed-menu.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await info.attach("native-mixed-requests.json", {
+    body: Buffer.from(JSON.stringify(requests, null, 2)),
+    contentType: "application/json",
+  });
+});
+
+test("UX54.recovery-array-label: nonstring native group labels are rejected without automatic reads", async ({
+  page,
+}) => {
+  const nativeScript = `const raw = sessionStorage.getItem('tsdm.workspace.recovery'); if (raw) { const record = JSON.parse(raw); for (const entry of Object.values(record.entries)) { if (entry.result?.kind === 'board') entry.result.board.filterGroups[0].sourceLabel = ['排序:']; } sessionStorage.setItem('tsdm.workspace.recovery', JSON.stringify(record)); }`;
+  const requests = await open(page, boardURL, undefined, nativeScript);
+  await expect(
+    page.getByRole("group", { name: "Category", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText("This navigation snapshot is unavailable.", { exact: true }),
+  ).toBeVisible();
+  expect(requests).toHaveLength(1);
+  expect(requests.effectful).toEqual([]);
+});
+
+test("UX54.criteria-provenance: carried context never names another current criterion", async ({
+  page,
+}, info) => {
+  const destination = `${boardURL}&typeid=3&orderby=replies&dateline=604800&specialtype=1&digest=1&authorid=9&rewardtype=2`;
+  const carried =
+    "&typeid=3&dateline=604800&specialtype=1&digest=1&authorid=9&rewardtype=2";
+  const menus = `<div id="filter_orderby_menu"><a href="${boardURL}&filter=reply&orderby=replies${carried}">回复数量</a></div><div id="thread_types"><a href="${boardURL}&filter=typeid${carried}">原生分類</a></div><div id="filter_special_menu"><a href="${boardURL}&filter=specialtype${carried}">投票</a></div><div id="filter_dateline_menu"><ul class="pop_moremenu"><li>时间: <a href="${boardURL}&filter=dateline${carried}">一周</a></li></ul></div><div id="dhnav"><a href="${boardURL}&filter=digest${carried}">精华</a><a href="${boardURL}${carried}">Unclassified carried context</a></div>`;
+  const requests = await open(page, destination, () =>
+    board().replace(
+      /<div id="thread_types">.*?<\/div><div id="filter_orderby_menu">.*?<\/div>/,
+      menus,
+    ),
+  );
+  const criteria = page.getByRole("list", { name: "Effective criteria" });
+  await expect(criteria.getByRole("listitem")).toHaveText([
+    "Category: 原生分類",
+    "Sort: replies",
+    "Time: 一周",
+    "Thread type: 投票",
+    "Digest: 精华",
+    "Author: 9",
+    "Reward: 2",
+  ]);
+  expect(requests).toHaveLength(1);
+  expect(requests.effectful).toEqual([]);
+  await criteria.scrollIntoViewIfNeeded();
+  await info.attach("criteria-provenance.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await info.attach("criteria-provenance.json", {
+    body: Buffer.from(
+      JSON.stringify(
+        { destination, requests, criteria: await criteria.innerText() },
+        null,
+        2,
+      ),
+    ),
+    contentType: "application/json",
   });
 });

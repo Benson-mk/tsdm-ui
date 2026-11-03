@@ -1,3 +1,4 @@
+import { revealNavigation } from "./navigation-ui";
 import { test, expect, chromium, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -144,6 +145,7 @@ test("J2.section-overviews: each destination replaces the reader, supports mediu
     page.getByRole("heading", { name: "Saved", exact: true, level: 1 }),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
+  await revealNavigation(page);
   await page
     .getByRole("combobox", { name: "Main destinations", exact: true })
     .selectOption("search");
@@ -206,7 +208,9 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
       let paneWidths: number[] | null = null;
       for (const size of [100, 90, 70, 150]) {
         const locale = ["en", "zh-CN", "zh-TW"][index++ % 3]!;
-        await page.locator(".workspace > header button").first().click();
+        await page
+          .getByRole("button", { name: /^(Settings|设置|設定)$/, exact: true })
+          .click();
         await page.locator(`input[name="theme"][value="${theme}"]`).check();
         await page.locator("#text-size").fill(String(size));
         await page.locator("#interface-language").selectOption(locale);

@@ -1,3 +1,4 @@
+import { writingIssues } from "./writing-validation.js";
 import { mentionsCurrent } from "./mentions.js";
 import { validateUploadFields } from "./upload-authoring.js";
 import {
@@ -40,6 +41,7 @@ import type {
   ThreadSubmission,
   WritingOption,
   ReplyBefore,
+  WritingValidationIssue,
 } from "./types.js";
 const same = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -131,6 +133,7 @@ export function successful(
   writing: PreparedWriting,
   draftSave: false | "save" | "publish" = false,
   uploadFields: { name: string; value: string; disabled: boolean }[] = [],
+  issues?: WritingValidationIssue[],
 ): { url: string; body: string } | null {
   if (!validRedPacket(writing)) return null;
   const doc = document(response),
@@ -281,12 +284,27 @@ export function successful(
                         "value",
                       )
                     : attr(node, "value");
-    if (
-      (has(node, "required") && !value.trim()) ||
-      (/^\d+$/.test(attr(node, "maxlength")) &&
-        value.length > Number(attr(node, "maxlength")))
-    )
+    const required = has(node, "required") && !value.trim();
+    const limit = /^\d+$/.test(attr(node, "maxlength"))
+      ? Number(attr(node, "maxlength"))
+      : null;
+    if (required || (limit !== null && value.length > limit)) {
+      if (name === "subject" || name === "message" || supplied)
+        issues?.push({
+          field:
+            name === "subject"
+              ? "title"
+              : name === "message"
+                ? "source"
+                : supplied === writing.category
+                  ? "category"
+                  : "option",
+          ...(supplied ? { name } : {}),
+          code: required ? "required" : "too-long",
+          ...(!required && limit !== null ? { limit } : {}),
+        });
       return null;
+    }
     // Unknown interactive controls need an interpretation before they can be sent.
     if (
       !supplied &&
@@ -709,15 +727,32 @@ export function createThreadPublisher(config: {
     async prepare(
       submission: ThreadSubmission,
     ): Promise<PublicationPreparationResult> {
+      // Every deliberate preparation replaces any older approval, including a
+      // locally refused revision. A refusal must not leave a sendable command.
+      reviews.delete(submission.contextId);
+      for (const [key, form] of forms)
+        if (form.publication.submission.contextId === submission.contextId)
+          forms.delete(key);
+      let accountVerified = false;
       const fail = (
         message: string,
         kind: "validation" | "stale" | "network" = "validation",
-      ): PublicationPreparationResult => ({
+      ): Exclude<
+        PublicationPreparationResult,
+        { kind: "ready" | "conflict" }
+      > => ({
         kind,
         message,
+        accountVerified: kind === "validation" && accountVerified,
         account: config.account(),
         generation: config.generation(),
       });
+      const issues = writingIssues(submission.writing);
+      if (issues.length)
+        return {
+          ...fail("Correct the highlighted fields before reviewing."),
+          validation: { source: "local", issues },
+        };
       if (
         !submission.contextId ||
         !Number.isSafeInteger(submission.revision) ||
@@ -793,11 +828,16 @@ export function createThreadPublisher(config: {
           writing.replyTarget,
         );
         config.observe(decoded.account);
+        if (decoded.account.kind === "unknown")
+          return fail(
+            "The current account could not be verified from the preparation response. Check the current account and form again.",
+          );
         if (member(decoded.account) !== writing.account.id)
           return fail(
             "The account changed or expired during preparation. Original writing remains paused.",
             "stale",
           );
+        accountVerified = true;
         if (decoded.kind !== "prepared") return fail(decoded.message);
         const validationGeneration = config.generation();
         if (!(await recipientsCurrent(config, writing)))
@@ -809,6 +849,14 @@ export function createThreadPublisher(config: {
             "A selected mention identity changed or could not be revalidated. Resolve the person again.",
           );
 
+        const returnedIssues = writingIssues(writing, decoded.prepared);
+        if (returnedIssues.length)
+          return {
+            ...fail(
+              "Correct the highlighted fields required by the current native form.",
+            ),
+            validation: { source: "form", issues: returnedIssues },
+          };
         if (!compatible(writing, decoded.prepared))
           return fail(
             "The current native options changed or are unavailable. Review the current form before publication; no values were reset.",
@@ -826,11 +874,20 @@ export function createThreadPublisher(config: {
             "The account or preparation changed during attachment validation. Nothing was sent.",
             "stale",
           );
+        const fieldIssues: WritingValidationIssue[] = [];
         const request =
-          uploadFields && successful(response, writing, false, uploadFields);
+          uploadFields &&
+          successful(response, writing, false, uploadFields, fieldIssues);
+        if (fieldIssues.length)
+          return {
+            ...fail(
+              "Correct the highlighted fields required by the current native form.",
+            ),
+            validation: { source: "form", issues: fieldIssues },
+          };
         if (!request)
           return fail(
-            "The current native successful controls or required values are unsupported. Nothing was sent.",
+            "The current native form has unsupported successful controls or required values. Nothing was sent.",
           );
         const beforeGeneration = config.generation();
         const before = await replyBefore(writing);

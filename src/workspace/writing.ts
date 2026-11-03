@@ -37,6 +37,8 @@ export function createWriting(
     visible: boolean;
     preparing: boolean;
     message: string;
+    validationIssues: import("../forum-client").WritingValidationIssue[];
+    validationFocus: number;
     replacement: {
       boardId: string;
       replyTarget?: ReplyTarget;
@@ -53,6 +55,7 @@ export function createWriting(
     acknowledged: number;
     recoveryAvailable: boolean | null;
     accountVerified: boolean;
+    accountObservation: Account;
     composing: boolean;
     compositionDeferred: boolean;
     mentionPeople: MentionIdentity[];
@@ -85,6 +88,8 @@ export function createWriting(
     visible: false,
     preparing: false,
     message: "",
+    validationIssues: [],
+    validationFocus: 0,
     replacement: null,
     editReplacement: null,
     conflict: null,
@@ -94,6 +99,7 @@ export function createWriting(
     acknowledged: 0,
     recoveryAvailable: null,
     accountVerified: false,
+    accountObservation: { kind: "unknown" },
     copy: null,
     composing: false,
     compositionDeferred: false,
@@ -414,6 +420,14 @@ export function createWriting(
       };
       return;
     }
+    const current = ++sequence;
+    state.value = {
+      ...state.value,
+      preparing: false,
+      ...(!replace
+        ? { replacement: null, editReplacement: null, draftReplacement: null }
+        : {}),
+    };
     if (existing && !replace) {
       if (sameAction) {
         state.value = { ...state.value, visible: true, replacement: null };
@@ -429,16 +443,15 @@ export function createWriting(
       };
       return;
     }
-    const current = ++sequence;
     state.value = { ...state.value, preparing: true, message: "" };
     const result = await (replyTarget
       ? client.prepareReply(boardId, replyTarget)
       : client.prepareNewThread(boardId, redPacket));
+    if (current !== sequence) return;
     if (result.kind !== "stale") {
       accountObserved(result.account);
       observe(result.account, result.kind === "prepared");
     }
-    if (current !== sequence) return;
     if (result.kind !== "prepared") {
       state.value = {
         ...state.value,
@@ -463,6 +476,7 @@ export function createWriting(
     }
     state.value = {
       ...state.value,
+      validationIssues: [],
       context: {
         ...result.prepared,
         id: crypto.randomUUID(),
@@ -502,7 +516,15 @@ export function createWriting(
       })
     )
       return;
-    if (state.value.publishing || state.value.preparing) return;
+    if (state.value.publishing) return;
+    const current = ++sequence;
+    state.value = {
+      ...state.value,
+      preparing: false,
+      ...(!replace
+        ? { replacement: null, editReplacement: null, draftReplacement: null }
+        : {}),
+    };
     const existing = state.value.context;
     if (existing && !replace) {
       if (
@@ -515,12 +537,11 @@ export function createWriting(
       state.value = { ...state.value, editReplacement: { threadURL, postId } };
       return;
     }
-    const current = ++sequence;
     state.value = { ...state.value, preparing: true, message: "" };
     const result = await client.preparePostEdit(threadURL, postId);
+    if (current !== sequence) return;
     accountObserved(result.account);
     observe(result.account, result.kind === "prepared");
-    if (current !== sequence) return;
     if (result.kind !== "prepared") {
       state.value = {
         ...state.value,
@@ -545,6 +566,7 @@ export function createWriting(
     }
     state.value = {
       ...state.value,
+      validationIssues: [],
       context: {
         ...result.prepared,
         id: crypto.randomUUID(),
@@ -669,6 +691,7 @@ export function createWriting(
     }
     state.value = {
       ...state.value,
+      validationIssues: [],
       context: {
         ...result.prepared,
         id: crypto.randomUUID(),
@@ -1472,11 +1495,17 @@ export function createWriting(
       context.action === "edit-post"
         ? await client.prepareEditPublication(submission(context))
         : await client.prepareThreadPublication(submission(context));
-    accountObserved(result.account);
-    observe(
-      result.account,
-      result.kind === "ready" || result.kind === "conflict",
-    );
+    const local =
+      "validation" in result && result.validation?.source === "local";
+    if (!local) {
+      accountObserved(result.account);
+      observe(
+        result.account,
+        result.kind === "ready" ||
+          result.kind === "conflict" ||
+          ("accountVerified" in result && result.accountVerified === true),
+      );
+    }
     if (
       state.value.context?.id !== context.id ||
       state.value.context.revision !== context.revision
@@ -1495,7 +1524,10 @@ export function createWriting(
       publication: result.kind === "ready" ? result.publication : null,
       conflict:
         result.kind === "conflict" ? result.latest : state.value.conflict,
-      message: result.kind === "ready" ? "" : result.message,
+      message: result.kind === "ready" || local ? "" : result.message,
+      validationIssues:
+        "validation" in result ? (result.validation?.issues ?? []) : [],
+      validationFocus: state.value.validationFocus + 1,
     };
   }
   async function publish() {
@@ -1623,8 +1655,21 @@ export function createWriting(
     state.value = { ...state.value, mentionPeople: [] };
   }
   function observe(account: Account, verified = true) {
+    const publication = state.value.publication;
     state.value = {
       ...state.value,
+      publication:
+        publication &&
+        verified &&
+        account.kind === "member" &&
+        account.id === publication.submission.writing.account.id &&
+        client.generation === publication.generation
+          ? publication
+          : null,
+    };
+    state.value = {
+      ...state.value,
+      accountObservation: account,
       accountVerified:
         verified &&
         account.kind === "member" &&
@@ -1719,6 +1764,7 @@ export function createWriting(
     }
     state.value = {
       ...state.value,
+      validationIssues: [],
       context: {
         ...candidate.prepared,
         title: original.title,
@@ -1767,7 +1813,8 @@ export function createWriting(
     },
     reconcileEdit,
     cancelEditReplacement: () => {
-      state.value = { ...state.value, editReplacement: null };
+      ++sequence;
+      state.value = { ...state.value, editReplacement: null, preparing: false };
     },
     replaceWithEdit: () => {
       const target = state.value.editReplacement;
@@ -1785,6 +1832,10 @@ export function createWriting(
     searchMention,
     insertMention,
     reviewPublication,
+    cancelPublicationReview: () => {
+      if (state.value.publishing || state.value.composing) return;
+      state.value = { ...state.value, publication: null };
+    },
     resumeDraft,
     checkDraft,
     canResendDraft,
@@ -1889,6 +1940,8 @@ export function createWriting(
       state.value = {
         ...state.value,
         context,
+        validationIssues: [],
+        accountObservation: { kind: "unknown" },
         visible: context !== null,
         acknowledged: context?.revision ?? 0,
         mentionPeople: [],
@@ -2097,6 +2150,7 @@ export function createWriting(
           ...state.value,
           visible: true,
           replacement: null,
+          editReplacement: null,
           draftReplacement: null,
           preparing: false,
         };
@@ -2105,7 +2159,8 @@ export function createWriting(
     },
     hide: () => {
       const hide = () => {
-        state.value = { ...state.value, visible: false };
+        ++sequence;
+        state.value = { ...state.value, visible: false, preparing: false };
       };
       if (!deferViewChange(hide)) hide();
     },

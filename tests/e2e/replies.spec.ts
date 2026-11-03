@@ -1,3 +1,4 @@
+import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -175,7 +176,7 @@ test("J4.quote-target: one addressed target survives extra source quote blocks a
   const state = await fixture(page);
   await page
     .getByRole("article", { name: "Post 101", exact: true })
-    .getByRole("button", { name: "Quick Quote", exact: true })
+    .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
   await expect(
     page.getByText("Addressed to Other author · Post 101", { exact: true }),
@@ -242,6 +243,7 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("Literal @Other author stays literal. ");
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -262,7 +264,9 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
     "Literal @Other author stays literal. @\u2063Other author\u2063 ",
   );
   await expect(
-    page.getByText(/notification delivery is unverified/),
+    page
+      .getByRole("group", { name: "Writing destination", exact: true })
+      .getByText(/notification delivery is unverified/),
   ).toBeVisible();
   await info.attach("mentions.png", {
     body: await page.screenshot(),
@@ -568,7 +572,7 @@ for (const mismatch of ["wrong-post", "populated-trim", "ordinary-addressed"])
     else
       await page
         .getByRole("article", { name: "Post 101", exact: true })
-        .getByRole("button", { name: "Quick Quote", exact: true })
+        .getByRole("button", { name: "Reply to this post", exact: true })
         .click();
     await expect(
       page.getByText(
@@ -593,6 +597,7 @@ test("J4.reply-mention-drift: selected UID changing before send refuses without 
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -651,6 +656,7 @@ for (const mutation of [
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
     await page.getByLabel("Complete source", { exact: true }).fill(source);
+    await page.getByText("Recovery details", { exact: true }).click();
     await expect(
       page.getByText(/Recovery acknowledged for revision/),
     ).toBeVisible();
@@ -847,6 +853,7 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -861,7 +868,7 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
     .click();
   await page
     .getByRole("article", { name: "Post 101", exact: true })
-    .getByRole("button", { name: "Quick Quote", exact: true })
+    .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
   await page
     .getByRole("button", {
@@ -874,6 +881,7 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
   ).toBeVisible();
   release();
   state.mentionGate = null;
+  await revealAdvanced(page);
   await expect(
     page.getByRole("button", { name: "Find mention", exact: true }),
   ).toBeEnabled();
@@ -883,6 +891,7 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
       exact: true,
     }),
   ).toHaveCount(0);
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -912,11 +921,12 @@ async function readySupplement(page: Page) {
   state.people = [{ uid: 7, username: "Writer 7" }];
   await page
     .getByRole("article", { name: "Post 101", exact: true })
-    .getByRole("button", { name: "Quick Quote", exact: true })
+    .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("[quote]Additional own source[/quote]\nLiteral @Writer 7 stays. ");
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Writer 7");
@@ -1152,6 +1162,7 @@ test("J4.reply-native-person-link: a new reply preserves complete source with se
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("Literal @Writer 7. ");
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Writer 7");
@@ -1222,7 +1233,7 @@ for (const locale of [
       if (addressed)
         await page
           .getByRole("article", { name: "Post 101", exact: true })
-          .getByRole("button", { name: "Quick Quote", exact: true })
+          .getByRole("button", { name: "Reply to this post", exact: true })
           .click();
       else
         await page
@@ -1237,10 +1248,16 @@ for (const locale of [
       await page
         .getByRole("button", { name: locale.review, exact: true })
         .click();
-      const review = page.getByRole("alert").filter({
-        has: page.getByRole("button", { name: locale.send, exact: true }),
+      const review = page.getByRole("region", {
+        name:
+          locale.language === "en"
+            ? "Prepared publication review"
+            : locale.language === "zh-CN"
+              ? "发布前审阅"
+              : "發佈前審閱",
+        exact: true,
       });
-      await expect(review.locator("p")).toHaveText(locale.summary);
+      await expect(review.getByText(locale.summary)).toBeVisible();
       if (addressed)
         await expect(
           page.getByText(locale.addressed, { exact: true }),
@@ -1261,7 +1278,7 @@ for (const addressed of [false, true])
     if (addressed)
       await page
         .getByRole("article", { name: "Post 101", exact: true })
-        .getByRole("button", { name: "Quick Quote", exact: true })
+        .getByRole("button", { name: "Reply to this post", exact: true })
         .click();
     else
       await page
@@ -1274,9 +1291,7 @@ for (const addressed of [false, true])
       field.setSelectionRange(field.value.length - 9, field.value.length);
       field.dispatchEvent(new Event("select", { bubbles: true }));
     });
-    await page
-      .getByRole("button", { name: "Apply formatting", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Bold", exact: true }).click();
     await expect(
       page
         .getByRole("textbox", { name: "Visual post content", exact: true })
@@ -1411,7 +1426,7 @@ async function dormantSnapshotJourney(page: Page, merged: boolean) {
   if (merged)
     await page
       .getByRole("article", { name: "Post 101", exact: true })
-      .getByRole("button", { name: "Quick Quote", exact: true })
+      .getByRole("button", { name: "Reply to this post", exact: true })
       .click();
   else
     await page

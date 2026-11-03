@@ -1,3 +1,4 @@
+import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { combinedSource, richRoundTrip } from "./combined-authoring";
@@ -250,7 +251,7 @@ async function fixture(
             ? "New thread"
             : context === "reply"
               ? "Reply to thread"
-              : "Quick Quote",
+              : "Reply to this post",
       exact: true,
     })
     .click();
@@ -897,6 +898,7 @@ test("J8.repair-selection-cells: attachment insertion preserves selected row str
     exact: true,
   });
   await body.locator("td").first().click();
+  await revealAdvanced(page);
   await page
     .getByLabel("Table operation", { exact: true })
     .selectOption({ label: "Select row" });
@@ -942,9 +944,7 @@ test("J8.repair-selection-composition: attachment insertion waits for compositio
   ).toBeDisabled();
   await expect
     .poll(async () =>
-      page
-        .getByRole("button", { name: "Apply formatting", exact: true })
-        .isEnabled(),
+      page.getByRole("button", { name: "Bold", exact: true }).isEnabled(),
     )
     .toBe(true);
   await page
@@ -1162,6 +1162,7 @@ for (const route of [
     const source = page.getByLabel("Complete source", { exact: true });
     await source.fill(combinedSource);
     await source.press("ControlOrMeta+End");
+    await revealAdvanced(page);
     await page
       .getByLabel("Find a person to mention", { exact: true })
       .fill("Other author");
@@ -2901,3 +2902,47 @@ for (const phase of ["review", "preflight"]) {
     });
   }
 }
+
+test("UX61.attachment-uncertainty: upload outcome and recovery details retain original attachment attempt without save removal or retry", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  state.outcome = "lost";
+  await select(page);
+  await upload(page);
+  const outcome = page.getByText("Upload outcome uncertain · note.txt", {
+    exact: true,
+  });
+  await expect(outcome).toBeVisible();
+  expect(await outcome.evaluate((n) => n.closest("details"))).toBeNull();
+  const before = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+    requests = state.requests.length;
+  await page.getByText("Recovery details", { exact: true }).click();
+  await page.getByText("Recovery details", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .locator(".retained-writing")
+      .getByRole("alert")
+      .filter({ hasText: /outcome needs checking/ }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(before);
+  expect(state.requests).toHaveLength(requests);
+  expect(state.uploads).toHaveLength(1);
+  expect(state.saves).toEqual([]);
+  expect(state.removals).toEqual([]);
+  await receipt(page, state, info);
+});

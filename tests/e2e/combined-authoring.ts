@@ -1,11 +1,66 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page, type TestInfo } from "@playwright/test";
 
 export const combinedSource =
   "[spoiler=Combined][hide][table][tr][td]第一格[/td][td][b]Second[/b][/td][/tr][/table][/hide][/spoiler]\n[quote=Extra author]Additional named quote[/quote]\n";
 
+// UX57 extends existing pending/uncertain/attachment journeys through the same
+// application controls. The caller's independent HTTP fixture still owns effects.
+export async function writingPresentationRoundTrip(
+  page: Page,
+  info?: TestInfo,
+) {
+  const read = () =>
+    page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    );
+  const before = await read();
+  const size = page.getByRole("button", {
+    name: /^(Expand writing|Compact writing)$/,
+  });
+  await size.click();
+  await size.click();
+  const viewport = page.viewportSize();
+  for (const width of [390, 768, 1440])
+    await page.setViewportSize({ width, height: 900 });
+  if (viewport) await page.setViewportSize(viewport);
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  const retained = page.locator(".retained-writing");
+  await expect(retained).toBeVisible();
+  if (
+    before.attempts?.some((a: { status: string }) =>
+      ["pending", "uncertain", "moderation"].includes(a.status),
+    ) ||
+    before.draftAttempts?.some((a: { status: string }) =>
+      ["pending", "uncertain", "moderation"].includes(a.status),
+    )
+  )
+    await expect(
+      retained.getByText(
+        /retained operation is pending or its outcome needs checking/,
+      ),
+    ).toBeVisible();
+  if (before.redPacket)
+    await expect(
+      retained.getByText(/Red-packet writing is retained/),
+    ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  expect(await read()).toEqual(before);
+  if (info)
+    await info.attach("presentation-retained-writing.json", {
+      body: JSON.stringify({ before, after: await read() }, null, 2),
+      contentType: "application/json",
+    });
+}
+
 // Complete application interaction shared by the combined journeys. No client,
 // workspace, editor or host implementation is substituted here.
 export async function richRoundTrip(page: Page, source: string) {
+  await writingPresentationRoundTrip(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await expect(editor).toHaveValue(source);
   await page

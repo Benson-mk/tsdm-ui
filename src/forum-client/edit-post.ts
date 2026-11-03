@@ -1,3 +1,4 @@
+import { writingIssues } from "./writing-validation.js";
 import { mentionsCurrent } from "./mentions.js";
 import { validateUploadFields } from "./upload-authoring.js";
 import { observeRedPacket, observePacketLedger } from "./hongbao.js";
@@ -18,6 +19,7 @@ import type {
   ThreadPublication,
   ThreadSubmission,
   WritingBaseline,
+  WritingValidationIssue,
 } from "./types.js";
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const equal = (a: unknown, b: unknown) =>
@@ -87,7 +89,10 @@ export function createPostEditor(config: {
       u.searchParams.set(key, value);
     return u.href;
   }
-  async function current(w: PreparedWriting) {
+  async function current(
+    w: PreparedWriting,
+    observed?: (verified: boolean) => void,
+  ) {
     const url = sourceURL(w);
     let generation = config.generation();
     const ownership = decodeThread(
@@ -110,6 +115,11 @@ export function createPostEditor(config: {
     const decoded = decodeWriting(response, url, w.board.id, w.editTarget);
     if (generation !== config.generation()) return null;
     config.observe(decoded.account);
+    observed?.(
+      config.generation() === generation &&
+        decoded.account.kind === "member" &&
+        decoded.account.id === w.account.id,
+    );
     if (
       config.generation() !== generation ||
       decoded.account.kind !== "member" ||
@@ -227,14 +237,30 @@ export function createPostEditor(config: {
   async function prepare(
     submission: ThreadSubmission,
   ): Promise<PublicationPreparationResult> {
-    const fail = (message: string): PublicationPreparationResult => ({
-      kind: "validation",
+    for (const [key, p] of prepared)
+      if (p.submission.contextId === submission.contextId) prepared.delete(key);
+    let accountVerified = false;
+    const fail = (
+      message: string,
+      kind: "validation" | "network" = "validation",
+    ): Exclude<
+      PublicationPreparationResult,
+      { kind: "ready" | "conflict" }
+    > => ({
+      kind,
+      accountVerified: kind === "validation" && accountVerified,
       message,
       account: config.account(),
       generation: config.generation(),
     });
     submission = copy(submission);
     const writing = submission.writing;
+    const issues = writingIssues(writing);
+    if (issues.length)
+      return {
+        ...fail("Correct the highlighted fields before reviewing."),
+        validation: { source: "local", issues },
+      };
     if (
       writing.action !== "edit-post" ||
       !writing.editTarget ||
@@ -247,11 +273,14 @@ export function createPostEditor(config: {
     for (const [key, p] of prepared)
       if (p.submission.contextId === submission.contextId) prepared.delete(key);
     try {
-      let fresh = await current(writing);
+      let fresh = await current(writing, (verified) => {
+        accountVerified = verified;
+      });
       if (!fresh)
         return fail(
           "Actual current source, options or original account are unavailable. Editing remains paused.",
         );
+      accountVerified = true;
       if (writing.mentions?.length) {
         const generation = config.generation();
         if (
@@ -263,7 +292,9 @@ export function createPostEditor(config: {
           );
         // Re-read after identity lookup so its awaits do not leave stale source
         // or options as the revision being approved.
-        fresh = await current(writing);
+        fresh = await current(writing, (verified) => {
+          accountVerified = verified;
+        });
         if (!fresh || config.generation() !== generation)
           return fail(
             "Actual current source, options or original account are unavailable. Editing remains paused.",
@@ -283,6 +314,14 @@ export function createPostEditor(config: {
           account: config.account(),
           generation: config.generation(),
         };
+      const returnedIssues = writingIssues(writing, fresh.latest);
+      if (returnedIssues.length)
+        return {
+          ...fail(
+            "Correct the highlighted fields required by the current native form.",
+          ),
+          validation: { source: "form", issues: returnedIssues },
+        };
       const generation = config.generation();
       const uploadFields = await validateUploadFields(
         config.transport,
@@ -296,6 +335,17 @@ export function createPostEditor(config: {
       const newIds = (writing.uploads ?? [])
         .filter((u) => u.status === "uploaded")
         .map((u) => u.serverId);
+      const fieldIssues: WritingValidationIssue[] = [];
+      const request =
+        uploadFields &&
+        successful(fresh.response, writing, false, uploadFields, fieldIssues);
+      if (fieldIssues.length)
+        return {
+          ...fail(
+            "Correct the highlighted fields required by the current native form.",
+          ),
+          validation: { source: "form", issues: fieldIssues },
+        };
       if (
         (fresh.latest.titleAvailable === false && writing.title !== "") ||
         unresolvedWritingAttachments(writing).length ||
@@ -305,7 +355,7 @@ export function createPostEditor(config: {
           fresh.latest.uploadedReferences,
         ) ||
         !uploadFields ||
-        !successful(fresh.response, writing, false, uploadFields)
+        !request
       )
         return fail(
           "Required current form content or attachment references cannot be preserved. Nothing was sent.",
@@ -323,7 +373,10 @@ export function createPostEditor(config: {
         generation: config.generation(),
       };
     } catch {
-      return fail("Fresh edit preparation failed. Local writing is retained.");
+      return fail(
+        "Fresh edit preparation failed. Local writing is retained.",
+        "network",
+      );
     }
   }
   async function checkContent(attempt: ThreadAttempt): Promise<ThreadAttempt> {

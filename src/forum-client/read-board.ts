@@ -1,5 +1,7 @@
 import {
   attr,
+  children,
+  element,
   byId,
   descendants,
   documentFrom,
@@ -13,6 +15,7 @@ import { accountFrom } from "./read-thread.js";
 import { cleanURL, routeFor } from "./routes.js";
 import type {
   BoardLink,
+  BoardFilterGroup,
   ForumLink,
   HostResponse,
   Pagination,
@@ -231,11 +234,14 @@ export function decodeBoard(
       /^category_\d+$/.test(attr(n, "id")),
     ).map((n) => {
       const parent = closest(n, (p) => hasClass(p, "bm"));
+      const heading = parent
+        ? descendants(parent, (p) => hasClass(p, "bm_h"))[0]
+        : undefined;
       return {
         title:
           label(
-            (parent && descendants(parent, (p) => hasClass(p, "bm_h"))[0]) ||
-              undefined,
+            heading &&
+              (descendants(heading, (p) => p.tagName === "h2")[0] ?? heading),
           ) || "Boards",
         boards: boards(n, url),
       };
@@ -375,21 +381,82 @@ export function decodeBoard(
       ),
       account,
     };
-  const filters = [
-    "thread_types",
-    "filter_special_menu",
-    "filter_orderby_menu",
-    "filter_dateline_menu",
-    "dhnav",
-    "dhnavs",
-  ].flatMap((id) => {
-    const root = byId(doc, id);
-    return root
-      ? links(root, url, () => true).filter(
+  const menuKinds: Record<string, BoardFilterGroup["kind"]> = {
+    thread_types: "category",
+    filter_special_menu: "type",
+    filter_orderby_menu: "order",
+    filter_dateline_menu: "time",
+    dhnav: "unclassified",
+    dhnavs: "unclassified",
+  };
+  const isMenu = (node: Element) =>
+    Object.hasOwn(menuKinds, attr(node, "id")) ||
+    /^filter_[a-z0-9_]+_menu$/i.test(attr(node, "id"));
+  // Native More menus contain labelled LI subgroups with mixed semantics.
+  // Preserve those labels verbatim instead of guessing from translated text.
+  const filterGroups = descendants(doc, isMenu)
+    .flatMap((root): BoardFilterGroup[] => {
+      const sourceId = attr(root, "id");
+      const returned = (node: Node) =>
+        links(node, url, (anchor) => closest(anchor, isMenu) === root).filter(
           (item) => routeFor(item.url)?.kind === "board",
-        )
-      : [];
-  });
+        );
+      const allLinks = returned(root);
+      const rows = descendants(
+        root,
+        (node) =>
+          node.tagName === "li" &&
+          !!node.parentNode &&
+          hasClass(node.parentNode, "pop_moremenu") &&
+          closest(node, isMenu) === root,
+      );
+      const nativeGroups = rows
+        .map((row): BoardFilterGroup => {
+          const prefix: Node[] = [];
+          for (const child of children(row)) {
+            if (
+              element(child) &&
+              (child.tagName === "a" ||
+                descendants(child, (node) => node.tagName === "a").length)
+            )
+              break;
+            prefix.push(child);
+          }
+          const sourceLabel = prefix
+            .map((node) => label(node))
+            .join(" ")
+            .replace(/\s+/g, " ")
+            .trim();
+          return {
+            kind: "unclassified",
+            sourceId,
+            ...(sourceLabel ? { sourceLabel } : {}),
+            links: returned(row),
+          };
+        })
+        .filter((group) => group.links.length);
+      const covered = new Set(
+        nativeGroups.flatMap((group) => group.links.map((item) => item.url)),
+      );
+      if (
+        nativeGroups.length &&
+        allLinks.every((item) => covered.has(item.url))
+      )
+        return nativeGroups;
+      return [
+        {
+          kind: rows.length
+            ? "unclassified"
+            : Object.hasOwn(menuKinds, sourceId)
+              ? menuKinds[sourceId]!
+              : "unclassified",
+          sourceId,
+          links: allLinks,
+        },
+      ];
+    })
+    .filter((group) => group.links.length);
+  const filters = filterGroups.flatMap((group) => group.links);
   const criterionNames: Record<string, string> = {
     typeid: "Category",
     orderby: "Sort",
@@ -400,10 +467,16 @@ export function decodeBoard(
     rewardtype: "Reward",
     filter: "Filter",
   };
+  const criterionKinds: Record<string, BoardFilterGroup["kind"]> = {
+    typeid: "category",
+    orderby: "order",
+    dateline: "time",
+    specialtype: "type",
+  };
   const criteria = [...actual.url.searchParams]
     .filter(
       ([key]) =>
-        key in criterionNames &&
+        Object.hasOwn(criterionNames, key) &&
         !(
           key === "filter" &&
           ["typeid", "orderby", "digest", "specialtype"].some((name) =>
@@ -412,15 +485,18 @@ export function decodeBoard(
         ),
     )
     .map(([key, value]) => {
-      const matching = filters.filter(
-        (item) => new URL(item.url).searchParams.get(key) === value,
-      );
-      const returned =
-        (key === "orderby"
-          ? matching.find(
-              (item) => !new URL(item.url).searchParams.has("typeid"),
-            )
-          : matching[0]) ?? matching[0];
+      // A matching parameter can be carried context for another choice.
+      // Require its explicit selector or non-conflicting known menu provenance.
+      const returned = filterGroups.flatMap((group) =>
+        group.links.filter((item) => {
+          const parameters = new URL(item.url).searchParams;
+          if (parameters.get(key) !== value) return false;
+          const selector = parameters.get("filter");
+          return selector
+            ? selector === key
+            : group.kind === criterionKinds[key];
+        }),
+      )[0];
       return {
         label: `${criterionNames[key]}: ${returned?.label ?? value}`,
         url,
@@ -442,6 +518,7 @@ export function decodeBoard(
       boards: subboards,
       threads: threads.filter((n) => n !== null),
       filters: [...new Map(filters.map((n) => [n.url, n])).values()],
+      filterGroups,
       criteria,
       pages: pagination(doc, url),
       empty,

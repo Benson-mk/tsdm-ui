@@ -1,3 +1,4 @@
+import { revealNavigation } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -786,6 +787,7 @@ test("J3.search-section-layout: Search has its own overview and remains reachabl
       .getByRole("button", { name: "Search", exact: true }),
   ).toHaveAttribute("aria-current", "page");
   await page.setViewportSize({ width: 390, height: 844 });
+  await revealNavigation(page);
   await page
     .getByRole("link", { name: "All boards", exact: true })
     .first()
@@ -1363,6 +1365,7 @@ for (const width of [1280, 960, 375]) {
   }, info) => {
     await page.setViewportSize({ width, height: 900 });
     const requests = await open(page);
+    await revealNavigation(page);
     if (width < 640)
       await page
         .getByRole("combobox", { name: "Main destinations", exact: true })
@@ -1405,6 +1408,7 @@ for (const width of [1280, 960, 375]) {
   });
 }
 async function openSearch(page: Page) {
+  await revealNavigation(page);
   if ((page.viewportSize()?.width ?? 1280) < 640)
     await page
       .getByRole("combobox", { name: "Main destinations", exact: true })
@@ -1643,6 +1647,7 @@ for (const [
     await expect(search.getByLabel("Keywords", { exact: true })).toHaveValue(
       "winter",
     );
+    await revealNavigation(page);
     await page.getByRole("button", { name: about, exact: true }).click();
     await expect(page.getByRole("dialog")).toContainText(
       process.env.RELEASE_TAG?.slice(1) ??

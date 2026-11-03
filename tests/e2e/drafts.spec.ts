@@ -1,3 +1,5 @@
+import { revealAdvanced } from "./editor-controls";
+import { writingPresentationRoundTrip } from "./combined-authoring";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -300,6 +302,8 @@ test("J6.uncertain-draft: lost response retains original attempt across reload a
     .getByRole("button", { name: "Save forum draft", exact: true })
     .click();
   await expect(page.getByText(/Draft saving may have succeeded/)).toBeVisible();
+  await writingPresentationRoundTrip(page, info);
+  expect(state.posts).toHaveLength(1);
   await page.reload();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "[unknown]full source[/unknown] [attach]88[/attach]",
@@ -753,7 +757,12 @@ test("J6.save-continue: replacement proceeds only after exact version is indepen
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "",
   );
-  await expect(page.getByText("Writing as Writer 7 · Board 6")).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Writing as Writer 7");
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Board 6");
   expect(state.posts).toHaveLength(1);
   expect(state.saved?.get("message")).toContain("[unknown]");
   await info.attach("saved-and-continued.png", {
@@ -874,7 +883,12 @@ test("J6.next-composition: a completed publication remains in history without bl
       exact: true,
     })
     .click();
-  await expect(page.getByText("Writing as Writer 7 · Board 6")).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Writing as Writer 7");
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Board 6");
   await page.getByLabel("Title", { exact: true }).fill("Second composition");
   await page
     .getByLabel("Complete source", { exact: true })
@@ -1171,6 +1185,7 @@ async function selectDraftMention(
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("Mention source ");
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Draft person");
@@ -1520,6 +1535,69 @@ test("J8.draft-reference-boundary: resumed existing references remain preserved 
     contentType: "application/json",
   });
   await info.attach("draft-reference-boundary.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UX61.forum-draft-local: known draft identity and unsaved-change explanation stay separate from browser acknowledgement", async ({
+  page,
+}, info) => {
+  const state = await lifecycle(page);
+  await page
+    .getByLabel("Title", { exact: true })
+    .fill("Local draft distinction");
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Saved source");
+  await page
+    .getByRole("button", { name: "Save forum draft", exact: true })
+    .click();
+  await expect(page.getByText(/Confirmed forum draft 42/).last()).toBeVisible();
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Later local source [attach]88[/attach]");
+  await expect(
+    page.getByText(
+      "Editing forum draft 42 locally. Only an explicit save updates its forum content; browser recovery is separate.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Browser recovery is up to date for this page session.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Changes here are local. Sending or saving a forum draft is a separate action.",
+      { exact: true },
+    ),
+  ).toHaveCount(0);
+  const before = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+    reads = state.reads.length;
+  await page.getByText("Recovery details", { exact: true }).click();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(before);
+  expect(state.saved?.get("message")).toBe("Saved source");
+  expect(state.posts).toHaveLength(1);
+  expect(state.reads).toHaveLength(reads);
+  await info.attach("draft-recovery-distinction.json", {
+    body: JSON.stringify({
+      writing: before,
+      saved: state.saved && [...state.saved],
+      requests: state.reads,
+    }),
+    contentType: "application/json",
+  });
+  await info.attach("draft-recovery-distinction.png", {
     body: await page.screenshot(),
     contentType: "image/png",
   });

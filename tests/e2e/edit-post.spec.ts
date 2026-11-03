@@ -1,3 +1,4 @@
+import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const fixtureStates = new WeakMap<Page, () => unknown>();
@@ -210,6 +211,61 @@ test("J5.edit-conflict: retain local revision and show latest source/options/ref
     original + " local",
   );
   expect(state.posts).toHaveLength(0);
+  const retainedBefore = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: /The server post changed/ })
+      .filter({ visible: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Check current account and form",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Check current account and form",
+      exact: true,
+    }),
+  ).toBeEnabled();
+  await expect(
+    page.getByLabel("Latest server source", { exact: true }),
+  ).toHaveValue(original + " server");
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: /Latest server version/ })
+      .filter({ visible: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(retainedBefore);
+  expect(state.posts).toHaveLength(0);
+  await info.attach("retained-conflict-reading.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+
   await page
     .getByRole("button", { name: "Save my version", exact: true })
     .click();
@@ -752,6 +808,7 @@ for (const mode of ["implicit", "explicit-empty"]) {
 }
 
 async function selectEditMention(page: Page) {
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("SelectedPerson");
@@ -866,6 +923,7 @@ test("J11.edit-mention-lookup-account: a changed session during initial lookup r
   const state = await fixture(page);
   state.mentionAccountChangeAt = 1;
   await open(page);
+  await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("SelectedPerson");
@@ -895,9 +953,7 @@ test("J5.editor-shared-edit: ordinary visual formatting preserves owned unknown 
     field.setSelectionRange(field.value.length - 9, field.value.length);
     field.dispatchEvent(new Event("select", { bubbles: true }));
   });
-  await page
-    .getByRole("button", { name: "Apply formatting", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Bold", exact: true }).click();
   await expect(
     page
       .getByRole("textbox", { name: "Visual post content", exact: true })
@@ -1229,3 +1285,98 @@ for (const drift of [
     });
   });
 }
+
+test("UX61.conflict-disclosure: closing recovery detail keeps full conflict comparisons and deliberate controls visible without effects", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  await open(page);
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(original + " local");
+  state.source = original + " server";
+  await review(page);
+  const latest = page.getByLabel("Latest server source", { exact: true });
+  await expect(latest).toHaveValue(original + " server");
+  const baseline = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+    reads = state.reads.length;
+  expect(await latest.evaluate((n) => n.closest("details"))).toBeNull();
+  await page.getByText("Recovery details", { exact: true }).click();
+  await page.getByText("Recovery details", { exact: true }).click();
+  for (const name of ["Reload latest", "Reconcile manually", "Save my version"])
+    await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "Local writing is retained. Compare complete source, options and attachment references. The forum provides no atomic conflict lock.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(baseline);
+  expect(state.posts).toEqual([]);
+  expect(state.reads).toHaveLength(reads);
+  await info.attach("conflict-disclosure.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UX61.uncertain-disclosure: original lost edit remains inspectable outside details with no automatic repeat after reading return", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  await open(page);
+  state.outcome = "lost";
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(original + " sent");
+  await review(page);
+  await save(page);
+  const outcome = page.getByText(/edit response was lost/);
+  await expect(outcome).toBeVisible();
+  expect(await outcome.evaluate((n) => n.closest("details"))).toBeNull();
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill(original + " later local");
+  const baseline = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+    reads = state.reads.length;
+  await page.getByText("Recovery details", { exact: true }).click();
+  await page.getByText("Recovery details", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .locator(".retained-writing")
+      .getByRole("alert")
+      .filter({ hasText: /outcome needs checking/ }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Check result", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    ),
+  ).toEqual(baseline);
+  expect(state.posts).toHaveLength(1);
+  expect(state.reads).toHaveLength(reads);
+  await info.attach("uncertain-disclosure.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});

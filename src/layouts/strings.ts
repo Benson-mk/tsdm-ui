@@ -49,7 +49,7 @@ const english = {
     "Initial creation instructions are retained with the original save. Draft updates and publication use current native controls; feed or notification delivery is not confirmed.",
   draftIn: "Forum draft in {value}",
   draftIdentity:
-    "Forum draft identity: {value}. Saving is explicit; local retention does not update the forum.",
+    "Editing forum draft {value} locally. Only an explicit save updates its forum content; browser recovery is separate.",
   publishSavedDraft: "Publish saved draft",
   loadDrafts: "Load forum drafts",
   resumeDraft: "Resume {value}",
@@ -132,6 +132,7 @@ const english = {
   restored: "Restored snapshot — account and content have not been rechecked.",
   stale: "Previous results are stale.",
   loading: "Loading…",
+  navigation: "Navigation",
   mainDestinations: "Main destinations",
   sectionNavigation: "Section navigation",
   boards: "Boards",
@@ -143,10 +144,22 @@ const english = {
   boardsNavigation: "Boards navigation",
   boardsOverview: "Boards overview",
   chooseBoardDescription: "Choose a board to read its threads.",
+  filterBoards: "Filter boards on this page",
+  clearBoardFilter: "Clear filter",
+  boardFilterScope: "Match a board name, description or group on this page.",
+  boardsShown: "Boards shown: {value}",
+  noBoardMatches: "No boards match. Try another name or clear the filter.",
+  threadPagesTop: "Thread pages (top)",
   directoryPages: "Directory pages",
   threadResults: "Thread results",
   subordinateBoards: "Subordinate boards",
   boardFilters: "Board filters",
+  filterCategory: "Category",
+  filterOrder: "Order",
+  filterType: "Thread type",
+  filterTime: "Time",
+  filterOther: "Other filters",
+
   criteria: "Effective criteria",
   page: "Page",
   pinned: "Pinned",
@@ -158,6 +171,8 @@ const english = {
   threadReading: "Thread reading",
   thread: "THREAD",
   threadFilters: "Thread filters",
+  authorFilter: "Author filter",
+  formatSummary: "Unsupported formatting: {value} occurrences. Details",
   missingPost: "Requested post {value} is missing from this page.",
   post: "Post",
   floor: "Floor",
@@ -209,7 +224,12 @@ const english = {
   findMentionPerson: "Find a person to mention",
   findMention: "Find mention",
   mentionPerson: "Mention {value} (UID {id})",
-  quickQuote: "Quick Quote",
+  quickQuote: "Reply to this post",
+  writingDestination: "Writing destination",
+  reviewDestination: "Review destination",
+  writingThread: "Thread {value}",
+  addressedExplanation:
+    "Starts with a blank body and addresses one author/post. No quoted text is inserted. Additional quote blocks do not change this target; notification delivery is unverified.",
   addressedTo: "Addressed to {value} · Post {post}",
   replyDeliveryUnknown:
     "Quoted source does not change the addressed post. Quote and mention notification delivery is unverified.",
@@ -219,6 +239,13 @@ const english = {
   openConfirmedPost: "Open confirmed post",
   newThread: "New thread",
   returnWriting: "Return to writing",
+  retainedWriting: "Retained writing",
+  expandWriting: "Expand writing",
+  compactWriting: "Compact writing",
+  retainedAttemptWarning:
+    "A retained operation is pending or its outcome needs checking. Return to writing to inspect it; no attempt is repeated by resuming.",
+  retainedFinancialWarning:
+    "Red-packet writing is retained. Return to writing to inspect credit and packet consequences before any operation.",
   preparingForm: "Preparing current form…",
   replaceWritingWarning:
     "Another writing context is already retained. Replacing it discards local changes; existing forum content and uploads are unchanged.",
@@ -230,7 +257,11 @@ const english = {
   writingAs: "Writing as {value}",
   writingBoard: "Board {value}",
   writingPaused:
-    "Sending paused — the current account is expired, changed or not yet rechecked. Original writing remains bound to {value}.",
+    "Sending paused — the current account has not been rechecked. Original writing remains bound to {value}.",
+  writingAccountChanged:
+    "Sending paused — the current account differs from {value}. Original writing remains bound to that author.",
+  writingSignedOut:
+    "Sending paused — the forum reports a signed-out session. Original writing remains bound to {value}.",
   unresolvedAttachments:
     "Attachment references need reattachment or explicit removal: {value}. Source is preserved; uploads are not transferred.",
   checkWriting: "Check current account and form",
@@ -242,9 +273,25 @@ const english = {
   keepWriting: "Keep original writing",
   replaceTextCopy: "Replace with text copy",
   localWriting:
-    "Local writing only. Nothing has been submitted or saved as a forum draft.",
+    "Changes here are local. Sending or saving a forum draft is a separate action.",
+  writingFinancialConsequences:
+    "Sending or saving this red packet can deduct credits immediately. A funded forum draft's packet can be active before publication. Check thread, packet and credits separately; a failed response does not confirm a refund.",
+  writingRecovery: "Browser recovery",
+  writingRecoveryDetails: "Recovery details",
+  writingRecoveryRevisions:
+    "Current writing revision {value}; last acknowledged revision {acknowledged}.",
+  writingRecoveryCurrent:
+    "Browser recovery is up to date for this page session.",
+  writingRecoveryPending:
+    "Browser recovery has not yet acknowledged these changes. Keep this page open.",
+  writingRecoveryIncompatible:
+    "Saved recovery data needs attention. This version cannot use it; copy needed source before resetting it. Sending and uploads are paused.",
+  writingRecoveryRefused:
+    "The browser refused access to recovery data. Keep this page open and copy your writing; sending and uploads are paused.",
+  writingRecoveryLimits:
+    "Restoration depends on the browser retaining this page session, including after reload, tab restoration or browser restart. This is not a forum draft or a permanent backup; other pages on this forum origin can access this session data.",
   writingRecoveryUnavailable:
-    "Refresh recovery unavailable. Live writing remains here; unacknowledged changes may be lost on reload.",
+    "Browser recovery is unavailable. Live writing remains here; copy it before reload. Sending and uploads are paused.",
   writingAcknowledged:
     "Recovery acknowledged for revision {value} in this browser page session. Restoration depends on the browser.",
   writingPending:
@@ -340,7 +387,7 @@ const simplified: Strings = {
     "初次创建指令与原保存操作一起保留。草稿更新及发布使用当前原版控件；未确认动态或通知已送达。",
   draftIn: "{value} 中的论坛草稿",
   draftIdentity:
-    "论坛草稿编号：{value}。保存需要明确操作；本地保留不会更新论坛。",
+    "正在本地编辑论坛草稿 {value}。只有明确保存才会更新论坛内容；浏览器恢复是独立的。",
   publishSavedDraft: "发布已保存的草稿",
   loadDrafts: "载入论坛草稿",
   resumeDraft: "继续编辑 {value}",
@@ -418,6 +465,7 @@ const simplified: Strings = {
   restored: "已恢复快照 — 尚未重新检查账号与内容。",
   stale: "先前的结果已过时。",
   loading: "正在加载…",
+  navigation: "导航",
   mainDestinations: "主要导航",
   sectionNavigation: "栏目导航",
   boards: "版块",
@@ -429,10 +477,22 @@ const simplified: Strings = {
   boardsNavigation: "版块导航列表",
   boardsOverview: "版块总览",
   chooseBoardDescription: "选择版块以阅读主题。",
+  filterBoards: "筛选本页版块",
+  clearBoardFilter: "清除筛选",
+  boardFilterScope: "按本页版块名称、简介或分区筛选。",
+  boardsShown: "显示版块：{value}",
+  noBoardMatches: "没有匹配的版块。请尝试其他名称或清除筛选。",
+  threadPagesTop: "主题分页（顶部）",
   directoryPages: "版块总览分页",
   threadResults: "主题列表",
   subordinateBoards: "子版块",
   boardFilters: "版块筛选",
+  filterCategory: "分类",
+  filterOrder: "排序",
+  filterType: "主题类型",
+  filterTime: "时间",
+  filterOther: "其他筛选",
+
   criteria: "当前有效条件",
   page: "第",
   pinned: "置顶",
@@ -444,6 +504,8 @@ const simplified: Strings = {
   threadReading: "主题阅读",
   thread: "主题",
   threadFilters: "主题筛选",
+  authorFilter: "作者筛选",
+  formatSummary: "不支持的格式：共 {value} 处。查看详情",
   missingPost: "请求的帖子 {value} 不在此页中。",
   post: "帖子",
   floor: "楼层",
@@ -491,7 +553,12 @@ const simplified: Strings = {
   findMentionPerson: "查找要提及的用户",
   findMention: "查找用户",
   mentionPerson: "提及 {value}（UID {id}）",
-  quickQuote: "快速引用",
+  quickQuote: "回复这篇帖子",
+  writingDestination: "写作目标",
+  reviewDestination: "审阅目标",
+  writingThread: "主题 {value}",
+  addressedExplanation:
+    "以空白正文开始，仅指定一位作者和一篇帖子。不会自动插入引用文字。其他引用块不会改变此目标；无法保证通知送达。",
   addressedTo: "回复对象：{value} · 帖子 {post}",
   replyDeliveryUnknown:
     "引用源码不会更改回复对象。引用和提及的通知送达状态未确认。",
@@ -501,6 +568,13 @@ const simplified: Strings = {
   openConfirmedPost: "打开已确认的帖子",
   newThread: "新主题",
   returnWriting: "返回写作",
+  retainedWriting: "保留的写作",
+  expandWriting: "展开写作",
+  compactWriting: "紧凑写作",
+  retainedAttemptWarning:
+    "保留的操作仍在进行或结果需要核查。返回写作查看；恢复写作不会重复尝试。",
+  retainedFinancialWarning:
+    "已保留红包写作。执行操作前请返回写作查看积分与红包的影响。",
   preparingForm: "正在准备当前表单…",
   replaceWritingWarning:
     "已保留另一份写作内容。替换将丢弃本地更改；现有论坛内容和上传文件保持不变。",
@@ -512,7 +586,11 @@ const simplified: Strings = {
   writingAs: "写作账号：{value}",
   writingBoard: "版块 {value}",
   writingPaused:
-    "发送已暂停 — 当前账号已过期、已变更或尚未重新检查。原写作内容仍属于 {value}。",
+    "发送已暂停 — 当前账号尚未重新检查。原写作内容仍属于 {value}。",
+  writingAccountChanged:
+    "发送已暂停 — 当前账号与 {value} 不同。原写作内容仍属于原作者。",
+  writingSignedOut:
+    "发送已暂停 — 论坛显示当前会话已退出登录。原写作内容仍属于 {value}。",
   unresolvedAttachments:
     "附件引用需要重新附加或明确移除：{value}。源码已保留；上传文件不会转移。",
   checkWriting: "检查当前账号和表单",
@@ -522,9 +600,23 @@ const simplified: Strings = {
     "仅复制标题和完整源码。分类、权限和积分设置来自新表单；上传文件和所有权不会转移。",
   keepWriting: "保留原写作内容",
   replaceTextCopy: "替换为文字副本",
-  localWriting: "仅在本地写作。尚未提交内容或保存论坛草稿。",
+  localWriting: "此处的更改仅保留在本地。发送或保存论坛草稿需要单独操作。",
+  writingFinancialConsequences:
+    "发送或保存此红包可能立即扣除积分。已注资论坛草稿的红包可能在发布前生效。请分别检查帖子、红包和积分；响应失败不能证明已退款。",
+  writingRecovery: "浏览器恢复",
+  writingRecoveryDetails: "恢复详情",
+  writingRecoveryRevisions:
+    "当前写作版本 {value}；上次已确认的版本 {acknowledged}。",
+  writingRecoveryCurrent: "此页面会话的浏览器恢复记录已是最新。",
+  writingRecoveryPending: "浏览器恢复尚未确认这些更改。请保持此页面打开。",
+  writingRecoveryIncompatible:
+    "保存的恢复数据需要处理。此版本无法使用它；重置前请复制所需源码。发送和上传已暂停。",
+  writingRecoveryRefused:
+    "浏览器拒绝访问恢复数据。请保持此页面打开并复制写作内容；发送和上传已暂停。",
+  writingRecoveryLimits:
+    "恢复取决于浏览器是否保留此页面会话，包括刷新、恢复标签页或重启浏览器之后。这不是论坛草稿或永久备份；此论坛同源的其他页面可以访问这些会话数据。",
   writingRecoveryUnavailable:
-    "刷新恢复不可用。当前写作内容仍在此处；未经确认的更改可能在重新加载时丢失。",
+    "浏览器恢复不可用。当前写作内容仍在此处；刷新前请复制内容。发送和上传已暂停。",
   writingAcknowledged:
     "已确认此浏览器页面会话中版本 {value} 的恢复记录。能否恢复取决于浏览器。",
   writingPending: "版本 {value} 的恢复记录待确认；已确认版本 {acknowledged}。",
@@ -617,7 +709,7 @@ const traditional: Strings = {
     "初次建立指令與原儲存操作一起保留。草稿更新及發佈使用目前原版控制項；未確認動態或通知已送達。",
   draftIn: "{value} 中的論壇草稿",
   draftIdentity:
-    "論壇草稿編號：{value}。儲存需要明確操作；本機保留不會更新論壇。",
+    "正在本機編輯論壇草稿 {value}。只有明確儲存才會更新論壇內容；瀏覽器恢復是獨立的。",
   publishSavedDraft: "發佈已儲存的草稿",
   loadDrafts: "載入論壇草稿",
   resumeDraft: "繼續編輯 {value}",
@@ -696,6 +788,7 @@ const traditional: Strings = {
   restored: "已復原快照 — 尚未重新檢查帳號與內容。",
   stale: "先前的結果已過時。",
   loading: "正在載入…",
+  navigation: "導覽",
   mainDestinations: "主要導覽",
   sectionNavigation: "欄目導覽",
   boards: "版塊",
@@ -707,10 +800,22 @@ const traditional: Strings = {
   boardsNavigation: "版塊導覽清單",
   boardsOverview: "版塊總覽",
   chooseBoardDescription: "選擇版塊以閱讀主題。",
+  filterBoards: "篩選本頁版塊",
+  clearBoardFilter: "清除篩選",
+  boardFilterScope: "按本頁版塊名稱、簡介或分區篩選。",
+  boardsShown: "顯示版塊：{value}",
+  noBoardMatches: "沒有符合的版塊。請嘗試其他名稱或清除篩選。",
+  threadPagesTop: "主題分頁（頂部）",
   directoryPages: "版塊總覽分頁",
   threadResults: "主題清單",
   subordinateBoards: "子版塊",
   boardFilters: "版塊篩選",
+  filterCategory: "分類",
+  filterOrder: "排序",
+  filterType: "主題類型",
+  filterTime: "時間",
+  filterOther: "其他篩選",
+
   criteria: "目前有效條件",
   page: "第",
   pinned: "置頂",
@@ -722,6 +827,8 @@ const traditional: Strings = {
   threadReading: "主題閱讀",
   thread: "主題",
   threadFilters: "主題篩選",
+  authorFilter: "作者篩選",
+  formatSummary: "不支援的格式：共 {value} 處。查看詳情",
   missingPost: "請求的帖子 {value} 不在此頁中。",
   post: "帖子",
   floor: "樓層",
@@ -769,7 +876,12 @@ const traditional: Strings = {
   findMentionPerson: "尋找要提及的用戶",
   findMention: "尋找用戶",
   mentionPerson: "提及 {value}（UID {id}）",
-  quickQuote: "快速引用",
+  quickQuote: "回覆這篇帖子",
+  writingDestination: "寫作目標",
+  reviewDestination: "檢閱目標",
+  writingThread: "主題 {value}",
+  addressedExplanation:
+    "以空白內文開始，僅指定一位作者和一篇帖子。不會自動插入引用文字。其他引用區塊不會改變此目標；無法保證通知送達。",
   addressedTo: "回覆對象：{value} · 帖子 {post}",
   replyDeliveryUnknown:
     "引用原始碼不會更改回覆對象。引用和提及的通知送達狀態未確認。",
@@ -779,6 +891,13 @@ const traditional: Strings = {
   openConfirmedPost: "開啟已確認的帖子",
   newThread: "新主題",
   returnWriting: "返回寫作",
+  retainedWriting: "保留的寫作",
+  expandWriting: "展開寫作",
+  compactWriting: "精簡寫作",
+  retainedAttemptWarning:
+    "保留的操作仍在進行或結果需要核查。返回寫作查看；恢復寫作不會重複嘗試。",
+  retainedFinancialWarning:
+    "已保留紅包寫作。執行操作前請返回寫作查看積分與紅包的影響。",
   preparingForm: "正在準備目前表單…",
   replaceWritingWarning:
     "已保留另一份寫作內容。替換將捨棄本機變更；現有論壇內容和上傳檔案保持不變。",
@@ -790,7 +909,11 @@ const traditional: Strings = {
   writingAs: "寫作帳號：{value}",
   writingBoard: "版塊 {value}",
   writingPaused:
-    "傳送已暫停 — 目前帳號已過期、已變更或尚未重新檢查。原寫作內容仍屬於 {value}。",
+    "傳送已暫停 — 目前帳號尚未重新檢查。原寫作內容仍屬於 {value}。",
+  writingAccountChanged:
+    "傳送已暫停 — 目前帳號與 {value} 不同。原寫作內容仍屬於原作者。",
+  writingSignedOut:
+    "傳送已暫停 — 論壇顯示目前工作階段已登出。原寫作內容仍屬於 {value}。",
   unresolvedAttachments:
     "附件引用需要重新附加或明確移除：{value}。原始碼已保留；上傳檔案不會轉移。",
   checkWriting: "檢查目前帳號和表單",
@@ -800,9 +923,23 @@ const traditional: Strings = {
     "僅複製標題和完整原始碼。分類、權限和積分設定來自新表單；上傳檔案和所有權不會轉移。",
   keepWriting: "保留原寫作內容",
   replaceTextCopy: "替換為文字副本",
-  localWriting: "僅在本機寫作。尚未提交內容或儲存論壇草稿。",
+  localWriting: "此處的變更僅保留在本機。傳送或儲存論壇草稿需要另外操作。",
+  writingFinancialConsequences:
+    "傳送或儲存此紅包可能立即扣除積分。已注資論壇草稿的紅包可能在發佈前生效。請分別檢查帖子、紅包和積分；回應失敗不能證明已退款。",
+  writingRecovery: "瀏覽器恢復",
+  writingRecoveryDetails: "恢復詳情",
+  writingRecoveryRevisions:
+    "目前寫作版本 {value}；上次已確認的版本 {acknowledged}。",
+  writingRecoveryCurrent: "此頁面工作階段的瀏覽器恢復紀錄已是最新。",
+  writingRecoveryPending: "瀏覽器恢復尚未確認這些變更。請保持此頁面開啟。",
+  writingRecoveryIncompatible:
+    "儲存的恢復資料需要處理。此版本無法使用它；重設前請複製所需原始碼。傳送和上傳已暫停。",
+  writingRecoveryRefused:
+    "瀏覽器拒絕存取恢復資料。請保持此頁面開啟並複製寫作內容；傳送和上傳已暫停。",
+  writingRecoveryLimits:
+    "恢復取決於瀏覽器是否保留此頁面工作階段，包括重新整理、還原分頁或重啟瀏覽器之後。這不是論壇草稿或永久備份；此論壇同源的其他頁面可以存取這些工作階段資料。",
   writingRecoveryUnavailable:
-    "重新載入復原無法使用。目前寫作內容仍在此處；未經確認的變更可能在重新載入時遺失。",
+    "瀏覽器恢復無法使用。目前寫作內容仍在此處；重新載入前請複製內容。傳送和上傳已暫停。",
   writingAcknowledged:
     "已確認此瀏覽器頁面工作階段中版本 {value} 的復原記錄。能否復原取決於瀏覽器。",
   writingPending: "版本 {value} 的復原記錄待確認；已確認版本 {acknowledged}。",
@@ -1595,11 +1732,20 @@ const descriptions: Record<string, readonly [string, string]> = {
       "当前原生选项已变化或无法取得。发布前请检查当前表单；没有重设任何值。",
       "目前原生選項已變更或無法取得。發佈前請檢查目前表單；沒有重設任何值。",
     ],
-  "The current native successful controls or required values are unsupported. Nothing was sent.":
+  "The current native form has unsupported successful controls or required values. Nothing was sent.":
     [
       "不支持当前原生表单的提交控件或必要值。没有发送任何内容。",
       "不支援目前原生表單的提交控制項或必要值。沒有傳送任何內容。",
     ],
+  "The current account could not be verified from the preparation response. Check the current account and form again.":
+    [
+      "无法从准备响应中验证当前账号。请重新检查当前账号和表单。",
+      "無法從準備回應驗證目前帳號。請重新檢查目前帳號和表單。",
+    ],
+  "Correct the highlighted fields required by the current native form.": [
+    "请更正当前原生表单要求的突出显示字段。",
+    "請更正目前原生表單要求的醒目欄位。",
+  ],
   "Fresh publication preparation failed. Your writing remains here.": [
     "重新准备发布失败。写作内容仍保留在这里。",
     "重新準備發佈失敗。寫作內容仍保留在這裡。",

@@ -320,10 +320,10 @@ test("J7.packet-minimum: current per-share requirement blocks a below-minimum co
     .getByRole("button", { name: "Review publication", exact: true })
     .click();
   await expect(
-    page.getByText(
-      /Red-packet values do not satisfy the current native limits/,
-    ),
-  ).toBeVisible();
+    page.getByLabel("Total credits", { exact: true }),
+  ).toHaveAccessibleDescription(
+    "The total must cover the native minimum for every share.",
+  );
   expect(state.posts).toEqual([]);
 });
 
@@ -928,3 +928,93 @@ test("J7.packet-native-routing: preserve fresh hidden routing fields without inv
   expect(state.posts[0]!.get("special")).toBe("SYNTHETIC_KIND");
   expect(state.posts[0]!.get("specialextra")).toBe("SYNTHETIC_ROUTE");
 });
+
+test("UX59.financial-review: frozen conditions and masked passphrase remain visible while source inspection and cancellation add no debit request", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  await composePacket(page);
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  const review = page.getByRole("region", {
+    name: "Prepared publication review",
+    exact: true,
+  });
+  await expect(review).toBeVisible();
+  await expect(review).toContainText("Publish red packet — deduct 20 credits");
+  await expect(review).toContainText("Passphrase: present (not displayed)");
+  await expect(review).not.toContainText("synthetic phrase");
+  await expect(review).toContainText("No top-ups or silent re-funding");
+  await review.getByText("Complete prepared source", { exact: true }).click();
+  await info.attach("financial-review.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await review
+    .getByRole("button", {
+      name: "Cancel review and return to writing",
+      exact: true,
+    })
+    .click();
+  await expect(review).toHaveCount(0);
+  expect(state.posts).toHaveLength(0);
+  expect(state.effects).toHaveLength(0);
+});
+
+for (const [name, field, invalid, error] of [
+  [
+    "integer",
+    "Total credits",
+    "1.5",
+    "Use a whole number within the current native limits.",
+  ],
+  [
+    "maximum",
+    "Share count",
+    "101",
+    "Use a whole number within the current native limits.",
+  ],
+  [
+    "per-share",
+    "Total credits",
+    "1",
+    "The total must cover the native minimum for every share.",
+  ],
+] as const)
+  test(`UX60.packet-${name}: identify the supported invalid funding field without creating a financial command or resetting conditions`, async ({
+    page,
+  }) => {
+    const f = await fixture(page);
+    await composePacket(page);
+    const input = page.getByLabel(field, { exact: true });
+    await input.fill(invalid);
+    const reads = f.reads.length;
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await expect(input).toHaveAccessibleDescription(error);
+    await expect(input).toBeFocused();
+    await expect(page.getByText(/Sending paused/)).toHaveCount(0);
+    await expect(page.getByLabel("Passphrase", { exact: true })).toHaveValue(
+      "synthetic phrase",
+    );
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue("[b]Full packet source[/b]");
+    expect(f.posts).toHaveLength(0);
+    expect(f.effects).toHaveLength(0);
+    expect(f.reads).toHaveLength(reads);
+    await input.fill(field === "Share count" ? "2" : "20");
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    await expect(
+      page.getByRole("region", {
+        name: "Prepared publication review",
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(f.posts).toHaveLength(0);
+    expect(f.effects).toHaveLength(0);
+  });

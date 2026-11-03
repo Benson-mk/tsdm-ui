@@ -279,6 +279,7 @@ export function decodeThread(
   const ids = wrappers.map((n) => attr(n, "id").slice(touch ? 3 : 5));
   if (new Set(ids).size !== ids.length)
     return fail("invalid", "The returned post identities are ambiguous.");
+  const postBodies = new Set<Node>();
   const posts = wrappers.map((wrapper) => {
     const id = attr(wrapper, "id").slice(touch ? 3 : 5);
     const body =
@@ -289,8 +290,40 @@ export function decodeThread(
       )[0] ??
       descendants(wrapper, (n) => /^postmessage_/.test(attr(n, "id")))[0];
     if (!body || !children(body).length) return null;
+    postBodies.add(body);
     const profile = attachmentProfiles(wrapper, response.url);
-    const bodyContent = content(body, response.url, profile.inlineImages);
+    // Native postmessage identity establishes which ancestor tables belong to
+    // the forum layout. Retain all siblings, and never unwrap authored tables.
+    const message = byId(body, `postmessage_${id}`);
+    const layoutTables = new Set<Node>();
+    for (
+      let parent = message?.parentNode;
+      parent && parent !== body;
+      parent = "parentNode" in parent ? parent.parentNode : null
+    ) {
+      if ("tagName" in parent && parent.tagName === "table")
+        layoutTables.add(parent);
+    }
+    const layoutNodes = new Set(
+      descendants(body, (node) => {
+        if (
+          !["table", "thead", "tbody", "tfoot", "tr", "td", "th"].includes(
+            node.tagName,
+          )
+        )
+          return false;
+        let table: Node | null = node;
+        while (table && !("tagName" in table && table.tagName === "table"))
+          table = "parentNode" in table ? table.parentNode : null;
+        return table !== null && layoutTables.has(table);
+      }),
+    );
+    const bodyContent = content(
+      body,
+      response.url,
+      profile.inlineImages,
+      layoutNodes,
+    );
     if (!readable(bodyContent)) return null;
     const authorArea = descendants(wrapper, (n) => hasClass(n, "authi"))[0];
     const author = authorArea
@@ -314,7 +347,14 @@ export function decodeThread(
         ? { redPacketThreadId: requested.searchParams.get("tid")! }
         : {}),
       author: label(author) || "Anonymous",
-      authorId: authorURL ? new URL(authorURL).searchParams.get("uid") : null,
+      authorId:
+        authorURL &&
+        new URL(authorURL).origin === requested.origin &&
+        new URL(authorURL).pathname === "/home.php" &&
+        new URL(authorURL).searchParams.get("mod") === "space" &&
+        positive(new URL(authorURL).searchParams.get("uid"))
+          ? new URL(authorURL).searchParams.get("uid")
+          : null,
       floor: label(
         touch
           ? descendants(wrapper, (n) => hasClass(n, "y"))[0]
@@ -414,7 +454,30 @@ export function decodeThread(
             doc,
             (n) =>
               n.tagName === "a" &&
-              /[?&](authorid|ordertype)=/.test(attr(n, "href")),
+              /[?&](authorid|ordertype)=/.test(attr(n, "href")) &&
+              (() => {
+                let nativeControl = false;
+                for (
+                  let parent: Node | null = n;
+                  parent;
+                  parent = "parentNode" in parent ? parent.parentNode : null
+                ) {
+                  if (
+                    postBodies.has(parent) ||
+                    hasClass(parent, "pg") ||
+                    hasClass(parent, "page")
+                  )
+                    return false;
+                  if (
+                    hasClass(parent, "pi") ||
+                    hasClass(parent, "authi") ||
+                    attr(parent, "id") === "postlist_filters"
+                  )
+                    nativeControl = true;
+                }
+                // A carried author parameter on a pager/reference is not a filter.
+                return !/[?&]authorid=/.test(attr(n, "href")) || nativeControl;
+              })(),
           )
             .map((n) => link(n, response.url))
             .filter((n) => n !== null && routeFor(n.url)?.kind === "thread")

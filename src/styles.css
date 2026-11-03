@@ -211,6 +211,49 @@ article header {
   padding: 24px;
   border: 1px solid var(--separator);
   border-radius: 16px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.board-card:hover,
+.board-card:focus-visible {
+  border-color: var(--ink);
+}
+.board-card:hover > strong,
+.board-card:focus-visible > strong {
+  text-decoration: underline;
+}
+.board-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.board-filter label {
+  flex-basis: 100%;
+  font-weight: 540;
+}
+.board-filter input {
+  flex: 1 1 220px;
+  min-width: 0;
+  width: 100%;
+  min-height: 48px;
+  font: inherit;
+  padding: 8px 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--boundary);
+  border-radius: 8px;
+}
+.board-filter-scope,
+.board-filter-status {
+  font-size: calc(0.875rem * var(--text-scale, 1));
+}
+.board-filter-status {
+  margin-bottom: 24px;
+}
+.thread-top-pages {
+  gap: 12px;
+  margin-bottom: 16px;
 }
 .board-card span,
 .board-card small {
@@ -815,13 +858,79 @@ select {
   align-items: center;
 }
 .source-writing {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   width: 100%;
   max-width: 1000px;
   margin: 0 auto;
   padding: 24px;
+}
+.source-writing:not(.writing-expanded) {
+  flex: 1 1 0;
+  max-height: 48dvh;
+  border-bottom: 1px solid var(--separator);
+}
+@media (max-width: 959px) {
+  /* A tall disclosed menu must not squeeze the writing scroller to zero. */
+  .workspace:has(.navigation-trigger[aria-expanded="true"]) {
+    overflow-y: auto;
+  }
+  .workspace:has(.navigation-trigger[aria-expanded="true"]) > .source-writing {
+    flex-shrink: 0;
+    min-height: 48dvh;
+  }
+}
+.writing-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.writing-presentation-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block: 8px;
+  background: var(--surface);
+}
+.writing-presentation-actions button {
+  min-height: 44px;
+}
+.retained-writing {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-inline: 24px;
+  max-height: 30dvh;
+}
+.retained-writing summary {
+  min-height: 44px;
+  padding-block: 8px;
+  cursor: pointer;
+}
+.retained-writing .writing-destination {
+  margin-block: 0 8px;
+}
+.source-writing:not(.writing-expanded) .visual-editor .ProseMirror {
+  min-height: 6em;
+  max-height: 24dvh;
+  overflow: auto;
+}
+.source-writing.writing-expanded textarea,
+.source-writing.writing-expanded .visual-editor .ProseMirror {
+  min-height: 45dvh;
+}
+.writing-destination {
+  border-inline-start: 3px solid var(--boundary);
+  padding-inline-start: 12px;
+  margin-block: 16px;
+  overflow-wrap: anywhere;
+}
+.writing-destination p {
+  margin-block: 6px;
 }
 .source-writing label {
   display: block;
@@ -883,6 +992,27 @@ select {
   flex-wrap: wrap;
   align-items: end;
   gap: 8px;
+}
+.post-editor button[aria-pressed="true"] {
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+.advanced-authoring > summary {
+  min-height: 44px;
+  cursor: pointer;
+  padding-block: 8px;
+}
+.editor-tools > *,
+.editor-tool-argument {
+  min-width: 0;
+  max-width: 100%;
+}
+.editor-tool-argument {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+  flex-basis: 100%;
 }
 .visual-editor .ProseMirror {
   min-height: 14em;
@@ -987,4 +1117,170 @@ select {
   display: block;
   font-weight: 600;
   opacity: 0.75;
+}
+
+.navigation-preferences {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.workspace-body.thread-without-results {
+  grid-template-columns: 128px 200px minmax(0, 1fr);
+}
+.thread-without-results .reading-pane {
+  grid-column: 3;
+}
+@media (min-width: 960px) and (max-width: 1279px) {
+  .workspace-body.thread-without-results {
+    grid-template-columns: 128px minmax(0, 1fr);
+  }
+  .thread-without-results .reading-pane {
+    grid-column: 2;
+  }
+}
+@media (max-width: 959px) {
+  .workspace > header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 64px;
+  }
+  .header-account {
+    font-size: calc(0.875rem * var(--text-scale, 1));
+    overflow-wrap: anywhere;
+  }
+  .navigation-trigger {
+    grid-column: 1 / -1;
+    justify-self: start;
+    font-size: calc(0.875rem * var(--text-scale, 1));
+    padding: 8px 12px;
+    max-width: 180px;
+    overflow-wrap: anywhere;
+  }
+  .navigation-preferences {
+    grid-column: 1 / -1;
+  }
+  .workspace-tools {
+    flex: 0 0 auto;
+    max-height: 40dvh;
+    overflow: auto;
+  }
+  .workspace-tools > *,
+  .workspace-tools select {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .workspace-body.thread-without-results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .thread-without-results .reading-pane {
+    grid-column: 1;
+  }
+  .secondary-writing-actions {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+}
+
+.board-filters {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.board-filter-group {
+  min-width: 0;
+  padding-block: 8px;
+  border-block-start: 1px solid var(--separator);
+}
+.board-filter-group h2 {
+  margin: 0 0 8px;
+}
+.board-filter-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.board-filter-links a {
+  overflow-wrap: anywhere;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Reading hierarchy keeps native content and action controls in their own rhythm. */
+.post-header {
+  display: block;
+  margin-bottom: 16px;
+  overflow-wrap: anywhere;
+}
+.post-author {
+  display: block;
+  font-size: calc(1.125rem * var(--text-scale, 1));
+  font-weight: 650;
+}
+.post-metadata {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 4px;
+}
+.post-metadata a {
+  margin-inline-start: auto;
+}
+.post-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  border-top: 1px solid var(--separator);
+  padding-top: 12px;
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+}
+.post-actions a {
+  min-width: 0;
+}
+.format-notices {
+  border-inline-start: 3px solid var(--boundary);
+  padding: 8px 12px;
+  margin-block: 12px;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+  font-weight: 400;
+}
+.format-notices summary {
+  cursor: pointer;
+}
+
+.prepared-review {
+  width: 100%;
+  min-width: 0;
+  padding: 16px;
+  border: 2px solid var(--boundary);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+.prepared-fields dd {
+  margin: 0 0 12px;
+}
+.prepared-fields dt {
+  font-weight: bold;
+}
+.prepared-body {
+  white-space: pre-wrap;
+}
+.prepared-source {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.prepared-overflow {
+  max-width: 100%;
+  overflow: auto;
+}
+.prepared-review summary {
+  min-height: 44px;
+  padding-block: 10px;
+  cursor: pointer;
+}
+.prepared-body .editor-protected {
+  white-space: pre-wrap;
 }

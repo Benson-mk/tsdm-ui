@@ -1,3 +1,4 @@
+import { revealNavigation } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -794,6 +795,7 @@ for (const [width, section] of [
       .click();
     await expect.poll(() => requests.length).toBe(2);
     if (width === 375) {
+      await revealNavigation(page);
       await page
         .getByRole("combobox", { name: "Main destinations", exact: true })
         .selectOption(section.toLowerCase());
@@ -941,11 +943,12 @@ for (const [
       body: await page.screenshot(),
       contentType: "image/png",
     });
-    if (paid)
+    if (paid) {
+      await revealNavigation(page);
       await page
         .getByRole("combobox", { name: "主要導覽", exact: true })
         .selectOption("saved");
-    else
+    } else
       await page
         .getByRole("button", { name: sectionLabel, exact: true })
         .click();
