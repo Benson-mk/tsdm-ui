@@ -27,6 +27,34 @@ const state = props.workspace.state;
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
+const threadFilters = computed(() => {
+  const result = state.value.result;
+  if (result?.kind !== "thread") return [];
+  return result.thread.filters.map((filter) => {
+    const url = new URL(filter.url);
+    const authorId = url.searchParams.get("authorid");
+    const authors = result.thread.posts.filter(
+      (post) => post.authorId === authorId && authorId !== null,
+    );
+    const known =
+      url.origin === new URL(result.thread.url).origin &&
+      url.searchParams.get("tid") === result.thread.id &&
+      authors.length > 0 &&
+      new Set(authors.map((post) => post.author)).size === 1;
+    const author = known ? authors[0]! : null;
+    return {
+      ...filter,
+      authorId: author?.authorId ?? null,
+      label: author
+        ? filter.label.includes(author.author)
+          ? filter.label
+          : `${filter.label}: ${author.author}`
+        : authorId !== null
+          ? `${text.value.authorFilter}: ${filter.label}`
+          : filter.label,
+    };
+  });
+});
 const compactNavigation = ref(window.innerWidth <= 959);
 const navigationOpen = ref(false);
 const navigationTrigger = ref<HTMLButtonElement | null>(null);
@@ -1379,7 +1407,7 @@ function boardIdFrom(url: string) {
         </nav>
         <nav :aria-label="text.threadFilters">
           <a
-            v-for="filter in state.result.thread.filters"
+            v-for="filter in threadFilters.filter((filter) => !filter.authorId)"
             :key="filter.url"
             :href="filter.url"
             >{{ filter.label }}</a
@@ -1419,43 +1447,69 @@ function boardIdFrom(url: string) {
           :data-targeted="state.result.thread.target === post.id"
           tabindex="-1"
         >
-          <header>
-            <strong>{{ post.author }}</strong
-            ><span>{{ text.floor }} {{ post.floor || text.unknown }}</span
-            ><time>{{ post.date }}</time
-            ><a :href="post.url">{{ text.post }} {{ post.id }}</a>
+          <header class="post-header">
+            <strong class="post-author">{{ post.author }}</strong>
+            <div class="post-metadata">
+              <span>{{ text.floor }} {{ post.floor || text.unknown }}</span>
+              <time>{{ post.date }}</time>
+              <a :href="post.url">{{ text.post }} {{ post.id }}</a>
+            </div>
           </header>
-          <button
-            v-if="state.result.thread.parent"
-            @click="
-              workspace.writing.prepareReply(
-                boardIdFrom(state.result.thread.parent.url),
-                {
-                  threadId: state.result.thread.id,
-                  postId: post.id,
-                  author: post.author,
-                  authorId: post.authorId,
-                },
-              )
-            "
-          >
-            {{ text.quickQuote }}
-          </button>
-          <button
-            v-if="
-              state.result.account.kind === 'member' &&
-              post.authorId === state.result.account.id
-            "
-            @click="
-              workspace.writing.prepareEdit(state.result.thread.url, post.id)
-            "
-          >
-            {{ insert(text.editPost, post.id) }}
-          </button>
           <ContentView
             :nodes="post.content"
             :language="workspace.preferences.state.value.language"
+            summarize-formatting
           />
+          <footer
+            v-if="
+              state.result.thread.parent ||
+              (state.result.account.kind === 'member' &&
+                post.authorId === state.result.account.id) ||
+              threadFilters.some(
+                (filter) =>
+                  filter.authorId === post.authorId && filter.authorId !== null,
+              )
+            "
+            class="post-actions"
+          >
+            <button
+              v-if="state.result.thread.parent"
+              @click="
+                workspace.writing.prepareReply(
+                  boardIdFrom(state.result.thread.parent.url),
+                  {
+                    threadId: state.result.thread.id,
+                    postId: post.id,
+                    author: post.author,
+                    authorId: post.authorId,
+                  },
+                )
+              "
+            >
+              {{ text.quickQuote }}
+            </button>
+            <button
+              v-if="
+                state.result.account.kind === 'member' &&
+                post.authorId === state.result.account.id
+              "
+              @click="
+                workspace.writing.prepareEdit(state.result.thread.url, post.id)
+              "
+            >
+              {{ insert(text.editPost, post.id) }}
+            </button>
+            <a
+              v-for="filter in threadFilters.filter(
+                (filter) =>
+                  filter.authorId === post.authorId && filter.authorId !== null,
+              )"
+              :key="filter.url"
+              :href="filter.url"
+              class="author-filter"
+              >{{ filter.label }}</a
+            >
+          </footer>
           <ul v-if="post.attachments?.length" :aria-label="text.attachments">
             <li v-for="attachment in post.attachments" :key="attachment.id">
               <button

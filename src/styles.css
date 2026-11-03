@@ -1117,3 +1117,48 @@ select {
   min-width: 0;
   max-width: 100%;
 }
+
+/* Reading hierarchy keeps native content and action controls in their own rhythm. */
+.post-header {
+  display: block;
+  margin-bottom: 16px;
+  overflow-wrap: anywhere;
+}
+.post-author {
+  display: block;
+  font-size: calc(1.125rem * var(--text-scale, 1));
+  font-weight: 650;
+}
+.post-metadata {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 4px;
+}
+.post-metadata a {
+  margin-inline-start: auto;
+}
+.post-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  border-top: 1px solid var(--separator);
+  padding-top: 12px;
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+}
+.post-actions a {
+  min-width: 0;
+}
+.format-notices {
+  border-inline-start: 3px solid var(--boundary);
+  padding: 8px 12px;
+  margin-block: 12px;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+  font-weight: 400;
+}
+.format-notices summary {
+  cursor: pointer;
+}
