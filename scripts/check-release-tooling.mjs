@@ -1060,7 +1060,7 @@ if (slice === "freeze") {
     assert.equal(r.status, 0, r.stderr);
     return r.stdout.trim();
   }
-  const script = `// ==UserScript==\n// @name TSDM UI\n// @namespace https://github.com/Benson-mk/tsdm-ui\n// @version 0.4.0\n// @match https://www.tsdm39.com/*\n// @exclude https://www.tsdm39.com/*tsdm-native=1*\n// @grant GM_registerMenuCommand\n// @run-at document-end\n// ==/UserScript==\nconsole.log('authored package fixture');\n`;
+  const script = `// ==UserScript==\n// @name TSDM UI\n// @author Benson-mk\n// @namespace https://github.com/Benson-mk/tsdm-ui\n// @version 0.4.0\n// @updateURL https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.meta.js\n// @downloadURL https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.user.js\n// @match https://www.tsdm39.com/*\n// @exclude https://www.tsdm39.com/*tsdm-native=1*\n// @grant GM_registerMenuCommand\n// @run-at document-end\n// ==/UserScript==\nconsole.log('authored package fixture');\n`;
   function checkout(name, variant = "normal") {
     const dir = join(output, name, "checkout");
     mkdirSync(dir, { recursive: true });
@@ -1087,7 +1087,7 @@ if (slice === "freeze") {
     write(
       dir,
       "build.mjs",
-      `import { mkdirSync, writeFileSync } from 'node:fs';\nconst put=(p,b)=>{mkdirSync(new URL('./dist/'+p+'/../',import.meta.url),{recursive:true});writeFileSync('dist/'+p,b);};\nput('tsdm-ui.user.js',${JSON.stringify(script)});\nput('forum-client/index.js',"export const authored = true;\\n");\nput('forum-client/index.d.ts',"export declare const authored: boolean;\\n");\nput('forum-client/types.d.ts',"export type Authored = boolean;\\n");\nput('forum-client/package.json',JSON.stringify({name:'@tsdm/forum-client',version:'0.4.0',type:'module',exports:{'.':{types:'./index.d.ts',import:'./index.js'}}}));\nput('forum-client/README.md','Authored package fixture');\nput('THIRD_PARTY_NOTICES.md','Authored fixture has no third-party dependencies.');\n` +
+      `import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';\nconst put=(p,b)=>{mkdirSync(new URL('./dist/'+p+'/../',import.meta.url),{recursive:true});writeFileSync('dist/'+p,b);};\nput('tsdm-ui.user.js',${JSON.stringify(script)});\nput('tsdm-ui.meta.js',${JSON.stringify(script.split("// ==/UserScript==")[0] + "// ==/UserScript==")});\nput('forum-client/index.js',"export const authored = true;\\n");\nput('forum-client/index.d.ts',"export declare const authored: boolean;\\n");\nput('forum-client/types.d.ts',"export type Authored = boolean;\\n");\nput('forum-client/package.json',JSON.stringify({name:'@tsdm/forum-client',version:'0.4.0',type:'module',exports:{'.':{types:'./index.d.ts',import:'./index.js'}}}));\nput('forum-client/README.md','Authored package fixture');\nput('THIRD_PARTY_NOTICES.md','Authored fixture has no third-party dependencies.');\n` +
         ({
           drift: "writeFileSync('src/input.ts','changed during build');\n",
           missing: "writeFileSync('dist/forum-client/index.d.ts','');\n",
@@ -1109,9 +1109,13 @@ if (slice === "freeze") {
               ),
             ) +
             ");\n",
+          companion: "writeFileSync('dist/tsdm-ui.meta.js','stale header');\n",
           notices: "writeFileSync('dist/THIRD_PARTY_NOTICES.md','');\n",
           failed: "process.exitCode=4;\n",
-        }[variant] ?? ""),
+        }[variant] ?? "") +
+        (["metadata", "cdn"].includes(variant)
+          ? "put('tsdm-ui.meta.js', readFileSync('dist/tsdm-ui.user.js', 'utf8').split('// ==/UserScript==')[0] + '// ==/UserScript==');\n"
+          : ""),
     );
     git(dir, "init", "-q");
     git(dir, "add", ".");
@@ -1288,8 +1292,27 @@ if (slice === "freeze") {
   );
   freeze("drift-during-build", "drift", null, 1, /drift|changed/i);
   freeze("missing-declaration", "missing", null, 1, /missing|empty|output/i);
-  freeze("bad-grant", "metadata", null, 1, /metadata|grant/i);
-  freeze("external-cdn", "cdn", null, 1, /metadata|external|require/i);
+  freeze(
+    "bad-grant",
+    "metadata",
+    null,
+    1,
+    /Unexpected userscript metadata grant/,
+  );
+  freeze(
+    "external-cdn",
+    "cdn",
+    null,
+    1,
+    /Unapproved userscript metadata require/,
+  );
+  freeze(
+    "inconsistent-companion",
+    "companion",
+    null,
+    1,
+    /Update metadata differs from the userscript header/,
+  );
   freeze("empty-notices", "notices", null, 1, /notices|empty/i);
   freeze("build-failed", "failed", null, 1, /build|command/i);
   freeze(

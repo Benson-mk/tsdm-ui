@@ -34,6 +34,7 @@ if (!/^[\w.-]+\/[\w.-]+$/.test(repository))
   throw new Error("Invalid release repository");
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const script = readFileSync("dist/tsdm-ui.user.js");
+const metadata = readFileSync("dist/tsdm-ui.meta.js");
 const manifest = JSON.parse(readFileSync("dist/build-manifest.json", "utf8"));
 const library = JSON.parse(
   readFileSync("dist/forum-client/package.json", "utf8"),
@@ -49,6 +50,19 @@ if (
   manifest.userscript.bytes !== script.length
 )
   throw new Error("Userscript differs from its build manifest");
+const header = script
+  .toString("utf8")
+  .match(/^\/\/ ==UserScript==\r?\n[\s\S]*?^\/\/ ==\/UserScript==/m)?.[0];
+if (
+  !header ||
+  metadata.toString("utf8").trimEnd() !== header ||
+  manifest.userscriptMetadata?.file !== "tsdm-ui.meta.js" ||
+  manifest.userscriptMetadata?.sha256 !== hash(metadata) ||
+  manifest.userscriptMetadata?.bytes !== metadata.length
+)
+  throw new Error(
+    "Update metadata differs from the userscript header or build manifest",
+  );
 if (
   library.name !== "@tsdm/forum-client" ||
   library.version !== manifest.forumClientVersion
@@ -90,6 +104,7 @@ const notes = prepareReleaseNotes({
 mkdirSync(destination, { recursive: true });
 for (const name of [
   "tsdm-ui.user.js",
+  "tsdm-ui.meta.js",
   "THIRD_PARTY_NOTICES.md",
   "build-manifest.json",
 ])
@@ -116,7 +131,7 @@ const [packed] = JSON.parse(
 if (packed.name !== library.name || packed.version !== library.version)
   throw new Error("Packed library identity mismatch");
 writeFileSync(join(destination, "RELEASE_NOTES.md"), notes);
-const assets = ["tsdm-ui.user.js"];
+const assets = ["tsdm-ui.user.js", "tsdm-ui.meta.js"];
 const receipt = {
   schema: 1,
   tag,

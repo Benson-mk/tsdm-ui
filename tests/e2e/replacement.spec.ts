@@ -112,7 +112,7 @@ const identity = (bytes: string) => ({
   bytes: Buffer.byteLength(bytes),
   sha256: createHash("sha256").update(bytes).digest("hex"),
 });
-test("J1.replacement-identity: renamed candidate preserves namespace and manual-update contract", async ({
+test("J1.replacement-identity: renamed candidate preserves namespace and adopts release update metadata", async ({
   browser,
 }, info) => {
   info.annotations.push({
@@ -135,9 +135,15 @@ test("J1.replacement-identity: renamed candidate preserves namespace and manual-
     expect(metadata(script, "namespace")).toBe(
       "https://github.com/Benson-mk/tsdm-ui",
     );
-    expect(metadata(script, "updateURL")).toBeUndefined();
-    expect(metadata(script, "downloadURL")).toBeUndefined();
   }
+  expect(metadata(earlier, "updateURL")).toBeUndefined();
+  expect(metadata(earlier, "downloadURL")).toBeUndefined();
+  expect(metadata(current, "updateURL")).toBe(
+    "https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.meta.js",
+  );
+  expect(metadata(current, "downloadURL")).toBe(
+    "https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.user.js",
+  );
   expect(identity(current).sha256).not.toBe(identity(earlier).sha256);
   await info.attach("candidate-to-candidate.json", {
     body: Buffer.from(

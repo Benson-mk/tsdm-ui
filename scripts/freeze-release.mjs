@@ -172,6 +172,7 @@ if (!existsSync(dist)) throw new Error("Missing build output directory");
 collect();
 for (const name of [
   "tsdm-ui.user.js",
+  "tsdm-ui.meta.js",
   "forum-client/index.js",
   "forum-client/index.d.ts",
   "forum-client/types.d.ts",
@@ -202,6 +203,11 @@ const block = script.match(
   /^\/\/ ==UserScript==\r?\n([\s\S]*?)^\/\/ ==\/UserScript==/m,
 )?.[1];
 if (!block) throw new Error("Missing userscript metadata");
+if (
+  readFileSync(join(dist, "tsdm-ui.meta.js"), "utf8").trimEnd() !==
+  script.split("// ==/UserScript==")[0] + "// ==/UserScript=="
+)
+  throw new Error("Update metadata differs from the userscript header");
 const meta = new Map();
 for (const m of block.matchAll(/^\/\/\s+@(\S+)\s+(.+)$/gm)) {
   const key = m[1];
@@ -209,8 +215,15 @@ for (const m of block.matchAll(/^\/\/\s+@(\S+)\s+(.+)$/gm)) {
 }
 const expected = {
   name: ["TSDM UI"],
+  author: ["Benson-mk"],
   namespace: ["https://github.com/Benson-mk/tsdm-ui"],
   version: [pkg.version],
+  updateURL: [
+    "https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.meta.js",
+  ],
+  downloadURL: [
+    "https://github.com/Benson-mk/tsdm-ui/releases/latest/download/tsdm-ui.user.js",
+  ],
   match: ["https://www.tsdm39.com/*"],
   exclude: ["https://www.tsdm39.com/*tsdm-native=1*"],
   grant: ["GM_registerMenuCommand"],
