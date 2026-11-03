@@ -1,6 +1,7 @@
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { revealNavigation } from "./navigation-ui";
+import { writingPresentationRoundTrip } from "./combined-authoring";
 const origin = "https://www.tsdm39.com";
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -40,6 +41,7 @@ async function fixture(
   page: Page,
   entry: Entry = "new-thread",
   detailedAttachments = false,
+  integrated = false,
 ) {
   const f = state();
   f.entry = entry;
@@ -90,10 +92,19 @@ async function fixture(
           ? "topicsubmit"
           : "replysubmit";
       html += `<form id="postform" method="post" action="forum.php?mod=post&action=${edit ? "edit" : newThread ? "newthread" : "reply"}&fid=5&tid=42${edit ? `&pid=${u.searchParams.get("pid")}` : ""}&${submit}=yes"><input type="hidden" name="formhash" value="SYNTHETIC_TRANSPORT_SECRET"><input type="hidden" name="posttime" value="1792550000">${target ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="OPAQUE_AUTHOR_TOKEN"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">' : ""}${replyEdit ? "" : `<input name="subject" value="${value("subject")}">`}<textarea name="message">${value("message")}</textarea>${newThread || (edit && !replyEdit) ? `<select name="typeid"><option value="0">No category</option><option value="3"${value("typeid") === "3" ? " selected" : ""}>Listening</option></select>` : ""}<label><input type="checkbox" name="usesig" value="1"${saved && !saved.has("usesig") ? "" : " checked"}>Signature</label><label><input type="checkbox" name="bbcodeoff" value="1"${saved?.has("bbcodeoff") ? " checked" : ""}>Disable BBCode</label><label>Thread price<input name="price" value="${value("price", "2")}"${edit ? " disabled" : ""}></label><label>Read permission<select name="readperm"${edit ? " disabled" : ""}><option value="10">Members</option></select></label>${edit && !detailedAttachments ? '<input name="attachnew[77][description]" type="hidden" value="Fixture attachment">' : ""}<button type="submit" name="${submit}" value="yes">Continue</button></form>`;
-    } else if (u.searchParams.get("mod") === "forumdisplay")
+    } else if (integrated && !u.searchParams.has("mod"))
+      html += `<div class="bm"><div class="bm_h"><h2>Listening 音樂</h2></div><div id="category_1"><table><tr><td><h2><a href="${boardURL}">Music discussion</a></h2><p class="xg2">Albums and composers</p><span class="xg1">30 threads</span></td><td><h2><a href="forum.php?mod=forumdisplay&fid=6">Other board</a></h2><p class="xg2">Other complete description</p></td></tr></table></div></div>`;
+    else if (integrated && u.searchParams.get("mod") === "forumdisplay")
+      html += `<div id="ct"><h1><a href="${boardURL}">Music discussion</a></h1></div><div id="thread_types"><a${u.searchParams.get("typeid") === "3" ? ' class="a"' : ""} href="${boardURL}&filter=typeid&typeid=3">Listening</a></div><div id="filter_orderby_menu"><a href="${boardURL}&filter=typeid&typeid=3&orderby=dateline">Newest threads</a></div><table id="threadlisttableid">${Array.from({ length: 30 }, (_, i) => `<tbody id="normalthread_${i === 8 ? 42 : 500 + i}"><tr><th><a class="xst" href="${origin}/forum.php?mod=viewthread&tid=${i === 8 ? 42 : 500 + i}">Listening ${i} 音樂筆記</a></th><td class="by"><cite>Other author</cite></td></tr></tbody>`).join("")}</table><div class="pg"><strong>${u.searchParams.get("page") ?? "1"}</strong><a href="${boardURL}&filter=typeid&typeid=3&page=2">2</a></div>`;
+    else if (u.searchParams.get("mod") === "forumdisplay")
       html += `<div id="ct"><h1><a href="${boardURL}">Music discussion</a></h1></div><table id="threadlisttableid"><tbody id="normalthread_42"><tr><th><a class="xst" href="${threadURL}">Existing thread</a></th></tr></tbody></table>`;
     else
       html += `<div id="postlist"><h1 id="thread_subject">${entry === "new-thread" && f.posts.length ? escape(f.stored.get("subject") ?? "") : "Existing thread"}</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=${entry === "edit-opening" || entry === "new-thread" ? "7" : "8"}">${entry === "edit-opening" || entry === "new-thread" ? "Writer 7" : "Other author"}</a></div><a id="postnum101"><em>1</em>#</a><div class="pcb"><p>Rendered opening body</p></div></div><div id="post_202"><div class="authi"><a href="home.php?mod=space&uid=7">Writer 7</a></div><a id="postnum202"><em>2</em>#</a><div class="pcb"><p>Owned reply</p></div></div>${f.posts.length && !entry.startsWith("edit") && entry !== "new-thread" ? '<div id="post_303"><div class="authi"><a href="home.php?mod=space&uid=7">Writer 7</a></div><a id="postnum303"><em>3</em>#</a><div class="pcb">Stored reply</div></div>' : ""}</div>`;
+    if (integrated && u.searchParams.get("mod") === "viewthread")
+      html = html.replace(
+        '<div id="post_202">',
+        `<div id="post_404"><div class="authi"><a href="home.php?mod=space&uid=9">Composer Nine</a></div><a id="postnum404"><em>4</em>#</a><div class="pcb"><p>${"Complete reading 音樂內容. ".repeat(180)}</p><blockquote>Distinct complete quote</blockquote><pre><code>${"0123456789".repeat(100)}</code></pre><table><tr>${Array.from({ length: 12 }, (_, i) => `<td>Complete track credit ${i}</td>`).join("")}</tr></table><div class="locked">Read permission remains withheld.</div></div></div><div id="post_202">`,
+      );
     if (detailedAttachments && u.searchParams.get("action") === "edit")
       html +=
         '<div id="e_attachlist"><input type="hidden" name="attachupdate[77]" value=""><input name="attachnew[77][description]" value="Fixture attachment"><select name="attachnew[77][readperm]" disabled><option value="10" selected>Members</option></select><input name="attachnew[77][price]" value="2" disabled></div><div id="e_imgattachlist"></div>';
@@ -102,7 +113,17 @@ async function fixture(
       body: JSON.stringify({ document: f.formChange(html) }),
     });
   });
-  await page.goto(entry === "new-thread" ? boardURL : threadURL);
+  await page.goto(
+    integrated
+      ? `${origin}/forum.php`
+      : entry === "new-thread"
+        ? boardURL
+        : threadURL,
+  );
+  if (integrated) {
+    await expect(page.locator(".overview .board-card")).toHaveCount(2);
+    return f;
+  }
   if (entry === "new-thread") {
     await revealNavigation(page);
     await page
@@ -172,6 +193,552 @@ async function capture(page: Page, info: TestInfo) {
 test.afterEach(async ({ page }, info) => {
   if (fixtures.has(page)) await capture(page, info);
 });
+
+test("UX62.mixed-journey: filtered directory and populated board return through rich reading addressed writing correction and exact frozen send", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const f = await fixture(page, "addressed", false, true);
+  const directoryFilter = page.getByRole("searchbox", {
+    name: "Filter boards on this page",
+    exact: true,
+  });
+  await directoryFilter.fill("composers");
+  expect(f.requests).toHaveLength(1);
+  await page.locator(".overview .board-card").press("Enter");
+  const results = page.locator(".results-pane");
+  await expect(results.locator(".thread-row")).toHaveCount(30);
+  const category = page
+    .getByRole("navigation", { name: "Board filters", exact: true })
+    .getByRole("link", { name: "Listening", exact: true });
+  await category.focus();
+  await category.press("Enter");
+  await results
+    .getByRole("navigation", { name: "Board pages", exact: true })
+    .getByRole("link", { name: "2", exact: true })
+    .click();
+  const row = results.getByRole("link", {
+    name: "Listening 8 音樂筆記",
+    exact: true,
+  });
+  await row.scrollIntoViewIfNeeded();
+  const boardOffset = await results.evaluate((node) => node.scrollTop);
+  expect(boardOffset).toBeGreaterThan(0);
+  await row.press("Enter");
+  await expect(page.getByRole("article")).toHaveCount(3);
+  const reader = page.locator(".reading-pane");
+  for (const name of ["Scrollable code", "Scrollable table"]) {
+    const region = reader.getByRole("region", { name, exact: true });
+    await region.focus();
+    await region.press("ArrowRight");
+    await expect
+      .poll(() => region.evaluate((node) => node.scrollLeft))
+      .toBeGreaterThan(0);
+  }
+  await expect(reader).toContainText("Read permission remains withheld.");
+  await page
+    .locator("#pid101")
+    .getByRole("button", { name: "Reply to this post", exact: true })
+    .click();
+  const source = page.getByLabel("Complete source", { exact: true });
+  const replyBody = body.replace(" [attach]77[/attach]", "");
+  const unformatted = `Integrated text\n${replyBody}`;
+  await source.fill(unformatted);
+  await source.evaluate((node: HTMLTextAreaElement) => {
+    node.setSelectionRange(0, 10);
+    node.dispatchEvent(new Event("select", { bubbles: true }));
+  });
+  await page.getByRole("button", { name: "Italic", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Source editor", exact: true })
+    .click();
+  const formatted = `[i]Integrated[/i] text\n${replyBody}`;
+  await expect(source).toHaveValue(formatted);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(source).toHaveValue(unformatted);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(source).toHaveValue(formatted);
+  const before = await retained(page);
+  const selection = await source.evaluate((node: HTMLTextAreaElement) => [
+    node.selectionStart,
+    node.selectionEnd,
+    node.selectionDirection,
+  ]);
+  const presentationRequests = f.requests.length;
+  await writingPresentationRoundTrip(page, info);
+  expect(await retained(page)).toEqual(before);
+  expect(
+    await source.evaluate((node: HTMLTextAreaElement) => [
+      node.selectionStart,
+      node.selectionEnd,
+      node.selectionDirection,
+    ]),
+  ).toEqual(selection);
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await reader.evaluate((node) => {
+    node.scrollTop = 650;
+  });
+  const readingOffset = await reader.evaluate((node) => node.scrollTop);
+  expect(readingOffset).toBeGreaterThan(0);
+  const geometry = await reader.evaluate((node) => ({
+    top: node.getBoundingClientRect().top,
+    height: node.getBoundingClientRect().height,
+    width: node.clientWidth,
+    scrollWidth: node.scrollWidth,
+  }));
+  expect(geometry.top).toBeLessThanOrEqual(240);
+  expect(geometry.height).toBeGreaterThanOrEqual(422);
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width + 1);
+  await info.attach("integrated-retained-reader.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  expect(await reader.evaluate((node) => node.scrollTop)).toBe(readingOffset);
+  expect(await retained(page)).toEqual(before);
+  expect(f.requests).toHaveLength(presentationRequests);
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await source.fill(" \n ");
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(source).toHaveAttribute("aria-invalid", "true");
+  await expect(source).toBeFocused();
+  expect(f.posts).toHaveLength(0);
+  await source.fill(formatted);
+  const corrected = await retained(page);
+  for (const key of [
+    "id",
+    "title",
+    "category",
+    "options",
+    "account",
+    "board",
+    "replyTarget",
+    "editTarget",
+    "uploads",
+    "uploadedReferences",
+    "attachmentFields",
+  ])
+    expect(corrected[key]).toEqual(before[key]);
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  const review = page.getByRole("region", {
+    name: "Prepared publication review",
+    exact: true,
+  });
+  await expect(review).toContainText("Other author · Post 101");
+  await review.locator("summary").focus();
+  await review.locator("summary").press("Enter");
+  expect(await review.locator(".prepared-source").textContent()).toBe(
+    formatted,
+  );
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await revealNavigation(page);
+  const beforeBack = f.requests.length;
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(results.locator(".thread-row")).toHaveCount(30);
+  await expect(results.getByText("Page 2", { exact: true })).toBeVisible();
+  expect(await results.evaluate((node) => node.scrollTop)).toBe(boardOffset);
+  expect(f.requests).toHaveLength(beforeBack);
+  await page
+    .getByRole("button", { name: "Navigation · Boards", exact: true })
+    .press("Escape");
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await expect(review).toBeVisible();
+  expect(await retained(page)).toEqual(corrected);
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
+    .click();
+  await capture(page, info);
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  expect(f.posts).toHaveLength(1);
+  expect(f.stored.get("message")).toBe(formatted);
+  expect(f.stored.get("reppid")).toBe("101");
+  expect(f.stored.get("noticeauthor")).toBe("OPAQUE_AUTHOR_TOKEN");
+  expect(
+    f.requests.some(
+      (r) =>
+        r.method === "GET" &&
+        new URL(r.url).searchParams.get("action") === "edit" &&
+        new URL(r.url).searchParams.get("pid") === "303",
+    ),
+  ).toBe(true);
+  await info.attach("integrated-geometry-offset.json", {
+    body: JSON.stringify(
+      {
+        geometry,
+        readingOffset,
+        originalNarrowChrome: 412.28125,
+        budget: 240,
+        requests: f.requests,
+      },
+      null,
+      2,
+    ),
+    contentType: "application/json",
+  });
+});
+
+for (const input of ["pointer", "keyboard"] as const)
+  test(`UX62.disclosed-writing-${input}: narrow enlarged new-thread review remains reachable with Navigation open`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const f = await fixture(page);
+    await expect(
+      page.getByRole("button", { name: "Navigation · Boards", exact: true }),
+    ).toHaveAttribute("aria-expanded", "true");
+    await page.getByLabel("Title", { exact: true }).fill(title);
+    await page
+      .getByLabel("Complete source", { exact: true })
+      .fill("Complete ordinary writing 音樂");
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByLabel("Text size", { exact: true }).fill("150");
+    await page.keyboard.press("Escape");
+    const review = page.getByRole("button", {
+      name: "Review publication",
+      exact: true,
+    });
+    await review.scrollIntoViewIfNeeded();
+    await info.attach("disclosed-writing-before.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("disclosed-writing-geometry.json", {
+      body: JSON.stringify(
+        await page.locator(".source-writing").evaluate((node) => ({
+          writing: node.getBoundingClientRect().toJSON(),
+          content: node
+            .querySelector(".writing-content")
+            ?.getBoundingClientRect()
+            .toJSON(),
+          actions: node
+            .querySelector(".writing-presentation-actions")
+            ?.getBoundingClientRect()
+            .toJSON(),
+          buttons: [...node.querySelectorAll("button")]
+            .filter((b) => b.textContent === "Review publication")
+            .map((b) => b.getBoundingClientRect().toJSON()),
+        })),
+        null,
+        2,
+      ),
+      contentType: "application/json",
+    });
+    if (input === "pointer") await review.click({ timeout: 3000 });
+    else {
+      await review.focus();
+      await review.press("Enter");
+    }
+    await expect(
+      page.getByRole("region", {
+        name: "Prepared publication review",
+        exact: true,
+      }),
+    ).toBeVisible();
+    const heading = page.locator(".prepared-review h2");
+    await heading.scrollIntoViewIfNeeded();
+    await expect(heading).toBeInViewport();
+    expect(
+      await page
+        .locator(".writing-content")
+        .evaluate((node) => node.clientHeight),
+    ).toBeGreaterThan(0);
+    await page
+      .getByRole("button", {
+        name: "Cancel review and return to writing",
+        exact: true,
+      })
+      .click();
+    const source = page.getByLabel("Complete source", { exact: true });
+    await expect(source).toBeFocused();
+    await source.click();
+    await expect(source).toBeFocused();
+    const beforeReturn = await retained(page),
+      requests = f.requests.length;
+    await page
+      .getByRole("button", { name: "Return to reading", exact: true })
+      .click();
+    await expect(page.locator(".results-pane")).toBeVisible();
+    await page
+      .getByRole("button", { name: "Return to writing", exact: true })
+      .click();
+    expect(await retained(page)).toEqual(beforeReturn);
+    await page
+      .getByRole("button", { name: "Navigation · Boards", exact: true })
+      .press("Escape");
+    await expect(
+      page.getByRole("button", { name: "Navigation · Boards", exact: true }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      await page.locator(".workspace").evaluate((node) => node.scrollTop),
+    ).toBe(0);
+    expect(f.requests).toHaveLength(requests);
+    expect(f.posts).toHaveLength(0);
+  });
+
+test("UX62.disclosed-validation: enlarged open Navigation retains a usable writing viewport for body correction and state through resizing", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const f = await fixture(page);
+  await page.getByLabel("Title", { exact: true }).fill(title);
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill(" \n ");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByLabel("Text size", { exact: true }).fill("150");
+  await page.keyboard.press("Escape");
+  const review = page.getByRole("button", {
+    name: "Review publication",
+    exact: true,
+  });
+  await review.focus();
+  await review.press("Enter");
+  await expect(source).toBeFocused();
+  await expect(source).toHaveAttribute("aria-invalid", "true");
+  const error = page.getByText("Enter the post body.", { exact: true });
+  await expect(error).toBeInViewport();
+  const before = await retained(page),
+    requestCount = f.requests.length;
+  const geometries = [];
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 768, height: 900 },
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    expect(await retained(page)).toEqual(before);
+    const geometry = await page
+      .locator(".writing-content")
+      .evaluate((node) => ({
+        height: node.clientHeight,
+        width: node.clientWidth,
+        scrollWidth: node.scrollWidth,
+      }));
+    expect(geometry.height).toBeGreaterThan(100);
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width + 1);
+    geometries.push({ viewport, geometry });
+  }
+  expect(f.requests).toHaveLength(requestCount);
+  expect(f.posts).toHaveLength(0);
+  await info.attach("disclosed-validation-state.json", {
+    body: JSON.stringify({ before, geometries, requests: f.requests }, null, 2),
+    contentType: "application/json",
+  });
+});
+
+for (const [entry, width, height, textSize, theme, language] of [
+  ["new-thread", 390, 844, 150, "dark", "zh-CN"],
+  ["edit-opening", 768, 900, 70, "mono", "zh-TW"],
+  ["edit-reply", 1440, 900, 100, "alias", "en"],
+] as const) {
+  test(`UX62.integrated-${entry}: direct arrival and complete writing identity survive presentation appearance and frozen independently verified save`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height });
+    const f = await fixture(page, entry, true);
+    const navigation = page.getByRole("button", {
+      name: "Navigation · Boards",
+      exact: true,
+    });
+    if (await navigation.isVisible()) await navigation.press("Escape");
+    const source = page.getByLabel(/^(Complete source|完整源码|完整原始碼)$/, {
+      exact: true,
+    });
+    if (entry === "edit-reply") {
+      await page
+        .getByRole("button", { name: "Return to reading", exact: true })
+        .click();
+      expect(
+        await page
+          .locator(".reading-pane")
+          .evaluate((node) => node.getBoundingClientRect().left),
+      ).toBeLessThan(400);
+      await expect(page.locator(".results-pane")).toHaveCount(0);
+      await page
+        .getByRole("button", { name: "Return to writing", exact: true })
+        .click();
+    }
+    if (entry !== "edit-reply") {
+      await page.getByLabel("Title", { exact: true }).fill(title);
+      await page.getByLabel("Category", { exact: true }).selectOption("3");
+    }
+    await page.getByLabel("Signature", { exact: true }).uncheck();
+    const original =
+      entry === "new-thread" ? body.replace(" [attach]77[/attach]", "") : body;
+    await source.fill(original);
+    await source.press("ControlOrMeta+End");
+    await source.press("!");
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(source).toHaveValue(original);
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    const finalSource = original + "!";
+    await expect(source).toHaveValue(finalSource);
+    await page
+      .getByRole("button", { name: "Visual editor", exact: true })
+      .click();
+    await expect(
+      page
+        .getByRole("textbox", { name: "Visual post content", exact: true })
+        .locator("table"),
+    ).toHaveCount(1);
+    await page
+      .getByRole("button", { name: "Source editor", exact: true })
+      .click();
+    await expect(source).toHaveValue(finalSource);
+    await source.evaluate((node: HTMLTextAreaElement) => {
+      node.setSelectionRange(3, 11);
+      node.dispatchEvent(new Event("select", { bubbles: true }));
+    });
+    const before = await retained(page),
+      requestCount = f.requests.length;
+    await writingPresentationRoundTrip(page, info);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByLabel("Text size", { exact: true }).fill(String(textSize));
+    await page.locator(`input[name="theme"][value="${theme}"]`).check();
+    await page.locator("#interface-language").selectOption(language);
+    await page.keyboard.press("Escape");
+    const geometries = [];
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 768, height: 900 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      const geometry = await page.locator(".workspace").evaluate((node) => ({
+        width: node.clientWidth,
+        scroll: node.scrollWidth,
+      }));
+      expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1);
+      expect(await retained(page)).toEqual(before);
+      geometries.push({ viewport, geometry });
+      await info.attach(
+        `integrated-${entry}-${viewport.width}-${textSize}-${theme}-${language}.png`,
+        { body: await page.screenshot(), contentType: "image/png" },
+      );
+    }
+    await page.setViewportSize({ width, height });
+    expect(
+      await source.evaluate((node: HTMLTextAreaElement) => [
+        node.selectionStart,
+        node.selectionEnd,
+      ]),
+    ).toEqual([3, 11]);
+    await page
+      .getByRole("button", { name: /^(Settings|设置|設定)$/, exact: true })
+      .click();
+    await page.locator("#interface-language").selectOption("en");
+    await page.keyboard.press("Escape");
+    expect(f.requests).toHaveLength(requestCount);
+    await page
+      .getByText("Advanced authoring tools", { exact: true })
+      .press("Enter");
+    await page
+      .getByText("Advanced authoring tools", { exact: true })
+      .press("Enter");
+    expect(await retained(page)).toEqual(before);
+    await page
+      .getByRole("button", {
+        name: entry === "new-thread" ? "Review publication" : "Review edit",
+        exact: true,
+      })
+      .click();
+    const review = page.getByRole("region", {
+      name: "Prepared publication review",
+      exact: true,
+    });
+    await expect(review).toContainText("Writer 7 (7)");
+    if (entry !== "new-thread")
+      await expect(review).toContainText(
+        `Edit post ${entry === "edit-opening" ? "101" : "202"}`,
+      );
+    if (entry !== "edit-reply") {
+      await expect(review).toContainText(title);
+      await expect(review).toContainText("Listening");
+    }
+    if (entry !== "new-thread")
+      await expect(review).toContainText("Fixture attachment");
+    await review.locator("summary").press("Enter");
+    expect(await review.locator(".prepared-source").textContent()).toBe(
+      finalSource,
+    );
+    expect(f.posts).toHaveLength(0);
+    await capture(page, info);
+    await page
+      .getByRole("button", {
+        name: entry === "new-thread" ? "Publish thread" : "Save edited post",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByText(
+        entry === "new-thread"
+          ? /Confirmed stored thread/
+          : /Confirmed saved post/,
+      ),
+    ).toBeVisible();
+    expect(f.posts).toHaveLength(1);
+    expect(f.stored.get("message")).toBe(finalSource);
+    expect(f.stored.has("usesig")).toBe(false);
+    if (entry !== "edit-reply") {
+      expect(f.stored.get("subject")).toBe(title);
+      expect(f.stored.get("typeid")).toBe("3");
+    }
+    const submitted = (await retained(page)).attempts[0].publication.submission
+      .writing;
+    expect(submitted.source).toBe(finalSource);
+    expect(submitted.account.id).toBe("7");
+    if (entry !== "new-thread") {
+      expect(submitted.editTarget.postId).toBe(
+        entry === "edit-opening" ? "101" : "202",
+      );
+      expect(f.stored.get("attachnew[77][description]")).toBe(
+        "Fixture attachment",
+      );
+    }
+    expect(
+      f.requests.some(
+        (r) =>
+          r.method === "GET" &&
+          new URL(r.url).searchParams.get("action") === "edit",
+      ),
+    ).toBe(true);
+    await info.attach("integrated-appearance-state.json", {
+      body: JSON.stringify(
+        {
+          entry,
+          textSize,
+          theme,
+          language,
+          geometries,
+          before,
+          submitted,
+          requests: f.requests,
+        },
+        null,
+        2,
+      ),
+      contentType: "application/json",
+    });
+  });
+}
 
 test("UX59.frozen-new-thread: review exact content settings references and inert preview before one independently verified send", async ({
   page,

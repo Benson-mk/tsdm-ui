@@ -1,0 +1,661 @@
+{
+  "schema": 1,
+  "parentIssue": 52,
+  "ticket": 62,
+  "candidate": {
+    "userscriptSha256": "51726ffd9bcbb5f1c15b7e92fb2ff52b54ac0abc6ef405ba8a4e43787faeb2e4",
+    "bytes": 1774279
+  },
+  "status": "All nine #62 acceptance criteria verified, including final same-candidate installed Edge/Chrome/native observations and independent BDFL seal audit.",
+  "evidencePolicy": "Slice documents retain exact original candidate/run scopes. Their evidence proves the delivered slice at that scope, not an assertion that old bytes are the final executable. Fresh #62 integrated and affected cases qualify changed presentation and transitions. Unchanged operation owners retain the scoped earlier mechanism evidence. Native/installed checks are independent of synthetic passes.",
+  "sliceEvidence": {
+    "53": {
+      "report": "docs/implementation/53-responsive-navigation.md",
+      "authenticCandidateBounds": "Read the report’s final identity, passing run scope, authentic failures and installed evidence; no retagging of earlier candidates.",
+      "casePrefix": "UX53."
+    },
+    "54": {
+      "report": "docs/implementation/54-board-discovery.md",
+      "authenticCandidateBounds": "Read the report’s final identity, passing run scope, authentic failures and installed evidence; no retagging of earlier candidates.",
+      "casePrefix": "UX54."
+    },
+    "55": {
+      "report": "docs/implementation/55-reader-hierarchy.md",
+      "authenticCandidateBounds": "Read the report’s final identity, passing run scope, authentic failures and installed evidence; no retagging of earlier candidates.",
+      "casePrefix": "UX55."
+    },
+    "56": {
+      "report": "docs/implementation/56-writing-entry.md",
+      "authenticCandidateBounds": "Read the report’s final identity, passing run scope, authentic failures and installed evidence; no retagging of earlier candidates.",
+      "casePrefix": "UX56."
+    },
+    "57": {
+      "report": "docs/implementation/57-writing-presentation.md",
+      "authenticCandidateBounds": "Read the report’s final identity, passing run scope, authentic failures and installed evidence; no retagging of earlier candidates.",
+      "casePrefix": "UX57."
+    },
+    "58": {
+      "report": "docs/implementation/58-authoring-tools.md",
+      "authenticCandidateBounds": "Read the report’s final identity, passing run scope, authentic failures and installed evidence; no retagging of earlier candidates.",
+      "casePrefix": "UX58."
+    },
+    "59": {
+      "report": "docs/implementation/59-prepared-review.md",
+      "authenticCandidateBounds": "Read the report’s final identity, passing run scope, authentic failures and installed evidence; no retagging of earlier candidates.",
+      "casePrefix": "UX59."
+    },
+    "60": {
+      "report": "docs/implementation/60-authoring-validation.md",
+      "authenticCandidateBounds": "Read the report’s final identity, passing run scope, authentic failures and installed evidence; no retagging of earlier candidates.",
+      "casePrefix": "UX60."
+    },
+    "61": {
+      "report": "docs/implementation/61-recovery-consequences.md",
+      "authenticCandidateBounds": "Read the report’s final identity, passing run scope, authentic failures and installed evidence; no retagging of earlier candidates.",
+      "casePrefix": "UX61."
+    }
+  },
+  "stories": [
+    {
+      "id": 1,
+      "requirement": "As a member using a narrow window, I want compact navigation and a substantial reading area, so that I can read a thread without the interface consuming most of the screen.",
+      "deliveredSliceEvidence": ["53"],
+      "namedCaseSelectors": ["UX53.compact-reader", "UX53.responsive-"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 2,
+      "requirement": "As a member using a tablet-sized window, I want controls to adapt to the available width, so that filters and primary actions remain understandable and reachable.",
+      "deliveredSliceEvidence": ["53", "54"],
+      "namedCaseSelectors": ["UX54.discovery-", "UX53.responsive-"],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.disclosed-validation"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 3,
+      "requirement": "As a desktop reader arriving directly at a thread, I want unused results space reclaimed, so that I can use the available reading area.",
+      "deliveredSliceEvidence": ["53"],
+      "namedCaseSelectors": ["UX53.result-context"],
+      "targetedIntegratedCases": ["UX62.integrated-edit-reply"],
+      "additionalScope": null
+    },
+    {
+      "id": 4,
+      "requirement": "As a member opening a thread from a board, I want my board results, selected thread, criteria, page and position retained, so that I can continue browsing where I left off.",
+      "deliveredSliceEvidence": ["53"],
+      "namedCaseSelectors": ["UX53.result-context"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 5,
+      "requirement": "As a keyboard user, I want navigation to announce its purpose and current destination and manage focus predictably, so that I can move around without losing my place.",
+      "deliveredSliceEvidence": ["53"],
+      "namedCaseSelectors": ["UX53.compact-reader", "UX53.composing-escape-"],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.disclosed-writing-keyboard"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 6,
+      "requirement": "As a member resizing the window, I want my reading and writing state preserved, so that switching window sizes does not interrupt my task.",
+      "deliveredSliceEvidence": ["53", "57"],
+      "namedCaseSelectors": ["UX53.responsive-", "UX57.continuity-"],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.integrated-new-thread",
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply",
+        "UX62.disclosed-validation"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 7,
+      "requirement": "As a member using larger text or Compact spacing, I want navigation, post metadata and writing controls to remain usable, so that my appearance preferences do not hide actions or content.",
+      "deliveredSliceEvidence": ["53", "55", "57", "58", "60", "61"],
+      "namedCaseSelectors": ["UX57.continuity-", "UX61.appearance-"],
+      "targetedIntegratedCases": [
+        "UX62.integrated-new-thread",
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply",
+        "UX62.disclosed-writing-pointer",
+        "UX62.disclosed-writing-keyboard",
+        "UX62.disclosed-validation"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 8,
+      "requirement": "As a member using English, Simplified Chinese or Traditional Chinese, I want translated labels and long forum titles to fit the same workflows, so that language choice does not make the layout unusable.",
+      "deliveredSliceEvidence": [
+        "53",
+        "54",
+        "55",
+        "56",
+        "57",
+        "58",
+        "59",
+        "60",
+        "61"
+      ],
+      "namedCaseSelectors": [
+        "UX54.discovery-",
+        "UX55.reader-",
+        "UX56.target-",
+        "UX58.direct-",
+        "UX59.layout-",
+        "UX60.layout-",
+        "UX61.appearance-"
+      ],
+      "targetedIntegratedCases": [
+        "UX62.integrated-new-thread",
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 9,
+      "requirement": "As a member exploring boards, I want directory group names, board titles, descriptions and subordinate boards to have clear hierarchy, so that I can scan the real directory efficiently.",
+      "deliveredSliceEvidence": ["54"],
+      "namedCaseSelectors": ["UX54.discovery-"],
+      "targetedIntegratedCases": [],
+      "additionalScope": "Existing top/bottom thread pagination and local directory filtering were present in the verified integration base and are preserved, not newly claimed by #62."
+    },
+    {
+      "id": 10,
+      "requirement": "As a returning member, I want direct access to boards and forum tasks, so that decorative introductory content does not delay routine use.",
+      "deliveredSliceEvidence": ["54"],
+      "namedCaseSelectors": ["UX54.discovery-"],
+      "targetedIntegratedCases": [],
+      "additionalScope": "Existing top/bottom thread pagination and local directory filtering were present in the verified integration base and are preserved, not newly claimed by #62."
+    },
+    {
+      "id": 11,
+      "requirement": "As a member refining a board, I want categories, ordering, thread types and time filters grouped according to their actual forum meaning, so that I can understand the available choices.",
+      "deliveredSliceEvidence": ["54"],
+      "namedCaseSelectors": [
+        "UX54.grouped-",
+        "UX54.mixed-native-menu",
+        "UX54.unrecognized-source-menu"
+      ],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 12,
+      "requirement": "As a member following a filter, I want the returned URL and current criteria preserved, so that the interface does not invent combinations or silently change my selection.",
+      "deliveredSliceEvidence": ["54"],
+      "namedCaseSelectors": ["UX54.criteria-provenance", "UX54.grouped-"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 13,
+      "requirement": "As a reader of a multipage thread, I want the existing top and bottom pagination and current-page context to remain available, so that I can change pages without traversing the entire thread.",
+      "deliveredSliceEvidence": ["53", "55"],
+      "namedCaseSelectors": ["UX.thread-pages", "UX55.filter-provenance"],
+      "targetedIntegratedCases": [],
+      "additionalScope": "Existing top/bottom thread pagination and local directory filtering were present in the verified integration base and are preserved, not newly claimed by #62."
+    },
+    {
+      "id": 14,
+      "requirement": "As a reader scanning posts, I want authors, floors, dates and quoted text to be visually distinct, so that I can follow who said what.",
+      "deliveredSliceEvidence": ["55"],
+      "namedCaseSelectors": ["UX55.reader-"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 15,
+      "requirement": "As a reader of long prose, URLs or mixed-language text, I want content to stay within the reading area, so that I do not miss text beyond a clipped edge.",
+      "deliveredSliceEvidence": ["55"],
+      "namedCaseSelectors": [
+        "UX55.reader-",
+        "UX55.native-wrapper-prose",
+        "UX55.native-siblings"
+      ],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 16,
+      "requirement": "As a reader of a wide table or code block, I want deliberate scrolling with keyboard access, so that preserving its structure does not make it unreadable.",
+      "deliveredSliceEvidence": ["55"],
+      "namedCaseSelectors": ["UX55.reader-"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 17,
+      "requirement": "As a reader encountering unsupported markup, I want the content preserved with a concise explanation, so that repeated diagnostics do not overwhelm the discussion.",
+      "deliveredSliceEvidence": ["55"],
+      "namedCaseSelectors": ["UX55.notices"],
+      "targetedIntegratedCases": [],
+      "additionalScope": null
+    },
+    {
+      "id": 18,
+      "requirement": "As a reader filtering by an author, I want the action associated with or explicitly naming that author, so that I can predict which posts it will show.",
+      "deliveredSliceEvidence": ["55"],
+      "namedCaseSelectors": [
+        "UX55.author-filter",
+        "UX55.unknown-filter",
+        "UX55.foreign-profile",
+        "UX55.filter-provenance"
+      ],
+      "targetedIntegratedCases": [],
+      "additionalScope": null
+    },
+    {
+      "id": 19,
+      "requirement": "As a member replying to a thread, I want a clear Reply action that reaches the writing area, so that I can begin writing with minimal navigation.",
+      "deliveredSliceEvidence": ["56"],
+      "namedCaseSelectors": ["UX56.target-", "UX56.retained-reply"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 20,
+      "requirement": "As a member replying to a particular post, I want the target author and post visible near the editor and review action, so that I can verify whom I am addressing.",
+      "deliveredSliceEvidence": ["56", "59"],
+      "namedCaseSelectors": ["UX56.target-", "UX59.frozen-addressed"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 21,
+      "requirement": "As a member using an addressed reply, I want the label to explain that it does not insert quoted text or assure notification delivery, so that I understand the action before writing.",
+      "deliveredSliceEvidence": ["56"],
+      "namedCaseSelectors": ["UX56.target-"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 22,
+      "requirement": "As a member with retained writing, I want another authoring action to pass the existing replacement guard, so that starting a reply or edit does not silently discard my work.",
+      "deliveredSliceEvidence": ["56", "57", "61"],
+      "namedCaseSelectors": [
+        "UX56.latest-intent",
+        "UX56.cancel-pending",
+        "UX56.revision-refusal",
+        "UX56.latest-guard"
+      ],
+      "targetedIntegratedCases": [],
+      "additionalScope": null
+    },
+    {
+      "id": 23,
+      "requirement": "As a member switching between reading and writing, I want a compact retained-writing entry and a way to expand the same writing context, so that a short reply leaves room to read and a long post has room to develop.",
+      "deliveredSliceEvidence": ["57"],
+      "namedCaseSelectors": ["UX57.continuity-"],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.integrated-new-thread",
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 24,
+      "requirement": "As an author applying ordinary formatting, I want direct, named tools for common operations, so that I can format selected text without repeatedly configuring a generic command.",
+      "deliveredSliceEvidence": ["58"],
+      "namedCaseSelectors": ["UX58.direct-"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 25,
+      "requirement": "As an author using tables, links, hidden blocks, mentions or other less frequent features, I want clearly named advanced controls, so that those capabilities remain discoverable without dominating ordinary writing.",
+      "deliveredSliceEvidence": ["58"],
+      "namedCaseSelectors": [
+        "UX58.advanced-disclosure",
+        "UX58.argument-lifetime"
+      ],
+      "targetedIntegratedCases": [],
+      "additionalScope": null
+    },
+    {
+      "id": 26,
+      "requirement": "As an author using source and visual modes, I want mode changes and inspection to preserve complete source and protected markup, so that visual convenience never silently rewrites my post.",
+      "deliveredSliceEvidence": ["57", "58", "59", "61"],
+      "namedCaseSelectors": [
+        "UX58.direct-crlf-",
+        "UX59.cancel-preservation",
+        "UX57.continuity-"
+      ],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.integrated-new-thread",
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 27,
+      "requirement": "As an author typing with a CJK input method, I want focus changes, toolbar actions and resizing to respect composition, so that unfinished input and selection are not lost.",
+      "deliveredSliceEvidence": ["53", "56", "57", "58"],
+      "namedCaseSelectors": [
+        "UX53.composing-escape-",
+        "UX56.composition",
+        "UX57.browser-composition-",
+        "UX57.composition"
+      ],
+      "targetedIntegratedCases": [],
+      "additionalScope": "Final installed Edge and Chrome physical Cantonese/Jyutping checks preserve committed測試 and owner-approved rawsyu jap after a deliberate presentation switch. Sealed evidence and final BDFL audit pass."
+    },
+    {
+      "id": 28,
+      "requirement": "As an author starting a thread, I want its board, title, category and opening-post body organized together, so that I can understand the thread I am creating.",
+      "deliveredSliceEvidence": ["56", "57", "59", "60"],
+      "namedCaseSelectors": [
+        "UX57.fields-new-thread",
+        "UX60.local-title",
+        "UX59.frozen-new-thread"
+      ],
+      "targetedIntegratedCases": ["UX62.integrated-new-thread"],
+      "additionalScope": null
+    },
+    {
+      "id": 29,
+      "requirement": "As an author with invalid input, I want a specific error next to the relevant field and predictable focus guidance, so that I can correct the problem without decoding an internal revision message.",
+      "deliveredSliceEvidence": ["60"],
+      "namedCaseSelectors": [
+        "UX60.field-",
+        "UX60.body-",
+        "UX60.error-viewport-"
+      ],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.disclosed-validation"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 30,
+      "requirement": "As an author whose account needs checking, I want that state distinguished from local validation and confirmed account expiry/change, so that I know which action can unblock sending.",
+      "deliveredSliceEvidence": ["60", "61"],
+      "namedCaseSelectors": [
+        "UX60.account-",
+        "UX60.account-form",
+        "UX61.recovery-refusal"
+      ],
+      "targetedIntegratedCases": [],
+      "additionalScope": null
+    },
+    {
+      "id": 31,
+      "requirement": "As an author relying on local recovery, I want plain explanations of acknowledged, pending and unavailable recovery and the distinction from a forum draft, so that I understand what is saved and under which conditions it can return.",
+      "deliveredSliceEvidence": ["61"],
+      "namedCaseSelectors": [
+        "UX61.local-recovery",
+        "UX61.forum-draft-local",
+        "UX61.recovery-refusal",
+        "UX61.incompatible-recovery"
+      ],
+      "targetedIntegratedCases": [],
+      "additionalScope": null
+    },
+    {
+      "id": 32,
+      "requirement": "As an author reviewing publication or an edit, I want to read the exact prepared content, destination, applicable settings and attachment references, so that approval is an informed decision.",
+      "deliveredSliceEvidence": ["59"],
+      "namedCaseSelectors": [
+        "UX59.frozen-",
+        "UX59.attachment-labels",
+        "UX59.literal-preview"
+      ],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.integrated-new-thread",
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 33,
+      "requirement": "As an author changing content after review, I want the old approval invalidated and another review required, so that a visible preview never approves different content accidentally.",
+      "deliveredSliceEvidence": ["59", "60"],
+      "namedCaseSelectors": ["UX59.invalidate-"],
+      "targetedIntegratedCases": [],
+      "additionalScope": null
+    },
+    {
+      "id": 34,
+      "requirement": "As an author editing an existing post, I want ownership checks, complete-source preservation and deliberate conflict resolution retained, so that a simpler editor does not overwrite newer server content silently.",
+      "deliveredSliceEvidence": ["59", "61"],
+      "namedCaseSelectors": [
+        "UX59.frozen-edit-",
+        "UX61.conflict-disclosure",
+        "UX61.uncertain-disclosure"
+      ],
+      "targetedIntegratedCases": [
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 35,
+      "requirement": "As an author with uploads or protected references, I want compacting, resizing and tool disclosure to retain them without additional upload/removal effects, so that presentation changes do not alter attachments.",
+      "deliveredSliceEvidence": ["57", "58", "59", "61"],
+      "namedCaseSelectors": [
+        "UX59.attachment-labels",
+        "UX61.attachment-uncertainty",
+        "UX57.retained-warning"
+      ],
+      "targetedIntegratedCases": [
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply"
+      ],
+      "additionalScope": null
+    },
+    {
+      "id": 36,
+      "requirement": "As an author facing a pending or uncertain result, I want the original attempt and clear next steps retained without automatic resend, so that returning to reading or reopening writing cannot duplicate a post.",
+      "deliveredSliceEvidence": ["57", "59", "61"],
+      "namedCaseSelectors": [
+        "UX59.delayed-uncertain",
+        "UX61.uncertain-disclosure"
+      ],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "additionalScope": null
+    },
+    {
+      "id": 37,
+      "requirement": "As an author using a red packet or funded forum draft, I want immediate debit, packet activity and uncertain financial outcomes to remain prominent when applicable, so that a cleaner interface does not conceal consequences.",
+      "deliveredSliceEvidence": ["59", "61"],
+      "namedCaseSelectors": [
+        "UX59.financial-review",
+        "UX61.financial-consequences",
+        "UX61.mask-unapplied-passphrase"
+      ],
+      "targetedIntegratedCases": [],
+      "additionalScope": null
+    },
+    {
+      "id": 38,
+      "requirement": "As a member encountering an unsupported forum response, I want an accurate limitation and access to the existing native continuation, so that the improved layout does not imply capabilities the client cannot establish.",
+      "deliveredSliceEvidence": ["60", "61"],
+      "namedCaseSelectors": [
+        "UX60.edit-form",
+        "UX60.edit-native-",
+        "UX61.incompatible-recovery"
+      ],
+      "targetedIntegratedCases": [],
+      "additionalScope": null
+    }
+  ],
+  "outcomes": [
+    {
+      "id": 1,
+      "requirement": "At 390 × 844, 768 × 900 and 1440 × 900, members can reach directory, board, thread, writing and settings controls without clipped primary actions or unintended page-wide horizontal scrolling. At 390 × 844 in the ordinary signed-in reader state with retained but hidden writing, no blocking warning, default Text size and default spacing, navigation and secondary actions use deliberate disclosure rather than multiple permanently expanded rows. Measure a reduction from the approximately 414-pixel persistent-chrome baseline in the same state, retain at least half the viewport height for the scrolling reader, and record the baseline geometry and intended chrome budget before feature code. The half-viewport floor alone cannot establish improvement; the compact navigation behavior and measured reduction must also pass. Active warnings may take additional space and must remain accessible.",
+      "deliveredSliceEvidence": ["53"],
+      "targetedIntegratedCases": [
+        "UX62.disclosed-writing-pointer",
+        "UX62.disclosed-writing-keyboard",
+        "UX62.disclosed-validation"
+      ],
+      "remainingAcceptance": null
+    },
+    {
+      "id": 2,
+      "requirement": "Narrow navigation has an accessible entry, clear current destination, predictable keyboard behavior and focus return. Opening and closing navigation or resizing does not change the selected thread/post, reading position, board results, writing content or pending operation, or repeat effectful requests.",
+      "deliveredSliceEvidence": ["53"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "remainingAcceptance": null
+    },
+    {
+      "id": 3,
+      "requirement": "Direct desktop thread arrival reclaims an empty results track. A populated board-results view retains its results, selection, filters, page and reading offset when the member reads a thread and returns. Do not remove a populated pane merely to widen the reader.",
+      "deliveredSliceEvidence": ["53"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "remainingAcceptance": null
+    },
+    {
+      "id": 4,
+      "requirement": "Directory groups, subordinate boards, thread categories and board filter families remain distinct. Dense filters are grouped using preserved forum metadata, with current criteria and returned destinations intact. Unknown groups remain honestly labelled rather than inferred from translated text.",
+      "deliveredSliceEvidence": ["54"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "remainingAcceptance": null
+    },
+    {
+      "id": 5,
+      "requirement": "Posts have clear title, author, floor, date, quote and action hierarchy. Prose and long tokens stay within the readable area; legitimately wide tables/code retain deliberate, accessible scrolling. Repeated unsupported-format notices are consolidated without hiding meaningful content or restrictions. Per-author filters identify their author.",
+      "deliveredSliceEvidence": ["55"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "remainingAcceptance": null
+    },
+    {
+      "id": 6,
+      "requirement": "Reply, addressed reply, new-thread and post-edit entry present the correct action, account and target near the writing area. Successful entry focuses the appropriate editable field only after the existing composition and writing-context replacement guards complete. Addressed reply wording explains that targeting does not insert quoted text or guarantee notification delivery.",
+      "deliveredSliceEvidence": ["56"],
+      "targetedIntegratedCases": ["UX62.mixed-journey"],
+      "remainingAcceptance": null
+    },
+    {
+      "id": 7,
+      "requirement": "One writing context supports returning to reading and expanding for substantial writing, with common formatting directly accessible and advanced tools/options progressively disclosed. Source-first initialization remains the current policy. Layout changes, editor mode changes and tool disclosure preserve complete source, title, category, effective options, target, attachments, selection, undo/redo and IME behavior within the existing supported session contract.",
+      "deliveredSliceEvidence": ["57", "58"],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.integrated-new-thread",
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply"
+      ],
+      "remainingAcceptance": null
+    },
+    {
+      "id": 8,
+      "requirement": "Publication and edit review display the immutable prepared revision's action, account, destination/target, applicable title/category/options, attachment references and body, with a readable preview and access to complete source. Protected/unsupported markup is explained; preview does not promise exact native rendering. A later edit invalidates the old review and requires fresh preparation.",
+      "deliveredSliceEvidence": ["59"],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.integrated-new-thread",
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply"
+      ],
+      "remainingAcceptance": null
+    },
+    {
+      "id": 9,
+      "requirement": "Local field errors identify the relevant title, body, category or other invalid input and guide focus without implying that the account expired. Account verification, recovery failure, conflicts, uncertain attempts and financial consequences remain distinct, accurate and visible when relevant. Existing preflight, one-use command, duplicate-risk and independent result-verification guarantees continue to gate sending.",
+      "deliveredSliceEvidence": ["60", "61"],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.disclosed-validation"
+      ],
+      "remainingAcceptance": null
+    },
+    {
+      "id": 10,
+      "requirement": "New E2E expectations precede feature code, affected application and installed checks satisfy the Testing Decisions below, reproducible evidence is retained, and final advisor validation accounts for every actual trade-off. Existing unrelated working changes are preserved.",
+      "deliveredSliceEvidence": [
+        "53",
+        "54",
+        "55",
+        "56",
+        "57",
+        "58",
+        "59",
+        "60",
+        "61"
+      ],
+      "targetedIntegratedCases": [
+        "UX62.mixed-journey",
+        "UX62.integrated-new-thread",
+        "UX62.integrated-edit-opening",
+        "UX62.integrated-edit-reply",
+        "UX62.disclosed-writing-pointer",
+        "UX62.disclosed-writing-keyboard",
+        "UX62.disclosed-validation"
+      ],
+      "remainingAcceptance": null
+    }
+  ],
+  "deferred": [
+    "Windows qualification remains deferred under #39.",
+    "Actual Tampermonkey software-update recovery remains deferred under #47."
+  ],
+  "notAuthorized": [
+    "No live forum publication/draft save/upload/removal/debit.",
+    "No application release/publication, push or PR.",
+    "No parent issue modification."
+  ],
+  "freshRuns": [
+    "evidence/runs/2026-11-03T14-54-47.707Z/receipt.json",
+    "evidence/runs/2026-11-03T14-59-35.381Z/receipt.json",
+    "evidence/runs/2026-11-03T15-00-46.278Z/receipt.json"
+  ],
+  "installedEvidence": {
+    "directory": "evidence/runs/62-installed-2026-11-03",
+    "status": "Sealed; all91manifest entries independently verified and exactly cover the bundle. Final BDFL confirms byte/runtime/state/native/geometry/network claims and no remaining acceptance gap.",
+    "userscriptSha256": "51726ffd9bcbb5f1c15b7e92fb2ff52b54ac0abc6ef405ba8a4e43787faeb2e4",
+    "managerStoredBytesEach": 1774279,
+    "browsers": ["Edge on macOS", "Chrome on macOS"],
+    "observations": [
+      "Actual manager-source byte identity in both browsers.",
+      "Direct arrival, populated-board return, Navigation and Settings portal keyboard focus.",
+      "Pointer review at390×844 with disclosed Navigation and150% text.",
+      "390×844,768×900,1440×900; restored100%/Alias/English.",
+      "Physical Cantonese/Jyutping committed測試 and owner-approved rawsyu jap retained after deliberate presentation switch.",
+      "Source focus, Undo/Redo, reading/writing return and prepared review/cancellation preserve expected source and identity."
+    ],
+    "requestLedgers": {
+      "edge": {
+        "GET": 16,
+        "POST": 0,
+        "forumMutationRequests": 0
+      },
+      "chrome": {
+        "GET": 15,
+        "POST": 12,
+        "POSTPaths": {
+          "/cdn-cgi/rum": 12
+        },
+        "classification": "Telemetry only; zero effectful forum mutation requests."
+      }
+    },
+    "limits": [
+      "Affected #62 installed workflow, not new full release qualification.",
+      "Windows and actual manager software-update recovery remain deferred.",
+      "Authenticated raw material remains private."
+    ]
+  },
+  "finalReviews": {
+    "standardsActionableFindings": 0,
+    "specActionableFindings": 0,
+    "sourceSyntheticAdvisor": "No actionable finding or distinct additional trade-off; source/run/map and historical evidence audit passed.",
+    "sealedInstalledAdvisor": "Pass:91manifest entries exactly cover the bundle; all60runtime inputs match; no remaining criterion4/6/9 gap and no distinct additional trade-off."
+  }
+}

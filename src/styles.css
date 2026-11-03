@@ -873,6 +873,16 @@ select {
   max-height: 48dvh;
   border-bottom: 1px solid var(--separator);
 }
+@media (max-width: 959px) {
+  /* A tall disclosed menu must not squeeze the writing scroller to zero. */
+  .workspace:has(.navigation-trigger[aria-expanded="true"]) {
+    overflow-y: auto;
+  }
+  .workspace:has(.navigation-trigger[aria-expanded="true"]) > .source-writing {
+    flex-shrink: 0;
+    min-height: 48dvh;
+  }
+}
 .writing-content {
   flex: 1;
   min-height: 0;
