@@ -498,6 +498,11 @@ export function createWorkspace(
     }
   }
   async function persist() {
+    if (
+      record.writing?.action === "private-message" ||
+      record.writing?.privateAttempts?.length
+    )
+      record.schema = 3;
     record.favoriteAttempts = JSON.parse(
       JSON.stringify(favorite.value.attempts),
     );

@@ -101,7 +101,7 @@ try {
   const source =
     `import assert from 'node:assert/strict';
 import { createForumClient, FORUM_CLIENT_VERSION, unresolvedWritingAttachments } from '@tsdm/forum-client';
-assert.equal(FORUM_CLIENT_VERSION, '0.18.0');
+assert.equal(FORUM_CLIENT_VERSION, '0.19.0');
 const origin = 'https://fixture.example';
 const threadURL = origin + '/forum.php?mod=viewthread&tid=42';
 const attachmentURL = origin + '/forum.php?mod=attachment&aid=authored-token';
@@ -241,8 +241,9 @@ assert.equal(noticeRequests.length, 6);
     readFileSync(resolve(root, "tests/consumer/favorites.mjs"), "utf8") +
     "\n" +
     readFileSync(resolve(root, "tests/consumer/packets.mjs"), "utf8") +
+    readFileSync(resolve(root, "tests/consumer/private-writing.mjs"), "utf8") +
     `
-console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases, favoriteCases, packetCases, boundaryCases }));
+console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases, favoriteCases, packetCases, boundaryCases, privateWritingCases }));
 `;
   writeFileSync(join(consumer, "consume.mjs"), source);
   writeFileSync(
@@ -320,9 +321,9 @@ void [cancellation, transfer, removal];
       "utf8",
     ),
   );
-  if (installed.version !== "0.18.0")
+  if (installed.version !== "0.19.0")
     throw new Error(
-      "Expected the private-history public package version 0.18.0.",
+      "Expected the private-writing public package version 0.19.0.",
     );
   if (
     Object.keys(installed.dependencies ?? {}).length ||

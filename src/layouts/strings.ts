@@ -180,7 +180,7 @@ const english = {
   loadMessages: "Load messages",
   refreshMessages: "Refresh messages",
   messagesNativeHistory:
-    "Select a peer to read the private conversation. Sending remains in the native forum.",
+    "Select a peer to read and prepare a private message. Other private tools remain in the native forum.",
   messagesPeerNative:
     "Open private conversation with {value} — continue in native forum",
   messagesUnread: "Forum marks this conversation unread",
@@ -580,7 +580,8 @@ const simplified: Strings = {
     "加载私信可能清除论坛的新私信提示，但不表示会话已读。不会自动加载。会话预览仅在当前页面保留，刷新页面后请主动加载。",
   loadMessages: "加载私信",
   refreshMessages: "刷新私信",
-  messagesNativeHistory: "选择对象以阅读私人交谈。发送私信仍需前往原生论坛。",
+  messagesNativeHistory:
+    "选择对象以阅读并准备私信。其他私信工具仍需前往原生论坛。",
   messagesPeerNative: "打开与 {value} 的私人会话 — 前往原生论坛",
   messagesUnread: "论坛将此会话标为未读",
   messagesPages: "私信列表分页",
@@ -967,7 +968,8 @@ const traditional: Strings = {
     "載入私訊可能清除論壇的新私訊提示，但不表示對話已讀。不會自動載入。對話預覽僅在目前頁面保留，重新載入頁面後請主動載入。",
   loadMessages: "載入私訊",
   refreshMessages: "重新整理私訊",
-  messagesNativeHistory: "選擇對象以閱讀私人交談。傳送私訊仍需前往原生論壇。",
+  messagesNativeHistory:
+    "選擇對象以閱讀並準備私訊。其他私訊工具仍需前往原生論壇。",
   messagesPeerNative: "開啟與 {value} 的私人對話 — 前往原生論壇",
   messagesUnread: "論壇將此對話標為未讀",
   messagesPages: "私訊列表分頁",

@@ -23,9 +23,14 @@ import { editorTableProps, type EditorSnapshot } from "../editor/session.js";
 import { Plugin } from "prosemirror-state";
 import { CellSelection } from "prosemirror-tables";
 import { validationText } from "./validation-text";
+import { privateWritingText } from "./private-writing-text";
 import { editorText } from "./editor-strings";
 import { strings } from "../layouts/strings";
-const props = defineProps<{ workspace: Workspace; expanded: boolean }>();
+const props = defineProps<{
+  workspace: Workspace;
+  expanded: boolean;
+  plain?: boolean;
+}>();
 const writing = props.workspace.writing;
 const session = writing.editor();
 const state = shallowRef<EditorSnapshot>(session.state);
@@ -410,10 +415,18 @@ onBeforeUnmount(() => {
 <template>
   <div class="post-editor">
     <div class="writing-actions">
-      <button :aria-pressed="state.mode === 'visual'" @click="mode('visual')">
+      <button
+        v-if="!plain"
+        :aria-pressed="state.mode === 'visual'"
+        @click="mode('visual')"
+      >
         {{ t("Visual editor") }}
       </button>
-      <button :aria-pressed="state.mode === 'source'" @click="mode('source')">
+      <button
+        v-if="!plain"
+        :aria-pressed="state.mode === 'source'"
+        @click="mode('source')"
+      >
         {{ t("Source editor") }}
       </button>
       <button
@@ -430,6 +443,7 @@ onBeforeUnmount(() => {
       </button>
     </div>
     <div
+      v-if="!plain"
       class="editor-tools common-formatting"
       role="group"
       :aria-label="t('Common formatting')"
@@ -444,7 +458,7 @@ onBeforeUnmount(() => {
         {{ t(item[1]!) }}
       </button>
     </div>
-    <details class="advanced-authoring">
+    <details v-if="!plain" class="advanced-authoring">
       <summary>{{ t("Advanced authoring tools") }}</summary>
       <fieldset
         v-for="group in advancedGroups"
@@ -543,7 +557,7 @@ onBeforeUnmount(() => {
       </fieldset>
     </details>
     <p
-      v-if="state.issues.some((issue) => issue.kind === 'protected')"
+      v-if="!plain && state.issues.some((issue) => issue.kind === 'protected')"
       role="status"
     >
       {{
@@ -555,7 +569,10 @@ onBeforeUnmount(() => {
     <p v-if="inputMessage" role="status">{{ t(inputMessage) }}</p>
     <p v-if="state.message" role="alert">{{ t(state.message) }}</p>
     <p
-      v-if="state.issues.some((issue) => issue.kind === 'conversion-error')"
+      v-if="
+        !plain &&
+        state.issues.some((issue) => issue.kind === 'conversion-error')
+      "
       role="alert"
     >
       {{
@@ -564,7 +581,10 @@ onBeforeUnmount(() => {
         )
       }}
     </p>
-    <p v-if="writing.state.value.context?.editorUnresolved" role="alert">
+    <p
+      v-if="!plain && writing.state.value.context?.editorUnresolved"
+      role="alert"
+    >
       {{
         t(
           "Some visual input has no unambiguous BBCode representation. Complete source is retained. Review it before choosing how it should be interpreted.",
@@ -581,12 +601,26 @@ onBeforeUnmount(() => {
       role="alert"
     >
       {{
-        validationText(sourceIssue, workspace.preferences.state.value.language)
+        plain && sourceIssue.code === "required"
+          ? privateWritingText(
+              "Enter private message text before review.",
+              workspace.preferences.state.value.language,
+            )
+          : validationText(
+              sourceIssue,
+              workspace.preferences.state.value.language,
+            )
       }}
     </p>
     <div v-show="state.mode === 'visual'" ref="mount" class="visual-editor" />
     <label v-show="state.mode === 'source'"
-      >{{ text.completeSource
+      >{{
+        plain
+          ? privateWritingText(
+              "Private message text",
+              workspace.preferences.state.value.language,
+            )
+          : text.completeSource
       }}<textarea
         ref="source"
         :aria-invalid="sourceIssue ? 'true' : undefined"

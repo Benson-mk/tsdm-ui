@@ -31,7 +31,7 @@ export interface NavigationEntry {
   documentNavigations: number;
 }
 export interface NavigationRecord {
-  schema: 2;
+  schema: 2 | 3;
   favoriteAttempts?: import("../forum-client").FavoriteAttempt[];
   writing: WritingContext | null;
   entries: Record<string, NavigationEntry>;

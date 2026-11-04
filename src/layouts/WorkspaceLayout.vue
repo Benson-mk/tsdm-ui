@@ -14,6 +14,7 @@ import SearchView from "../components/SearchView.vue";
 import { favoriteText } from "../components/favorite-labels";
 import FavoritesView from "../components/FavoritesView.vue";
 import MessagesView from "../components/MessagesView.vue";
+import { privateWritingText } from "../components/private-writing-text";
 import PrivateConversationView from "../components/PrivateConversationView.vue";
 import NoticesView from "../components/NoticesView.vue";
 import SourceWriting from "../components/SourceWriting.vue";
@@ -1976,6 +1977,12 @@ function boardIdFrom(url: string) {
           :failure="privateHistory.failure"
           :language="workspace.preferences.state.value.language"
           @load="workspace.privateHistory.load($event)"
+          @write="
+            workspace.writing.preparePrivate(
+              state.privateReading.conversation.url,
+              state.privateReading.account,
+            )
+          "
         />
         <div v-if="reading" class="conversation-heading">
           <section class="thread-heading">
@@ -2289,6 +2296,7 @@ function boardIdFrom(url: string) {
               (writing.context && !writing.visible) ||
               writing.preparing ||
               writing.message ||
+              writing.privateReplacement ||
               writing.editReplacement ||
               writing.replacement ||
               writing.draftReplacement
@@ -2304,7 +2312,16 @@ function boardIdFrom(url: string) {
             <p v-if="writing.preparing" role="status">
               {{ text.preparingForm }}
             </p>
-            <p v-if="writing.message" role="alert">
+            <p
+              v-if="
+                writing.message &&
+                !(
+                  writing.visible &&
+                  writing.context?.action === 'private-message'
+                )
+              "
+              role="alert"
+            >
               {{
                 description(
                   writing.message,
@@ -2312,6 +2329,27 @@ function boardIdFrom(url: string) {
                 )
               }}
             </p>
+            <section v-if="writing.privateReplacement" role="alert">
+              <p>
+                {{
+                  privateWritingText(
+                    "Replace current writing with a private message? Its unsent text will be discarded; original attempts remain available.",
+                    workspace.preferences.state.value.language,
+                  )
+                }}
+              </p>
+              <button @click="workspace.writing.cancelPrivateReplacement()">
+                {{ text.keepCurrentWriting }}
+              </button>
+              <button @click="workspace.writing.replaceWithPrivate()">
+                {{
+                  privateWritingText(
+                    "Discard and write private message",
+                    workspace.preferences.state.value.language,
+                  )
+                }}
+              </button>
+            </section>
             <section v-if="writing.editReplacement" role="alert">
               <p>{{ text.replaceEditWarning }}</p>
               <button @click="workspace.writing.cancelEditReplacement()">

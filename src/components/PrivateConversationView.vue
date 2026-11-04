@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { privateWritingText } from "./private-writing-text";
 import type { DeepReadonly } from "vue";
 import type { PrivateConversation, ReadResult } from "../forum-client";
 import ContentView from "./ContentView";
@@ -11,7 +12,10 @@ defineProps<{
   loading: "earlier" | "later" | null;
   failure: DeepReadonly<ReadResult> | null;
 }>();
-const emit = defineEmits<{ load: [direction: "earlier" | "later"] }>();
+const emit = defineEmits<{
+  load: [direction: "earlier" | "later"];
+  write: [];
+}>();
 </script>
 <template>
   <section
@@ -52,7 +56,9 @@ const emit = defineEmits<{ load: [direction: "earlier" | "later"] }>();
         {{ description(failure.message, language) }}
       </p>
     </div>
-    <p>{{ strings(language).privateSendingNative }}</p>
+    <button @click="emit('write')">
+      {{ privateWritingText("Write private message", language) }}
+    </button>
     <p v-if="conversation.targetMissing" role="status">
       {{ strings(language).privateMissingTarget }}
     </p>

@@ -1,3 +1,4 @@
+import { isPrivateAttempt } from "../forum-client/private-writing.js";
 import { createEditorSession, type EditorSession } from "../editor/session.js";
 import { computed, readonly, shallowRef } from "vue";
 import {
@@ -16,7 +17,8 @@ import {
   type ReplyTarget,
   type MentionIdentity,
 } from "../forum-client";
-export interface WritingContext extends PreparedWriting {
+export interface PublicWritingContext extends PreparedWriting {
+  privateAttempts?: import("../forum-client").PrivateAttempt[];
   draftAttempts?: import("../forum-client").DraftAttempt[];
   unappliedPacketOptions?: import("../forum-client").WritingOption[];
   id: string;
@@ -29,6 +31,26 @@ export interface WritingContext extends PreparedWriting {
     direction: "forward" | "backward" | "none";
   };
 }
+export type PrivateWritingContext =
+  import("../forum-client").PreparedPrivateWriting &
+    Pick<
+      PublicWritingContext,
+      | "id"
+      | "revision"
+      | "selection"
+      | "attempts"
+      | "draftAttempts"
+      | "editorUnresolved"
+      | "privateAttempts"
+    > & {
+      [
+        K in Exclude<
+          keyof PreparedWriting,
+          keyof import("../forum-client").PreparedPrivateWriting
+        >
+      ]?: never;
+    } & { unappliedPacketOptions?: never };
+export type WritingContext = PublicWritingContext | PrivateWritingContext;
 export function createWriting(
   client: ForumClient,
   changed: () => Promise<boolean>,
@@ -37,6 +59,9 @@ export function createWriting(
 ) {
   const state = shallowRef<{
     context: WritingContext | null;
+    privateReview: import("../forum-client").PrivateReview | null;
+    privateReviewConsumed: boolean;
+    privateReplacement: { url: string; account: Account } | null;
     visible: boolean;
     preparing: boolean;
     message: string;
@@ -88,6 +113,9 @@ export function createWriting(
     } | null;
   }>({
     context: null,
+    privateReview: null,
+    privateReviewConsumed: false,
+    privateReplacement: null,
     visible: false,
     preparing: false,
     message: "",
@@ -176,7 +204,13 @@ export function createWriting(
   }
   function selectAttachments(files: import("../forum-client").UploadFile[]) {
     const c = state.value.context;
-    if (!c || !state.value.accountVerified || state.value.publishing) return;
+    if (
+      !c ||
+      c.action === "private-message" ||
+      !state.value.accountVerified ||
+      state.value.publishing
+    )
+      return;
     const rows = files.map((file) => {
       const key = crypto.randomUUID();
       uploadBytes.set(key, { ...file, bytes: new Uint8Array(file.bytes) });
@@ -207,6 +241,7 @@ export function createWriting(
       file = uploadBytes.get(key);
     if (
       !c ||
+      c.action === "private-message" ||
       !row ||
       row.status !== "selected" ||
       !file ||
@@ -287,6 +322,7 @@ export function createWriting(
       u = c?.uploads?.find((u) => u.key === key);
     if (
       !c ||
+      c.action === "private-message" ||
       !u?.serverId ||
       state.value.composing ||
       !["uploaded", "associated"].includes(u.status)
@@ -332,9 +368,10 @@ export function createWriting(
         compositionId: context.id,
         onChange: (snapshot) => {
           if (!initialized) return;
-          const unresolved =
-            recoveredInterpretation || !snapshot.readiness.ready;
           const current = state.value.context;
+          const unresolved =
+            current?.action !== "private-message" &&
+            (recoveredInterpretation || !snapshot.readiness.ready);
           if (!current) return;
           const range = editorSession?.recoverySelection;
           edit({
@@ -397,6 +434,240 @@ export function createWriting(
       action?.();
     }, 0);
   }
+  async function preparePrivate(
+    url: string,
+    account: Account,
+    replace = false,
+  ) {
+    if (
+      deferViewChange(() => {
+        void preparePrivate(url, account, replace);
+      }) ||
+      state.value.publishing
+    )
+      return;
+    const existing = state.value.context;
+    if (existing && !replace) {
+      if (
+        existing.action === "private-message" &&
+        existing.recipient.url === url &&
+        account.kind === "member" &&
+        existing.account.id === account.id
+      ) {
+        state.value = { ...state.value, visible: true };
+        return;
+      }
+      state.value = { ...state.value, privateReplacement: { url, account } };
+      return;
+    }
+    const current = ++sequence;
+    state.value = {
+      ...state.value,
+      preparing: true,
+      message: "",
+      privateReview: null,
+    };
+    const result = await client.preparePrivateWriting(url, account);
+    accountObserved(result.account);
+    observe(result.account);
+    if (current !== sequence) return;
+    if (
+      result.kind !== "prepared" ||
+      (existing &&
+        (state.value.context?.id !== existing.id ||
+          state.value.context.revision !== existing.revision))
+    ) {
+      state.value = {
+        ...state.value,
+        preparing: false,
+        message:
+          result.kind === "refused"
+            ? result.message
+            : "Writing changed during preparation. Your text is retained.",
+      };
+      return;
+    }
+    state.value = {
+      ...state.value,
+      preparing: false,
+      visible: true,
+      privateReplacement: null,
+      publication: null,
+      privateReview: null,
+      acknowledged: 0,
+      accountVerified: true,
+      context: {
+        ...result.prepared,
+        id: crypto.randomUUID(),
+        revision: 1,
+        selection: { start: 0, end: 0, direction: "none" },
+        ...(existing?.privateAttempts?.length
+          ? { privateAttempts: existing.privateAttempts }
+          : {}),
+        ...(existing?.attempts ? { attempts: existing.attempts } : {}),
+        ...(existing?.draftAttempts
+          ? { draftAttempts: existing.draftAttempts }
+          : {}),
+      },
+    };
+    await changed();
+  }
+  async function reviewPrivate() {
+    const context = state.value.context;
+    if (
+      context?.action !== "private-message" ||
+      state.value.preparing ||
+      state.value.publishing ||
+      state.value.composing
+    )
+      return;
+    if (
+      context.privateAttempts?.some(
+        (a) =>
+          a.submission.writing.account.id === context.account.id &&
+          a.submission.writing.recipient.id === context.recipient.id &&
+          (["pending", "uncertain"].includes(a.status) ||
+            (a.status === "confirmed" &&
+              a.submission.writing.source === context.source)),
+      )
+    ) {
+      state.value = {
+        ...state.value,
+        privateReview: null,
+        privateReviewConsumed: false,
+        message:
+          "This text was already confirmed or an earlier private attempt is unresolved. Check that original attempt or continue in the native forum; no resend was prepared.",
+      };
+      return;
+    }
+    state.value = {
+      ...state.value,
+      preparing: true,
+      privateReview: null,
+      privateReviewConsumed: false,
+      message: "",
+    };
+    const { id, revision } = context;
+    const result = await client.preparePrivateReview({
+      contextId: id,
+      revision,
+      writing: {
+        action: context.action,
+        account: context.account,
+        recipient: context.recipient,
+        source: context.source,
+        maxLength: context.maxLength,
+      },
+    });
+    accountObserved(result.account);
+    observe(result.account, result.kind === "ready");
+    const same =
+      state.value.context?.id === id &&
+      state.value.context.revision === revision;
+    state.value = {
+      ...state.value,
+      preparing: false,
+      validationIssues:
+        same && result.kind === "refused" && result.issue ? [result.issue] : [],
+      validationFocus: state.value.validationFocus + 1,
+      privateReview: same && result.kind === "ready" ? result.review : null,
+      message: !same
+        ? "Writing changed during review. Review the current text again."
+        : result.kind === "refused"
+          ? result.message
+          : "",
+    };
+  }
+  function updatePrivateAttempt(
+    attempt: import("../forum-client").PrivateAttempt,
+  ) {
+    const context = state.value.context;
+    if (
+      !context ||
+      (context.id !== attempt.submission.contextId &&
+        !context.privateAttempts?.some((a) => a.id === attempt.id))
+    )
+      return;
+    const attempts = [...(context.privateAttempts ?? [])];
+    const index = attempts.findIndex((a) => a.id === attempt.id);
+    if (index < 0) attempts.push(attempt);
+    else attempts[index] = attempt;
+    state.value = {
+      ...state.value,
+      context: { ...context, privateAttempts: attempts },
+    };
+  }
+  async function sendPrivate() {
+    const context = state.value.context,
+      review = state.value.privateReview;
+    if (
+      context?.action !== "private-message" ||
+      !review ||
+      state.value.privateReviewConsumed ||
+      state.value.publishing ||
+      state.value.preparing ||
+      state.value.composing ||
+      review.submission.contextId !== context.id ||
+      review.submission.revision !== context.revision ||
+      review.generation !== client.generation
+    )
+      return;
+    state.value = {
+      ...state.value,
+      privateReviewConsumed: true,
+      publishing: true,
+    };
+    const attempt: import("../forum-client").PrivateAttempt = {
+      id: crypto.randomUUID(),
+      submission: review.submission,
+      before: [],
+      status: "pending",
+      checked: false,
+      message:
+        "Private message pending. Refresh retains uncertainty without replay.",
+      result: null,
+    };
+    updatePrivateAttempt(attempt);
+    const retained = await changed();
+    const result =
+      retained &&
+      state.value.context?.id === context.id &&
+      state.value.context.revision === context.revision
+        ? await client.sendPrivateMessage(review, attempt, async (pending) => {
+            updatePrivateAttempt(pending);
+            return changed();
+          })
+        : {
+            ...attempt,
+            status: "not-sent" as const,
+            message:
+              "Private message was not sent because recovery or writing changed. Your text is retained.",
+          };
+    accountObserved(client.account);
+    observe(client.account);
+    updatePrivateAttempt(result);
+    state.value = { ...state.value, publishing: false };
+    await changed();
+  }
+  async function checkPrivate(id: string) {
+    const attempt = state.value.context?.privateAttempts?.find(
+      (a) => a.id === id,
+    );
+    if (
+      !attempt ||
+      attempt.status !== "uncertain" ||
+      state.value.publishing ||
+      state.value.preparing
+    )
+      return;
+    state.value = { ...state.value, publishing: true, privateReview: null };
+    const result = await client.checkPrivateMessage(attempt);
+    accountObserved(client.account);
+    observe(client.account);
+    updatePrivateAttempt(result);
+    state.value = { ...state.value, publishing: false };
+    await changed();
+  }
   async function prepare(
     boardId: string,
     replace = false,
@@ -411,6 +682,7 @@ export function createWriting(
       return;
     const existing = state.value.context;
     const sameAction =
+      existing?.action !== "private-message" &&
       existing?.action !== "edit-post" &&
       existing?.board.id === boardId &&
       Boolean(existing?.redPacket) === redPacket &&
@@ -485,6 +757,9 @@ export function createWriting(
         id: crypto.randomUUID(),
         revision: 1,
         selection: { start: 0, end: 0, direction: "none" },
+        ...(existing?.privateAttempts?.length
+          ? { privateAttempts: existing.privateAttempts }
+          : {}),
         ...(existing?.attempts?.length ? { attempts: existing.attempts } : {}),
         ...(existing?.draftAttempts?.length
           ? { draftAttempts: existing.draftAttempts }
@@ -575,6 +850,9 @@ export function createWriting(
         id: crypto.randomUUID(),
         revision: 1,
         selection: { start: 0, end: 0, direction: "none" },
+        ...(existing?.privateAttempts?.length
+          ? { privateAttempts: existing.privateAttempts }
+          : {}),
         ...(existing?.attempts?.length ? { attempts: existing.attempts } : {}),
         ...(existing?.draftAttempts?.length
           ? { draftAttempts: existing.draftAttempts }
@@ -700,6 +978,9 @@ export function createWriting(
         id: crypto.randomUUID(),
         revision: 1,
         selection: { start: 0, end: 0, direction: "none" },
+        ...(existing?.privateAttempts?.length
+          ? { privateAttempts: existing.privateAttempts }
+          : {}),
         ...(existing?.attempts ? { attempts: existing.attempts } : {}),
         ...(existing?.draftAttempts
           ? { draftAttempts: existing.draftAttempts }
@@ -763,7 +1044,7 @@ export function createWriting(
   function edit(
     patch: Partial<
       Pick<
-        WritingContext,
+        PublicWritingContext,
         | "title"
         | "source"
         | "category"
@@ -776,6 +1057,27 @@ export function createWriting(
   ) {
     const context = state.value.context;
     if (context) {
+      if (context.action === "private-message") {
+        const source = patch.source ?? context.source,
+          selection = patch.selection ?? context.selection;
+        if (
+          source === context.source &&
+          JSON.stringify(selection) === JSON.stringify(context.selection)
+        )
+          return;
+        state.value = {
+          ...state.value,
+          context: {
+            ...context,
+            source,
+            selection,
+            revision: context.revision + 1,
+          },
+          privateReview: null,
+        };
+        void changed();
+        return;
+      }
       if (
         Object.entries(patch).every(
           ([key, value]) =>
@@ -792,13 +1094,14 @@ export function createWriting(
       changed();
     }
   }
-  function submission(context: WritingContext) {
+  function submission(context: PublicWritingContext) {
     const {
       id,
       revision,
       selection: _selection,
       attempts: _attempts,
       editorUnresolved: _editorUnresolved,
+      privateAttempts: _privateAttempts,
       draftAttempts: _draftAttempts,
       unappliedPacketOptions: _unappliedPacketOptions,
       ...content
@@ -808,6 +1111,7 @@ export function createWriting(
       _attempts,
       _editorUnresolved,
       _draftAttempts,
+      _privateAttempts,
       _unappliedPacketOptions,
     ];
     return { contextId: id, revision, writing: content };
@@ -820,6 +1124,19 @@ export function createWriting(
         !context.attempts?.some((item) => item.id === attempt.id))
     )
       return;
+    if (context.action === "private-message") {
+      state.value = {
+        ...state.value,
+        context: {
+          ...context,
+          attempts: [
+            ...(context.attempts ?? []).filter((a) => a.id !== attempt.id),
+            attempt,
+          ],
+        },
+      };
+      return;
+    }
     state.value = {
       ...state.value,
       context: {
@@ -894,7 +1211,11 @@ export function createWriting(
     context: WritingContext,
     result: DraftAttempt,
   ): WritingContext {
-    if (!result.result || result.submission.contextId !== context.id)
+    if (
+      context.action === "private-message" ||
+      !result.result ||
+      result.submission.contextId !== context.id
+    )
       return context;
     const current = { ...context };
     if (current.redPacket) {
@@ -1151,6 +1472,7 @@ export function createWriting(
     const context = state.value.context;
     if (
       !context ||
+      context.action === "private-message" ||
       state.value.preparing ||
       state.value.publishing ||
       state.value.composing
@@ -1422,7 +1744,7 @@ export function createWriting(
       };
       return;
     }
-    state.value = { ...state.value, publication: null };
+    state.value = { ...state.value, publication: null, privateReview: null };
     await publishDraft();
   }
   async function publishDraft(resendId?: string) {
@@ -1527,6 +1849,8 @@ export function createWriting(
       await publishedDraft?.(result.publishedURL, result.submission.contextId);
   }
   async function reviewPublication(resendId?: string) {
+    if (state.value.context?.action === "private-message")
+      return reviewPrivate();
     if (state.value.context?.draft && !resendId)
       return reviewDraftPublication();
     if (
@@ -1712,7 +2036,12 @@ export function createWriting(
   }
   async function searchMention(query: string) {
     const context = state.value.context;
-    if (!context || state.value.findingMention) return;
+    if (
+      !context ||
+      context.action === "private-message" ||
+      state.value.findingMention
+    )
+      return;
     state.value = {
       ...state.value,
       findingMention: true,
@@ -1772,6 +2101,16 @@ export function createWriting(
     state.value = { ...state.value, mentionPeople: [] };
   }
   function observe(account: Account, verified = true) {
+    const privateReview = state.value.privateReview;
+    if (
+      privateReview &&
+      !state.value.privateReviewConsumed &&
+      (!verified ||
+        account.kind !== "member" ||
+        account.id !== privateReview.submission.writing.account.id ||
+        client.generation !== privateReview.generation)
+    )
+      state.value = { ...state.value, privateReview: null };
     const publication = state.value.publication;
     state.value = {
       ...state.value,
@@ -1801,6 +2140,8 @@ export function createWriting(
       state.value = { ...state.value, copy: null };
   }
   async function check(copyText = false) {
+    if (state.value.context?.action === "private-message")
+      return reviewPrivate();
     const original = state.value.context;
     if (!original || state.value.publishing) return;
     const current = ++sequence;
@@ -1862,6 +2203,7 @@ export function createWriting(
     if (
       !candidate ||
       !original ||
+      original.action === "private-message" ||
       candidate.originalId !== original.id ||
       state.value.publishing
     )
@@ -1891,6 +2233,9 @@ export function createWriting(
         id: crypto.randomUUID(),
         revision: 1,
         selection: { ...original.selection },
+        ...(original.privateAttempts?.length
+          ? { privateAttempts: original.privateAttempts }
+          : {}),
         ...(original.attempts?.length ? { attempts: original.attempts } : {}),
         ...(original.draftAttempts?.length
           ? { draftAttempts: original.draftAttempts }
@@ -1937,6 +2282,21 @@ export function createWriting(
       const target = state.value.editReplacement;
       if (target) void prepareEdit(target.threadURL, target.postId, true);
     },
+    preparePrivate,
+    sendPrivate,
+    checkPrivate,
+    cancelPrivateReplacement: () => {
+      ++sequence;
+      state.value = {
+        ...state.value,
+        privateReplacement: null,
+        preparing: false,
+      };
+    },
+    replaceWithPrivate: () => {
+      const target = state.value.privateReplacement;
+      if (target) void preparePrivate(target.url, target.account, true);
+    },
     editor,
     interpretEditorSource,
     deferViewChange,
@@ -1951,7 +2311,7 @@ export function createWriting(
     reviewPublication,
     cancelPublicationReview: () => {
       if (state.value.publishing || state.value.composing) return;
-      state.value = { ...state.value, publication: null };
+      state.value = { ...state.value, publication: null, privateReview: null };
     },
     resumeDraft,
     checkDraft,
@@ -1991,7 +2351,31 @@ export function createWriting(
     },
     snapshot: () => state.value.context,
     restore: (context: WritingContext | null) => {
+      state.value = {
+        ...state.value,
+        privateReview: null,
+        privateReviewConsumed: false,
+        privateReplacement: null,
+      };
+      const privatePending = context?.privateAttempts?.some(
+        (a) => a.status === "pending",
+      );
       uploadBytes.clear();
+      if (context?.privateAttempts)
+        context = {
+          ...context,
+          privateAttempts: context.privateAttempts.map((a) =>
+            a.status === "pending"
+              ? {
+                  ...a,
+                  status: "uncertain",
+                  checked: false,
+                  message:
+                    "Pending private message restored as uncertain. Nothing was replayed; check the original attempt.",
+                }
+              : a,
+          ),
+        };
       if (context?.uploads)
         context = {
           ...context,
@@ -2073,7 +2457,7 @@ export function createWriting(
         resend: null,
         draftResend: null,
       };
-      if (pending) void changed();
+      if (pending || privatePending) void changed();
     },
     acknowledge: (id: string | null, revision: number, available: boolean) => {
       state.value = {
@@ -2090,6 +2474,7 @@ export function createWriting(
         u = c?.uploads?.find((v) => v.key === key);
       if (
         !c ||
+        c.action === "private-message" ||
         !u?.serverId ||
         !u.storedPost ||
         !u.originalSha256 ||
@@ -2132,6 +2517,7 @@ export function createWriting(
         u = c?.uploads?.find((v) => v.key === key);
       if (
         !c ||
+        c.action === "private-message" ||
         !u?.serverId ||
         state.value.publishing ||
         !state.value.accountVerified ||
@@ -2222,6 +2608,7 @@ export function createWriting(
         u = c?.uploads?.find((v) => v.key === key);
       if (
         !c ||
+        c.action === "private-message" ||
         !u ||
         state.value.publishing ||
         ![
@@ -2254,7 +2641,9 @@ export function createWriting(
     insertAttachment,
     unresolvedAttachments: computed(() => {
       const context = state.value.context;
-      return context ? unresolvedWritingAttachments(context) : [];
+      return context && context.action !== "private-message"
+        ? unresolvedWritingAttachments(context)
+        : [];
     }),
     state: readonly(state),
     prepare,
@@ -2362,6 +2751,88 @@ function validReadSnapshotFields(value: Record<string, unknown>): boolean {
   });
 }
 export function isWritingContext(value: unknown): value is WritingContext {
+  if (
+    object(value) &&
+    value.privateAttempts !== undefined &&
+    (!Array.isArray(value.privateAttempts) ||
+      !value.privateAttempts.every(isPrivateAttempt))
+  )
+    return false;
+  if (object(value) && value.action === "private-message") {
+    const allowed = [
+      "action",
+      "account",
+      "recipient",
+      "source",
+      "maxLength",
+      "id",
+      "revision",
+      "selection",
+      "attempts",
+      "draftAttempts",
+      "privateAttempts",
+    ];
+    if (
+      Object.keys(value).some((k) => !allowed.includes(k)) ||
+      !string(value.id) ||
+      !integer(value.revision) ||
+      value.revision < 1 ||
+      !string(value.source) ||
+      !object(value.account) ||
+      value.account.kind !== "member" ||
+      !string(value.account.id) ||
+      !/^[1-9]\d*$/.test(value.account.id) ||
+      !string(value.account.name) ||
+      Object.keys(value.account).some(
+        (k) => !["kind", "id", "name"].includes(k),
+      ) ||
+      !object(value.recipient) ||
+      !string(value.recipient.id) ||
+      !/^[1-9]\d*$/.test(value.recipient.id) ||
+      value.recipient.id === value.account.id ||
+      !string(value.recipient.name) ||
+      !string(value.recipient.url) ||
+      Object.keys(value.recipient).some(
+        (k) => !["id", "name", "url"].includes(k),
+      ) ||
+      !(
+        value.maxLength === null ||
+        (integer(value.maxLength) && value.maxLength > 0)
+      ) ||
+      !object(value.selection) ||
+      !integer(value.selection.start) ||
+      !integer(value.selection.end) ||
+      value.selection.start < 0 ||
+      value.selection.end < value.selection.start ||
+      value.selection.end > value.source.length ||
+      !["forward", "backward", "none"].includes(
+        String(value.selection.direction),
+      ) ||
+      Object.keys(value.selection).some(
+        (k) => !["start", "end", "direction"].includes(k),
+      )
+    )
+      return false;
+    try {
+      const url = new URL(value.recipient.url);
+      if (
+        url.origin !== "https://www.tsdm39.com" ||
+        url.pathname !== "/home.php" ||
+        url.searchParams.get("mod") !== "space" ||
+        url.searchParams.get("do") !== "pm" ||
+        url.searchParams.get("subop") !== "view" ||
+        url.searchParams.get("touid") !== value.recipient.id ||
+        [...url.searchParams.keys()].some(
+          (k) =>
+            !["mod", "do", "subop", "touid", "page", "daterange"].includes(k),
+        )
+      )
+        return false;
+    } catch {
+      return false;
+    }
+    return validHistoricalAttempts(value);
+  }
   return validateWritingContext(value);
 }
 function validateWritingContext(
@@ -2547,13 +3018,36 @@ function validateWritingContext(
         typeof c.disabled === "boolean",
     );
   const selection = value.selection;
-  const attempts = value.attempts;
   if (
     value.draftSaveAvailable !== undefined &&
     typeof value.draftSaveAvailable !== "boolean"
   )
     return false;
   if (value.draft !== undefined && !isDraftIdentity(value.draft)) return false;
+  if (!validHistoricalAttempts(value)) return false;
+  return (
+    (value.category === null || option(value.category)) &&
+    Array.isArray(value.options) &&
+    value.options.every(option) &&
+    (value.unappliedPacketOptions === undefined ||
+      (Array.isArray(value.unappliedPacketOptions) &&
+        value.unappliedPacketOptions.every(
+          (o) => option(o) && o.name.startsWith("hb_"),
+        ))) &&
+    Array.isArray(value.uploadedReferences) &&
+    value.uploadedReferences.every(
+      (id) => string(id) && /^[1-9]\d*$/.test(id),
+    ) &&
+    object(selection) &&
+    integer(selection.start) &&
+    integer(selection.end) &&
+    selection.start <= selection.end &&
+    selection.end <= value.source.length &&
+    ["forward", "backward", "none"].includes(String(selection.direction))
+  );
+}
+
+function validHistoricalAttempts(value: Record<string, unknown>): boolean {
   if (
     value.draftAttempts !== undefined &&
     (!Array.isArray(value.draftAttempts) ||
@@ -2629,7 +3123,7 @@ function validateWritingContext(
           !safeThreadURL(attempt.publishedURL)
         )
           return false;
-        return isWritingContext({
+        return validateWritingContext({
           ...attempt.submission.writing,
           id: attempt.submission.contextId,
           revision: attempt.submission.revision,
@@ -2641,26 +3135,8 @@ function validateWritingContext(
   )
     return false;
   return (
-    (attempts === undefined ||
-      (Array.isArray(attempts) && attempts.every(isAttempt))) &&
-    (value.category === null || option(value.category)) &&
-    Array.isArray(value.options) &&
-    value.options.every(option) &&
-    (value.unappliedPacketOptions === undefined ||
-      (Array.isArray(value.unappliedPacketOptions) &&
-        value.unappliedPacketOptions.every(
-          (o) => option(o) && o.name.startsWith("hb_"),
-        ))) &&
-    Array.isArray(value.uploadedReferences) &&
-    value.uploadedReferences.every(
-      (id) => string(id) && /^[1-9]\d*$/.test(id),
-    ) &&
-    object(selection) &&
-    integer(selection.start) &&
-    integer(selection.end) &&
-    selection.start <= selection.end &&
-    selection.end <= value.source.length &&
-    ["forward", "backward", "none"].includes(String(selection.direction))
+    value.attempts === undefined ||
+    (Array.isArray(value.attempts) && value.attempts.every(isAttempt))
   );
 }
 
@@ -2729,7 +3205,11 @@ function isAttempt(value: unknown): value is ThreadAttempt {
     selection: { start: 0, end: 0, direction: "none" },
     attempts: undefined,
   };
-  if (!isWritingContext(submittedWriting)) return false;
+  if (
+    !isWritingContext(submittedWriting) ||
+    submittedWriting.action === "private-message"
+  )
+    return false;
   const snapshot = (candidate: unknown) =>
     object(candidate) &&
     candidate.action === submittedWriting.action &&

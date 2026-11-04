@@ -222,7 +222,9 @@ for (const kind of ["published", "moderation"] as const)
     expect(state.effects).toHaveLength(2);
     await button(page, "Return to reading").click();
     await button(page, "Drafts").first().click();
+    await button(page, "Load forum drafts").click();
     await expect(page.getByText("还没有相关的帖子")).toBeVisible();
+    expect(state.effects).toHaveLength(2);
   });
 test("review.check-known-save: original resumed save checks independently of list UI", async ({
   page,

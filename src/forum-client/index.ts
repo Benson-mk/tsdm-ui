@@ -55,7 +55,8 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.18.0";
+import { createPrivateWriting } from "./private-writing.js";
+export const FORUM_CLIENT_VERSION = "0.19.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -64,6 +65,17 @@ export function createForumClient(options: {
   let generation = 0;
   let sequence = 0;
   let downloadSequence = 0;
+  const privateWriting = createPrivateWriting({
+    ...options,
+    account: () => account,
+    generation: () => generation,
+    observe: (observed) => {
+      if (actor(observed) !== actor(account)) {
+        account = observed;
+        generation++;
+      }
+    },
+  });
   const drafts = createDraftOperations({
     ...options,
     account: () => account,
@@ -109,6 +121,10 @@ export function createForumClient(options: {
     },
   });
   return {
+    sendPrivateMessage: privateWriting.send,
+    checkPrivateMessage: privateWriting.check,
+    preparePrivateWriting: privateWriting.prepare,
+    preparePrivateReview: privateWriting.review,
     removeUploadedAttachment: createAttachmentRemoval({
       ...options,
       generation: () => generation,

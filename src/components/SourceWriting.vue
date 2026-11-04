@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import PrivateAttemptHistory from "./PrivateAttemptHistory.vue";
 import { computed, ref, watch, nextTick, type DeepReadonly } from "vue";
 import { attachmentText, attachmentFieldLabel } from "./attachment-text";
+import PrivateWritingContent from "./PrivateWritingContent.vue";
 import PostEditor from "./PostEditor.vue";
 import WritingDestination from "./WritingDestination.vue";
 import PreparedPublication from "./PreparedPublication.vue";
@@ -16,7 +18,14 @@ watch(
   () => props.expanded,
   () => editor.value?.focus(true),
 );
-const state = props.workspace.writing.state;
+const ownerState = props.workspace.writing.state;
+const state = computed(() => ({
+  ...ownerState.value,
+  context:
+    ownerState.value.context?.action === "private-message"
+      ? null
+      : ownerState.value.context,
+}));
 const titleInput = ref<HTMLInputElement | null>(null);
 const categoryInput = ref<HTMLSelectElement | null>(null);
 const optionFields = ref<HTMLElement | null>(null);
@@ -245,7 +254,7 @@ function updateOption(option: WritingOption, event: Event) {
 </script>
 <template>
   <section
-    v-if="state.context"
+    v-if="ownerState.context"
     class="source-writing"
     :class="{ 'writing-expanded': expanded }"
     :aria-label="text.writingContext"
@@ -264,7 +273,14 @@ function updateOption(option: WritingOption, event: Event) {
         {{ text.returnReading }}
       </button>
     </div>
-    <div class="writing-content">
+    <div
+      v-if="ownerState.context?.action === 'private-message'"
+      class="writing-content"
+    >
+      <PrivateWritingContent :workspace="workspace" :expanded="expanded" />
+    </div>
+    <div v-if="state.context" class="writing-content">
+      <PrivateAttemptHistory :workspace="workspace" />
       <h1>
         {{
           state.context.action === "edit-post"

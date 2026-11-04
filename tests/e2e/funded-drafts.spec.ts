@@ -1667,6 +1667,8 @@ for (const kind of ["direct", "funded"] as const)
       .getByRole("button", { name: "Replace with text copy", exact: true })
       .click();
     const copied = await recovered(page);
+    if (copied.action === "private-message")
+      throw new Error("Expected the public funded-draft text copy.");
     expect(copied.account).toMatchObject({ id: "8" });
     expect(copied.source).toBe(text);
     expect(copied.uploadedReferences).toEqual([]);

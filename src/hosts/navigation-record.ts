@@ -425,7 +425,18 @@ function result(value: unknown): boolean {
 
 /** Recognize this application's inert navigation record, not arbitrary JSON. */
 export function isNavigationRecord(value: unknown): value is NavigationRecord {
-  if (!object(value) || value.schema !== 2 || !object(value.entries))
+  if (
+    !object(value) ||
+    (value.schema !== 2 && value.schema !== 3) ||
+    !object(value.entries)
+  )
+    return false;
+  if (
+    value.schema === 2 &&
+    object(value.writing) &&
+    (value.writing.action === "private-message" ||
+      value.writing.privateAttempts !== undefined)
+  )
     return false;
   if (!(value.writing === null || isWritingContext(value.writing)))
     return false;
