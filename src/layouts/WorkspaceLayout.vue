@@ -13,6 +13,7 @@ import {
 import SearchView from "../components/SearchView.vue";
 import { favoriteText } from "../components/favorite-labels";
 import FavoritesView from "../components/FavoritesView.vue";
+import MessagesView from "../components/MessagesView.vue";
 import NoticesView from "../components/NoticesView.vue";
 import SourceWriting from "../components/SourceWriting.vue";
 import WritingDestination from "../components/WritingDestination.vue";
@@ -40,9 +41,13 @@ function togglePane(pane: "boards" | "threads") {
   if (!props.workspace.writing.deferViewChange(change)) change();
 }
 watch(
-  () => state.value.result,
-  (result) => {
-    if (result?.kind === "board" || result?.kind === "directory")
+  () => [state.value.result, state.value.section] as const,
+  ([result, section]) => {
+    if (
+      result?.kind === "board" ||
+      result?.kind === "directory" ||
+      section === "messages"
+    )
       threadsCollapsed.value = false;
   },
 );
@@ -104,12 +109,20 @@ function closeNavigation(event: KeyboardEvent) {
   event.stopPropagation();
   changeNavigation(false, true);
 }
-const sections: Section[] = ["boards", "search", "saved", "notices", "drafts"];
+const sections: Section[] = [
+  "boards",
+  "search",
+  "saved",
+  "notices",
+  "messages",
+  "drafts",
+];
 const sectionInfo = computed(() => {
   const section = state.value.section;
   if (
     section === "boards" ||
     section === "search" ||
+    section === "messages" ||
     section === "notices" ||
     section === "saved"
   )
@@ -123,12 +136,23 @@ const sectionInfo = computed(() => {
       "https://www.tsdm39.com/home.php?mod=space&do=thread&view=me&type=thread&filter=save",
   };
 });
+function selectSection(section: Section) {
+  const change = () => {
+    if (section === "messages" && state.value.section === section) {
+      const positions = capturePositions();
+      threadsCollapsed.value = false;
+      void nextTick().then(() => restorePositions(positions, true));
+    }
+    void props.workspace.openSection(section);
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
 function chooseSection(event: Event) {
   if (
     event.target instanceof HTMLSelectElement &&
     sections.includes(event.target.value as Section)
   )
-    void props.workspace.openSection(event.target.value as Section);
+    selectSection(event.target.value as Section);
 }
 type PanePosition = {
   pane: HTMLElement;
@@ -370,6 +394,7 @@ const favoriteContext = computed(() =>
 );
 const threadWithoutResults = computed(
   () =>
+    state.value.section === "boards" &&
     reading.value !== null &&
     state.value.result?.kind !== "directory" &&
     !boardContext.value &&
@@ -1119,7 +1144,9 @@ function boardIdFrom(url: string) {
       </p>
       <section
         v-if="
-          ['boards', 'search', 'notices', 'saved'].includes(state.section) &&
+          ['boards', 'search', 'notices', 'messages', 'saved'].includes(
+            state.section,
+          ) &&
           state.result &&
           ![
             'directory',
@@ -1128,6 +1155,7 @@ function boardIdFrom(url: string) {
             'search',
             'notices',
             'favorites',
+            'messages',
           ].includes(state.result.kind)
         "
         class="notice"
@@ -1223,7 +1251,7 @@ function boardIdFrom(url: string) {
             v-for="section in sections"
             :key="section"
             :aria-current="state.section === section ? 'page' : undefined"
-            @click="workspace.openSection(section)"
+            @click="selectSection(section)"
           >
             {{ text[section] }}
           </button>
@@ -1409,6 +1437,17 @@ function boardIdFrom(url: string) {
               `https://www.tsdm39.com/home.php?mod=space&do=favorite&type=${kind}`,
             )
         "
+      />
+      <MessagesView
+        v-if="state.section === 'messages'"
+        v-show="compactNavigation || !threadsCollapsed"
+        id="thread-list-pane"
+        :messages="
+          state.result?.kind === 'messages' ? state.result.messages : null
+        "
+        :loading="state.loading"
+        :language="workspace.preferences.state.value.language"
+        @load="workspace.loadMessages()"
       />
       <NoticesView
         v-if="state.section === 'notices'"

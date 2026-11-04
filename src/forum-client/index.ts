@@ -8,6 +8,7 @@ import { decodeDraftList, draftListPath, draftListURL } from "./drafts.js";
 import { createFavoriteCommands } from "./favorite-command.js";
 import { decodeFavorites } from "./favorites.js";
 import { fileFailure } from "./download.js";
+import { decodeMessages } from "./messages.js";
 import { decodeNotices } from "./notices.js";
 import {
   decodeSearchForm,
@@ -30,6 +31,7 @@ export function describeDestination(value: string): {
     | "thread"
     | "redirect"
     | "search"
+    | "messages"
     | "notices"
     | "favorites";
   url: string;
@@ -51,7 +53,7 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.16.0";
+export const FORUM_CLIENT_VERSION = "0.17.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -223,6 +225,62 @@ export function createForumClient(options: {
     prepareThreadPublication: publisher.prepare,
     publishThread: publisher.publish,
     checkThreadResult: publisher.check,
+    async readMessages(destination, prior, expectedAccount) {
+      const current = ++sequence;
+      const startedGeneration = generation;
+      const expected =
+        expectedAccount ?? (account.kind === "member" ? account : undefined);
+      const route = routeFor(destination);
+      const fail = (
+        message: string,
+        kind: "invalid" | "stale" | "network" = "invalid",
+      ): ReadResult => ({
+        kind,
+        message,
+        account,
+        generation,
+        sourceURL: destination,
+      });
+      if (route?.kind !== "messages" || route.url.origin !== options.origin)
+        return fail("This is not a supported message destination.");
+      if (
+        prior &&
+        ![prior.url, ...prior.pages.links.map((link) => link.url)].includes(
+          destination,
+        )
+      )
+        return fail("This page was not offered by the current message list.");
+      route.url.searchParams.set("tsdmapp", "json");
+      try {
+        const response = await options.transport.request(route.url.href, {
+          fresh: true,
+        });
+        if (current !== sequence || generation !== startedGeneration)
+          return fail(
+            "A newer request replaced this message load. It may still have cleared the new-private-message prompt.",
+            "stale",
+          );
+        const decoded = decodeMessages(response, destination);
+        if (actor(decoded.account) !== actor(account)) {
+          account = decoded.account;
+          generation++;
+        }
+        if (
+          decoded.kind === "messages" &&
+          expected &&
+          actor(decoded.account) !== actor(expected)
+        )
+          return fail(
+            "The account changed while loading messages. Previous messages were cleared. This request may still have had read effects.",
+          );
+        return { ...decoded, generation };
+      } catch {
+        return fail(
+          "The message request failed. It may still have cleared the new-private-message prompt. Retry only deliberately.",
+          current !== sequence ? "stale" : "network",
+        );
+      }
+    },
     async readNotices(destination, prior, expectedAccount) {
       const current = ++sequence;
       const route = routeFor(destination);
@@ -670,6 +728,15 @@ export function createForumClient(options: {
       const current = ++sequence;
       const route = routeFor(destination);
       const url = route?.url;
+      if (route?.kind === "messages")
+        return {
+          kind: "invalid",
+          message:
+            "Messages must be loaded deliberately. Loading may clear the new-private-message prompt.",
+          account,
+          generation,
+          sourceURL: destination,
+        };
       if (route?.kind === "notices")
         return {
           kind: "invalid",

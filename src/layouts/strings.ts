@@ -142,6 +142,18 @@ const english = {
     "Choose a thread to read. Browsing boards keeps your current thread and writing.",
   search: "Search",
   saved: "Saved",
+  messages: "Messages",
+  messagesHeading: "Private conversations",
+  messagesEffects:
+    "Loading messages may clear the forum’s new-private-message prompt. It does not confirm that a conversation was read. Nothing is loaded automatically. Peer previews stay in this page; load them deliberately after reload.",
+  loadMessages: "Load messages",
+  refreshMessages: "Refresh messages",
+  messagesNativeHistory:
+    "Private history opens in the native forum. Sending and reading history are not yet available here.",
+  messagesPeerNative:
+    "Open private conversation with {value} — continue in native forum",
+  messagesUnread: "Forum marks this conversation unread",
+  messagesPages: "Message list pages",
   notices: "Notices",
   drafts: "Drafts",
   browseBoards: "Browse boards",
@@ -215,7 +227,7 @@ const english = {
   noticeUnreadUnknown:
     "The returned unread indicator could not be interpreted. The current unread count is unknown.",
   deferredNotices:
-    "Private messages, broadcasts and native activity actions continue in the forum. Standard social-activity notices are included in the list.",
+    "Private-message history, broadcasts and native activity actions continue in the forum. Standard social-activity notices are included in the list.",
   nativePM: "Private messages and broadcasts — continue in native forum",
   nativeNotices: "Notice actions — continue in native forum",
   draftsHeading: "Forum drafts",
@@ -490,6 +502,17 @@ const simplified: Strings = {
   chooseThreadContext: "选择主题阅读。浏览版块会保留当前主题和写作。",
   search: "搜索",
   saved: "收藏",
+  messages: "私信",
+  messagesHeading: "私人会话",
+  messagesEffects:
+    "加载私信可能清除论坛的新私信提示，但不表示会话已读。不会自动加载。会话预览仅在当前页面保留，刷新页面后请主动加载。",
+  loadMessages: "加载私信",
+  refreshMessages: "刷新私信",
+  messagesNativeHistory:
+    "私信记录在原生论坛打开。此处尚不提供阅读记录或发送私信。",
+  messagesPeerNative: "打开与 {value} 的私人会话 — 前往原生论坛",
+  messagesUnread: "论坛将此会话标为未读",
+  messagesPages: "私信列表分页",
   notices: "通知",
   drafts: "草稿",
   browseBoards: "浏览版块",
@@ -559,7 +582,7 @@ const simplified: Strings = {
   noticeUnreadAbsent: "响应没有返回未读提示。当前未读数量未知。",
   noticeUnreadUnknown: "无法识别返回的未读提示。当前未读数量未知。",
   deferredNotices:
-    "私信、广播和原版动态操作请继续前往论坛。标准坛友互动通知包含在列表中。",
+    "私信记录、广播和原版动态操作请继续前往论坛。标准坛友互动通知包含在列表中。",
   nativePM: "私信与广播 — 前往原版论坛",
   nativeNotices: "通知操作 — 前往原版论坛",
   draftsHeading: "论坛草稿",
@@ -828,6 +851,17 @@ const traditional: Strings = {
   chooseThreadContext: "選擇主題閱讀。瀏覽版塊會保留目前主題和寫作。",
   search: "搜尋",
   saved: "收藏",
+  messages: "私訊",
+  messagesHeading: "私人對話",
+  messagesEffects:
+    "載入私訊可能清除論壇的新私訊提示，但不表示對話已讀。不會自動載入。對話預覽僅在目前頁面保留，重新載入頁面後請主動載入。",
+  loadMessages: "載入私訊",
+  refreshMessages: "重新整理私訊",
+  messagesNativeHistory:
+    "私訊記錄在原生論壇開啟。此處尚不提供閱讀記錄或傳送私訊。",
+  messagesPeerNative: "開啟與 {value} 的私人對話 — 前往原生論壇",
+  messagesUnread: "論壇將此對話標為未讀",
+  messagesPages: "私訊列表分頁",
   notices: "通知",
   drafts: "草稿",
   browseBoards: "瀏覽版塊",
@@ -897,7 +931,7 @@ const traditional: Strings = {
   noticeUnreadAbsent: "回應沒有傳回未讀提示。目前未讀數量未知。",
   noticeUnreadUnknown: "無法識別傳回的未讀提示。目前未讀數量未知。",
   deferredNotices:
-    "私訊、廣播和原版動態操作請繼續前往論壇。標準壇友互動通知包含在清單中。",
+    "私訊記錄、廣播和原版動態操作請繼續前往論壇。標準壇友互動通知包含在清單中。",
   nativePM: "私訊與廣播 — 前往原版論壇",
   nativeNotices: "通知操作 — 前往原版論壇",
   draftsHeading: "論壇草稿",
@@ -1045,6 +1079,80 @@ const descriptions: Record<string, readonly [string, string]> = {
       "返回的历史与当前主题、账号、筛选条件或相邻页面不符。",
       "傳回的歷史與目前主題、帳號、篩選條件或相鄰頁面不符。",
     ],
+  "This is not a supported message destination.": [
+    "不支持此私信地址。",
+    "不支援此私訊網址。",
+  ],
+  "This page was not offered by the current message list.": [
+    "当前私信列表没有提供此页面。",
+    "目前私訊清單沒有提供此頁面。",
+  ],
+  "A newer request replaced this message load. It may still have cleared the new-private-message prompt.":
+    [
+      "较新的请求取代了此次私信加载。新私信提示仍可能已被清除。",
+      "較新的請求取代了此次私訊載入。新私訊提示仍可能已被清除。",
+    ],
+  "The account changed while loading messages. Previous messages were cleared. This request may still have had read effects.":
+    [
+      "加载私信时账号改变，先前的私信已清除。此次请求仍可能影响已读状态。",
+      "載入私訊時帳號改變，先前的私訊已清除。此次請求仍可能影響已讀狀態。",
+    ],
+  "The message request failed. It may still have cleared the new-private-message prompt. Retry only deliberately.":
+    [
+      "私信请求失败，新私信提示仍可能已被清除。请主动决定是否重试。",
+      "私訊請求失敗，新私訊提示仍可能已被清除。請主動決定是否重試。",
+    ],
+  "Messages must be loaded deliberately. Loading may clear the new-private-message prompt.":
+    [
+      "请主动加载私信，加载可能清除新私信提示。",
+      "請主動載入私訊，載入可能清除新私訊提示。",
+    ],
+  "The forum returned an unsupported private-message list. The new-message prompt may still have been cleared.":
+    [
+      "论坛返回了不支持的私信列表，新私信提示仍可能已被清除。",
+      "論壇傳回不支援的私訊清單，新私訊提示仍可能已被清除。",
+    ],
+  "The private-message response could not be interpreted. The new-message prompt may still have been cleared.":
+    [
+      "无法解析私信响应，新私信提示仍可能已被清除。",
+      "無法解析私訊回應，新私訊提示仍可能已被清除。",
+    ],
+  "Native verification is required before loading messages.": [
+    "加载私信前需要前往原生论坛完成验证。",
+    "載入私訊前需要前往原生論壇完成驗證。",
+  ],
+  "Sign in through the native forum before loading messages deliberately.": [
+    "请先在原生论坛登录，再主动加载私信。",
+    "請先在原生論壇登入，再主動載入私訊。",
+  ],
+  "The current account cannot read these messages.": [
+    "当前账号无权阅读这些私信。",
+    "目前帳號無權閱讀這些私訊。",
+  ],
+  "The forum is limiting message requests. Retry only deliberately.": [
+    "论坛正在限制私信请求。请主动决定是否重试。",
+    "論壇正在限制私訊請求。請主動決定是否重試。",
+  ],
+  "The private-message list or its current account could not be confirmed.": [
+    "无法确认私信列表或其当前账号。",
+    "無法確認私訊清單或其目前帳號。",
+  ],
+  "The private-message list could not be recognized. Continue in the native forum.":
+    [
+      "无法识别私信列表，请前往原生论坛。",
+      "無法識別私訊清單，請前往原生論壇。",
+    ],
+  "The private-message peers could not be identified completely. Continue in the native forum.":
+    [
+      "无法完整识别私信对象，请前往原生论坛。",
+      "無法完整識別私訊對象，請前往原生論壇。",
+    ],
+  "The returned private-message pagination could not be preserved completely. Continue in the native forum.":
+    [
+      "无法完整保留论坛返回的私信分页，请前往原生论坛。",
+      "無法完整保留論壇傳回的私訊分頁，請前往原生論壇。",
+    ],
+
   "The writing context or account changed while reading files. Select them again for the current writing.":
     [
       "读取文件时编辑上下文或账号已改变。请为当前编辑重新选择文件。",

@@ -272,6 +272,27 @@ function result(value: unknown): boolean {
       Object.values(search.edited).every((value) => list(value, string))
     );
   }
+  if (value.kind === "messages") {
+    const messages = value.messages;
+    return (
+      object(messages) &&
+      destination(messages.url) &&
+      string(messages.empty) &&
+      pages(messages.pages) &&
+      list(
+        messages.peers,
+        (peer) =>
+          object(peer) &&
+          id(peer.id) &&
+          id(peer.peerId) &&
+          string(peer.name) &&
+          url(peer.url, true) &&
+          string(peer.preview) &&
+          string(peer.time) &&
+          typeof peer.unread === "boolean",
+      )
+    );
+  }
   if (value.kind === "notices") {
     const notices = value.notices;
     return (
@@ -456,9 +477,14 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
       !object(entry) ||
       (entry.section !== undefined &&
         (typeof entry.section !== "string" ||
-          !["boards", "search", "saved", "notices", "drafts"].includes(
-            entry.section,
-          ))) ||
+          ![
+            "boards",
+            "search",
+            "saved",
+            "notices",
+            "messages",
+            "drafts",
+          ].includes(entry.section))) ||
       entry.key !== entryKey ||
       !destination(entry.destination) ||
       !(

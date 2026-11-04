@@ -153,6 +153,21 @@ export interface Notices {
   empty: string;
   unread: { kind: "observed"; count: number } | { kind: "absent" | "unknown" };
 }
+export interface MessagePeer {
+  id: string;
+  peerId: string;
+  name: string;
+  url: string;
+  preview: string;
+  time: string;
+  unread: boolean;
+}
+export interface Messages {
+  url: string;
+  peers: MessagePeer[];
+  pages: Pagination;
+  empty: string;
+}
 export interface BoardLink extends ForumLink {
   id: string;
   description: string;
@@ -248,6 +263,13 @@ export interface Favorites {
   pages: { current: string; links: ForumLink[] };
 }
 export type ReadResult =
+  | {
+      kind: "messages";
+      messages: Messages;
+      account: Account;
+      generation: number;
+      sourceURL: string;
+    }
   | {
       kind: "favorites";
       favorites: Favorites;
@@ -385,6 +407,11 @@ export interface ForumClient {
   ): Promise<FavoritePreparation>;
   changeFavorite(attempt: FavoriteAttempt): Promise<FavoriteAttempt>;
   checkFavoriteResult(attempt: FavoriteAttempt): Promise<FavoriteAttempt>;
+  readMessages(
+    destination: string,
+    prior?: Messages,
+    expectedAccount?: Account,
+  ): Promise<ReadResult>;
   readNotices(
     destination: string,
     prior?: Notices,

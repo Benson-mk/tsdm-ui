@@ -49,9 +49,15 @@ const accountKey = (account: Account) =>
       ? "guest"
       : null;
 const success = (result: ReadResult) =>
-  ["thread", "board", "directory", "search", "notices", "favorites"].includes(
-    result.kind,
-  );
+  [
+    "thread",
+    "board",
+    "directory",
+    "search",
+    "notices",
+    "messages",
+    "favorites",
+  ].includes(result.kind);
 export function createWorkspace(
   client: ForumClient,
   destination: string,
@@ -417,7 +423,19 @@ export function createWorkspace(
     );
     const current = ++saveSequence;
     const context = record.writing;
-    const saved = await host.save(record);
+    // Private peer previews belong to this document, not page-session recovery.
+    // Keep the safe destination and existing writing in the single record owner.
+    const saved = await host.save({
+      ...record,
+      entries: Object.fromEntries(
+        Object.entries(record.entries).map(([key, entry]) => [
+          key,
+          entry.result?.kind === "messages"
+            ? { ...entry, result: null }
+            : entry,
+        ]),
+      ),
+    });
     if (current === saveSequence) {
       state.value = { ...state.value, recoveryAvailable: saved };
       writing.acknowledge(context?.id ?? null, context?.revision ?? 0, saved);
@@ -501,7 +519,7 @@ export function createWorkspace(
   }
   function newEntry(url: string, originKey: string | null): NavigationEntry {
     const previous = originKey ? entryFor(originKey) : undefined;
-    const browsingBoard = ["board", "directory"].includes(
+    const browsingList = ["board", "directory", "messages"].includes(
       routeFor(url)?.kind ?? "",
     );
     const choosingThread = ["thread", "redirect"].includes(
@@ -510,7 +528,7 @@ export function createWorkspace(
     const previousReadingKey =
       previous?.result?.kind === "thread" ? previous.key : previous?.readingKey;
     const entry: NavigationEntry = {
-      readingKey: browsingBoard ? (previousReadingKey ?? null) : null,
+      readingKey: browsingList ? (previousReadingKey ?? null) : null,
       key: crypto.randomUUID(),
       section:
         routeFor(url)?.kind === "favorites" ||
@@ -530,12 +548,12 @@ export function createWorkspace(
       originKey: originKey && entryFor(originKey) ? originKey : null,
       selection: null,
       position:
-        previous && (browsingBoard || choosingThread)
+        previous && (browsingList || choosingThread)
           ? {
               anchor: null,
               offset: 0,
               scrollTop: 0,
-              readingScrollTop: browsingBoard
+              readingScrollTop: browsingList
                 ? (previous.position?.readingScrollTop ?? 0)
                 : 0,
               resultsScrollTop: choosingThread
@@ -564,14 +582,14 @@ export function createWorkspace(
       for (const entry of Object.values(record.entries))
         if (
           entry.result &&
-          ["notices", "favorites"].includes(entry.result.kind)
+          ["notices", "messages", "favorites"].includes(entry.result.kind)
         ) {
           entry.result = null;
           invalidated = true;
         }
       if (
         state.value.result &&
-        ["notices", "favorites"].includes(state.value.result.kind)
+        ["notices", "messages", "favorites"].includes(state.value.result.kind)
       )
         state.value = {
           ...state.value,
@@ -581,7 +599,7 @@ export function createWorkspace(
         };
       if (
         state.value.origin &&
-        ["notices", "favorites"].includes(state.value.origin.kind)
+        ["notices", "messages", "favorites"].includes(state.value.origin.kind)
       )
         state.value = { ...state.value, origin: null };
     }
@@ -748,6 +766,7 @@ export function createWorkspace(
       })
     )
       return;
+    if (routeFor(url)?.kind === "messages") return loadMessages(url);
     if (routeFor(url)?.kind === "notices") return loadNotices(url);
     clearDownload();
     const current = state.value.result;
@@ -790,6 +809,42 @@ export function createWorkspace(
       searchPage
         ? client.readSearchPage(url, searchPage.search, searchPage.account)
         : undefined,
+    );
+  }
+  async function loadMessages(url?: string) {
+    if (state.value.loading) return;
+    if (
+      writing.deferViewChange(() => {
+        void loadMessages(url);
+      })
+    )
+      return;
+    const current =
+      state.value.result?.kind === "messages"
+        ? state.value.result
+        : state.value.origin?.kind === "messages"
+          ? state.value.origin
+          : null;
+    const destinationURL =
+      url ??
+      current?.messages.url ??
+      (routeFor(state.value.destination)?.kind === "messages"
+        ? state.value.destination
+        : `${new URL(destination).origin}/home.php?mod=space&do=pm`);
+    clearDownload();
+    writing.hide();
+    capture();
+    const entry = newEntry(destinationURL, state.value.key || null);
+    entry.section = "messages";
+    if (current) {
+      entry.result = current;
+      entry.account = accountKey(current.account);
+    }
+    host.push(entry.key);
+    show(entry);
+    await read(
+      entry,
+      client.readMessages(destinationURL, current?.messages, current?.account),
     );
   }
   async function loadNotices(url?: string) {
@@ -947,6 +1002,14 @@ export function createWorkspace(
       return;
     }
     const initial = new URL(destination);
+    if (routeFor(destination)?.kind === "messages") {
+      const entry = newEntry(destination, null);
+      entry.section = "messages";
+      host.replace(entry.key);
+      show(entry);
+      void persist();
+      return;
+    }
     if (routeFor(destination)?.kind === "notices") {
       const entry = newEntry(destination, null);
       entry.section = "notices";
@@ -994,6 +1057,7 @@ export function createWorkspace(
     await read(entry);
   }
   async function refresh() {
+    if (state.value.section === "messages") return loadMessages();
     if (
       state.value.section === "notices" &&
       state.value.result?.kind !== "thread"
@@ -1071,6 +1135,7 @@ export function createWorkspace(
     },
     openSection,
     loadNotices,
+    loadMessages,
     writing,
     resetRecovery: () => {
       host.resetRecovery();

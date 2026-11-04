@@ -1,6 +1,7 @@
 import type { WritingContext } from "./writing";
 import type { ReadResult } from "../forum-client";
-export type Section = "boards" | "search" | "saved" | "notices" | "drafts";
+export type Section =
+  "boards" | "search" | "saved" | "notices" | "messages" | "drafts";
 export interface ViewPosition {
   anchor: string | null;
   offset: number;
