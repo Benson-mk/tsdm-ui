@@ -456,6 +456,9 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
         entry.originKey === null ||
         (key(entry.originKey) && Object.hasOwn(entries, entry.originKey))
       ) ||
+      (entry.readingKey !== undefined &&
+        entry.readingKey !== null &&
+        !(key(entry.readingKey) && Object.hasOwn(entries, entry.readingKey))) ||
       !nullableString(entry.selection) ||
       !nullableString(entry.account) ||
       !(entry.documentNavigations === 0 || entry.documentNavigations === 1) ||
@@ -469,7 +472,13 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
         nullableString(position.anchor) &&
         finite(position.offset) &&
         finite(position.scrollTop) &&
-        position.scrollTop >= 0)
+        position.scrollTop >= 0 &&
+        (position.readingScrollTop === undefined ||
+          (finite(position.readingScrollTop) &&
+            position.readingScrollTop >= 0)) &&
+        (position.resultsScrollTop === undefined ||
+          (finite(position.resultsScrollTop) &&
+            position.resultsScrollTop >= 0)))
     ))
       return false;
   }

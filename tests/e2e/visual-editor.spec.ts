@@ -789,7 +789,7 @@ test("J5.editor-diagnostic-language-change: an existing refusal follows language
     .fill("[unknown]原文[/unknown] unchanged");
   await applyFormatting(page, "emoticon", "invalid");
   for (const locale of [editorLocales[1], editorLocales[2], editorLocales[0]]) {
-    await page.locator(".workspace > header button").first().click();
+    await page.getByRole("button", { name: /^(Settings|设置|設定)$/ }).click();
     await page.locator("#interface-language").selectOption(locale.language);
     await page.keyboard.press("Escape");
     await expect(

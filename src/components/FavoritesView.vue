@@ -17,15 +17,6 @@ const emit = defineEmits<{
 const t = (value: string) => favoriteText(value, props.language);
 </script>
 <template>
-  <nav class="boards-navigation pane" :aria-label="t('Saved kinds')">
-    <h2>{{ t("Saved") }}</h2>
-    <button :disabled="loading" @click="emit('load', 'thread')">
-      {{ t("Load saved threads") }}
-    </button>
-    <button :disabled="loading" @click="emit('load', 'forum')">
-      {{ t("Load saved boards") }}
-    </button>
-  </nav>
   <section
     v-if="!boardTarget"
     class="overview pane favorites-pane"

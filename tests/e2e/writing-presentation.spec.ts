@@ -695,3 +695,45 @@ test("UX57.browser-composition-control: a browser composition without a size int
   });
   await browser.detach();
 });
+
+test("IM65.writing-board-browse: browsing a board retains the same visible editor, complete source and original reply target", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const state = await open(page);
+  await enter(page, "addressed");
+  const editor = page.getByLabel("Complete source", { exact: true });
+  await editor.fill(retained);
+  const identity = await editor.elementHandle();
+  const before = state.requests.length;
+  await page
+    .locator(".boards-navigation")
+    .getByRole("link", { name: "Music discussion", exact: true })
+    .click();
+  await expect(page.locator(".results-pane")).toBeVisible();
+  await expect(editor).toBeVisible();
+  await expect(editor).toHaveValue(retained);
+  expect(await identity!.evaluate((node) => node.isConnected)).toBe(true);
+  const saved = await stored(page);
+  expect(saved.replyTarget.threadId).toBe("42");
+  expect(saved.replyTarget.postId).toBe("101");
+  expect(state.requests.slice(before)).toHaveLength(1);
+  expect(
+    state.requests
+      .slice(before)
+      .every(
+        (request) =>
+          request.method === "GET" && request.url.includes("mod=forumdisplay"),
+      ),
+  ).toBe(true);
+  const presentationCount = state.requests.length;
+  for (const name of [
+    "Boards pane",
+    "Threads pane",
+    "Boards pane",
+    "Threads pane",
+  ])
+    await page.getByRole("button", { name, exact: true }).click();
+  await expect(editor).toHaveValue(retained);
+  expect(state.requests).toHaveLength(presentationCount);
+});

@@ -17,7 +17,12 @@ const account =
 const nativeProse = "最近下载了很多电影，话说大家有什么电影推荐的？";
 const nativeBody = `${nativeProse}<br>国产的外国的都可以<br><br>谢谢，<br>以上`;
 const body = `${nativeBody}<p>${prose}</p><p><a href="${longURL}">${longURL}</a></p><blockquote>Quoted listener<blockquote>Nested complete quote<blockquote>Third quote complete.</blockquote></blockquote></blockquote><pre><code>${code}</code></pre><table><caption>Complete track credits</caption><tr>${Array.from({ length: 12 }, (_, i) => `<th>Column ${i}</th>`).join("")}</tr><tr>${Array.from({ length: 12 }, (_, i) => `<td>Full credit ${i}</td>`).join("")}</tr></table><p><a href="${threadURL}&authorid=9&ordertype=1">An authored filtered-thread reference</a></p><p>Before unsupported formatting.</p><font>First retained format.</font><font>Second retained format.</font><div><font>Third retained format.</font></div><marquee>Distinct unsupported content retained.</marquee><iframe src="https://evil.example/">Interactive fallback retained.</iframe><div hidden>Withheld native content must stay withheld.</div><div class="locked">Read permission 20 required.</div><p>After unsupported formatting.</p>`;
-function fixture(ambiguous = false, minimal = false, foreignProfile = false) {
+function fixture(
+  ambiguous = false,
+  minimal = false,
+  foreignProfile = false,
+  typography = false,
+) {
   const post = (
     id: number,
     name: string,
@@ -25,7 +30,7 @@ function fixture(ambiguous = false, minimal = false, foreignProfile = false) {
     content: string,
   ) =>
     `<div id="post_${id}"><div class="authi">${uid ? `<a href="${foreignProfile ? "https://elsewhere.example/" : ""}home.php?mod=space&uid=${uid}">${name}</a>` : name}</div><a id="postnum${id}" href="${threadURL}#pid${id}">${id - 100}</a><em id="authorposton${id}">2026-11-03 12:34</em><div class="pcb"><p>Native content before the message.</p><div class="t_fsz"><table><tbody><tr><td class="t_f" id="postmessage_${id}">${content}</td></tr></tbody></table></div><p>Native amendment after the message.</p><div class="attach_nopermission">Native attachment permission remains visible.</div></div></div>`;
-  return `${account}<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music discussion</a></div><div id="postlist"><h1 id="thread_subject">${title}</h1>${post(101, longAuthor, "9", minimal ? nativeBody : body)}${post(102, ambiguous ? "Conflicting identity" : "Reader Seven", ambiguous ? "9" : "7", "<font>Separate post retained.</font><font>Separate post second.</font>")}${post(103, "Unknown native author", null, "<p>Unknown complete post.</p><table><tr><td>Authored one-cell table retained.</td></tr></table>")}</div><div class="pg"><strong>3</strong><a href="${threadURL}&page=4&authorid=9">4</a></div><div class="pi"><div class="pti"><div class="authi"><a href="${filterURL}">Only this author</a><a href="${unknownURL}">Only this author</a><a href="${threadURL}&ordertype=1">Reverse order</a></div></div></div>`;
+  return `${account}<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music discussion</a></div><div id="postlist"><h1 id="thread_subject">${title}</h1>${post(101, longAuthor, "9", minimal ? nativeBody : (typography ? "<h2>Semantic heading two</h2><h3>Semantic heading three</h3><h4>Semantic heading four</h4><h5>Semantic heading five</h5><h6>Semantic heading six</h6><p>Inline <code>code</code></p>" : "") + body)}${post(102, ambiguous ? "Conflicting identity" : "Reader Seven", ambiguous ? "9" : "7", "<font>Separate post retained.</font><font>Separate post second.</font>")}${post(103, "Unknown native author", null, "<p>Unknown complete post.</p><table><tr><td>Authored one-cell table retained.</td></tr></table>")}</div><div class="pg"><strong>3</strong><a href="${threadURL}&page=4&authorid=9">4</a></div><div class="pi"><div class="pti"><div class="authi"><a href="${filterURL}">Only this author</a><a href="${unknownURL}">Only this author</a><a href="${threadURL}&ordertype=1">Reverse order</a></div></div></div>`;
 }
 const ledgers = new WeakMap<Page, string[]>();
 async function open(
@@ -33,6 +38,7 @@ async function open(
   ambiguous = false,
   minimal = false,
   foreignProfile = false,
+  typography = false,
 ) {
   const requests: string[] = [];
   ledgers.set(page, requests);
@@ -55,7 +61,7 @@ async function open(
     return route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        document: fixture(ambiguous, minimal, foreignProfile),
+        document: fixture(ambiguous, minimal, foreignProfile, typography),
       }),
     });
   });
@@ -172,11 +178,11 @@ for (const [width, height, textSize, theme, language] of [
     expect(
       await article
         .locator("header strong")
-        .evaluate((node) => parseFloat(getComputedStyle(node).fontSize)),
+        .evaluate((node) => parseFloat(getComputedStyle(node).fontWeight)),
     ).toBeGreaterThan(
       await article
         .locator("header time")
-        .evaluate((node) => parseFloat(getComputedStyle(node).fontSize)),
+        .evaluate((node) => parseFloat(getComputedStyle(node).fontWeight)),
     );
     expect(
       await article
@@ -410,4 +416,58 @@ test("UX55.filter-provenance: pagination carrying author context stays paginatio
         .getByRole("link", { name: "4", exact: true }),
     ).toHaveAttribute("href", `${threadURL}&page=4&authorid=9`);
   }
+});
+
+test("IM65.rich-type: semantic headings code and author roles follow DESIGN and scale once with Text size", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const requests = await open(page, false, false, false, true);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const roles: [string, number, string, number][] = [
+    ["#pid101 .post-author", 14, "540", 1.45],
+    ["#pid101 .post-content h2", 26, "540", 1.35],
+    ["#pid101 .post-content h3", 24, "700", 1.45],
+    ["#pid101 .post-content h4", 18, "540", 1.45],
+    ["#pid101 .post-content h5", 18, "540", 1.45],
+    ["#pid101 .post-content h6", 18, "540", 1.45],
+    ["#pid101 .post-content pre", 14, "400", 1.7],
+    ["#pid101 .post-content pre code", 14, "400", 1.7],
+    ["#pid101 .post-content p > code", 14, "400", 1.7],
+  ];
+  const measurements: unknown[] = [];
+  for (const size of [70, 100, 150]) {
+    await page
+      .getByRole("slider", { name: "Text size", exact: true })
+      .fill(String(size));
+    for (const [selector, baseline, weight, line] of roles) {
+      const metrics = await page
+        .locator(selector)
+        .first()
+        .evaluate((node) => {
+          const style = getComputedStyle(node);
+          return {
+            size: parseFloat(style.fontSize),
+            weight: style.fontWeight,
+            line: parseFloat(style.lineHeight),
+            tracking: style.letterSpacing,
+          };
+        });
+      measurements.push({ textSize: size, selector, ...metrics });
+      expect
+        .soft(metrics.size, `${selector} at ${size}%`)
+        .toBeCloseTo((baseline * size) / 100, 2);
+      expect.soft(metrics.weight, selector).toBe(weight);
+      expect
+        .soft(metrics.line, selector)
+        .toBeCloseTo(((baseline * size) / 100) * line, 2);
+      expect.soft(metrics.tracking, selector).toBe("normal");
+    }
+  }
+  await page.keyboard.press("Escape");
+  expect(requests).toHaveLength(1);
+  await info.attach("semantic-type.json", {
+    body: JSON.stringify(measurements),
+    contentType: "application/json",
+  });
 });

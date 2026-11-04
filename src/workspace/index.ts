@@ -20,6 +20,7 @@ export interface WorkspaceState {
   section: Section;
   loading: boolean;
   result: ReadResult | null;
+  reading: Extract<ReadResult, { kind: "thread" }> | null;
   failure: ReadResult | null;
   destination: string;
   key: string;
@@ -96,6 +97,7 @@ export function createWorkspace(
     section: "boards",
     loading: false,
     result: null,
+    reading: null,
     failure: null,
     destination,
     key: "",
@@ -134,8 +136,8 @@ export function createWorkspace(
   );
   async function prepareDownload(postId: string, attachmentId: string) {
     if (download.value?.status === "checking") return;
-    const result = state.value.result;
-    if (result?.kind !== "thread") return;
+    const result = state.value.reading;
+    if (!result) return;
     const attachment = result.thread.posts
       .find((post) => post.id === postId)
       ?.attachments?.find((item) => item.id === attachmentId);
@@ -391,6 +393,18 @@ export function createWorkspace(
     }
     return null;
   }
+  function readingFor(entry: NavigationEntry) {
+    const result =
+      entry.result?.kind === "thread"
+        ? entry.result
+        : entry.readingKey
+          ? entryFor(entry.readingKey)?.result
+          : null;
+    return result?.kind === "thread" &&
+      (knownAccount === null || accountKey(result.account) === knownAccount)
+      ? result
+      : null;
+  }
   function show(entry: NavigationEntry, restored = false) {
     const mismatch =
       knownAccount !== null &&
@@ -411,6 +425,7 @@ export function createWorkspace(
       key: entry.key,
       destination: entry.destination,
       result: mismatch ? null : entry.result,
+      reading: mismatch ? null : readingFor(entry),
       failure: null,
       loading: false,
       selection: entry.selection,
@@ -435,7 +450,17 @@ export function createWorkspace(
     );
   }
   function newEntry(url: string, originKey: string | null): NavigationEntry {
+    const previous = originKey ? entryFor(originKey) : undefined;
+    const browsingBoard = ["board", "directory"].includes(
+      routeFor(url)?.kind ?? "",
+    );
+    const choosingThread = ["thread", "redirect"].includes(
+      routeFor(url)?.kind ?? "",
+    );
+    const previousReadingKey =
+      previous?.result?.kind === "thread" ? previous.key : previous?.readingKey;
     const entry: NavigationEntry = {
+      readingKey: browsingBoard ? (previousReadingKey ?? null) : null,
       key: crypto.randomUUID(),
       section:
         routeFor(url)?.kind === "favorites" ||
@@ -454,7 +479,20 @@ export function createWorkspace(
       destination: url,
       originKey: originKey && entryFor(originKey) ? originKey : null,
       selection: null,
-      position: null,
+      position:
+        previous && (browsingBoard || choosingThread)
+          ? {
+              anchor: null,
+              offset: 0,
+              scrollTop: 0,
+              readingScrollTop: browsingBoard
+                ? (previous.position?.readingScrollTop ?? 0)
+                : 0,
+              resultsScrollTop: choosingThread
+                ? (previous.position?.resultsScrollTop ?? 0)
+                : 0,
+            }
+          : null,
       result: null,
       account: null,
       documentNavigations: 0,
@@ -499,6 +537,11 @@ export function createWorkspace(
     }
     if (observed) {
       knownAccount = observed;
+      if (
+        state.value.reading &&
+        accountKey(state.value.reading.account) !== observed
+      )
+        state.value = { ...state.value, reading: null };
       if (
         state.value.result &&
         accountKey(state.value.result.account) !== observed
@@ -609,6 +652,7 @@ export function createWorkspace(
       state.value = {
         ...state.value,
         result,
+        reading: readingFor(entry),
         loading: false,
         missing: false,
         failure: null,
@@ -658,7 +702,7 @@ export function createWorkspace(
       updateAnchor(requested.url.hash);
       return;
     }
-    writing.hide();
+    if (!["board", "directory"].includes(requested?.kind ?? "")) writing.hide();
     capture();
     const previous = entryFor(state.value.key);
     if (previous && selection) previous.selection = selection;
@@ -737,6 +781,7 @@ export function createWorkspace(
       ...state.value,
       destination: entry.destination,
       result: entry.result,
+      reading: readingFor(entry),
     };
     void nextTick().then(() =>
       view?.restore(null, hash.slice(4), entry.selection),
@@ -764,6 +809,7 @@ export function createWorkspace(
         stale: false,
         canBack: false,
         origin: null,
+        reading: null,
       };
     void persist();
   }
@@ -910,7 +956,7 @@ export function createWorkspace(
       })
     )
       return;
-    writing.hide();
+    if (section !== "boards") writing.hide();
     if (section === "boards")
       return openThread(`${new URL(destination).origin}/forum.php`);
     if (

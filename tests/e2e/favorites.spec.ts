@@ -1,3 +1,4 @@
+import { revealNavigation } from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -615,11 +616,12 @@ for (const width of [1100, 390])
     await page.setViewportSize({ width, height: 850 });
     const server = await mutationFixture(page, "thread");
     server.present = true;
-    if (width === 390)
+    if (width === 390) {
+      await revealNavigation(page);
       await page
         .getByRole("combobox", { name: "Main destinations", exact: true })
         .selectOption("saved");
-    else
+    } else
       await page
         .getByRole("navigation", { name: "Main destinations", exact: true })
         .getByRole("button", { name: "Saved", exact: true })

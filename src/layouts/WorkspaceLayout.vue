@@ -26,12 +26,31 @@ import { strings, insert, description } from "./strings";
 import type { Section } from "../workspace/navigation";
 const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
 const state = props.workspace.state;
+const reading = computed(() => state.value.reading);
+const boardsCollapsed = ref(false);
+const threadsCollapsed = ref(false);
+function togglePane(pane: "boards" | "threads") {
+  const change = () => {
+    const positions = capturePositions();
+    if (pane === "boards") boardsCollapsed.value = !boardsCollapsed.value;
+    else threadsCollapsed.value = !threadsCollapsed.value;
+    void nextTick().then(() => restorePositions(positions, true));
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
+watch(
+  () => state.value.result,
+  (result) => {
+    if (result?.kind === "board" || result?.kind === "directory")
+      threadsCollapsed.value = false;
+  },
+);
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
 const threadFilters = computed(() => {
-  const result = state.value.result;
-  if (result?.kind !== "thread") return [];
+  const result = reading.value;
+  if (!result) return [];
   return result.thread.filters.map((filter) => {
     const url = new URL(filter.url);
     const authorId = url.searchParams.get("authorid");
@@ -350,15 +369,14 @@ const favoriteContext = computed(() =>
 );
 const threadWithoutResults = computed(
   () =>
-    state.value.result?.kind === "thread" &&
+    reading.value !== null &&
+    state.value.result?.kind !== "directory" &&
     !boardContext.value &&
     !searchContext.value &&
     !favoriteContext.value &&
     !noticeContext.value,
 );
-const selectedThread = computed(() =>
-  state.value.result?.kind === "thread" ? state.value.result.thread.id : null,
-);
+const selectedThread = computed(() => reading.value?.thread.id ?? null);
 const noticeContext = computed(() =>
   state.value.section !== "notices"
     ? null
@@ -432,7 +450,7 @@ function changeAboutOpen(value: boolean) {
 const inspectRecovery = ref(false),
   confirmReset = ref(false);
 const missingTarget = computed(() => {
-  const result = state.value.result;
+  const result = reading.value;
   return (
     result?.kind === "thread" &&
     result.thread.target &&
@@ -460,8 +478,8 @@ function navigate(event: MouseEvent) {
     link.href.includes("tsdm-native")
   )
     return;
-  const current = state.value.result;
-  if (current?.kind === "thread") {
+  const current = reading.value;
+  if (current) {
     const post = current.thread.posts.find(
       (item) => `pid${item.id}` === link.closest("article")?.id,
     );
@@ -568,17 +586,32 @@ onMounted(() => {
         anchor: anchor?.id ?? null,
         offset: anchor?.getBoundingClientRect().top ?? 0,
         scrollTop: container?.scrollTop ?? root.scrollTop,
+        readingScrollTop:
+          root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")
+            ?.scrollTop ?? 0,
+        resultsScrollTop:
+          root.shadowRoot?.querySelector<HTMLElement>(".results-pane")
+            ?.scrollTop ?? 0,
       };
     },
     restore(position, target, selection) {
       stopReadingImageRestore?.();
-      if (writing.value.visible) return;
+
       const container = pane();
       if (container) container.scrollTop = position?.scrollTop ?? 0;
+      const reader =
+        root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
+      const results =
+        root.shadowRoot?.querySelector<HTMLElement>(".results-pane");
+      if (reader && position?.readingScrollTop !== undefined)
+        reader.scrollTop = position.readingScrollTop;
+      if (results && position?.resultsScrollTop !== undefined)
+        results.scrollTop = position.resultsScrollTop;
       const node = target
         ? root.shadowRoot?.getElementById(`pid${target}`)
         : null;
-      if (node && !position) node.scrollIntoView({ block: "start" });
+      if (node && (!position || position.readingScrollTop === 0))
+        node.scrollIntoView({ block: "start" });
       if (
         !position &&
         !state.value.loading &&
@@ -600,7 +633,9 @@ onMounted(() => {
         followPendingReadingImages(
           container,
           node,
-          position?.scrollTop ?? null,
+          target && position?.readingScrollTop === 0
+            ? null
+            : (position?.scrollTop ?? null),
         );
     },
   });
@@ -626,6 +661,24 @@ function boardIdFrom(url: string) {
     <header>
       <a class="brand" href="https://www.tsdm39.com/">TSDM</a
       ><span class="header-account">{{ accountLabel }}</span>
+      <button
+        v-if="!compactNavigation"
+        :aria-label="text.boardsPane"
+        :aria-expanded="!boardsCollapsed"
+        aria-controls="boards-pane"
+        @click="togglePane('boards')"
+      >
+        {{ text.boards }}
+      </button>
+      <button
+        v-if="!compactNavigation"
+        :aria-label="text.threadsPane"
+        :aria-expanded="!threadsCollapsed"
+        aria-controls="thread-list-pane"
+        @click="togglePane('threads')"
+      >
+        {{ text.threadResults }}
+      </button>
       <SettingsDialog :workspace="workspace" :portal="portal" />
       <button
         v-if="compactNavigation"
@@ -1127,48 +1180,85 @@ function boardIdFrom(url: string) {
       v-show="!writing.visible || !writingExpanded"
       class="workspace-body"
       :class="{ 'thread-without-results': threadWithoutResults }"
+      :data-boards-collapsed="!compactNavigation && boardsCollapsed"
+      :data-threads-collapsed="!compactNavigation && threadsCollapsed"
       :data-view="state.result?.kind ?? 'unavailable'"
     >
-      <nav :aria-label="text.mainDestinations" class="main-destinations pane">
-        <button
-          v-for="section in sections"
-          :key="section"
-          :aria-current="state.section === section ? 'page' : undefined"
-          @click="workspace.openSection(section)"
+      <div
+        v-show="compactNavigation || !boardsCollapsed"
+        id="boards-pane"
+        class="boards-region pane"
+      >
+        <nav :aria-label="text.mainDestinations" class="main-destinations">
+          <button
+            v-for="section in sections"
+            :key="section"
+            :aria-current="state.section === section ? 'page' : undefined"
+            @click="workspace.openSection(section)"
+          >
+            {{ text[section] }}
+          </button>
+        </nav>
+        <nav
+          v-if="state.section === 'boards'"
+          :aria-label="text.boardsNavigation"
+          class="boards-navigation pane"
         >
-          {{ text[section] }}
-        </button>
-      </nav>
-      <nav
-        v-if="state.section === 'boards'"
-        :aria-label="text.boardsNavigation"
-        class="boards-navigation pane"
-      >
-        <h2>{{ text.browseBoards }}</h2>
-        <a href="https://www.tsdm39.com/forum.php">{{ text.allBoards }}</a
-        ><a v-if="boardContext" :href="boardContext.url">{{
-          boardContext.title
-        }}</a
-        ><a
-          v-else-if="
-            state.result?.kind === 'thread' && state.result.thread.parent
-          "
-          :href="state.result.thread.parent.url"
-          >{{ state.result.thread.parent.label }}</a
-        ><a v-for="board in boardChoices" :key="board.url" :href="board.url">{{
-          board.label
-        }}</a>
-      </nav>
-      <nav
-        v-if="sectionInfo"
-        class="boards-navigation pane"
-        :aria-label="text.sectionNavigation"
-      >
-        <h2>{{ sectionInfo.title }}</h2>
-        <p v-for="label in sectionInfo.secondary" :key="label">{{ label }}</p>
-      </nav>
+          <h2>{{ text.browseBoards }}</h2>
+          <a href="https://www.tsdm39.com/forum.php">{{ text.allBoards }}</a
+          ><a v-if="boardContext" :href="boardContext.url">{{
+            boardContext.title
+          }}</a
+          ><a
+            v-else-if="reading?.thread.parent"
+            :href="reading.thread.parent.url"
+            >{{ reading.thread.parent.label }}</a
+          ><a
+            v-for="board in boardChoices"
+            :key="board.url"
+            :href="board.url"
+            >{{ board.label }}</a
+          >
+        </nav>
+        <nav
+          v-if="sectionInfo"
+          class="boards-navigation pane"
+          :aria-label="text.sectionNavigation"
+        >
+          <h2>{{ sectionInfo.title }}</h2>
+          <p v-for="label in sectionInfo.secondary" :key="label">{{ label }}</p>
+        </nav>
+        <nav
+          v-if="state.section === 'search'"
+          class="boards-navigation pane"
+          :aria-label="text.searchNavigation"
+        >
+          <h2>{{ text.search }}</h2>
+          <a href="https://www.tsdm39.com/search.php?mod=forum&adv=yes">{{
+            text.newSearch
+          }}</a>
+          <p>{{ text.deliberateSearch }}</p>
+        </nav>
+        <nav
+          v-if="state.section === 'notices'"
+          class="boards-navigation pane notices-navigation"
+          :aria-label="text.noticeCategories"
+        >
+          <h2>{{ text.notices }}</h2>
+          <a
+            v-for="category in noticeContext?.categories ?? []"
+            :key="category.url"
+            :href="category.url"
+            :aria-current="category.current ? 'page' : undefined"
+            >{{ category.label }}</a
+          >
+          <p v-if="!noticeContext">{{ text.noticesHeading }}</p>
+        </nav>
+      </div>
       <section
         v-if="sectionInfo"
+        v-show="compactNavigation || !threadsCollapsed"
+        id="thread-list-pane"
         class="overview pane"
         data-scroll-pane="overview"
       >
@@ -1259,19 +1349,10 @@ function boardIdFrom(url: string) {
           text.native
         }}</a>
       </section>
-      <nav
-        v-if="state.section === 'search'"
-        class="boards-navigation pane"
-        :aria-label="text.searchNavigation"
-      >
-        <h2>{{ text.search }}</h2>
-        <a href="https://www.tsdm39.com/search.php?mod=forum&adv=yes">{{
-          text.newSearch
-        }}</a>
-        <p>{{ text.deliberateSearch }}</p>
-      </nav>
       <SearchView
         v-if="searchContext"
+        v-show="compactNavigation || !threadsCollapsed"
+        id="thread-list-pane"
         :search="searchContext"
         :language="workspace.preferences.state.value.language"
         :secondary="state.result?.kind === 'thread'"
@@ -1282,6 +1363,8 @@ function boardIdFrom(url: string) {
       />
       <FavoritesView
         v-if="state.section === 'saved'"
+        v-show="compactNavigation || !threadsCollapsed"
+        id="thread-list-pane"
         :favorites="favoriteContext"
         :secondary="state.result?.kind === 'thread'"
         :board-target="state.result?.kind === 'board'"
@@ -1300,6 +1383,8 @@ function boardIdFrom(url: string) {
       />
       <NoticesView
         v-if="state.section === 'notices'"
+        v-show="compactNavigation || !threadsCollapsed"
+        id="thread-list-pane"
         :notices="noticeContext"
         :loading="state.loading"
         :language="workspace.preferences.state.value.language"
@@ -1307,23 +1392,10 @@ function boardIdFrom(url: string) {
         :selection="state.selection"
         @load="workspace.loadNotices()"
       />
-      <nav
-        v-if="state.section === 'notices'"
-        class="boards-navigation pane notices-navigation"
-        :aria-label="text.noticeCategories"
-      >
-        <h2>{{ text.notices }}</h2>
-        <a
-          v-for="category in noticeContext?.categories ?? []"
-          :key="category.url"
-          :href="category.url"
-          :aria-current="category.current ? 'page' : undefined"
-          >{{ category.label }}</a
-        >
-        <p v-if="!noticeContext">{{ text.noticesHeading }}</p>
-      </nav>
       <section
         v-if="state.section === 'boards' && state.result?.kind === 'directory'"
+        v-show="compactNavigation || !threadsCollapsed"
+        id="thread-list-pane"
         class="overview pane"
         data-scroll-pane="overview"
         :aria-label="text.boardsOverview"
@@ -1385,6 +1457,8 @@ function boardIdFrom(url: string) {
       </section>
       <section
         v-if="boardContext"
+        v-show="compactNavigation || !threadsCollapsed"
+        id="thread-list-pane"
         class="results-pane pane"
         :class="{ 'secondary-results': state.result?.kind === 'thread' }"
         data-scroll-pane="results"
@@ -1474,34 +1548,47 @@ function boardIdFrom(url: string) {
         </nav>
       </section>
       <section
-        v-if="
-          ['boards', 'search', 'notices', 'saved'].includes(state.section) &&
-          state.result?.kind === 'thread'
-        "
+        v-if="threadWithoutResults"
+        v-show="compactNavigation || !threadsCollapsed"
+        id="thread-list-pane"
+        class="results-placeholder pane"
+      >
+        <h2>{{ text.threadResults }}</h2>
+        <p>{{ text.chooseThreadContext }}</p>
+        <a v-if="reading?.thread.parent" :href="reading.thread.parent.url">{{
+          reading.thread.parent.label
+        }}</a>
+      </section>
+      <section
+        v-if="state.section === 'boards' && !reading"
+        class="reader-placeholder pane"
+      >
+        <p>{{ text.chooseThreadContext }}</p>
+      </section>
+      <section
+        v-if="reading"
         class="reading-pane pane"
         data-scroll-pane="reading"
         :aria-label="text.threadReading"
       >
         <section class="thread-heading">
-          <p class="eyebrow">{{ text.thread }} {{ state.result.thread.id }}</p>
-          <h1>{{ state.result.thread.title }}</h1>
-          <p v-if="!state.result.thread.pages.links.length">
-            {{ text.page }} {{ state.result.thread.pages.current }}
+          <p class="eyebrow">{{ text.thread }} {{ reading.thread.id }}</p>
+          <h1>{{ reading.thread.title }}</h1>
+          <p v-if="!reading.thread.pages.links.length">
+            {{ text.page }} {{ reading.thread.pages.current }}
           </p>
-          <a
-            v-if="state.result.thread.parent"
-            :href="state.result.thread.parent.url"
-            >{{ state.result.thread.parent.label }}</a
-          >
+          <a v-if="reading.thread.parent" :href="reading.thread.parent.url">{{
+            reading.thread.parent.label
+          }}</a>
         </section>
         <nav
-          v-if="state.result.thread.pages.links.length"
+          v-if="reading.thread.pages.links.length"
           class="thread-top-pages"
           :aria-label="text.threadPagesTop"
         >
-          <span>{{ text.page }} {{ state.result.thread.pages.current }}</span>
+          <span>{{ text.page }} {{ reading.thread.pages.current }}</span>
           <a
-            v-for="link in state.result.thread.pages.links"
+            v-for="link in reading.thread.pages.links"
             :key="link.url"
             :href="link.url"
             >{{ link.label }}</a
@@ -1516,22 +1603,22 @@ function boardIdFrom(url: string) {
           >
         </nav>
         <p v-if="missingTarget" role="alert">
-          {{ insert(text.missingPost, state.result.thread.target ?? "") }}
+          {{ insert(text.missingPost, reading.thread.target ?? "") }}
         </p>
         <p
-          v-for="notice in state.result.thread.notices"
+          v-for="notice in reading.thread.notices"
           :key="notice"
           class="permission-notice"
         >
           {{ notice }}
         </p>
         <button
-          v-if="state.result.thread.parent"
+          v-if="reading.thread.parent"
           @click="
             workspace.writing.prepareReply(
-              boardIdFrom(state.result.thread.parent.url),
+              boardIdFrom(reading.thread.parent.url),
               {
-                threadId: state.result.thread.id,
+                threadId: reading.thread.id,
                 postId: null,
                 author: '',
                 authorId: null,
@@ -1542,11 +1629,11 @@ function boardIdFrom(url: string) {
           {{ text.replyToThread }}
         </button>
         <article
-          v-for="post in state.result.thread.posts"
+          v-for="post in reading.thread.posts"
           :id="`pid${post.id}`"
           :key="post.id"
           :aria-label="`${text.post} ${post.id}`"
-          :data-targeted="state.result.thread.target === post.id"
+          :data-targeted="reading.thread.target === post.id"
           tabindex="-1"
         >
           <header class="post-header">
@@ -1564,9 +1651,9 @@ function boardIdFrom(url: string) {
           />
           <footer
             v-if="
-              state.result.thread.parent ||
-              (state.result.account.kind === 'member' &&
-                post.authorId === state.result.account.id) ||
+              reading.thread.parent ||
+              (reading.account.kind === 'member' &&
+                post.authorId === reading.account.id) ||
               threadFilters.some(
                 (filter) =>
                   filter.authorId === post.authorId && filter.authorId !== null,
@@ -1575,12 +1662,12 @@ function boardIdFrom(url: string) {
             class="post-actions"
           >
             <button
-              v-if="state.result.thread.parent"
+              v-if="reading.thread.parent"
               @click="
                 workspace.writing.prepareReply(
-                  boardIdFrom(state.result.thread.parent.url),
+                  boardIdFrom(reading.thread.parent.url),
                   {
-                    threadId: state.result.thread.id,
+                    threadId: reading.thread.id,
                     postId: post.id,
                     author: post.author,
                     authorId: post.authorId,
@@ -1592,11 +1679,11 @@ function boardIdFrom(url: string) {
             </button>
             <button
               v-if="
-                state.result.account.kind === 'member' &&
-                post.authorId === state.result.account.id
+                reading.account.kind === 'member' &&
+                post.authorId === reading.account.id
               "
               @click="
-                workspace.writing.prepareEdit(state.result.thread.url, post.id)
+                workspace.writing.prepareEdit(reading.thread.url, post.id)
               "
             >
               {{ insert(text.editPost, post.id) }}
@@ -1652,21 +1739,12 @@ function boardIdFrom(url: string) {
         </article>
         <nav :aria-label="text.pages">
           <a
-            v-for="link in state.result.thread.pages.links"
+            v-for="link in reading.thread.pages.links"
             :key="link.url"
             :href="link.url"
             >{{ link.label }}</a
           >
         </nav>
-      </section>
-      <section
-        v-if="state.result?.kind === 'board'"
-        class="board-overview pane"
-      >
-        <h2>{{ text.chooseThread }}</h2>
-        <p>
-          {{ text.chooseThreadDescription }}
-        </p>
       </section>
     </main>
   </div>

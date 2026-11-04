@@ -147,14 +147,15 @@ test("J2.sidebar-short-window: populated board navigation stays vertical and its
   const links = navigation.getByRole("link");
   await expect(links).toHaveCount(37);
   const initial = await navigation.evaluate((element) => {
-    const pane = element.getBoundingClientRect();
+    const owner = element.closest(".boards-region") ?? element;
+    const pane = owner.getBoundingClientRect();
     return {
       left: pane.left,
       right: pane.right,
       clientWidth: element.clientWidth,
       scrollWidth: element.scrollWidth,
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight,
+      clientHeight: owner.clientHeight,
+      scrollHeight: owner.scrollHeight,
       links: [...element.querySelectorAll("a")].map((link) => {
         const rect = link.getBoundingClientRect();
         return {
@@ -198,7 +199,7 @@ test("J2.sidebar-short-window: populated board navigation stays vertical and its
   });
   await expect(lastChoice).toBeFocused();
   const focused = await lastChoice.evaluate((element) => {
-    const pane = element.closest("nav")!;
+    const pane = element.closest(".boards-region") ?? element.closest("nav")!;
     const bounds = pane.getBoundingClientRect();
     const rect = element.getBoundingClientRect();
     return {
@@ -1233,7 +1234,7 @@ test("J5.appearance-pinned-locales: generated row labels translate while returne
     ["zh-TW", "置頂"],
     ["en", "Pinned"],
   ]) {
-    await page.locator(".workspace > header button").first().click();
+    await page.getByRole("button", { name: /^(Settings|设置|設定)$/ }).click();
     await page.locator("#interface-language").selectOption(locale!);
     await page.keyboard.press("Escape");
     await expect(page.getByText(label!, { exact: true })).toBeVisible();

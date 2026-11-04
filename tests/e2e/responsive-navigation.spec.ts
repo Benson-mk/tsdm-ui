@@ -120,7 +120,7 @@ test("UX53.compact-reader: disclosed navigation preserves retained writing, focu
   });
 });
 
-test("UX53.result-context: direct arrival reclaims space while populated board results restore exact context", async ({
+test("UX53.result-context: direct arrival has useful list navigation while populated board results restore exact context", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -128,7 +128,7 @@ test("UX53.result-context: direct arrival reclaims space while populated board r
   const direct = await page
     .locator(".reading-pane")
     .evaluate((node) => node.getBoundingClientRect().left);
-  expect(direct).toBeLessThan(400);
+  expect(direct).toBe(516);
   await page
     .locator(".boards-navigation")
     .getByRole("link", { name: "Music discussion 音樂", exact: true })

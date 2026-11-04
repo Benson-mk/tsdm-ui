@@ -274,20 +274,10 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
           .soft(sample.readingWidth)
           .toBeGreaterThanOrEqual(Math.min(width, 320));
         expect.soft(sample.readingHeight).toBeGreaterThan(160);
-        expect.soft(sample.secondary).toBe(width >= 1280);
+        expect.soft(sample.secondary).toBe(width >= 960);
         expect.soft(sample.picker).toBe(width >= 960 && width < 1280);
         expect.soft(sample.results).toBe(width >= 960);
-        expect
-          .soft(sample.rowPadding)
-          .toBe(
-            size < 100
-              ? width < 960
-                ? "12px"
-                : "12px 16px"
-              : width < 960
-                ? "16px"
-                : "16px 24px",
-          );
+        expect.soft(sample.rowPadding).toBe("12px 16px");
         expect
           .soft(sample.rangeSpacing)
           .toBe(size < 100 ? "compact" : "default");
@@ -740,9 +730,9 @@ test("J5.appearance-roles: nested roles scale exactly once and compose with a la
     [".brand", 32],
     [".post-content > p", 18],
     [".post-content blockquote p", 18],
-    [".post-content pre code", 16],
+    [".post-content pre code", 14],
     ["article header", 14],
-    [".thread-heading h1", 32],
+    [".thread-heading h1", 24],
     [".dialog-content p", 18],
     [".dialog-content h2", 24],
     [".boards-navigation a", 16],
@@ -998,7 +988,7 @@ test("J5.appearance-palettes-spacing: four palettes share exact Compact metrics 
       expect(metrics.rangeAccent).toBe(
         theme === "Dark" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       );
-      expect(metrics.postPadding).toBe(size < 100 ? "16px" : "32px");
+      expect(metrics.postPadding).toBe(size < 100 ? "16px 0px" : "24px 0px");
       expect(metrics.paragraphGap).toBeCloseTo(
         metrics.font * (size < 100 ? 0.75 : 1),
         1,

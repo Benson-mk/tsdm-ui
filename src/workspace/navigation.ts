@@ -5,9 +5,12 @@ export interface ViewPosition {
   anchor: string | null;
   offset: number;
   scrollTop: number;
+  readingScrollTop?: number;
+  resultsScrollTop?: number;
 }
 export interface NavigationEntry {
   section?: Section;
+  readingKey?: string | null;
   key: string;
   destination: string;
   originKey: string | null;
