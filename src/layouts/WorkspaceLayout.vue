@@ -1826,7 +1826,10 @@ function boardIdFrom(url: string) {
           }}</a>
         </section>
       </Teleport>
-      <div class="conversation-region">
+      <div
+        class="conversation-region"
+        :data-writing-visible="!!writing.context && writing.visible"
+      >
         <section
           v-if="!reading && !state.privateReading && !pendingPrivate"
           class="reader-placeholder pane"

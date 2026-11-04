@@ -1651,3 +1651,104 @@ select {
     padding-inline: 16px;
   }
 }
+
+/* Safe insets belong to exposed surfaces, never to the whole canvas. */
+:host {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: max(
+    env(safe-area-max-inset-bottom, 0px),
+    env(safe-area-inset-bottom, 0px)
+  );
+}
+.workspace > header {
+  min-height: calc(56px + var(--safe-top));
+  padding-top: calc(6px + var(--safe-top));
+  padding-left: max(16px, var(--safe-left));
+  padding-right: max(16px, var(--safe-right));
+  background: var(--surface);
+}
+:host .workspace-body > .boards-region {
+  padding-left: max(12px, var(--safe-left));
+  padding-bottom: calc(12px + var(--safe-bottom));
+}
+.workspace-body > #thread-list-pane {
+  padding-bottom: calc(20px + var(--safe-bottom));
+}
+.workspace-body[data-boards-collapsed="true"] > #thread-list-pane {
+  padding-left: max(16px, var(--safe-left));
+}
+.conversation-region {
+  --edge-left: 0px;
+  --conversation-gutter: 24px;
+  --composer-bottom: 12px;
+}
+.workspace-body[data-boards-collapsed="true"][data-threads-collapsed="true"]
+  > .conversation-region {
+  --edge-left: var(--safe-left);
+}
+:host .conversation-region > .conversation-heading,
+:host .conversation-region > .reading-pane,
+:host .conversation-region > .reader-placeholder,
+:host .conversation-region > .source-writing,
+:host .conversation-region > .retained-writing {
+  padding-left: max(var(--conversation-gutter), var(--edge-left));
+  padding-right: max(var(--conversation-gutter), var(--safe-right));
+}
+:host .conversation-region > .source-writing {
+  padding-bottom: calc(var(--composer-bottom) + var(--safe-bottom));
+}
+.conversation-region[data-writing-visible="false"] {
+  padding-bottom: var(--safe-bottom);
+  background: var(--surface);
+}
+@media (max-width: 559px) {
+  .conversation-region {
+    --conversation-gutter: 16px;
+    --composer-bottom: 8px;
+  }
+}
+.dialog-content {
+  left: calc(
+    var(--safe-left) + (100% - var(--safe-left) - var(--safe-right)) / 2
+  );
+  top: calc(
+    var(--safe-top) + (100% - var(--safe-top) - var(--safe-bottom)) / 2
+  );
+  width: min(520px, calc(100% - var(--safe-left) - var(--safe-right) - 32px));
+  max-height: calc(100% - var(--safe-top) - var(--safe-bottom) - 32px);
+}
+.pane-drawer {
+  width: min(340px, calc(100% - var(--safe-right) - 32px));
+  padding-bottom: var(--safe-bottom);
+}
+.pane-drawer-heading {
+  padding-top: calc(12px + var(--safe-top));
+  padding-left: max(12px, var(--safe-left));
+}
+:host .pane-drawer-content > .pane {
+  padding-left: max(16px, var(--safe-left));
+}
+:host .pane-drawer-content > .boards-region {
+  padding-left: max(12px, var(--safe-left));
+}
+.workspace-status > p,
+.workspace-status > section {
+  padding-left: max(24px, var(--safe-left));
+  padding-right: max(24px, var(--safe-right));
+}
+.conversation-status {
+  padding-left: max(var(--conversation-gutter), var(--edge-left));
+  padding-right: max(var(--conversation-gutter), var(--safe-right));
+}
+@media (max-width: 559px) {
+  .workspace-status > p,
+  .workspace-status > section {
+    padding-left: max(12px, var(--safe-left));
+    padding-right: max(12px, var(--safe-right));
+  }
+}
+.conversation-region {
+  scroll-padding-bottom: calc(12px + var(--safe-bottom));
+}

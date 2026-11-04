@@ -1,3 +1,4 @@
+import { ownBrowserChrome } from "./hosts/browser-chrome";
 import { createBrowserDownloads } from "./hosts/download";
 import { createApp } from "vue";
 import { createForumClient, describeDestination } from "./forum-client";
@@ -47,6 +48,7 @@ if (
   shadow.append(style, mount, portal);
   document.body.append(root);
   let restoreNative = () => {};
+  let restoreChrome = () => {};
   try {
     const workspace = createWorkspace(
       createForumClient({
@@ -58,9 +60,12 @@ if (
       createBrowserPreferences(),
       createBrowserDownloads(),
     );
-    recover = async () =>
+    recover = async () => {
+      restoreChrome();
       location.assign(nativeDestination(workspace.state.value.destination));
+    };
     createApp(WorkspaceLayout, { workspace, portal }).mount(mount);
+    restoreChrome = ownBrowserChrome(root);
     root.style.visibility = "visible";
     window.addEventListener("hashchange", () =>
       workspace.updateAnchor(location.hash),
@@ -68,6 +73,7 @@ if (
     restoreNative = suspendNativeBackground(root);
     void workspace.start();
   } catch {
+    restoreChrome();
     restoreNative();
     root.remove();
     const recovery = document.createElement("a");
