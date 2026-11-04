@@ -342,6 +342,14 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
       : [];
   });
 }
+let readingSaveTimer: ReturnType<typeof setTimeout> | undefined;
+function saveReadingPosition() {
+  if (readingSaveTimer) clearTimeout(readingSaveTimer);
+  readingSaveTimer = setTimeout(
+    () => props.workspace.saveReadingPosition(),
+    150,
+  );
+}
 function rememberPositions() {
   if (
     window.innerWidth !== viewportWidth ||
@@ -397,6 +405,12 @@ onMounted(() => {
     rememberPositions,
     true,
   );
+  workspaceHost().shadowRoot!.addEventListener(
+    "scroll",
+    saveReadingPosition,
+    true,
+  );
+  window.addEventListener("pagehide", props.workspace.saveReadingPosition);
   window.addEventListener("resize", resize);
 });
 onUnmounted(() => {
@@ -405,6 +419,13 @@ onUnmounted(() => {
     rememberPositions,
     true,
   );
+  if (readingSaveTimer) clearTimeout(readingSaveTimer);
+  workspaceHost().shadowRoot!.removeEventListener(
+    "scroll",
+    saveReadingPosition,
+    true,
+  );
+  window.removeEventListener("pagehide", props.workspace.saveReadingPosition);
   window.removeEventListener("resize", resize);
 });
 watch(

@@ -522,6 +522,43 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
       !(entry.result === null || result(entry.result))
     )
       return false;
+    if (entry.readingMarker !== undefined) {
+      const marker = entry.readingMarker;
+      if (
+        !object(marker) ||
+        !finite(marker.savedAt) ||
+        marker.savedAt < 0 ||
+        !string(marker.url) ||
+        !destination(marker.url) ||
+        !string(marker.account) ||
+        marker.account !== entry.account ||
+        !object(marker.position) ||
+        !object(entry.result) ||
+        entry.result.kind !== "thread" ||
+        !object(entry.result.thread)
+      )
+        return false;
+      const target = describeDestination(marker.url);
+      const source = new URL(String(entry.result.thread.url));
+      const targetURL = new URL(marker.url);
+      if (
+        target?.kind !== "thread" ||
+        targetURL.searchParams.get("tid") !== entry.result.thread.id ||
+        targetURL.searchParams.get("authorid") !==
+          source.searchParams.get("authorid") ||
+        (targetURL.searchParams.get("ordertype") ?? "0") !==
+          (source.searchParams.get("ordertype") ?? "0") ||
+        [...targetURL.searchParams.keys()].some((name) =>
+          /^(?:formhash|token|auth|password|sid)$/i.test(name),
+        ) ||
+        !string(marker.position.anchor) ||
+        !/^pid[1-9]\d*$/.test(marker.position.anchor) ||
+        !finite(marker.position.offset) ||
+        !finite(marker.position.scrollTop) ||
+        marker.position.scrollTop < 0
+      )
+        return false;
+    }
     const position = entry.position;
     if (!(
       position === null ||

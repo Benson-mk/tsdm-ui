@@ -110,7 +110,7 @@ test("IM65.desktop: three fixed regions collapse independently and preserve the 
 });
 test("IM65.browse: another board and filter retain reading while history restores both contexts", async ({
   page,
-}) => {
+}, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const ledger = await open(page);
   const results = page.locator(".results-pane");
@@ -130,6 +130,13 @@ test("IM65.browse: another board and filter retain reading while history restore
     node.scrollTop = 700;
   });
   const readerOffset = await reader.evaluate((node) => node.scrollTop);
+  const anchor = await reader.evaluate((node) => {
+    const top = node.getBoundingClientRect().top;
+    const post = [...node.querySelectorAll("article[id]")].find(
+      (item) => item.getBoundingClientRect().bottom > top,
+    )!;
+    return { id: post.id, top: post.getBoundingClientRect().top };
+  });
   await page
     .locator(".boards-navigation")
     .getByRole("link", { name: "All boards", exact: true })
@@ -145,7 +152,7 @@ test("IM65.browse: another board and filter retain reading while history restore
     results.getByRole("heading", { name: "Animation discussion", exact: true }),
   ).toBeVisible();
   await expect(
-    reader.getByRole("heading", { name: "Thread 50", exact: true }),
+    page.getByRole("heading", { name: "Thread 50", exact: true }),
   ).toBeVisible();
   expect(await reader.evaluate((node) => node.scrollTop)).toBe(readerOffset);
   await expect(results.locator(".thread-row")).toHaveCount(0);
@@ -171,9 +178,17 @@ test("IM65.browse: another board and filter retain reading while history restore
     results.getByRole("heading", { name: "Animation discussion", exact: true }),
   ).toBeVisible();
   await expect(
-    reader.getByRole("heading", { name: "Thread 50", exact: true }),
+    page.getByRole("heading", { name: "Thread 50", exact: true }),
   ).toBeVisible();
-  expect(await reader.evaluate((node) => node.scrollTop)).toBe(readerOffset);
+  const restored = await page.locator(`#${anchor.id}`).evaluate((node) => ({
+    top: node.getBoundingClientRect().top,
+    scrollTop: node.closest(".reading-pane")!.scrollTop,
+  }));
+  await info.attach("reload-reading-anchor.json", {
+    body: JSON.stringify({ anchor, readerOffset, restored }),
+    contentType: "application/json",
+  });
+  expect(Math.abs(restored.top - anchor.top)).toBeLessThanOrEqual(1);
   expect(ledger).toHaveLength(before);
 });
 for (const theme of ["light", "alias", "mono", "dark"]) {

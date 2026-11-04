@@ -9,7 +9,15 @@ export interface ViewPosition {
   readingScrollTop?: number;
   resultsScrollTop?: number;
 }
+export interface ReadingMarker {
+  savedAt: number;
+  url: string;
+  account: string;
+  position: ViewPosition;
+}
 export interface NavigationEntry {
+  readingMarker?: ReadingMarker;
+
   section?: Section;
   readingKey?: string | null;
   drafts?: Extract<DraftListResult, { kind: "drafts" }> | null;

@@ -1,5 +1,5 @@
 import { createPrivateHistory } from "./private-history";
-import { createThreadHistory } from "./thread-history";
+import { createThreadHistory, threadContext } from "./thread-history";
 import type { DownloadHost, PreparedFile } from "../hosts/download";
 import { createWriting } from "./writing";
 import { shallowRef, readonly, nextTick, watch } from "vue";
@@ -458,7 +458,37 @@ export function createWorkspace(
 
   function capture() {
     const entry = entryFor(state.value.key);
-    if (entry && view) entry.position = view.capture();
+    if (entry && view) {
+      entry.position = view.capture();
+      const position = view.captureReading();
+      threadHistory.remember(position);
+      const readingEntry =
+        entry.result?.kind === "thread"
+          ? entry
+          : entry.readingKey
+            ? entryFor(entry.readingKey)
+            : null;
+      const current = threadHistory.state.value.result;
+      const url = position.anchor
+        ? threadHistory.sourceFor(position.anchor.slice(3))
+        : null;
+      const account = current ? accountKey(current.account) : null;
+      if (
+        readingEntry &&
+        url &&
+        account &&
+        /^pid[1-9]\d*$/.test(position.anchor ?? "") &&
+        ![...new URL(url).searchParams.keys()].some((name) =>
+          /^(?:formhash|token|auth|password|sid)$/i.test(name),
+        )
+      )
+        readingEntry.readingMarker = {
+          url,
+          account,
+          position,
+          savedAt: Date.now(),
+        };
+    }
   }
   async function persist() {
     record.favoriteAttempts = JSON.parse(
@@ -543,7 +573,14 @@ export function createWorkspace(
         : (entry.readingKey ?? ""),
     );
     const readingPosition =
-      retained || retainedPrivate ? view?.captureReading() : null;
+      retained || retainedPrivate
+        ? view?.captureReading()
+        : (threadHistory.rememberedPosition() ??
+          (entry.result?.kind === "thread"
+            ? entry.readingMarker?.position
+            : entry.readingKey
+              ? entryFor(entry.readingKey)?.readingMarker?.position
+              : null));
     ++draftSequence;
     drafts.value = {
       loading: false,
@@ -554,6 +591,7 @@ export function createWorkspace(
             : (entry.drafts ?? null)
           : drafts.value.result,
     };
+
     state.value = {
       ...state.value,
       section:
@@ -717,6 +755,7 @@ export function createWorkspace(
       state.value = { ...state.value, privateReading: null };
     }
     if (observed) {
+      threadHistory.invalidateAccount(observed);
       if (
         threadHistory.state.value.result &&
         accountKey(threadHistory.state.value.result.account) !== observed
@@ -746,12 +785,17 @@ export function createWorkspace(
       for (const other of Object.values(record.entries))
         if (other.result && other.account && other.account !== observed) {
           other.result = null;
+          delete other.readingMarker;
           invalidated = true;
         }
     }
     return invalidated;
   }
-  async function read(entry: NavigationEntry, submitted?: Promise<ReadResult>) {
+  async function read(
+    entry: NavigationEntry,
+    submitted?: Promise<ReadResult>,
+    restoreRemembered = false,
+  ) {
     const current = ++sequence;
     threadHistory.cancelPending();
     privateHistory.cancelPending();
@@ -839,7 +883,10 @@ export function createWorkspace(
         result.kind !== "private-conversation",
       );
       const readingPosition =
-        retained || retainedPrivate ? view?.captureReading() : null;
+        retained || retainedPrivate
+          ? view?.captureReading()
+          : threadHistory.rememberedPosition();
+
       entry.account = observed;
       if (result.kind === "search" && result.search.results)
         entry.destination = result.search.results.url;
@@ -885,6 +932,21 @@ export function createWorkspace(
       };
     }
     void persist();
+    if (restoreRemembered && result.kind === "thread" && observed) {
+      const context = threadContext(result.thread.url, observed);
+      const marker = Object.values(record.entries)
+        .filter((other) => other !== entry)
+        .map((other) => other.readingMarker)
+        .filter(
+          (marker) =>
+            marker && threadContext(marker.url, marker.account) === context,
+        )
+        .sort((a, b) => b!.savedAt - a!.savedAt)[0];
+      if (marker) {
+        entry.readingMarker = marker;
+        await reconstructReading(entry);
+      }
+    }
   }
   const pendingThread = shallowRef<{
     url: string;
@@ -946,6 +1008,22 @@ export function createWorkspace(
     const entry = newEntry(url, previous?.key ?? null);
     entry.selection = selection;
     host.push(entry.key);
+    const explicitTarget =
+      requested?.kind === "thread" &&
+      (requested.url.searchParams.has("page") ||
+        requested.url.searchParams.has("pid") ||
+        !!requested.url.hash);
+    const retainedThread =
+      requested?.kind === "thread" && !explicitTarget && knownAccount
+        ? threadHistory.find(url, knownAccount)
+        : null;
+    if (retainedThread) {
+      entry.result = retainedThread;
+      entry.account = knownAccount;
+      show(entry);
+      void persist();
+      return;
+    }
     const searchContext =
       current?.kind === "search" ? current : state.value.origin;
     const searchPage =
@@ -965,6 +1043,7 @@ export function createWorkspace(
       searchPage
         ? client.readSearchPage(url, searchPage.search, searchPage.account)
         : undefined,
+      requested?.kind === "thread" && !explicitTarget,
     );
   }
   async function openPrivateConversation(
@@ -1128,8 +1207,10 @@ export function createWorkspace(
     ++sequence;
     capture();
     const entry = key ? entryFor(key) : null;
-    if (entry) show(entry, true);
-    else
+    if (entry) {
+      show(entry, true);
+      void reconstructReading(entry);
+    } else
       state.value = {
         ...state.value,
         section: "boards",
@@ -1145,6 +1226,73 @@ export function createWorkspace(
         reading: null,
         privateReading: null,
       };
+    void persist();
+  }
+  async function reconstructReading(entry: NavigationEntry) {
+    const readingEntry =
+      entry.result?.kind === "thread"
+        ? entry
+        : entry.readingKey
+          ? entryFor(entry.readingKey)
+          : null;
+    const marker = readingEntry?.readingMarker;
+    if (!readingEntry || !marker || readingEntry.result?.kind !== "thread")
+      return;
+    if (
+      threadHistory.state.value.result?.thread.posts.some(
+        (post) => `pid${post.id}` === marker.position.anchor,
+      )
+    ) {
+      if (threadHistory.rememberedPosition()) return;
+      await nextTick();
+      view?.restoreReading(marker.position);
+      return;
+    }
+    const expected = threadContext(marker.url, marker.account);
+    const current = ++sequence;
+    threadHistory.cancelPending();
+    state.value = { ...state.value, loading: true };
+    const result = await client.readPage(marker.url);
+    if (current !== sequence || result.kind === "stale") return;
+    writing.observe(result.account, result.kind !== "network");
+    observeAccount(result.account);
+    if (
+      result.kind !== "thread" ||
+      threadContext(result.thread.url, accountKey(result.account) ?? "") !==
+        expected
+    ) {
+      state.value = {
+        ...state.value,
+        loading: false,
+        failure:
+          result.kind === "thread"
+            ? {
+                kind: "invalid",
+                account: result.account,
+                generation: result.generation,
+                sourceURL: marker.url,
+                message:
+                  "The remembered reading position no longer matches this account, thread or filter. Use the returned page or continue in the native forum.",
+              }
+            : result,
+      };
+      void persist();
+      return;
+    }
+    const postId = marker.position.anchor!.slice(3);
+    result.thread.target = postId;
+    readingEntry.result = result;
+    const actual = new URL(result.thread.url);
+    actual.hash = `pid${postId}`;
+    readingEntry.destination = actual.href;
+    threadHistory.activate(result, readingEntry.key);
+    if (result.thread.posts.some((post) => post.id === postId))
+      threadHistory.remember(marker.position);
+    show(entry, true);
+    await nextTick();
+    if (result.thread.posts.some((post) => post.id === postId))
+      view?.restoreReading(marker.position);
+    else delete readingEntry.readingMarker;
     void persist();
   }
   async function start() {
@@ -1176,8 +1324,11 @@ export function createWorkspace(
     const key = host.entryKey();
     if (key) {
       const entry = entryFor(key);
-      if (entry) show(entry, true);
-      else state.value = { ...state.value, key, missing: true, restored: true };
+      if (entry) {
+        show(entry, true);
+        await reconstructReading(entry);
+      } else
+        state.value = { ...state.value, key, missing: true, restored: true };
       return;
     }
     const pending = record.pending;
@@ -1273,7 +1424,14 @@ export function createWorkspace(
     const entry = newEntry(destination, null);
     host.replace(entry.key);
     show(entry);
-    await read(entry);
+    await read(
+      entry,
+      undefined,
+      routeFor(destination)?.kind === "thread" &&
+        !initial.searchParams.has("page") &&
+        !initial.searchParams.has("pid") &&
+        !initial.hash,
+    );
   }
   async function refresh() {
     if (state.value.section === "messages") return loadMessages();
@@ -1330,6 +1488,12 @@ export function createWorkspace(
   }
   return {
     preferences,
+    saveReadingPosition: () => {
+      if (state.value.loading || !view || !threadHistory.state.value.result)
+        return;
+      capture();
+      void persist();
+    },
     threadHistory,
     privateHistory,
     drafts: readonly(drafts),

@@ -358,10 +358,23 @@ test("review.resend-double-refresh: pending acknowledged resend has new identity
   await page.reload();
   release();
   await expect(
-    page.getByText(/Pending draft save restored as uncertain/).last(),
+    page
+      .getByText(
+        /Pending draft save restored as uncertain|Draft saving may have succeeded/,
+      )
+      .last(),
   ).toBeVisible();
   expect(state.effects).toHaveLength(2);
-  expect((await writing(page)).draftAttempts).toHaveLength(2);
+  const attempts = (await writing(page)).draftAttempts!;
+  expect(attempts).toHaveLength(2);
+  expect(attempts.at(-1)).toMatchObject({
+    ...pending,
+    status: "uncertain",
+    checked: false,
+    message: expect.stringMatching(
+      /Pending draft save restored as uncertain|Draft saving may have succeeded/,
+    ),
+  });
 });
 for (const resumed of [false, true])
   test(`review.continue-${resumed ? "resumed" : "new"}: save outgoing revision before preparing owned edit`, async ({
@@ -606,12 +619,19 @@ test("review.publish-resend-refresh: pending explicit publication resend restore
   await expect(
     page
       .getByText(
-        "Pending draft publication restored as uncertain. Nothing was replayed.",
+        /Pending draft publication restored as uncertain|publication may have succeeded/,
       )
       .last(),
   ).toBeVisible();
   expect(state.effects).toHaveLength(3);
-  expect((await writing(page)).draftAttempts!.at(-1)!.checked).toBe(false);
+  expect((await writing(page)).draftAttempts!.at(-1)).toMatchObject({
+    ...pending,
+    status: "uncertain",
+    checked: false,
+    message: expect.stringMatching(
+      /Pending draft publication restored as uncertain|publication may have succeeded/,
+    ),
+  });
 });
 test("review.historical-check: checking a retained publication preserves an unrelated owned edit and its target", async ({
   page,

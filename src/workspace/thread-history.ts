@@ -16,15 +16,18 @@ export interface HistoryBoundary {
 }
 const actor = (account: Account) =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-function readingContext(result: ThreadResult) {
-  const url = new URL(result.thread.url);
+export function threadContext(urlValue: string, account: string) {
+  const url = new URL(urlValue);
   return [
     url.origin,
-    result.thread.id,
+    url.searchParams.get("tid") ?? "",
     url.searchParams.get("authorid") ?? "",
     url.searchParams.get("ordertype") ?? "0",
-    actor(result.account),
+    account,
   ].join("|");
+}
+function readingContext(result: ThreadResult) {
+  return threadContext(result.thread.url, actor(result.account));
 }
 function boundary(
   history: ThreadHistory | undefined,
@@ -67,6 +70,48 @@ export function createThreadHistory(
   let key = "";
   let pages = new Set<string>();
   let postPages = new Map<string, string>();
+  let original: ThreadResult | null = null;
+  let position: ViewPosition | null = null;
+  type RetainedRange = {
+    original: ThreadResult;
+    state: typeof state.value;
+    pages: Set<string>;
+    postPages: Map<string, string>;
+    position: ViewPosition | null;
+  };
+  const ranges = new Map<string, RetainedRange>();
+  const contexts = new Map<string, RetainedRange>();
+  let activeRange: RetainedRange | null = null;
+  function remember(nextPosition: ViewPosition | null) {
+    position = nextPosition;
+    const result = state.value.result;
+    if (result && original) {
+      const snapshot: RetainedRange = {
+        original,
+        state: {
+          ...state.value,
+          earlier:
+            state.value.earlier.status === "loading"
+              ? { ...state.value.earlier, status: "unloaded" }
+              : state.value.earlier,
+          later:
+            state.value.later.status === "loading"
+              ? { ...state.value.later, status: "unloaded" }
+              : state.value.later,
+        },
+        pages,
+        postPages,
+        position,
+      };
+      // Explicit history entries own a range. Ordinary returns alias that same
+      // object, so later loads remain shared without replacing another entry.
+      activeRange = activeRange
+        ? Object.assign(activeRange, snapshot)
+        : snapshot;
+      ranges.set(key, activeRange);
+      contexts.set(readingContext(result), activeRange);
+    }
+  }
   function activate(
     result: ReadResult | null,
     nextKey: string,
@@ -81,6 +126,30 @@ export function createThreadHistory(
       return true;
     epoch++;
     key = nextKey;
+    const ordinary =
+      result?.kind === "thread" ? contexts.get(readingContext(result)) : null;
+    const saved =
+      result?.kind === "thread" && retain
+        ? (ranges.get(nextKey) ??
+          (ordinary?.original === result ? ordinary : null))
+        : null;
+    if (saved) {
+      activeRange = saved;
+      ranges.set(nextKey, saved);
+      original = saved.original;
+      state.value = saved.state;
+      pages = saved.pages;
+      postPages = saved.postPages;
+      position = saved.position;
+      return false;
+    }
+    activeRange = null;
+    original = result?.kind === "thread" ? result : null;
+    position = null;
+    if (result?.kind === "thread" && !retain) {
+      ranges.delete(nextKey);
+      contexts.delete(readingContext(result));
+    }
     postPages = new Map(
       result?.kind === "thread"
         ? result.thread.posts.map((post) => [post.id, result.thread.url])
@@ -219,5 +288,14 @@ export function createThreadHistory(
     load,
     target,
     sourceFor: (postId: string) => postPages.get(postId) ?? null,
+    remember,
+    rememberedPosition: () => position,
+    find: (url: string, account: string) =>
+      contexts.get(threadContext(url, account))?.original ?? null,
+    invalidateAccount(account: string) {
+      for (const cache of [ranges, contexts])
+        for (const [identity, saved] of cache)
+          if (actor(saved.original.account) !== account) cache.delete(identity);
+    },
   };
 }

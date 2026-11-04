@@ -278,7 +278,7 @@ test("IM68.recovery-metadata: malformed newly optional history metadata is visib
   page,
 }) => {
   await open(page);
-  await page.evaluate(() => {
+  await page.context().addInitScript(() => {
     const record = JSON.parse(
       sessionStorage.getItem("tsdm.workspace.recovery")!,
     );
