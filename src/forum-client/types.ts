@@ -162,6 +162,29 @@ export interface MessagePeer {
   time: string;
   unread: boolean;
 }
+export interface PrivateMessage {
+  id: string;
+  senderId: string;
+  sender: string;
+  time: string;
+  body: ContentNode[];
+  url: string;
+}
+export interface PrivateConversation {
+  url: string;
+  peerId: string;
+  peerName: string;
+  totalCount: number;
+  messages: PrivateMessage[];
+  pages: Pagination;
+  earlier: ForumLink | null;
+  later: ForumLink | null;
+  beginning: boolean;
+  end: boolean;
+  target: string | null;
+  targetMissing: boolean;
+  empty: string;
+}
 export interface Messages {
   url: string;
   peers: MessagePeer[];
@@ -263,6 +286,13 @@ export interface Favorites {
   pages: { current: string; links: ForumLink[] };
 }
 export type ReadResult =
+  | {
+      kind: "private-conversation";
+      conversation: PrivateConversation;
+      account: Account;
+      generation: number;
+      sourceURL: string;
+    }
   | {
       kind: "messages";
       messages: Messages;
@@ -407,6 +437,11 @@ export interface ForumClient {
   ): Promise<FavoritePreparation>;
   changeFavorite(attempt: FavoriteAttempt): Promise<FavoriteAttempt>;
   checkFavoriteResult(attempt: FavoriteAttempt): Promise<FavoriteAttempt>;
+  readPrivateConversation(
+    destination: string,
+    prior?: PrivateConversation,
+    expectedAccount?: Account,
+  ): Promise<ReadResult>;
   readMessages(
     destination: string,
     prior?: Messages,

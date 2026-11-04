@@ -14,6 +14,7 @@ import SearchView from "../components/SearchView.vue";
 import { favoriteText } from "../components/favorite-labels";
 import FavoritesView from "../components/FavoritesView.vue";
 import MessagesView from "../components/MessagesView.vue";
+import PrivateConversationView from "../components/PrivateConversationView.vue";
 import NoticesView from "../components/NoticesView.vue";
 import SourceWriting from "../components/SourceWriting.vue";
 import WritingDestination from "../components/WritingDestination.vue";
@@ -28,7 +29,26 @@ import type { Section } from "../workspace/navigation";
 const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
 const state = props.workspace.state;
 const history = props.workspace.threadHistory.state;
-const reading = computed(() => history.value.result ?? state.value.reading);
+const privateHistory = props.workspace.privateHistory.state;
+const privateRecipientId = computed(
+  () => new URL(state.value.destination).searchParams.get("touid") ?? "",
+);
+const privateThreadChange = computed(() => {
+  const pending = props.workspace.pendingThread.value;
+  return (
+    pending && describeDestination(pending.url)?.kind === "private-conversation"
+  );
+});
+const pendingPrivate = computed(
+  () =>
+    describeDestination(state.value.destination)?.kind ===
+      "private-conversation" && !state.value.privateReading,
+);
+const reading = computed(() =>
+  state.value.privateReading
+    ? null
+    : (history.value.result ?? state.value.reading),
+);
 const boardsCollapsed = ref(false);
 const threadsCollapsed = ref(false);
 const paneWidth = ref(window.innerWidth);
@@ -166,7 +186,7 @@ watch(
         threadsCollapsed.value = false;
       if (
         (drawer.value === "boards" && result !== previous) ||
-        (!previous && !reading.value)
+        (!previous && !reading.value && !state.value.privateReading)
       )
         revealResults();
     }
@@ -176,16 +196,24 @@ watch(
   () => state.value.section,
   (section, previous) => {
     if (section !== previous) {
-      if (state.value.result?.kind === "thread") {
+      if (
+        ["thread", "private-conversation"].includes(
+          state.value.result?.kind ?? "",
+        )
+      ) {
         if (drawer.value) changeDrawer(null);
       } else revealResults();
     }
   },
 );
 watch(
-  () => state.value.reading,
-  (next, previous) => {
-    if (next && next !== previous && drawer.value === "threads")
+  () => [state.value.reading, state.value.privateReading] as const,
+  ([next, nextPrivate], [previous, previousPrivate]) => {
+    if (
+      ((next && next !== previous) ||
+        (nextPrivate && nextPrivate !== previousPrivate)) &&
+      drawer.value === "threads"
+    )
       changeDrawer(null);
   },
 );
@@ -656,6 +684,7 @@ function navigate(event: MouseEvent) {
     link.closest("[data-favorite-id]")?.getAttribute("data-favorite-id") ??
       link.closest("[data-notice-id]")?.getAttribute("data-notice-id") ??
       link.closest("[data-thread-id]")?.getAttribute("data-thread-id") ??
+      link.closest("[data-peer-id]")?.getAttribute("data-peer-id") ??
       null,
   );
 }
@@ -775,7 +804,7 @@ onMounted(() => {
   const root = (props.portal.getRootNode() as ShadowRoot).host as HTMLElement;
   const pane = () =>
     root.shadowRoot?.querySelector<HTMLElement>(
-      `[data-scroll-pane="${state.value.result?.kind === "thread" ? "reading" : state.value.result?.kind === "board" ? "results" : "overview"}"]`,
+      `[data-scroll-pane="${["thread", "private-conversation"].includes(state.value.result?.kind ?? "") || describeDestination(state.value.destination)?.kind === "private-conversation" ? "reading" : state.value.result?.kind === "board" ? "results" : "overview"}"]`,
     );
   const capturePane = (container: HTMLElement | null | undefined) => {
     const blocks =
@@ -795,8 +824,9 @@ onMounted(() => {
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")
           ?.scrollTop ?? 0,
       resultsScrollTop:
-        root.shadowRoot?.querySelector<HTMLElement>(".results-pane")
-          ?.scrollTop ?? 0,
+        root.shadowRoot?.querySelector<HTMLElement>(
+          ".results-pane, .messages-pane",
+        )?.scrollTop ?? 0,
     };
   };
   props.workspace.setViewAdapter({
@@ -827,14 +857,17 @@ onMounted(() => {
       if (container) container.scrollTop = position?.scrollTop ?? 0;
       const reader =
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
-      const results =
-        root.shadowRoot?.querySelector<HTMLElement>(".results-pane");
+      const results = root.shadowRoot?.querySelector<HTMLElement>(
+        ".results-pane, .messages-pane",
+      );
       if (reader && position?.readingScrollTop !== undefined)
         reader.scrollTop = position.readingScrollTop;
       if (results && position?.resultsScrollTop !== undefined)
         results.scrollTop = position.resultsScrollTop;
       const node = target
-        ? root.shadowRoot?.getElementById(`pid${target}`)
+        ? root.shadowRoot?.getElementById(
+            `${state.value.privateReading ? "pmlist_" : "pid"}${target}`,
+          )
         : position?.anchor
           ? root.shadowRoot?.getElementById(position.anchor)
           : null;
@@ -864,7 +897,8 @@ onMounted(() => {
             ?.getElementById(`row-${selection}`)
             ?.querySelector<HTMLElement>(".subject"))
         : null;
-      (node ?? selected)?.focus({ preventScroll: true });
+      if (!writing.value.visible && !writing.value.composing)
+        (node ?? selected)?.focus({ preventScroll: true });
       if (container && node)
         followPendingReadingImages(
           container,
@@ -910,7 +944,9 @@ function boardIdFrom(url: string) {
         >
           <DialogTitle>{{ text.threadChangeTitle }}</DialogTitle>
           <DialogDescription>{{
-            text.threadChangeDescription
+            privateThreadChange
+              ? text.privateChangeDescription
+              : text.threadChangeDescription
           }}</DialogDescription>
           <button
             @click="
@@ -921,7 +957,11 @@ function boardIdFrom(url: string) {
             {{ text.continueEditing }}
           </button>
           <button @click="workspace.retainWritingAndRead()">
-            {{ text.retainWritingRead }}
+            {{
+              privateThreadChange
+                ? text.retainWritingReadPrivate
+                : text.retainWritingRead
+            }}
           </button>
         </DialogContent>
       </DialogPortal>
@@ -1275,6 +1315,7 @@ function boardIdFrom(url: string) {
             'notices',
             'favorites',
             'messages',
+            'private-conversation',
           ].includes(state.result.kind)
         "
         class="notice"
@@ -1573,8 +1614,15 @@ function boardIdFrom(url: string) {
           v-if="state.section === 'messages'"
           v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
           id="thread-list-pane"
+          :selected="
+            state.privateReading?.conversation.peerId ?? state.selection
+          "
           :messages="
-            state.result?.kind === 'messages' ? state.result.messages : null
+            state.result?.kind === 'messages'
+              ? state.result.messages
+              : state.origin?.kind === 'messages'
+                ? state.origin.messages
+                : null
           "
           :loading="state.loading"
           :language="workspace.preferences.state.value.language"
@@ -1766,11 +1814,38 @@ function boardIdFrom(url: string) {
       </Teleport>
       <div class="conversation-region">
         <section
-          v-if="state.section === 'boards' && !reading"
+          v-if="state.section === 'boards' && !reading && !state.privateReading"
           class="reader-placeholder pane"
         >
           <p>{{ text.chooseThreadContext }}</p>
         </section>
+        <section
+          v-if="pendingPrivate"
+          class="reading-pane pane"
+          :aria-label="text.privateContext"
+        >
+          <h1>{{ text.privateContext }}</h1>
+          <p>{{ insert(text.privateRecipientId, privateRecipientId) }}</p>
+          <p>{{ text.privateReadEffects }}</p>
+          <p>{{ text.privateArrivalEffects }}</p>
+          <button
+            :disabled="state.loading"
+            @click="workspace.openThread(state.destination)"
+          >
+            {{ text.loadPrivateConversation }}</button
+          ><a :href="nativeDestination(state.destination)">{{ text.native }}</a>
+        </section>
+        <PrivateConversationView
+          v-if="state.privateReading"
+          :conversation="
+            privateHistory.result?.conversation ??
+            state.privateReading.conversation
+          "
+          :loading="privateHistory.loading"
+          :failure="privateHistory.failure"
+          :language="workspace.preferences.state.value.language"
+          @load="workspace.privateHistory.load($event)"
+        />
         <div v-if="reading" class="conversation-heading">
           <section class="thread-heading">
             <p class="eyebrow">{{ text.thread }} {{ reading.thread.id }}</p>

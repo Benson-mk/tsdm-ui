@@ -146,12 +146,33 @@ const english = {
     "Your writing stays attached to its original destination. Continue editing, or keep it for a deliberate return while reading this thread.",
   continueEditing: "Continue editing",
   retainWritingRead: "Keep writing and read thread",
+  retainWritingReadPrivate: "Keep writing and read private conversation",
+  privateChangeDescription:
+    "Your writing stays attached to its original destination. Continue editing, or keep it for a deliberate return while reading this private conversation. Opening it may mark it read.",
   boardsPane: "Boards pane",
   threadsPane: "Threads pane",
   chooseThreadContext:
     "Choose a thread to read. Browsing boards keeps your current thread and writing.",
   search: "Search",
   saved: "Saved",
+  privateRecipientId: "Recipient ID {value}",
+  loadPrivateConversation: "Load private conversation",
+  privateArrivalEffects:
+    "The native page may already have marked this conversation read before the workspace opened. No private request is repeated automatically.",
+  loadEarlierMessages: "Load earlier messages",
+  loadLaterMessages: "Load later messages",
+  privateHistoryComplete: "All known messages loaded",
+  privateHistoryUnknown:
+    "History boundaries are not yet confirmed. Only returned pages can be loaded.",
+  privateMissingTarget:
+    "The requested private message is not in this returned page. Use the returned pages or continue in the native forum.",
+  privateContext: "Private conversation",
+  privateConversation: "Private conversation with {value}",
+  readPrivateConversation: "Read private conversation with {value}",
+  privateReadEffects:
+    "Opening or fetching this private conversation may mark it read. Local position is not a server read receipt.",
+  privateSendingNative:
+    "Sending private messages is available in the native forum.",
   messages: "Messages",
   messagesHeading: "Private conversations",
   messagesEffects:
@@ -159,7 +180,7 @@ const english = {
   loadMessages: "Load messages",
   refreshMessages: "Refresh messages",
   messagesNativeHistory:
-    "Private history opens in the native forum. Sending and reading history are not yet available here.",
+    "Select a peer to read the private conversation. Sending remains in the native forum.",
   messagesPeerNative:
     "Open private conversation with {value} — continue in native forum",
   messagesUnread: "Forum marks this conversation unread",
@@ -237,7 +258,7 @@ const english = {
   noticeUnreadUnknown:
     "The returned unread indicator could not be interpreted. The current unread count is unknown.",
   deferredNotices:
-    "Private-message history, broadcasts and native activity actions continue in the forum. Standard social-activity notices are included in the list.",
+    "Private conversations are available in Messages. Broadcasts and native activity actions continue in the forum. Standard social-activity notices are included in the list.",
   nativePM: "Private messages and broadcasts — continue in native forum",
   nativeNotices: "Notice actions — continue in native forum",
   draftsHeading: "Forum drafts",
@@ -519,19 +540,37 @@ const simplified: Strings = {
     "写作仍属于原来的目标。继续编辑，或保留写作并阅读此主题，稍后再返回。",
   continueEditing: "继续编辑",
   retainWritingRead: "保留写作并阅读主题",
+  retainWritingReadPrivate: "保留写作并阅读私人交谈",
+  privateChangeDescription:
+    "写作仍属于原来的目标。继续编辑，或保留写作并阅读此私人交谈，稍后再返回。打开交谈可能将其标为已读。",
   boardsPane: "版块面板",
   threadsPane: "主题面板",
   chooseThreadContext: "选择主题阅读。浏览版块会保留当前主题和写作。",
   search: "搜索",
   saved: "收藏",
+  privateRecipientId: "收件人 ID {value}",
+  loadPrivateConversation: "加载私人交谈",
+  privateArrivalEffects:
+    "工作区打开前，原生页面可能已将此交谈标为已读。不会自动重复私信请求。",
+  loadEarlierMessages: "加载更早的私信",
+  loadLaterMessages: "加载之后的私信",
+  privateHistoryComplete: "已加载所有已知私信",
+  privateHistoryUnknown: "尚未确认历史边界。仅可加载论坛返回的页面。",
+  privateMissingTarget:
+    "请求的私信不在此返回页面中。请使用返回的分页或前往原生论坛。",
+  privateContext: "私人交谈",
+  privateConversation: "与 {value} 的私人交谈",
+  readPrivateConversation: "阅读与 {value} 的私人交谈",
+  privateReadEffects:
+    "打开或获取此私人交谈可能将其标为已读。本地阅读位置不是服务器已读回执。",
+  privateSendingNative: "请前往原生论坛发送私信。",
   messages: "私信",
   messagesHeading: "私人会话",
   messagesEffects:
     "加载私信可能清除论坛的新私信提示，但不表示会话已读。不会自动加载。会话预览仅在当前页面保留，刷新页面后请主动加载。",
   loadMessages: "加载私信",
   refreshMessages: "刷新私信",
-  messagesNativeHistory:
-    "私信记录在原生论坛打开。此处尚不提供阅读记录或发送私信。",
+  messagesNativeHistory: "选择对象以阅读私人交谈。发送私信仍需前往原生论坛。",
   messagesPeerNative: "打开与 {value} 的私人会话 — 前往原生论坛",
   messagesUnread: "论坛将此会话标为未读",
   messagesPages: "私信列表分页",
@@ -604,7 +643,7 @@ const simplified: Strings = {
   noticeUnreadAbsent: "响应没有返回未读提示。当前未读数量未知。",
   noticeUnreadUnknown: "无法识别返回的未读提示。当前未读数量未知。",
   deferredNotices:
-    "私信记录、广播和原版动态操作请继续前往论坛。标准坛友互动通知包含在列表中。",
+    "可在私信中阅读私人交谈。广播和原版动态操作请继续前往论坛。标准坛友互动通知包含在列表中。",
   nativePM: "私信与广播 — 前往原版论坛",
   nativeNotices: "通知操作 — 前往原版论坛",
   draftsHeading: "论坛草稿",
@@ -879,19 +918,37 @@ const traditional: Strings = {
     "寫作仍屬於原來的目標。繼續編輯，或保留寫作並閱讀此主題，稍後再返回。",
   continueEditing: "繼續編輯",
   retainWritingRead: "保留寫作並閱讀主題",
+  retainWritingReadPrivate: "保留寫作並閱讀私人交談",
+  privateChangeDescription:
+    "寫作仍屬於原來的目標。繼續編輯，或保留寫作並閱讀此私人交談，稍後再返回。開啟交談可能將其標為已讀。",
   boardsPane: "版塊面板",
   threadsPane: "主題面板",
   chooseThreadContext: "選擇主題閱讀。瀏覽版塊會保留目前主題和寫作。",
   search: "搜尋",
   saved: "收藏",
+  privateRecipientId: "收件者 ID {value}",
+  loadPrivateConversation: "載入私人交談",
+  privateArrivalEffects:
+    "工作區開啟前，原生頁面可能已將此交談標為已讀。不會自動重複私訊請求。",
+  loadEarlierMessages: "載入更早的私訊",
+  loadLaterMessages: "載入之後的私訊",
+  privateHistoryComplete: "已載入所有已知私訊",
+  privateHistoryUnknown: "尚未確認歷史邊界。僅可載入論壇傳回的頁面。",
+  privateMissingTarget:
+    "要求的私訊不在此傳回頁面中。請使用傳回的分頁或前往原生論壇。",
+  privateContext: "私人交談",
+  privateConversation: "與 {value} 的私人交談",
+  readPrivateConversation: "閱讀與 {value} 的私人交談",
+  privateReadEffects:
+    "開啟或取得此私人交談可能將其標為已讀。本機閱讀位置不是伺服器已讀回條。",
+  privateSendingNative: "請前往原生論壇傳送私訊。",
   messages: "私訊",
   messagesHeading: "私人對話",
   messagesEffects:
     "載入私訊可能清除論壇的新私訊提示，但不表示對話已讀。不會自動載入。對話預覽僅在目前頁面保留，重新載入頁面後請主動載入。",
   loadMessages: "載入私訊",
   refreshMessages: "重新整理私訊",
-  messagesNativeHistory:
-    "私訊記錄在原生論壇開啟。此處尚不提供閱讀記錄或傳送私訊。",
+  messagesNativeHistory: "選擇對象以閱讀私人交談。傳送私訊仍需前往原生論壇。",
   messagesPeerNative: "開啟與 {value} 的私人對話 — 前往原生論壇",
   messagesUnread: "論壇將此對話標為未讀",
   messagesPages: "私訊列表分頁",
@@ -964,7 +1021,7 @@ const traditional: Strings = {
   noticeUnreadAbsent: "回應沒有傳回未讀提示。目前未讀數量未知。",
   noticeUnreadUnknown: "無法識別傳回的未讀提示。目前未讀數量未知。",
   deferredNotices:
-    "私訊記錄、廣播和原版動態操作請繼續前往論壇。標準壇友互動通知包含在清單中。",
+    "可在私訊中閱讀私人交談。廣播和原版動態操作請繼續前往論壇。標準壇友互動通知包含在清單中。",
   nativePM: "私訊與廣播 — 前往原版論壇",
   nativeNotices: "通知操作 — 前往原版論壇",
   draftsHeading: "論壇草稿",
@@ -1108,6 +1165,63 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "The private conversation could not be confirmed. Continue in the native forum.":
+    [
+      "无法确认此私人交谈。请前往原生论坛。",
+      "無法確認此私人交談。請前往原生論壇。",
+    ],
+  "Native verification is required before reading this private conversation.": [
+    "阅读此私人交谈前需要完成原生验证。",
+    "閱讀此私人交談前需要完成原生驗證。",
+  ],
+  "Sign in through the native forum before reading this private conversation.":
+    [
+      "请先在原生论坛登录，再阅读此私人交谈。",
+      "請先在原生論壇登入，再閱讀此私人交談。",
+    ],
+  "The current account cannot read this private conversation.": [
+    "当前账号无权阅读此私人交谈。",
+    "目前帳號無權閱讀此私人交談。",
+  ],
+  "The forum is limiting private-conversation requests. Retry only deliberately.":
+    [
+      "论坛正在限制私人交谈请求。请主动决定是否重试。",
+      "論壇正在限制私人交談請求。請主動決定是否重試。",
+    ],
+  "This is not a supported private-conversation destination.": [
+    "不支持此私人交谈地址。",
+    "不支援此私人交談網址。",
+  ],
+  "This page was not offered by the current private conversation.": [
+    "当前私人交谈没有提供此页面。",
+    "目前私人交談沒有提供此頁面。",
+  ],
+  "A newer request replaced this private-conversation load. It may still have marked the private conversation read.":
+    [
+      "较新的请求已取代此次私人交谈加载，交谈仍可能已被标为已读。",
+      "較新的請求已取代此次私人交談載入，交談仍可能已被標為已讀。",
+    ],
+  "The account changed while reading a private conversation. Previous private conversations were cleared. This request may still have had read effects.":
+    [
+      "阅读私人交谈时账号改变，先前交谈已清除。此次请求仍可能影响已读状态。",
+      "閱讀私人交談時帳號改變，先前交談已清除。此次請求仍可能影響已讀狀態。",
+    ],
+  "The private-conversation request failed. It may still have marked the private conversation read. Retry only deliberately.":
+    [
+      "私人交谈请求失败，交谈仍可能已被标为已读。请主动决定是否重试。",
+      "私人交談請求失敗，交談仍可能已被標為已讀。請主動決定是否重試。",
+    ],
+  "Private conversations must be opened deliberately. Opening may mark the conversation read.":
+    [
+      "请主动打开私人交谈，打开可能将其标为已读。",
+      "請主動開啟私人交談，開啟可能將其標為已讀。",
+    ],
+  "The private history returned no additional messages. Retry only deliberately.":
+    [
+      "私人历史未返回更多私信。请主动决定是否重试。",
+      "私人歷史未傳回更多私訊。請主動決定是否重試。",
+    ],
+
   "The returned history did not match this thread, account, filter or adjacent page.":
     [
       "返回的历史与当前主题、账号、筛选条件或相邻页面不符。",

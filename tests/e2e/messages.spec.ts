@@ -172,7 +172,9 @@ test("J75.messages-native-peers: preserve one-to-one identities, exact native de
     await expect(
       second.getByText("Forum marks this conversation unread", { exact: true }),
     ).toHaveCount(0);
-    await expect(first.getByRole("link")).toHaveAttribute(
+    await expect(
+      first.getByRole("link", { name: /continue in native forum/ }),
+    ).toHaveAttribute(
       "href",
       `${origin}/home.php?mod=space&do=pm&subop=view&touid=9&tsdm-native=1#last`,
     );
@@ -528,7 +530,9 @@ test("J75.messages-sent-last-peer: retain the recipient when the current native 
     await expect(
       peer.getByText("Forum marks this conversation unread", { exact: true }),
     ).toHaveCount(0);
-    await expect(peer.getByRole("link")).toHaveAttribute(
+    await expect(
+      peer.getByRole("link", { name: /continue in native forum/ }),
+    ).toHaveAttribute(
       "href",
       `${origin}/home.php?mod=space&do=pm&subop=view&touid=9&tsdm-native=1#last`,
     );

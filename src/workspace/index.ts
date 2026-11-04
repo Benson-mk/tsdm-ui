@@ -1,3 +1,4 @@
+import { createPrivateHistory } from "./private-history";
 import { createThreadHistory } from "./thread-history";
 import type { DownloadHost, PreparedFile } from "../hosts/download";
 import { createWriting } from "./writing";
@@ -22,6 +23,7 @@ export interface WorkspaceState {
   loading: boolean;
   result: ReadResult | null;
   reading: Extract<ReadResult, { kind: "thread" }> | null;
+  privateReading: Extract<ReadResult, { kind: "private-conversation" }> | null;
   failure: ReadResult | null;
   destination: string;
   key: string;
@@ -56,6 +58,7 @@ const success = (result: ReadResult) =>
     "search",
     "notices",
     "messages",
+    "private-conversation",
     "favorites",
   ].includes(result.kind);
 export function createWorkspace(
@@ -105,6 +108,7 @@ export function createWorkspace(
     loading: false,
     result: null,
     reading: null,
+    privateReading: null,
     failure: null,
     destination,
     key: "",
@@ -390,6 +394,25 @@ export function createWorkspace(
       writing.observe(account);
     },
   });
+  const privateHistory = createPrivateHistory(client, {
+    busy: () =>
+      state.value.loading ||
+      writing.state.value.preparing ||
+      writing.state.value.publishing ||
+      writing.state.value.findingMention ||
+      drafts.value.loading ||
+      favorite.value.busy ||
+      download.value?.status === "checking",
+    capture: () => view?.captureReading() ?? null,
+    restore: async (position) => {
+      await nextTick();
+      if (position) view?.restoreReading(position);
+    },
+    observe: (account) => {
+      observeAccount(account);
+      writing.observe(account);
+    },
+  });
   watch(
     () => [
       writing.state.value.preparing,
@@ -407,8 +430,10 @@ export function createWorkspace(
         drafts.value.loading ||
         favorite.value.busy ||
         download.value?.status === "checking"
-      )
+      ) {
         threadHistory.cancelPending();
+        privateHistory.cancelPending();
+      }
     },
     { flush: "sync" },
   );
@@ -430,7 +455,9 @@ export function createWorkspace(
       entries: Object.fromEntries(
         Object.entries(record.entries).map(([key, entry]) => [
           key,
-          entry.result?.kind === "messages"
+          ["messages", "private-conversation"].includes(
+            entry.result?.kind ?? "",
+          )
             ? { ...entry, result: null }
             : entry,
         ]),
@@ -449,7 +476,10 @@ export function createWorkspace(
       visited.add(key);
       const origin = entryFor(key);
       if (!origin) return null;
-      if (origin.result?.kind !== "thread") return origin.result;
+      if (
+        !["thread", "private-conversation"].includes(origin.result?.kind ?? "")
+      )
+        return origin.result;
       key = origin.originKey;
     }
     return null;
@@ -466,6 +496,18 @@ export function createWorkspace(
       ? result
       : null;
   }
+  function privateFor(entry: NavigationEntry) {
+    const result =
+      entry.result?.kind === "private-conversation"
+        ? entry.result
+        : entry.readingKey
+          ? entryFor(entry.readingKey)?.result
+          : null;
+    return result?.kind === "private-conversation" &&
+      (knownAccount === null || accountKey(result.account) === knownAccount)
+      ? result
+      : null;
+  }
   function show(entry: NavigationEntry, restored = false) {
     const mismatch =
       knownAccount !== null &&
@@ -476,7 +518,14 @@ export function createWorkspace(
       entry.result?.kind === "thread" ? entry.key : (entry.readingKey ?? ""),
       true,
     );
-    const readingPosition = retained ? view?.captureReading() : null;
+    const retainedPrivate = privateHistory.activate(
+      mismatch ? null : privateFor(entry),
+      entry.result?.kind === "private-conversation"
+        ? entry.key
+        : (entry.readingKey ?? ""),
+    );
+    const readingPosition =
+      retained || retainedPrivate ? view?.captureReading() : null;
     state.value = {
       ...state.value,
       section:
@@ -493,6 +542,7 @@ export function createWorkspace(
       destination: entry.destination,
       result: mismatch ? null : entry.result,
       reading: mismatch ? null : readingFor(entry),
+      privateReading: mismatch ? null : privateFor(entry),
       failure: null,
       loading: false,
       selection: entry.selection,
@@ -511,7 +561,11 @@ export function createWorkspace(
     void nextTick().then(() => {
       view?.restore(
         entry.position,
-        entry.result?.kind === "thread" ? entry.result.thread.target : null,
+        entry.result?.kind === "thread"
+          ? entry.result.thread.target
+          : entry.result?.kind === "private-conversation"
+            ? entry.result.conversation.target
+            : null,
         entry.selection,
       );
       if (readingPosition) view?.restoreReading(readingPosition);
@@ -522,11 +576,16 @@ export function createWorkspace(
     const browsingList = ["board", "directory", "messages"].includes(
       routeFor(url)?.kind ?? "",
     );
-    const choosingThread = ["thread", "redirect"].includes(
-      routeFor(url)?.kind ?? "",
-    );
-    const previousReadingKey =
-      previous?.result?.kind === "thread" ? previous.key : previous?.readingKey;
+    const choosingThread = [
+      "thread",
+      "redirect",
+      "private-conversation",
+    ].includes(routeFor(url)?.kind ?? "");
+    const previousReadingKey = ["thread", "private-conversation"].includes(
+      previous?.result?.kind ?? "",
+    )
+      ? previous?.key
+      : previous?.readingKey;
     const entry: NavigationEntry = {
       readingKey: browsingList ? (previousReadingKey ?? null) : null,
       key: crypto.randomUUID(),
@@ -582,14 +641,18 @@ export function createWorkspace(
       for (const entry of Object.values(record.entries))
         if (
           entry.result &&
-          ["notices", "messages", "favorites"].includes(entry.result.kind)
+          ["notices", "messages", "private-conversation", "favorites"].includes(
+            entry.result.kind,
+          )
         ) {
           entry.result = null;
           invalidated = true;
         }
       if (
         state.value.result &&
-        ["notices", "messages", "favorites"].includes(state.value.result.kind)
+        ["notices", "messages", "private-conversation", "favorites"].includes(
+          state.value.result.kind,
+        )
       )
         state.value = {
           ...state.value,
@@ -599,9 +662,18 @@ export function createWorkspace(
         };
       if (
         state.value.origin &&
-        ["notices", "messages", "favorites"].includes(state.value.origin.kind)
+        ["notices", "messages", "private-conversation", "favorites"].includes(
+          state.value.origin.kind,
+        )
       )
         state.value = { ...state.value, origin: null };
+    }
+    if (
+      state.value.privateReading &&
+      (!observed || accountKey(state.value.privateReading.account) !== observed)
+    ) {
+      privateHistory.clear();
+      state.value = { ...state.value, privateReading: null };
     }
     if (observed) {
       if (
@@ -641,6 +713,7 @@ export function createWorkspace(
   async function read(entry: NavigationEntry, submitted?: Promise<ReadResult>) {
     const current = ++sequence;
     threadHistory.cancelPending();
+    privateHistory.cancelPending();
     state.value = {
       ...state.value,
       loading: true,
@@ -717,7 +790,15 @@ export function createWorkspace(
         result.kind === "thread" ? entry.key : (entry.readingKey ?? ""),
         result.kind !== "thread",
       );
-      const readingPosition = retained ? view?.captureReading() : null;
+      const retainedPrivate = privateHistory.activate(
+        privateFor(entry),
+        result.kind === "private-conversation"
+          ? entry.key
+          : (entry.readingKey ?? ""),
+        result.kind !== "private-conversation",
+      );
+      const readingPosition =
+        retained || retainedPrivate ? view?.captureReading() : null;
       entry.account = observed;
       if (result.kind === "search" && result.search.results)
         entry.destination = result.search.results.url;
@@ -733,6 +814,7 @@ export function createWorkspace(
         ...state.value,
         result,
         reading: readingFor(entry),
+        privateReading: privateFor(entry),
         loading: false,
         missing: false,
         failure: null,
@@ -743,7 +825,11 @@ export function createWorkspace(
       void nextTick().then(() => {
         view?.restore(
           entry.position,
-          result.kind === "thread" ? result.thread.target : null,
+          result.kind === "thread"
+            ? result.thread.target
+            : result.kind === "private-conversation"
+              ? result.conversation.target
+              : null,
           entry.selection,
         );
         if (readingPosition) view?.restoreReading(readingPosition);
@@ -784,15 +870,20 @@ export function createWorkspace(
       requested?.url.searchParams.get("ptid") ??
       requested?.url.searchParams.get("tid");
     if (
-      (requested?.kind === "thread" || requested?.kind === "redirect") &&
       context &&
       context.id !== retainedContextId &&
-      requestedThread !== state.value.reading?.thread.id
+      (((requested?.kind === "thread" || requested?.kind === "redirect") &&
+        requestedThread !== state.value.reading?.thread.id) ||
+        (requested?.kind === "private-conversation" &&
+          requested.url.searchParams.get("touid") !==
+            state.value.privateReading?.conversation.peerId))
     ) {
       pendingThread.value = { url, selection, contextId: context.id };
       return;
     }
     pendingThread.value = null;
+    if (requested?.kind === "private-conversation")
+      return openPrivateConversation(url, selection);
     clearDownload();
     if (
       current?.kind === "thread" &&
@@ -833,6 +924,64 @@ export function createWorkspace(
         ? client.readSearchPage(url, searchPage.search, searchPage.account)
         : undefined,
     );
+  }
+  async function openPrivateConversation(
+    url: string,
+    selection: string | null = null,
+  ) {
+    if (
+      writing.deferViewChange(() => {
+        void openPrivateConversation(url, selection);
+      })
+    )
+      return;
+    const target = /^#pmlist_([1-9]\d*)$/.exec(new URL(url).hash)?.[1];
+    const active = privateHistory.state.value.result;
+    if (
+      target &&
+      active?.conversation.messages.some(
+        (message) => message.id === target && message.url === url,
+      )
+    ) {
+      writing.hide();
+      const entry = entryFor(state.value.key);
+      if (!entry) return;
+      const readingEntry =
+        entry.result?.kind === "private-conversation"
+          ? entry
+          : entry.readingKey
+            ? entryFor(entry.readingKey)
+            : null;
+      if (readingEntry?.result?.kind !== "private-conversation") return;
+      readingEntry.destination = url;
+      privateHistory.target(target);
+      readingEntry.result = {
+        ...readingEntry.result,
+        conversation: { ...readingEntry.result.conversation, target },
+      };
+      state.value = {
+        ...state.value,
+        destination: entry.destination,
+        result: entry.result,
+        privateReading: privateFor(entry),
+      };
+      host.replace(entry.key);
+      void persist();
+      void nextTick().then(() => view?.restore(null, target, entry.selection));
+      return;
+    }
+    clearDownload();
+    writing.hide();
+    capture();
+    const previous = entryFor(state.value.key);
+    if (previous && selection) previous.selection = selection;
+    const entry = newEntry(url, previous?.key ?? null);
+    entry.section = "messages";
+    entry.selection = selection;
+    host.push(entry.key);
+    show(entry);
+    void persist();
+    await read(entry, client.readPrivateConversation(url));
   }
   async function loadMessages(url?: string) {
     if (state.value.loading) return;
@@ -923,6 +1072,7 @@ export function createWorkspace(
       destination: entry.destination,
       result: entry.result,
       reading: readingFor(entry),
+      privateReading: privateFor(entry),
     };
     threadHistory.target(hash.slice(4));
     void nextTick().then(() =>
@@ -952,6 +1102,7 @@ export function createWorkspace(
         canBack: false,
         origin: null,
         reading: null,
+        privateReading: null,
       };
     void persist();
   }
@@ -1025,7 +1176,11 @@ export function createWorkspace(
       return;
     }
     const initial = new URL(destination);
-    if (routeFor(destination)?.kind === "messages") {
+    if (
+      ["messages", "private-conversation"].includes(
+        routeFor(destination)?.kind ?? "",
+      )
+    ) {
       const entry = newEntry(destination, null);
       entry.section = "messages";
       host.replace(entry.key);
@@ -1136,6 +1291,7 @@ export function createWorkspace(
   return {
     preferences,
     threadHistory,
+    privateHistory,
     drafts: readonly(drafts),
     loadDrafts,
     favorite: readonly(favorite),

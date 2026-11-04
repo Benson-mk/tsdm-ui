@@ -1,3 +1,4 @@
+import { decodePrivateConversation } from "./private-conversation.js";
 import {
   createAttachmentRemoval,
   createUploadAuthoring,
@@ -31,6 +32,7 @@ export function describeDestination(value: string): {
     | "thread"
     | "redirect"
     | "search"
+    | "private-conversation"
     | "messages"
     | "notices"
     | "favorites";
@@ -53,7 +55,7 @@ import type {
 export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
-export const FORUM_CLIENT_VERSION = "0.17.0";
+export const FORUM_CLIENT_VERSION = "0.18.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -225,6 +227,69 @@ export function createForumClient(options: {
     prepareThreadPublication: publisher.prepare,
     publishThread: publisher.publish,
     checkThreadResult: publisher.check,
+    async readPrivateConversation(destination, prior, expectedAccount) {
+      const current = ++sequence;
+      const startedGeneration = generation;
+      const expected =
+        expectedAccount ?? (account.kind === "member" ? account : undefined);
+      const route = routeFor(destination);
+      const fail = (
+        message: string,
+        kind: "invalid" | "stale" | "network" = "invalid",
+      ): ReadResult => ({
+        kind,
+        message,
+        account,
+        generation,
+        sourceURL: destination,
+      });
+      if (
+        route?.kind !== "private-conversation" ||
+        route.url.origin !== options.origin
+      )
+        return fail(
+          "This is not a supported private-conversation destination.",
+        );
+      if (
+        prior &&
+        ![prior.url, ...prior.pages.links.map((link) => link.url)].includes(
+          destination,
+        )
+      )
+        return fail(
+          "This page was not offered by the current private conversation.",
+        );
+      route.url.searchParams.set("tsdmapp", "json");
+      try {
+        const response = await options.transport.request(route.url.href, {
+          fresh: true,
+        });
+        if (current !== sequence || generation !== startedGeneration)
+          return fail(
+            "A newer request replaced this private-conversation load. It may still have marked the private conversation read.",
+            "stale",
+          );
+        const decoded = decodePrivateConversation(response, destination);
+        if (actor(decoded.account) !== actor(account)) {
+          account = decoded.account;
+          generation++;
+        }
+        if (
+          decoded.kind === "private-conversation" &&
+          expected &&
+          actor(decoded.account) !== actor(expected)
+        )
+          return fail(
+            "The account changed while reading a private conversation. Previous private conversations were cleared. This request may still have had read effects.",
+          );
+        return { ...decoded, generation };
+      } catch {
+        return fail(
+          "The private-conversation request failed. It may still have marked the private conversation read. Retry only deliberately.",
+          current !== sequence ? "stale" : "network",
+        );
+      }
+    },
     async readMessages(destination, prior, expectedAccount) {
       const current = ++sequence;
       const startedGeneration = generation;
@@ -728,6 +793,15 @@ export function createForumClient(options: {
       const current = ++sequence;
       const route = routeFor(destination);
       const url = route?.url;
+      if (route?.kind === "private-conversation")
+        return {
+          kind: "invalid",
+          message:
+            "Private conversations must be opened deliberately. Opening may mark the conversation read.",
+          account,
+          generation,
+          sourceURL: destination,
+        };
       if (route?.kind === "messages")
         return {
           kind: "invalid",

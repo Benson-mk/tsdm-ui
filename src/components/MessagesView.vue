@@ -7,6 +7,7 @@ import { nativeDestination } from "../hosts/browser";
 const props = defineProps<{
   messages: DeepReadonly<Messages> | null;
   loading: boolean;
+  selected?: string | null;
   language: Preferences["language"];
 }>();
 const text = computed(() => strings(props.language));
@@ -21,6 +22,7 @@ const emit = defineEmits<{ load: [] }>();
     <h1>{{ text.messages }}</h1>
     <h2>{{ text.messagesHeading }}</h2>
     <p>{{ text.messagesEffects }}</p>
+    <p>{{ text.privateReadEffects }}</p>
     <button :disabled="loading" @click="emit('load')">
       {{ messages ? text.refreshMessages : text.loadMessages }}
     </button>
@@ -28,6 +30,7 @@ const emit = defineEmits<{ load: [] }>();
       <p v-if="messages.empty">{{ messages.empty }}</p>
       <article
         v-for="peer in messages.peers"
+        :id="`peer-${peer.peerId}`"
         :key="peer.id"
         :data-peer-id="peer.peerId"
         tabindex="-1"
@@ -36,6 +39,11 @@ const emit = defineEmits<{ load: [] }>();
         <time>{{ peer.time }}</time>
         <p>{{ peer.preview }}</p>
         <p v-if="peer.unread">{{ text.messagesUnread }}</p>
+        <a
+          :href="peer.url"
+          :aria-current="selected === peer.peerId ? 'true' : undefined"
+          >{{ insert(text.readPrivateConversation, peer.name) }}</a
+        >
         <a :href="nativeDestination(peer.url)">{{
           insert(text.messagesPeerNative, peer.name)
         }}</a>
