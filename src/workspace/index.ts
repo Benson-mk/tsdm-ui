@@ -95,9 +95,9 @@ export function createWorkspace(
     (account) => {
       if (observeAccount(account)) void persist();
     },
-    async (url) => {
+    async (url, contextId) => {
       await loadDrafts();
-      await openThread(url);
+      await openThread(url, null, contextId);
     },
   );
   const state = shallowRef<WorkspaceState>({

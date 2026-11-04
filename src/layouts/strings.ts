@@ -50,6 +50,11 @@ const english = {
   draftIn: "Forum draft in {value}",
   draftIdentity:
     "Editing forum draft {value} locally. Only an explicit save updates its forum content; browser recovery is separate.",
+  ordinaryReply: "Start an ordinary reply",
+  savedDraftReview:
+    "Publish saved forum draft {value}. This makes the saved content public; final approval rechecks its account and saved revision.",
+  reviewSavedDraft: "Review saved draft publication",
+  confirmSavedDraft: "Confirm saved draft publication",
   publishSavedDraft: "Publish saved draft",
   loadDrafts: "Load forum drafts",
   resumeDraft: "Resume {value}",
@@ -273,6 +278,8 @@ const english = {
   newThread: "New thread",
   returnWriting: "Return to writing",
   retainedWriting: "Retained writing",
+  writingShortcut:
+    "Enter: new line · Ctrl/⌘+Enter: review · Final approval is separate",
   expandWriting: "Expand writing",
   compactWriting: "Compact writing",
   retainedAttemptWarning:
@@ -421,6 +428,11 @@ const simplified: Strings = {
   draftIn: "{value} 中的论坛草稿",
   draftIdentity:
     "正在本地编辑论坛草稿 {value}。只有明确保存才会更新论坛内容；浏览器恢复是独立的。",
+  ordinaryReply: "开始普通回复",
+  savedDraftReview:
+    "发布已保存的论坛草稿 {value}。已保存内容将公开；最终确认会重新检查账号和保存版本。",
+  reviewSavedDraft: "检查已保存草稿的发布",
+  confirmSavedDraft: "确认发布已保存草稿",
   publishSavedDraft: "发布已保存的草稿",
   loadDrafts: "载入论坛草稿",
   resumeDraft: "继续编辑 {value}",
@@ -633,6 +645,7 @@ const simplified: Strings = {
   newThread: "新主题",
   returnWriting: "返回写作",
   retainedWriting: "保留的写作",
+  writingShortcut: "Enter：换行 · Ctrl/⌘+Enter：检查 · 最终确认需另行操作",
   expandWriting: "展开写作",
   compactWriting: "紧凑写作",
   retainedAttemptWarning:
@@ -774,6 +787,11 @@ const traditional: Strings = {
   draftIn: "{value} 中的論壇草稿",
   draftIdentity:
     "正在本機編輯論壇草稿 {value}。只有明確儲存才會更新論壇內容；瀏覽器恢復是獨立的。",
+  ordinaryReply: "開始一般回覆",
+  savedDraftReview:
+    "發佈已儲存的論壇草稿 {value}。已儲存內容將公開；最終確認會重新檢查帳號和儲存版本。",
+  reviewSavedDraft: "檢查已儲存草稿的發佈",
+  confirmSavedDraft: "確認發佈已儲存草稿",
   publishSavedDraft: "發佈已儲存的草稿",
   loadDrafts: "載入論壇草稿",
   resumeDraft: "繼續編輯 {value}",
@@ -987,6 +1005,7 @@ const traditional: Strings = {
   newThread: "新主題",
   returnWriting: "返回寫作",
   retainedWriting: "保留的寫作",
+  writingShortcut: "Enter：換行 · Ctrl/⌘+Enter：檢查 · 最終確認需另行操作",
   expandWriting: "展開寫作",
   compactWriting: "精簡寫作",
   retainedAttemptWarning:
@@ -1166,6 +1185,16 @@ const descriptions: Record<string, readonly [string, string]> = {
     [
       "无法完整保留论坛返回的私信分页，请前往原生论坛。",
       "無法完整保留論壇傳回的私訊分頁，請前往原生論壇。",
+    ],
+  "Save local changes to the forum draft before reviewing publication. If the remote draft changed, resume its current revision; local writing is retained.":
+    [
+      "请先将本地修改保存为论坛草稿，再检查发布。如果远端草稿已改变，请恢复其当前版本；本地写作内容仍保留。",
+      "請先將本地修改儲存為論壇草稿，再檢查發佈。如果遠端草稿已改變，請恢復其目前版本；本地寫作內容仍保留。",
+    ],
+  "The draft publication review changed. Review the current action, account and revision again. Nothing was sent.":
+    [
+      "草稿发布检查已改变。请重新检查当前操作、账号和版本。未发送任何内容。",
+      "草稿發佈檢查已改變。請重新檢查目前操作、帳號和版本。未傳送任何內容。",
     ],
 
   "The writing context or account changed while reading files. Select them again for the current writing.":

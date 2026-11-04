@@ -24,7 +24,7 @@ function fixtureState() {
     } | null,
   };
 }
-async function open(page: Page, openingOwned = false) {
+async function open(page: Page, openingOwned = false, reviewForm = false) {
   const state = fixtureState();
   state.openingOwned = openingOwned;
   states.set(page, state);
@@ -60,7 +60,7 @@ async function open(page: Page, openingOwned = false) {
         replyEdit = url.searchParams.get("pid") === "202";
       body += state.refused
         ? '<div id="messagetext">权限不足</div>'
-        : `<form id="postform" method="post" action="forum.php?mod=post&action=${action}&fid=5&tid=42${edit ? `&pid=${replyEdit ? "202" : "101"}&editsubmit=yes` : action === "newthread" ? "&topicsubmit=yes" : "&replysubmit=yes"}"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_TOKEN">${post ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="OPAQUE_AUTHOR_8"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">' : ""}${replyEdit ? "" : '<input name="subject" value="Native title">'}<textarea name="message">${edit ? escape(retained) : ""}</textarea>${action === "newthread" || (edit && !replyEdit) ? '<select name="typeid"><option value="0">Choose category</option><option value="3">Listening notes</option></select>' : ""}<label><input name="usesig" type="checkbox" value="1" checked>Signature</label><input name="attachnew[77][description]" value="Existing attachment"><button type="submit" name="${edit ? "editsubmit" : action === "newthread" ? "topicsubmit" : "replysubmit"}">Continue</button></form>`;
+        : `<form id="postform" method="post" action="forum.php?mod=post&action=${action}&fid=5&tid=42${edit ? `&pid=${replyEdit ? "202" : "101"}&editsubmit=yes` : action === "newthread" ? "&topicsubmit=yes" : "&replysubmit=yes"}"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_TOKEN"><input type="hidden" name="posttime" value="1792550000"><input type="hidden" name="wysiwyg" value="0">${post ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="OPAQUE_AUTHOR_8"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">' : ""}${replyEdit ? "" : '<input name="subject" value="Native title">'}<textarea name="message">${edit ? escape(retained) : ""}</textarea>${action === "newthread" || (edit && !replyEdit) ? '<select name="typeid"><option value="0">Choose category</option><option value="3">Listening notes</option></select>' : ""}<label><input name="usesig" type="checkbox" value="1" checked>Signature</label>${!reviewForm || edit ? '<input type="hidden" name="attachnew[77][description]" value="Existing attachment">' : ""}<button type="submit" name="${edit ? "editsubmit" : action === "newthread" ? "topicsubmit" : "replysubmit"}" value="yes">Continue</button></form>`;
     } else if (url.searchParams.get("mod") === "forumdisplay")
       body += `<div id="ct"><h1><a href="${boardURL}">Music discussion</a></h1></div><table id="threadlisttableid"><tbody id="normalthread_42"><tr><th><a class="xst" href="${threadURL}">Existing thread</a></th></tr></tbody></table>`;
     else
@@ -736,4 +736,381 @@ test("IM65.writing-board-browse: browsing a board retains the same visible edito
     await page.getByRole("button", { name, exact: true }).click();
   await expect(editor).toHaveValue(retained);
   expect(state.requests).toHaveLength(presentationCount);
+});
+
+// IM72: failure-first expectations for the docked retained session.
+for (const size of [
+  { width: 1440, height: 900 },
+  { width: 390, height: 600 },
+])
+  test(`IM72.docked-${size.width}: compact and expanded writing stay below usable reading with one retained editor`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize(size);
+    const server = await open(page);
+    await enter(page, "reply");
+    const source = page.getByLabel("Complete source", { exact: true });
+    await source.fill("Retained docked source 中文");
+    const handle = await source.elementHandle();
+    const before = await stored(page);
+    const requests = server.requests.length;
+    const geometry = async () =>
+      page.locator(".source-writing").evaluate((writer) => {
+        const root = writer.getRootNode() as ShadowRoot;
+        const reader = root.querySelector(".reading-pane")!;
+        const field = writer.querySelector("textarea")!;
+        const w = writer.getBoundingClientRect(),
+          r = reader.getBoundingClientRect();
+        return {
+          writer: { top: w.top, bottom: w.bottom, height: w.height },
+          reader: { top: r.top, bottom: r.bottom, height: r.height },
+          fieldMinimum: parseFloat(getComputedStyle(field).minHeight),
+          viewport: innerHeight,
+        };
+      });
+    const compact = await geometry();
+    await info.attach("compact-dock.json", {
+      body: JSON.stringify(compact),
+      contentType: "application/json",
+    });
+    expect(compact.writer.top).toBeGreaterThanOrEqual(
+      compact.reader.bottom - 1,
+    );
+    expect(compact.writer.height).toBeLessThanOrEqual(size.height * 0.46 + 1);
+    expect(compact.reader.height).toBeGreaterThanOrEqual(96);
+    expect(compact.fieldMinimum).toBe(64);
+    await page
+      .getByRole("button", { name: "Expand writing", exact: true })
+      .click();
+    const expanded = await geometry();
+    await info.attach("expanded-dock.json", {
+      body: JSON.stringify(expanded),
+      contentType: "application/json",
+    });
+    await info.attach("expanded-dock.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    expect(expanded.writer.top).toBeGreaterThanOrEqual(
+      expanded.reader.bottom - 1,
+    );
+    expect(expanded.reader.height).toBeGreaterThanOrEqual(96);
+    expect(expanded.writer.height).toBeLessThanOrEqual(size.height * 0.46 + 1);
+    expect(expanded.fieldMinimum).toBe(size.width < 560 ? 100 : 140);
+    expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
+    expect(await stored(page)).toEqual(before);
+    expect(server.requests).toHaveLength(requests);
+  });
+
+for (const entry of ["reply", "addressed", "new-thread", "edit-reply"] as const)
+  test(`IM72.review-shortcut-${entry}: newline and IME remain input while modifier Enter only prepares one immutable review`, async ({
+    page,
+  }, info) => {
+    const server = await open(page, false, true);
+    await enter(page, entry);
+    const source = page.getByLabel("Complete source", { exact: true });
+    if (entry === "new-thread")
+      await page.getByLabel("Category", { exact: true }).selectOption("3");
+    await source.fill("Keyboard review 中文");
+    await source.press("End");
+    await source.press("Enter");
+    await source.press("x");
+    await expect(source).toHaveValue("Keyboard review 中文\nx");
+    const before = server.requests.length;
+    for (const init of [
+      { ctrlKey: true, repeat: true },
+      { metaKey: true, isComposing: true },
+      { ctrlKey: true, keyCode: 229 },
+    ])
+      await source.dispatchEvent("keydown", {
+        key: "Enter",
+        bubbles: true,
+        ...init,
+      });
+    await source.dispatchEvent("compositionstart", { data: "測" });
+    await source.dispatchEvent("keydown", { key: "Enter", ctrlKey: true });
+    expect(server.requests).toHaveLength(before);
+    await source.dispatchEvent("compositionend", { data: "測" });
+    await expect(
+      page.getByRole("button", { name: "Undo", exact: true }),
+    ).toBeEnabled();
+    await source.press(entry === "reply" ? "Control+Enter" : "Meta+Enter");
+    const review = page.getByRole("region", {
+      name: "Prepared publication review",
+      exact: true,
+    });
+    await expect(review).toBeVisible();
+    await expect(review).toContainText("Keyboard review 中文");
+    const reviewed = (await review.textContent()) ?? "";
+    const after = server.requests.length;
+    await source.press("Control+Enter");
+    await source.press("Meta+Enter");
+    await expect(review).toHaveText(reviewed);
+    expect(server.requests).toHaveLength(after);
+    expect(server.requests.every((request) => request.method === "GET")).toBe(
+      true,
+    );
+    await info.attach("shortcut-review.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+
+test("IM72.addressed-return: blank addressed source names the exact post and guarded ordinary reply never silently transfers quotes", async ({
+  page,
+}, info) => {
+  const server = await open(page);
+  await enter(page, "addressed");
+  const source = page.getByLabel("Complete source", { exact: true });
+  await expect(source).toHaveValue("");
+  const writing = page.getByRole("region", {
+    name: "Writing context",
+    exact: true,
+  });
+  await expect(
+    writing
+      .getByRole("group", { name: "Writing destination", exact: true })
+      .getByRole("link", {
+        name: "Addressed to Other author · Post 101",
+        exact: true,
+      }),
+  ).toHaveAttribute(
+    "href",
+    `${origin}/forum.php?mod=redirect&goto=findpost&ptid=42&pid=101`,
+  );
+  await source.fill(
+    "[quote=Independent author]Separately authored quote[/quote]\nMy answer",
+  );
+  const before = await stored(page),
+    requests = server.requests.length;
+  await writing
+    .getByRole("button", { name: "Start an ordinary reply", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Return",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(await stored(page)).toEqual(before);
+  expect(server.requests).toHaveLength(requests);
+  await page.getByRole("button", { name: "Return", exact: true }).click();
+  await expect(source).toHaveValue(before.source);
+  await info.attach("addressed-retained.json", {
+    body: JSON.stringify({
+      before,
+      after: await stored(page),
+      requests: server.requests,
+    }),
+    contentType: "application/json",
+  });
+});
+
+test("IM72.visual-ime-shortcut: browser composition stays input and settled visual modifier Enter requests review without publication", async ({
+  page,
+}, info) => {
+  const server = await open(page, false, true);
+  await enter(page, "reply");
+  await page.getByLabel("Complete source", { exact: true }).fill("Base ");
+  await page
+    .getByRole("button", { name: "Visual editor", exact: true })
+    .click();
+  const visual = page.getByRole("textbox", {
+    name: "Visual post content",
+    exact: true,
+  });
+  await visual.focus();
+  await visual.press("Meta+ArrowDown");
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.imeSetComposition", {
+    text: "nei ho",
+    selectionStart: 6,
+    selectionEnd: 6,
+  });
+  const before = server.requests.length;
+  await visual.dispatchEvent("keydown", {
+    key: "Enter",
+    ctrlKey: true,
+    isComposing: true,
+  });
+  expect(server.requests).toHaveLength(before);
+  await cdp.send("Input.insertText", { text: "你好" });
+  await expect(
+    page.getByRole("button", { name: "Undo", exact: true }),
+  ).toBeEnabled();
+  await visual.press("Meta+Enter");
+  await expect(
+    page.getByRole("region", {
+      name: "Prepared publication review",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect((await stored(page)).source).toBe("Base 你好");
+  expect(server.requests.every((request) => request.method === "GET")).toBe(
+    true,
+  );
+  await info.attach("visual-ime-review.json", {
+    body: JSON.stringify({
+      writing: await stored(page),
+      requests: server.requests,
+    }),
+    contentType: "application/json",
+  });
+  await cdp.detach();
+});
+
+test("IM72.approval-keyboard-boundary: modifier Enter on the focused final approval cannot approve or send", async ({
+  page,
+}, info) => {
+  const server = await open(page, false, true);
+  await enter(page, "reply");
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill("Separate approval only");
+  await source.press("Control+Enter");
+  const approval = page.getByRole("button", {
+    name: "Send reply",
+    exact: true,
+  });
+  await expect(approval).toBeVisible();
+  const before = server.requests.length;
+  await approval.press("Control+Enter");
+  await approval.press("Meta+Enter");
+  expect(server.requests).toHaveLength(before);
+  expect(server.requests.every((request) => request.method === "GET")).toBe(
+    true,
+  );
+  await info.attach("approval-shortcut-boundary.json", {
+    body: JSON.stringify(server.requests),
+    contentType: "application/json",
+  });
+});
+
+test("IM72.short-enlarged: a short enlarged conversation retains history and a reachable editor with localized action floors", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 390, height: 360 });
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "tsdm.workspace.preferences",
+      JSON.stringify({
+        schema: 1,
+        theme: "dark",
+        textSize: 150,
+        language: "zh-TW",
+      }),
+    ),
+  );
+  const server = await open(page);
+  await page.getByRole("button", { name: "回覆主題", exact: true }).click();
+  const source = page.getByLabel("完整原始碼", { exact: true });
+  await source.fill("短視窗保留內容");
+  const geometry = await page.locator(".source-writing").evaluate((writer) => {
+    const root = writer.getRootNode() as ShadowRoot;
+    const rect = (node: Element) => {
+      const r = node.getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, height: r.height };
+    };
+    return {
+      writer: rect(writer),
+      content: rect(writer.querySelector(".writing-content")!),
+      reader: rect(root.querySelector(".reading-pane")!),
+      actions: [
+        ...writer.querySelectorAll(".writing-presentation-actions button"),
+      ].map(rect),
+    };
+  });
+  await info.attach("short-enlarged-geometry.json", {
+    body: JSON.stringify(geometry),
+    contentType: "application/json",
+  });
+  expect(geometry.writer.height).toBeLessThanOrEqual(360 * 0.46 + 1);
+  expect(geometry.reader.height).toBeGreaterThanOrEqual(96);
+  expect(geometry.content.height).toBeGreaterThanOrEqual(64);
+  expect(geometry.actions.every((rect) => rect.height >= 44)).toBe(true);
+  await page.getByRole("button", { name: "展開寫作", exact: true }).click();
+  await expect(source).toBeFocused();
+  await expect(source).toHaveValue("短視窗保留內容");
+  await info.attach("short-enlarged.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  expect(server.requests.every((request) => request.method === "GET")).toBe(
+    true,
+  );
+});
+
+test("IM72.contextual-chrome: the global bar is followed by panes and writing status and resume stay in the conversation", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const server = await open(page, false, true);
+  const initial = await page.locator(".workspace").evaluate((workspace) => ({
+    headerBottom: workspace.querySelector("header")!.getBoundingClientRect()
+      .bottom,
+    panesTop: workspace
+      .querySelector(".workspace-body")!
+      .getBoundingClientRect().top,
+  }));
+  await info.attach("contextual-chrome.json", {
+    body: JSON.stringify(initial),
+    contentType: "application/json",
+  });
+  expect(initial.panesTop).toBe(initial.headerBottom);
+  await expect(
+    page
+      .locator(".boards-region")
+      .getByRole("button", { name: "New thread", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".conversation-region")
+      .getByRole("button", { name: "Refresh thread", exact: true }),
+  ).toBeVisible();
+  await enter(page, "reply");
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Contextual retained writing");
+  const before = server.requests.length;
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page
+      .locator(".conversation-region")
+      .getByRole("button", { name: "Return to writing", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    "Contextual retained writing",
+  );
+  expect(server.requests).toHaveLength(before);
+});
+
+test("IM72.visible-history: opening and expanding a docked reply leaves actual post content visible beside the retained editor", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, false, true);
+  await enter(page, "reply");
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
+    .click();
+  const geometry = await page.locator(".reading-pane").evaluate((pane) => {
+    const p = pane.getBoundingClientRect(),
+      post = pane.querySelector("article")!.getBoundingClientRect();
+    return {
+      historyHeight: p.height,
+      visiblePostHeight: Math.max(
+        0,
+        Math.min(p.bottom, post.bottom) - Math.max(p.top, post.top),
+      ),
+    };
+  });
+  await info.attach("usable-post-history.json", {
+    body: JSON.stringify(geometry),
+    contentType: "application/json",
+  });
+  expect(geometry.visiblePostHeight).toBeGreaterThanOrEqual(96);
 });

@@ -10,6 +10,18 @@ const props = defineProps<{
   compact?: boolean;
 }>();
 const text = computed(() => strings(props.language));
+const addressedURL = computed(() => {
+  const target = props.writing.replyTarget;
+  if (!target?.postId) return "";
+  const url = new URL("/forum.php", props.writing.board.url);
+  url.search = new URLSearchParams({
+    mod: "redirect",
+    goto: "findpost",
+    ptid: target.threadId,
+    pid: target.postId,
+  }).toString();
+  return url.href;
+});
 const action = computed(() =>
   props.writing.action === "edit-post"
     ? insert(text.value.editPost, props.writing.editTarget?.postId ?? "")
@@ -48,14 +60,14 @@ const action = computed(() =>
       >
     </p>
     <p v-if="writing.replyTarget?.postId">
-      {{
+      <a :href="addressedURL">{{
         review
           ? `${writing.replyTarget.author} · ${text.post} ${writing.replyTarget.postId}`
           : insert(text.addressedTo, writing.replyTarget.author).replace(
               "{post}",
               writing.replyTarget.postId,
             )
-      }}
+      }}</a>
     </p>
     <p v-if="writing.replyTarget?.postId && !review && !compact">
       {{ text.addressedExplanation }}

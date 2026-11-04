@@ -1,3 +1,4 @@
+import { publishSavedDraft } from "./draft-review-controls";
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -295,17 +296,17 @@ test("J6.authoring-draft-publication-ambiguity: preserve unresolved input and pu
   await complete(page, "draft");
   await verifyStored(state, "draft", "[B]retained[/B]", 1);
   await createAmbiguity(page);
-  await attemptBlocked(button(page, "Publish saved draft"));
+  await attemptBlocked(button(page, "Review saved draft publication"));
   await recoverAmbiguity(page);
   expect(state.effects).toHaveLength(1);
   expect(state.published).toBe(false);
-  await attemptBlocked(button(page, "Publish saved draft"));
+  await attemptBlocked(button(page, "Review saved draft publication"));
   await expect(warning(page)).toBeVisible();
   await interpret(page);
   expect(state.effects).toHaveLength(1);
   await complete(page, "draft");
   await verifyStored(state, "draft", ambiguous, 2);
-  await button(page, "Publish saved draft").click();
+  await publishSavedDraft(page);
   await expect(
     page
       .getByText(/Confirmed publication of forum draft 42/)

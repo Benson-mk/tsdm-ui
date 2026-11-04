@@ -190,6 +190,31 @@ function optionCaption(option: WritingOption) {
     ? packetText(option.label)
     : option.label;
 }
+function requestReview(refresh = false) {
+  if (
+    state.value.preparing ||
+    state.value.publishing ||
+    state.value.composing ||
+    (state.value.publication && !refresh)
+  )
+    return;
+  if (refresh) props.workspace.writing.cancelPublicationReview();
+  void props.workspace.writing.reviewPublication();
+}
+function reviewShortcut(event: KeyboardEvent) {
+  if (event.key !== "Enter" || (!event.ctrlKey && !event.metaKey)) return;
+  const target = event.target;
+  if (
+    !(target instanceof HTMLElement) ||
+    !target.matches("textarea, input, [contenteditable='true']")
+  )
+    return;
+  if (event.isComposing || state.value.composing || event.keyCode === 229)
+    return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (!event.repeat) requestReview();
+}
 function cancelReview() {
   if (props.workspace.writing.deferViewChange(cancelReview)) return;
   props.workspace.writing.cancelPublicationReview();
@@ -224,6 +249,7 @@ function updateOption(option: WritingOption, event: Event) {
     class="source-writing"
     :class="{ 'writing-expanded': expanded }"
     :aria-label="text.writingContext"
+    @keydown.capture="reviewShortcut"
     @compositionstart="workspace.writing.startComposition()"
     @compositionend="workspace.writing.endComposition()"
   >
@@ -359,6 +385,20 @@ function updateOption(option: WritingOption, event: Event) {
           )
         }}
       </p>
+      <button
+        v-if="state.context.replyTarget?.postId"
+        @click="
+          workspace.writing.prepare(state.context.board.id, false, {
+            threadId: state.context.replyTarget.threadId,
+            postId: null,
+            author: '',
+            authorId: null,
+          })
+        "
+      >
+        {{ text.ordinaryReply }}
+      </button>
+      <p class="writing-shortcut">{{ text.writingShortcut }}</p>
       <PostEditor
         ref="editor"
         :key="state.context.id"
@@ -455,9 +495,9 @@ function updateOption(option: WritingOption, event: Event) {
       <button
         v-if="state.context.draft"
         :disabled="state.preparing || state.publishing"
-        @click="workspace.writing.publishDraft()"
+        @click="requestReview(true)"
       >
-        {{ text.publishSavedDraft }}
+        {{ text.reviewSavedDraft }}
       </button>
       <section
         v-for="attempt in state.context.draftAttempts"
@@ -878,7 +918,7 @@ function updateOption(option: WritingOption, event: Event) {
         <button
           v-if="!state.context.draft"
           :disabled="state.preparing || state.publishing"
-          @click="workspace.writing.reviewPublication()"
+          @click="requestReview(true)"
         >
           {{
             state.context.action === "edit-post"
@@ -940,7 +980,19 @@ function updateOption(option: WritingOption, event: Event) {
               }}
             </p>
           </template>
-          <p v-if="state.publication.submission.writing.action === 'edit-post'">
+          <p v-if="state.publication.submission.writing.draft">
+            {{
+              insert(
+                text.savedDraftReview,
+                state.publication.submission.writing.draft.threadId,
+              )
+            }}
+          </p>
+          <p
+            v-else-if="
+              state.publication.submission.writing.action === 'edit-post'
+            "
+          >
             {{
               insert(text.editReview, state.publication.submission.revision)
                 .replace(
@@ -978,16 +1030,22 @@ function updateOption(option: WritingOption, event: Event) {
           </p>
           <button
             :disabled="state.publishing"
-            @click="workspace.writing.publish()"
+            @click="
+              state.context.draft
+                ? workspace.writing.publishReviewedDraft()
+                : workspace.writing.publish()
+            "
           >
             {{
-              state.publication.submission.writing.action === "edit-post"
-                ? text.saveEditedPost
-                : state.publication.submission.writing.replyTarget
-                  ? text.sendReply
-                  : state.publication.submission.writing.redPacket
-                    ? packetText("Publish red packet")
-                    : text.publishThread
+              state.publication.submission.writing.draft
+                ? text.confirmSavedDraft
+                : state.publication.submission.writing.action === "edit-post"
+                  ? text.saveEditedPost
+                  : state.publication.submission.writing.replyTarget
+                    ? text.sendReply
+                    : state.publication.submission.writing.redPacket
+                      ? packetText("Publish red packet")
+                      : text.publishThread
             }}
           </button>
         </PreparedPublication>

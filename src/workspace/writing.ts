@@ -1,6 +1,9 @@
 import { createEditorSession, type EditorSession } from "../editor/session.js";
 import { computed, readonly, shallowRef } from "vue";
-import { isThreadVerification } from "../forum-client/thread-verification";
+import {
+  verifyStoredWriting,
+  isThreadVerification,
+} from "../forum-client/thread-verification";
 import {
   unresolvedWritingAttachments,
   editBaseline,
@@ -30,7 +33,7 @@ export function createWriting(
   client: ForumClient,
   changed: () => Promise<boolean>,
   accountObserved: (account: Account) => void,
-  publishedDraft?: (url: string) => Promise<void>,
+  publishedDraft?: (url: string, contextId: string) => Promise<void>,
 ) {
   const state = shallowRef<{
     context: WritingContext | null;
@@ -755,7 +758,7 @@ export function createWriting(
     else state.value = { ...state.value, publishing: false };
     await changed();
     if (result.status === "published" && result.publishedURL)
-      await publishedDraft?.(result.publishedURL);
+      await publishedDraft?.(result.publishedURL, result.submission.contextId);
   }
   function edit(
     patch: Partial<
@@ -1310,6 +1313,118 @@ export function createWriting(
         );
     }
   }
+  async function reviewDraftPublication() {
+    const context = state.value.context;
+    if (
+      !context?.draft ||
+      state.value.preparing ||
+      state.value.publishing ||
+      state.value.composing ||
+      state.value.publication
+    )
+      return;
+    if (
+      context.editorUnresolved ||
+      context.uploads?.some(
+        (u) => !["uploaded", "associated", "removed"].includes(u.status),
+      ) ||
+      context.draftAttempts?.some((a) => blocksDraft(a, context))
+    ) {
+      state.value = {
+        ...state.value,
+        message: context.editorUnresolved
+          ? "Review the complete source and resolve its interpretation before publication."
+          : context.draftAttempts?.some((a) => blocksDraft(a, context))
+            ? "An earlier draft operation remains unresolved or already published. Check the original result; no action was repeated."
+            : "Finish uploads or explicitly remove pending selections before saving or publishing a draft.",
+      };
+      return;
+    }
+    state.value = { ...state.value, preparing: true, message: "" };
+    const result = await client.resumeDraft(
+      {
+        threadId: context.draft.threadId,
+        boardId: context.board.id,
+        title: context.title,
+        url: context.draft.url,
+      },
+      context.account,
+    );
+    accountObserved(result.account);
+    observe(result.account, result.kind === "prepared");
+    if (
+      state.value.context?.id !== context.id ||
+      state.value.context.revision !== context.revision ||
+      state.value.composing
+    ) {
+      state.value = {
+        ...state.value,
+        preparing: false,
+        message:
+          "Writing changed during publication preparation. Review the current revision again.",
+      };
+      return;
+    }
+    if (result.kind !== "prepared") {
+      state.value = {
+        ...state.value,
+        preparing: false,
+        message: result.message,
+      };
+      return;
+    }
+    if (
+      result.prepared.draft?.version !== context.draft.version ||
+      !verifyStoredWriting(context, result.prepared)
+    ) {
+      state.value = {
+        ...state.value,
+        preparing: false,
+        message:
+          "Save local changes to the forum draft before reviewing publication. If the remote draft changed, resume its current revision; local writing is retained.",
+      };
+      return;
+    }
+    state.value = {
+      ...state.value,
+      preparing: false,
+      publication: {
+        id: crypto.randomUUID(),
+        generation: result.generation,
+        submission: JSON.parse(JSON.stringify(submission(context))),
+      },
+    };
+  }
+  async function publishReviewedDraft() {
+    const review = state.value.publication,
+      context = state.value.context;
+    if (
+      !review ||
+      !context?.draft ||
+      state.value.composing ||
+      state.value.preparing ||
+      state.value.publishing
+    )
+      return;
+    if (
+      review.submission.contextId !== context.id ||
+      review.submission.revision !== context.revision ||
+      review.generation !== client.generation ||
+      !state.value.accountVerified ||
+      client.account.kind !== "member" ||
+      client.account.id !== context.account.id
+    ) {
+      state.value = {
+        ...state.value,
+        publication: null,
+        message:
+          "The draft publication review changed. Review the current action, account and revision again. Nothing was sent.",
+      };
+      return;
+    }
+    state.value = { ...state.value, publication: null };
+    await publishDraft();
+  }
   async function publishDraft(resendId?: string) {
     const context = state.value.context;
     if (
@@ -1409,9 +1524,11 @@ export function createWriting(
     else state.value = { ...state.value, publishing: false };
     await changed();
     if (result.status === "published" && result.publishedURL)
-      await publishedDraft?.(result.publishedURL);
+      await publishedDraft?.(result.publishedURL, result.submission.contextId);
   }
   async function reviewPublication(resendId?: string) {
+    if (state.value.context?.draft && !resendId)
+      return reviewDraftPublication();
     if (
       state.value.context?.uploads?.some(
         (u) => !["uploaded", "associated", "removed"].includes(u.status),
@@ -1850,6 +1967,7 @@ export function createWriting(
       state.value = { ...state.value, fundedDraftReview: null };
     },
     publishDraft,
+    publishReviewedDraft,
     publish,
     checkResult,
     warnResend: (id: string) => {

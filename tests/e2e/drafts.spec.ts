@@ -1,3 +1,4 @@
+import { publishSavedDraft } from "./draft-review-controls";
 import { revealAdvanced } from "./editor-controls";
 import { writingPresentationRoundTrip } from "./combined-authoring";
 import { test, expect, type Page } from "@playwright/test";
@@ -86,6 +87,7 @@ async function lifecycle(
     outcome: "accepted",
     member: "7",
     gate: null as Promise<void> | null,
+    readGate: null as Promise<void> | null,
     reads: [] as string[],
     publications: 0,
     publicationOutcome: "published",
@@ -163,6 +165,8 @@ async function lifecycle(
       });
     }
     state.reads.push(url.href);
+    if (state.readGate && url.searchParams.get("mod") === "post")
+      await state.readGate;
     if (url.pathname === "/home.php")
       body = `${actor}<a class="a" href="${listURL}">草稿箱</a><div class="tl"><form id="delform"><table><tbody>${state.preexisting ? '<tr><th><a href="forum.php?mod=viewthread&tid=41">Draft lifecycle</a></th><td><a href="forum.php?mod=forumdisplay&fid=5">Music</a></td></tr>' : ""}${state.saved && !state.published ? '<tr><th><a href="forum.php?mod=viewthread&tid=42">' + escape(state.saved.get("subject") ?? "") + '</a></th><td><a href="forum.php?mod=forumdisplay&fid=5">Music</a></td></tr>' : '<tr><td><p class="emp">还没有相关的帖子</p></td></tr>'}</tbody></table></form></div>`;
     else if (url.searchParams.get("mod") === "post")
@@ -466,9 +470,7 @@ test("J6.publish-draft: explicit publication opens actual post and reconciles ab
     .getByRole("button", { name: "Save forum draft", exact: true })
     .click();
   await expect(page.getByText(/Confirmed forum draft 42/)).toBeVisible();
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/Confirmed publication of forum draft 42/).first(),
   ).toBeVisible();
@@ -518,9 +520,7 @@ test("J6.publication-race: newer edits survive older publication and remaining d
   state.gate = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect.poll(() => state.publications).toBe(1);
   await page
     .getByLabel("Complete source", { exact: true })
@@ -639,15 +639,11 @@ test("J6.moderation: publication moderation remains explicit and no blind retry 
     .click();
   await expect(page.getByText(/Confirmed forum draft 42/)).toBeVisible();
   state.publicationOutcome = "moderation";
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/forum reports moderation/).first(),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/earlier draft operation remains unresolved/),
   ).toBeVisible();
@@ -732,9 +728,7 @@ test("J6.stored-normalization: confirmed blank-price normalization and creation 
     .getByRole("button", { name: "Save forum draft", exact: true })
     .click();
   await expect(page.getByText(/Confirmed forum draft 42/)).toBeVisible();
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/Confirmed publication of forum draft 42/).first(),
   ).toBeVisible();
@@ -817,9 +811,7 @@ test("J6.native-moderation: independently returned moderation metadata cannot be
           '<div id="postlist"><div class="modact">本主题正在等待审核</div>',
         )
       : body;
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/forum reports moderation/).first(),
   ).toBeVisible();
@@ -848,9 +840,7 @@ test("J6.authored-state: quoted moderation and draft-action markup cannot overri
           '<span class="modact">本主题正在等待审核</span><a class="psave" href="forum.php?mod=misc&amp;action=pubsave&amp;tid=42">Quoted draft action</a>',
         )
       : body;
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/Confirmed publication of forum draft 42/).first(),
   ).toBeVisible();
@@ -869,9 +859,7 @@ test("J6.next-composition: a completed publication remains in history without bl
     .getByRole("button", { name: "Save forum draft", exact: true })
     .click();
   await expect(page.getByText(/Confirmed forum draft 42/)).toBeVisible();
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/Confirmed publication of forum draft 42/).first(),
   ).toBeVisible();
@@ -958,9 +946,7 @@ test("J6.visual-full-readback: visual revision preserves opaque source and refer
         "<strong>$1</strong>",
       ),
     );
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   const post = page.getByRole("article", { name: "Post 101", exact: true });
   await expect(
     post.locator("strong").filter({ hasText: "kXnown" }),
@@ -1044,9 +1030,7 @@ for (const disabled of [false, true])
     );
     expect(state.posts[0]!.get("attachnew[88][price]")).toBe("0");
     expect(state.posts[0]!.get("attachupdate[88]")).toBe(disabled ? null : "");
-    await page
-      .getByRole("button", { name: "Publish saved draft", exact: true })
-      .click();
+    await publishSavedDraft(page);
     await expect(
       page.getByRole("article", { name: "Post 101", exact: true }),
     ).toBeVisible();
@@ -1113,9 +1097,9 @@ for (const variant of ["disabled", "fieldset", "ambiguous"] as const)
           new URL(url).searchParams.get("fid") === "6",
       ),
     ).toHaveLength(0);
-    await page
-      .getByRole("button", { name: "Return to writing", exact: true })
-      .click();
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue("[unknown]full source[/unknown] [attach]88[/attach]");
@@ -1167,9 +1151,7 @@ test("J6.publish-independent-control: disabled current Save does not disable an 
       saveControl,
       saveControl.replace("<button ", "<button disabled "),
     );
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page.getByRole("article", { name: "Post 101", exact: true }),
   ).toBeVisible();
@@ -1210,12 +1192,11 @@ for (const operation of ["save", "publish"] as const)
     const prior = state.posts.length,
       lookups = state.mentionQueries.length;
     state.mentionPeople = [{ uid: 9, username: "Draft person" }];
-    await page
-      .getByRole("button", {
-        name: operation === "save" ? "Save forum draft" : "Publish saved draft",
-        exact: true,
-      })
-      .click();
+    if (operation === "publish") await publishSavedDraft(page);
+    else
+      await page
+        .getByRole("button", { name: "Save forum draft", exact: true })
+        .click();
     await expect(
       page.getByText(/selected mention identity changed/).last(),
     ).toBeVisible();
@@ -1264,9 +1245,7 @@ test("J6.mention-draft-current-capability: selected saved draft uses its actual 
           new URL(url).searchParams.get("pid") === "101",
       ),
   ).toBe(true);
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/selected mention identity changed/).last(),
   ).toBeVisible();
@@ -1285,9 +1264,7 @@ test("J6.mention-stable-readback: stable selected identity survives exact saved 
   const before = state.reads.length,
     queries = state.mentionQueries.length;
   state.mentionNew = false;
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page.getByRole("article", { name: "Post 101", exact: true }),
   ).toBeVisible();
@@ -1336,10 +1313,20 @@ for (const change of ["account", "version", "controls"] as const)
     });
     await page
       .getByRole("button", {
-        name: change === "version" ? "Publish saved draft" : "Save forum draft",
+        name:
+          change === "version"
+            ? "Review saved draft publication"
+            : "Save forum draft",
         exact: true,
       })
       .click();
+    if (change === "version")
+      await page
+        .getByRole("button", {
+          name: "Confirm saved draft publication",
+          exact: true,
+        })
+        .click();
     await expect
       .poll(() => state.mentionQueries.length)
       .toBeGreaterThan(queries);
@@ -1600,5 +1587,126 @@ test("UX61.forum-draft-local: known draft identity and unsaved-change explanatio
   await info.attach("draft-recovery-distinction.png", {
     body: await page.screenshot(),
     contentType: "image/png",
+  });
+});
+
+test("IM72.draft-review: modifier and primary prepare immutable saved-draft review, changes invalidate it and only separate approval publishes", async ({
+  page,
+}, info) => {
+  const server = await lifecycle(page);
+  await page
+    .getByRole("button", { name: "Save forum draft", exact: true })
+    .click();
+  await expect(page.getByText(/Confirmed forum draft 42/)).toBeVisible();
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.press("Control+Enter");
+  const review = page.getByRole("region", {
+    name: "Prepared publication review",
+    exact: true,
+  });
+  await expect(review).toBeVisible();
+  await expect(review).toContainText("Draft lifecycle");
+  expect(server.publications).toBe(0);
+  const reads = server.reads.length;
+  await source.press("Meta+Enter");
+  expect(server.reads).toHaveLength(reads);
+  expect(server.publications).toBe(0);
+  await source.fill("Changed local content");
+  await expect(review).toHaveCount(0);
+  await source.press("Control+Enter");
+  await expect(
+    page.getByText(
+      /Save local changes to the forum draft before reviewing publication/,
+    ),
+  ).toBeVisible();
+  expect(server.publications).toBe(0);
+  await source.fill("[unknown]full source[/unknown] [attach]88[/attach]");
+  await page
+    .getByRole("button", {
+      name: "Review saved draft publication",
+      exact: true,
+    })
+    .click();
+  await expect(review).toBeVisible();
+  await review
+    .getByRole("button", {
+      name: "Confirm saved draft publication",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByText(/Confirmed publication of forum draft 42/).first(),
+  ).toBeVisible();
+  expect(server.publications).toBe(1);
+  await info.attach("draft-review-requests.json", {
+    body: JSON.stringify({
+      reads: server.reads,
+      posts: server.posts.map((p) => Object.fromEntries(p)),
+      published: server.published,
+    }),
+    contentType: "application/json",
+  });
+  await info.attach("draft-published.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("IM72.draft-review-stale: delayed preparation cannot approve a newer revision and an account change at final approval sends nothing", async ({
+  page,
+}, info) => {
+  const server = await lifecycle(page);
+  await page
+    .getByRole("button", { name: "Save forum draft", exact: true })
+    .click();
+  await expect(page.getByText(/Confirmed forum draft 42/)).toBeVisible();
+  let release!: () => void;
+  server.readGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const source = page.getByLabel("Complete source", { exact: true });
+  const before = server.reads.length;
+  await source.press("Control+Enter");
+  await expect.poll(() => server.reads.length).toBeGreaterThan(before);
+  await source.fill("Later unsaved local text");
+  await source.press("Control+Enter");
+  release();
+  server.readGate = null;
+  await expect(
+    page.getByText(/Writing changed during publication preparation/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", {
+      name: "Prepared publication review",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  expect(server.publications).toBe(0);
+  await source.fill("[unknown]full source[/unknown] [attach]88[/attach]");
+  await source.press("Meta+Enter");
+  const review = page.getByRole("region", {
+    name: "Prepared publication review",
+    exact: true,
+  });
+  await expect(review).toBeVisible();
+  server.member = "8";
+  await review
+    .getByRole("button", {
+      name: "Confirm saved draft publication",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByText(/saved draft or account changed before publication/).last(),
+  ).toBeVisible();
+  expect(server.publications).toBe(0);
+  expect(server.posts).toHaveLength(1);
+  await info.attach("draft-stale-account.json", {
+    body: JSON.stringify({
+      reads: server.reads,
+      publications: server.publications,
+      posts: server.posts.map((p) => Object.fromEntries(p)),
+    }),
+    contentType: "application/json",
   });
 });

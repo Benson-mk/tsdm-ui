@@ -582,7 +582,7 @@ test("J75.messages-three-regions: reveal the peer-list pane and retain thread re
     });
     const reader = page.locator(".reading-pane");
     await expect(
-      reader.getByRole("heading", {
+      page.locator(".conversation-region").getByRole("heading", {
         name: "Retained forum thread",
         exact: true,
       }),
@@ -625,7 +625,7 @@ test("J75.messages-three-regions: reveal the peer-list pane and retain thread re
     expect(ledger).toHaveLength(beforeReselect);
     expect(Math.round((await peers.boundingBox())!.width)).toBe(300);
     await expect(
-      reader.getByRole("heading", {
+      page.locator(".conversation-region").getByRole("heading", {
         name: "Retained forum thread",
         exact: true,
       }),
@@ -638,7 +638,7 @@ test("J75.messages-three-regions: reveal the peer-list pane and retain thread re
       peers.getByText("Controlled & complete preview."),
     ).toBeVisible();
     await expect(
-      reader.getByRole("heading", {
+      page.locator(".conversation-region").getByRole("heading", {
         name: "Retained forum thread",
         exact: true,
       }),
@@ -655,7 +655,7 @@ test("J75.messages-three-regions: reveal the peer-list pane and retain thread re
       .getByRole("button", { name: "Refresh messages", exact: true })
       .click();
     await expect(
-      reader.getByRole("heading", {
+      page.locator(".conversation-region").getByRole("heading", {
         name: "Retained forum thread",
         exact: true,
       }),

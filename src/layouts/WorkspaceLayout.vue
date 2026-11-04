@@ -38,7 +38,13 @@ type DrawerPane = "boards" | "threads";
 const drawer = ref<DrawerPane | null>(null);
 const drawerContent = ref<HTMLElement | null>(null);
 const drawerClose = ref<HTMLButtonElement | null>(null);
-const boardsTools = ref<HTMLElement | null>(null);
+const boardContextTools = ref<HTMLElement | null>(null);
+const threadContextTools = ref<HTMLElement | null>(null);
+const contextTools = computed(() =>
+  state.value.result?.kind === "thread"
+    ? threadContextTools.value
+    : boardContextTools.value,
+);
 const boardsTrigger = ref<HTMLButtonElement | null>(null);
 const threadsTrigger = ref<HTMLButtonElement | null>(null);
 const paneScroll = new Map<HTMLElement, number>();
@@ -952,14 +958,14 @@ function boardIdFrom(url: string) {
         >
       </div>
     </header>
-    <Teleport
-      :to="boardsTools ?? portal"
-      :disabled="boardsDocked || !boardsTools"
-    >
+    <Teleport :to="contextTools ?? portal" :disabled="!contextTools">
       <div id="navigation-tools" class="workspace-tools">
         <nav :aria-label="text.actions">
           <a
-            v-if="state.result?.kind !== 'directory'"
+            v-if="
+              state.result?.kind !== 'directory' &&
+              state.result?.kind !== 'thread'
+            "
             class="narrow-overview-link"
             href="https://www.tsdm39.com/forum.php"
             >{{ text.allBoards }}</a
@@ -991,7 +997,32 @@ function boardIdFrom(url: string) {
             "
             >{{ text.native }}</a
           >
+          <button
+            v-if="
+              state.result?.kind === 'thread' || state.result?.kind === 'board'
+            "
+            :disabled="favorite.busy"
+            @click="
+              workspace.prepareFavorite(
+                'add',
+                state.result.kind === 'board' ? 'forum' : 'thread',
+                state.result.kind === 'board'
+                  ? state.result.board.id
+                  : state.result.thread.id,
+              )
+            "
+          >
+            {{
+              favoriteLabel(
+                state.result.kind === "board" ? "Save board" : "Save thread",
+              )
+            }}
+          </button>
         </nav>
+      </div>
+    </Teleport>
+    <Teleport :to="boardContextTools ?? portal" :disabled="!boardContextTools">
+      <div class="workspace-tools board-navigation-tools">
         <label v-if="state.section === 'boards'" class="board-picker"
           >{{ text.boardNavigation
           }}<select
@@ -1065,6 +1096,8 @@ function boardIdFrom(url: string) {
           </select></label
         >
       </div>
+    </Teleport>
+    <Teleport :to="boardContextTools ?? portal" :disabled="!boardContextTools">
       <div
         id="navigation-writing-actions"
         class="writing-actions secondary-writing-actions"
@@ -1088,163 +1121,8 @@ function boardIdFrom(url: string) {
             )
           }}
         </button>
-        <button
-          v-if="
-            state.result?.kind === 'thread' || state.result?.kind === 'board'
-          "
-          :disabled="favorite.busy"
-          @click="
-            workspace.prepareFavorite(
-              'add',
-              state.result.kind === 'board' ? 'forum' : 'thread',
-              state.result.kind === 'board'
-                ? state.result.board.id
-                : state.result.thread.id,
-            )
-          "
-        >
-          {{
-            favoriteLabel(
-              state.result.kind === "board" ? "Save board" : "Save thread",
-            )
-          }}
-        </button>
       </div>
     </Teleport>
-    <div
-      v-if="
-        writing.context ||
-        writing.preparing ||
-        writing.message ||
-        writing.editReplacement ||
-        writing.replacement ||
-        writing.draftReplacement
-      "
-      class="writing-actions"
-    >
-      <button v-if="writing.context" @click="workspace.writing.show()">
-        {{ text.returnWriting }}
-      </button>
-      <p v-if="writing.preparing" role="status">{{ text.preparingForm }}</p>
-      <p v-if="writing.message" role="alert">
-        {{
-          description(
-            writing.message,
-            workspace.preferences.state.value.language,
-          )
-        }}
-      </p>
-      <section v-if="writing.editReplacement" role="alert">
-        <p>{{ text.replaceEditWarning }}</p>
-        <button @click="workspace.writing.cancelEditReplacement()">
-          {{ text.keepCurrentWriting }}
-        </button>
-        <button @click="workspace.writing.replaceWithEdit()">
-          {{ text.discardAndEdit }}
-        </button>
-        <button
-          v-if="writing.context?.draftSaveAvailable"
-          :disabled="writing.preparing || writing.publishing"
-          @click="workspace.writing.saveDraft(true)"
-        >
-          {{ text.saveDraftContinue }}
-        </button>
-      </section>
-      <section
-        v-if="writing.replacement || writing.draftReplacement"
-        role="alert"
-      >
-        <p>{{ text.replaceWritingWarning }}</p>
-        <button @click="workspace.writing.show()">
-          {{ text.returnOriginal }}</button
-        ><button
-          :disabled="writing.preparing"
-          @click="workspace.writing.discardAndPrepare()"
-        >
-          {{
-            writing.draftReplacement
-              ? text.discardResumeDraft
-              : text.discardPrepare
-          }}
-        </button>
-        <button
-          v-if="writing.context?.draftSaveAvailable"
-          :disabled="writing.preparing || writing.publishing"
-          @click="workspace.writing.saveDraft(true)"
-        >
-          {{ text.saveDraftContinue }}
-        </button>
-      </section>
-    </div>
-    <section
-      v-if="writing.context && !writing.visible"
-      class="retained-writing"
-      :aria-label="text.retainedWriting"
-    >
-      <details>
-        <summary>{{ text.retainedWriting }}</summary>
-        <WritingDestination
-          :writing="writing.context"
-          :language="workspace.preferences.state.value.language"
-          compact
-        />
-      </details>
-      <p v-if="!writing.accountVerified" role="alert">
-        {{
-          insert(
-            writing.accountObservation.kind === "guest"
-              ? text.writingSignedOut
-              : writing.accountObservation.kind === "member" &&
-                  writing.accountObservation.id !== writing.context.account.id
-                ? text.writingAccountChanged
-                : text.writingPaused,
-            writing.context.account.name,
-          )
-        }}
-      </p>
-      <p v-if="writing.recoveryAvailable === false" role="alert">
-        {{ text.writingRecoveryUnavailable }}
-      </p>
-      <p
-        v-if="workspace.writing.unresolvedAttachments.value.length"
-        role="alert"
-      >
-        {{
-          insert(
-            text.unresolvedAttachments,
-            workspace.writing.unresolvedAttachments.value.join(", "),
-          )
-        }}
-      </p>
-      <p v-if="retainedAttemptWarning" role="alert">
-        {{ text.retainedAttemptWarning }}
-      </p>
-      <p v-if="writing.conflict" role="alert">
-        {{ text.latestServerVersion }}. {{ text.editCompare }}
-      </p>
-      <p v-if="writing.context.editorUnresolved" role="alert">
-        {{
-          editorText(
-            "Some visual input has no unambiguous BBCode representation. Complete source is retained. Review it before choosing how it should be interpreted.",
-            workspace.preferences.state.value.language,
-          )
-        }}
-      </p>
-      <p
-        v-if="writing.context.redPacket || writing.context.existingRedPacket"
-        role="alert"
-      >
-        {{ text.retainedFinancialWarning }}
-      </p>
-    </section>
-    <SourceWriting
-      v-if="writing.context"
-      v-show="writing.visible"
-      :key="writing.context.id"
-      :workspace="workspace"
-      :expanded="writingExpanded"
-      @resize="resizeWriting"
-    />
     <div class="workspace-status">
       <section
         v-if="state.recoveryProblem?.kind === 'incompatible'"
@@ -1422,7 +1300,6 @@ function boardIdFrom(url: string) {
       </article>
     </section>
     <main
-      v-show="!writing.visible || !writingExpanded"
       class="workspace-body"
       :class="{ 'thread-without-results': threadWithoutResults }"
       :data-boards-collapsed="!boardsDocked || boardsCollapsed"
@@ -1505,7 +1382,7 @@ function boardIdFrom(url: string) {
             >
             <p v-if="!noticeContext">{{ text.noticesHeading }}</p>
           </nav>
-          <div ref="boardsTools" class="boards-tools" />
+          <div ref="boardContextTools" class="board-context-tools" />
         </div>
       </Teleport>
       <Teleport
@@ -1834,163 +1711,26 @@ function boardIdFrom(url: string) {
           }}</a>
         </section>
       </Teleport>
-      <section
-        v-if="state.section === 'boards' && !reading"
-        class="reader-placeholder pane"
-      >
-        <p>{{ text.chooseThreadContext }}</p>
-      </section>
-      <section
-        v-if="reading"
-        class="reading-pane pane"
-        data-scroll-pane="reading"
-        :aria-label="text.threadReading"
-      >
-        <div class="history-controls" :aria-label="text.threadHistory">
-          <template
-            v-for="direction in ['earlier', 'later'] as const"
-            :key="direction"
-          >
-            <button
-              v-if="history[direction].url"
-              :disabled="
-                history.earlier.status === 'loading' ||
-                history.later.status === 'loading'
-              "
-              @click="workspace.threadHistory.load(direction)"
-            >
-              {{
-                history[direction].status === "loading"
-                  ? text.historyLoading
-                  : direction === "earlier"
-                    ? history[direction].status === "failed"
-                      ? text.retryEarlier
-                      : text.loadEarlier
-                    : history[direction].status === "failed"
-                      ? text.retryLater
-                      : text.loadLater
-              }}
-            </button>
-            <span v-else>{{
-              history[direction].status === "end"
-                ? direction === "earlier"
-                  ? text.historyBeginning
-                  : text.historyEnd
-                : direction === "earlier"
-                  ? text.historyEarlierUnknown
-                  : text.historyLaterUnknown
-            }}</span>
-          </template>
-          <a v-if="history.latest" :href="history.latest">{{
-            text.jumpLatest
-          }}</a>
-          <p
-            v-for="direction in ['earlier', 'later'] as const"
-            v-show="history[direction].failure"
-            :key="`failure-${direction}`"
-            role="status"
-          >
-            {{
-              history[direction].failure &&
-              "message" in history[direction].failure
-                ? description(
-                    history[direction].failure.message,
-                    workspace.preferences.state.value.language,
-                  )
-                : ""
-            }}
-          </p>
-        </div>
-        <section class="thread-heading">
-          <p class="eyebrow">{{ text.thread }} {{ reading.thread.id }}</p>
-          <h1>{{ reading.thread.title }}</h1>
-          <p v-if="!reading.thread.pages.links.length">
-            {{ text.page }} {{ reading.thread.pages.current }}
-          </p>
-          <a v-if="reading.thread.parent" :href="reading.thread.parent.url">{{
-            reading.thread.parent.label
-          }}</a>
+      <div class="conversation-region">
+        <section
+          v-if="state.section === 'boards' && !reading"
+          class="reader-placeholder pane"
+        >
+          <p>{{ text.chooseThreadContext }}</p>
         </section>
-        <nav
-          v-if="reading.thread.pages.links.length"
-          class="thread-top-pages"
-          :aria-label="text.threadPagesTop"
-        >
-          <span>{{ text.page }} {{ reading.thread.pages.current }}</span>
-          <a
-            v-for="link in reading.thread.pages.links"
-            :key="link.url"
-            :href="link.url"
-            >{{ link.label }}</a
-          >
-        </nav>
-        <nav :aria-label="text.threadFilters">
-          <a
-            v-for="filter in threadFilters.filter((filter) => !filter.authorId)"
-            :key="filter.url"
-            :href="filter.url"
-            >{{ filter.label }}</a
-          >
-        </nav>
-        <p v-if="missingTarget" role="alert">
-          {{ insert(text.missingPost, reading.thread.target ?? "") }}
-        </p>
-        <p
-          v-for="notice in reading.thread.notices"
-          :key="notice"
-          class="permission-notice"
-        >
-          {{ notice }}
-        </p>
-        <button
-          v-if="reading.thread.parent"
-          @click="
-            workspace.writing.prepareReply(
-              boardIdFrom(reading.thread.parent.url),
-              {
-                threadId: reading.thread.id,
-                postId: null,
-                author: '',
-                authorId: null,
-              },
-            )
-          "
-        >
-          {{ text.replyToThread }}
-        </button>
-        <article
-          v-for="post in reading.thread.posts"
-          :id="`pid${post.id}`"
-          :key="post.id"
-          :aria-label="`${text.post} ${post.id}`"
-          :data-targeted="reading.thread.target === post.id"
-          tabindex="-1"
-        >
-          <header class="post-header">
-            <strong class="post-author">{{ post.author }}</strong>
-            <div class="post-metadata">
-              <span>{{ text.floor }} {{ post.floor || text.unknown }}</span>
-              <time>{{ post.date }}</time>
-              <a :href="post.url">{{ text.post }} {{ post.id }}</a>
-            </div>
-          </header>
-          <ContentView
-            :nodes="post.content"
-            :language="workspace.preferences.state.value.language"
-            summarize-formatting
-          />
-          <footer
-            v-if="
-              reading.thread.parent ||
-              (reading.account.kind === 'member' &&
-                post.authorId === reading.account.id) ||
-              threadFilters.some(
-                (filter) =>
-                  filter.authorId === post.authorId && filter.authorId !== null,
-              )
-            "
-            class="post-actions"
-          >
+        <div v-if="reading" class="conversation-heading">
+          <section class="thread-heading">
+            <p class="eyebrow">{{ text.thread }} {{ reading.thread.id }}</p>
+            <h1>{{ reading.thread.title }}</h1>
+            <p v-if="!reading.thread.pages.links.length">
+              {{ text.page }} {{ reading.thread.pages.current }}
+            </p>
+            <a v-if="reading.thread.parent" :href="reading.thread.parent.url">{{
+              reading.thread.parent.label
+            }}</a>
+          </section>
+          <div class="conversation-tool-row">
+            <div ref="threadContextTools" class="thread-context-tools" />
             <button
               v-if="reading.thread.parent"
               @click="
@@ -1998,84 +1738,376 @@ function boardIdFrom(url: string) {
                   boardIdFrom(reading.thread.parent.url),
                   {
                     threadId: reading.thread.id,
-                    postId: post.id,
-                    author: post.author,
-                    authorId: post.authorId,
+                    postId: null,
+                    author: '',
+                    authorId: null,
                   },
                 )
               "
             >
-              {{ text.quickQuote }}
+              {{ text.replyToThread }}
             </button>
-            <button
-              v-if="
-                reading.account.kind === 'member' &&
-                post.authorId === reading.account.id
-              "
-              @click="
-                workspace.writing.prepareEdit(reading.thread.url, post.id)
-              "
+          </div>
+          <nav
+            v-if="reading.thread.pages.links.length"
+            class="thread-top-pages"
+            :aria-label="text.threadPagesTop"
+          >
+            <span>{{ text.page }} {{ reading.thread.pages.current }}</span>
+            <a
+              v-for="link in reading.thread.pages.links"
+              :key="link.url"
+              :href="link.url"
+              >{{ link.label }}</a
             >
-              {{ insert(text.editPost, post.id) }}
-            </button>
+          </nav>
+          <nav :aria-label="text.threadFilters">
             <a
               v-for="filter in threadFilters.filter(
-                (filter) =>
-                  filter.authorId === post.authorId && filter.authorId !== null,
+                (filter) => !filter.authorId,
               )"
               :key="filter.url"
               :href="filter.url"
-              class="author-filter"
               >{{ filter.label }}</a
             >
-          </footer>
-          <ul v-if="post.attachments?.length" :aria-label="text.attachments">
-            <li v-for="attachment in post.attachments" :key="attachment.id">
+          </nav>
+          <p v-if="missingTarget" role="alert">
+            {{ insert(text.missingPost, reading.thread.target ?? "") }}
+          </p>
+          <p
+            v-for="notice in reading.thread.notices"
+            :key="notice"
+            class="permission-notice"
+          >
+            {{ notice }}
+          </p>
+        </div>
+        <section
+          v-if="reading"
+          class="reading-pane pane"
+          data-scroll-pane="reading"
+          :aria-label="text.threadReading"
+        >
+          <div class="history-controls" :aria-label="text.threadHistory">
+            <template
+              v-for="direction in ['earlier', 'later'] as const"
+              :key="direction"
+            >
               <button
-                :disabled="download?.status === 'checking'"
-                @click="workspace.prepareDownload(post.id, attachment.id)"
-              >
-                {{ text.download }} {{ attachment.name }}
-              </button>
-              <section
-                v-if="
-                  download?.postId === post.id &&
-                  download?.attachmentId === attachment.id
+                v-if="history[direction].url"
+                :disabled="
+                  history.earlier.status === 'loading' ||
+                  history.later.status === 'loading'
                 "
-                data-download-status
-                :aria-label="text.fileDownload"
+                @click="workspace.threadHistory.load(direction)"
               >
-                <strong>{{ download.name }}</strong>
-                <p :role="download.status === 'failure' ? 'alert' : 'status'">
-                  {{
-                    description(
-                      download.message,
+                {{
+                  history[direction].status === "loading"
+                    ? text.historyLoading
+                    : direction === "earlier"
+                      ? history[direction].status === "failed"
+                        ? text.retryEarlier
+                        : text.loadEarlier
+                      : history[direction].status === "failed"
+                        ? text.retryLater
+                        : text.loadLater
+                }}
+              </button>
+              <span v-else>{{
+                history[direction].status === "end"
+                  ? direction === "earlier"
+                    ? text.historyBeginning
+                    : text.historyEnd
+                  : direction === "earlier"
+                    ? text.historyEarlierUnknown
+                    : text.historyLaterUnknown
+              }}</span>
+            </template>
+            <a v-if="history.latest" :href="history.latest">{{
+              text.jumpLatest
+            }}</a>
+            <p
+              v-for="direction in ['earlier', 'later'] as const"
+              v-show="history[direction].failure"
+              :key="`failure-${direction}`"
+              role="status"
+            >
+              {{
+                history[direction].failure &&
+                "message" in history[direction].failure
+                  ? description(
+                      history[direction].failure.message,
                       workspace.preferences.state.value.language,
                     )
-                  }}
-                </p>
-                <button
-                  v-if="
-                    download.status === 'ready' ||
-                    download.status === 'requested'
-                  "
-                  @click="workspace.saveDownload()"
-                >
-                  {{ text.saveFile }}
-                </button>
-              </section>
-            </li>
-          </ul>
-        </article>
-        <nav :aria-label="text.pages">
-          <a
-            v-for="link in reading.thread.pages.links"
-            :key="link.url"
-            :href="link.url"
-            >{{ link.label }}</a
+                  : ""
+              }}
+            </p>
+          </div>
+          <article
+            v-for="post in reading.thread.posts"
+            :id="`pid${post.id}`"
+            :key="post.id"
+            :aria-label="`${text.post} ${post.id}`"
+            :data-targeted="reading.thread.target === post.id"
+            tabindex="-1"
           >
-        </nav>
-      </section>
+            <header class="post-header">
+              <strong class="post-author">{{ post.author }}</strong>
+              <div class="post-metadata">
+                <span>{{ text.floor }} {{ post.floor || text.unknown }}</span>
+                <time>{{ post.date }}</time>
+                <a :href="post.url">{{ text.post }} {{ post.id }}</a>
+              </div>
+            </header>
+            <ContentView
+              :nodes="post.content"
+              :language="workspace.preferences.state.value.language"
+              summarize-formatting
+            />
+            <footer
+              v-if="
+                reading.thread.parent ||
+                (reading.account.kind === 'member' &&
+                  post.authorId === reading.account.id) ||
+                threadFilters.some(
+                  (filter) =>
+                    filter.authorId === post.authorId &&
+                    filter.authorId !== null,
+                )
+              "
+              class="post-actions"
+            >
+              <button
+                v-if="reading.thread.parent"
+                @click="
+                  workspace.writing.prepareReply(
+                    boardIdFrom(reading.thread.parent.url),
+                    {
+                      threadId: reading.thread.id,
+                      postId: post.id,
+                      author: post.author,
+                      authorId: post.authorId,
+                    },
+                  )
+                "
+              >
+                {{ text.quickQuote }}
+              </button>
+              <button
+                v-if="
+                  reading.account.kind === 'member' &&
+                  post.authorId === reading.account.id
+                "
+                @click="
+                  workspace.writing.prepareEdit(reading.thread.url, post.id)
+                "
+              >
+                {{ insert(text.editPost, post.id) }}
+              </button>
+              <a
+                v-for="filter in threadFilters.filter(
+                  (filter) =>
+                    filter.authorId === post.authorId &&
+                    filter.authorId !== null,
+                )"
+                :key="filter.url"
+                :href="filter.url"
+                class="author-filter"
+                >{{ filter.label }}</a
+              >
+            </footer>
+            <ul v-if="post.attachments?.length" :aria-label="text.attachments">
+              <li v-for="attachment in post.attachments" :key="attachment.id">
+                <button
+                  :disabled="download?.status === 'checking'"
+                  @click="workspace.prepareDownload(post.id, attachment.id)"
+                >
+                  {{ text.download }} {{ attachment.name }}
+                </button>
+                <section
+                  v-if="
+                    download?.postId === post.id &&
+                    download?.attachmentId === attachment.id
+                  "
+                  data-download-status
+                  :aria-label="text.fileDownload"
+                >
+                  <strong>{{ download.name }}</strong>
+                  <p :role="download.status === 'failure' ? 'alert' : 'status'">
+                    {{
+                      description(
+                        download.message,
+                        workspace.preferences.state.value.language,
+                      )
+                    }}
+                  </p>
+                  <button
+                    v-if="
+                      download.status === 'ready' ||
+                      download.status === 'requested'
+                    "
+                    @click="workspace.saveDownload()"
+                  >
+                    {{ text.saveFile }}
+                  </button>
+                </section>
+              </li>
+            </ul>
+          </article>
+          <nav :aria-label="text.pages">
+            <a
+              v-for="link in reading.thread.pages.links"
+              :key="link.url"
+              :href="link.url"
+              >{{ link.label }}</a
+            >
+          </nav>
+        </section>
+        <div class="conversation-status">
+          <div
+            v-if="
+              (writing.context && !writing.visible) ||
+              writing.preparing ||
+              writing.message ||
+              writing.editReplacement ||
+              writing.replacement ||
+              writing.draftReplacement
+            "
+            class="writing-actions"
+          >
+            <button
+              v-if="writing.context && !writing.visible"
+              @click="workspace.writing.show()"
+            >
+              {{ text.returnWriting }}
+            </button>
+            <p v-if="writing.preparing" role="status">
+              {{ text.preparingForm }}
+            </p>
+            <p v-if="writing.message" role="alert">
+              {{
+                description(
+                  writing.message,
+                  workspace.preferences.state.value.language,
+                )
+              }}
+            </p>
+            <section v-if="writing.editReplacement" role="alert">
+              <p>{{ text.replaceEditWarning }}</p>
+              <button @click="workspace.writing.cancelEditReplacement()">
+                {{ text.keepCurrentWriting }}
+              </button>
+              <button @click="workspace.writing.replaceWithEdit()">
+                {{ text.discardAndEdit }}
+              </button>
+              <button
+                v-if="writing.context?.draftSaveAvailable"
+                :disabled="writing.preparing || writing.publishing"
+                @click="workspace.writing.saveDraft(true)"
+              >
+                {{ text.saveDraftContinue }}
+              </button>
+            </section>
+            <section
+              v-if="writing.replacement || writing.draftReplacement"
+              role="alert"
+            >
+              <p>{{ text.replaceWritingWarning }}</p>
+              <button @click="workspace.writing.show()">
+                {{ text.returnOriginal }}</button
+              ><button
+                :disabled="writing.preparing"
+                @click="workspace.writing.discardAndPrepare()"
+              >
+                {{
+                  writing.draftReplacement
+                    ? text.discardResumeDraft
+                    : text.discardPrepare
+                }}
+              </button>
+              <button
+                v-if="writing.context?.draftSaveAvailable"
+                :disabled="writing.preparing || writing.publishing"
+                @click="workspace.writing.saveDraft(true)"
+              >
+                {{ text.saveDraftContinue }}
+              </button>
+            </section>
+          </div>
+          <section
+            v-if="writing.context && !writing.visible"
+            class="retained-writing"
+            :aria-label="text.retainedWriting"
+          >
+            <details>
+              <summary>{{ text.retainedWriting }}</summary>
+              <WritingDestination
+                :writing="writing.context"
+                :language="workspace.preferences.state.value.language"
+                compact
+              />
+            </details>
+            <p v-if="!writing.accountVerified" role="alert">
+              {{
+                insert(
+                  writing.accountObservation.kind === "guest"
+                    ? text.writingSignedOut
+                    : writing.accountObservation.kind === "member" &&
+                        writing.accountObservation.id !==
+                          writing.context.account.id
+                      ? text.writingAccountChanged
+                      : text.writingPaused,
+                  writing.context.account.name,
+                )
+              }}
+            </p>
+            <p v-if="writing.recoveryAvailable === false" role="alert">
+              {{ text.writingRecoveryUnavailable }}
+            </p>
+            <p
+              v-if="workspace.writing.unresolvedAttachments.value.length"
+              role="alert"
+            >
+              {{
+                insert(
+                  text.unresolvedAttachments,
+                  workspace.writing.unresolvedAttachments.value.join(", "),
+                )
+              }}
+            </p>
+            <p v-if="retainedAttemptWarning" role="alert">
+              {{ text.retainedAttemptWarning }}
+            </p>
+            <p v-if="writing.conflict" role="alert">
+              {{ text.latestServerVersion }}. {{ text.editCompare }}
+            </p>
+            <p v-if="writing.context.editorUnresolved" role="alert">
+              {{
+                editorText(
+                  "Some visual input has no unambiguous BBCode representation. Complete source is retained. Review it before choosing how it should be interpreted.",
+                  workspace.preferences.state.value.language,
+                )
+              }}
+            </p>
+            <p
+              v-if="
+                writing.context.redPacket || writing.context.existingRedPacket
+              "
+              role="alert"
+            >
+              {{ text.retainedFinancialWarning }}
+            </p>
+          </section>
+        </div>
+        <SourceWriting
+          v-if="writing.context"
+          v-show="writing.visible"
+          :key="writing.context.id"
+          :workspace="workspace"
+          :expanded="writingExpanded"
+          @resize="resizeWriting"
+        />
+      </div>
     </main>
   </div>
 </template>

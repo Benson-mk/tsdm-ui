@@ -883,30 +883,35 @@ select {
 .source-writing {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 96px;
+  height: 46dvh;
+  max-height: 46dvh;
   overflow: hidden;
   width: 100%;
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 24px;
+  margin: 0;
+  padding: 0 24px 12px;
+  border-top: 1px solid var(--separator);
+  background: var(--surface);
 }
-.source-writing:not(.writing-expanded) {
-  flex: 1 1 0;
-  max-height: 48dvh;
-  border-bottom: 1px solid var(--separator);
+.conversation-region {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
-@media (max-width: 959px) {
-  /* A tall disclosed menu must not squeeze the writing scroller to zero. */
-  .workspace:has(.navigation-trigger[aria-expanded="true"]) {
-    overflow-y: auto;
-  }
-  .workspace:has(.navigation-trigger[aria-expanded="true"]) > .source-writing {
-    flex-shrink: 0;
-    min-height: 48dvh;
-  }
+.conversation-region > .reading-pane,
+.conversation-region > .reader-placeholder {
+  flex: 1 0 96px;
+  min-height: 96px;
 }
 .writing-content {
+  scroll-padding-block: 8px;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -936,15 +941,6 @@ select {
 }
 .retained-writing .writing-destination {
   margin-block: 0 8px;
-}
-.source-writing:not(.writing-expanded) .visual-editor .ProseMirror {
-  min-height: 6em;
-  max-height: 24dvh;
-  overflow: auto;
-}
-.source-writing.writing-expanded textarea,
-.source-writing.writing-expanded .visual-editor .ProseMirror {
-  min-height: 45dvh;
 }
 .writing-destination {
   border-inline-start: 3px solid var(--boundary);
@@ -996,7 +992,7 @@ select {
   accent-color: var(--ink);
 }
 :host([data-spacing="compact"]) .source-writing {
-  padding: 16px;
+  padding: 0 24px 12px;
 }
 :host([data-spacing="compact"]) .source-writing label {
   margin-block: 8px;
@@ -1329,7 +1325,7 @@ select {
   min-height: 0;
 }
 .reading-pane > article,
-.reading-pane .thread-heading {
+.conversation-region .thread-heading {
   border-radius: 0;
   padding: 24px 0;
   max-width: 48em;
@@ -1339,7 +1335,7 @@ select {
   border: 0;
   border-bottom: 1px solid var(--separator);
 }
-.reading-pane .thread-heading h1 {
+.conversation-region .thread-heading h1 {
   font-size: calc(1.5rem * var(--text-scale, 1));
   font-weight: 540;
 }
@@ -1370,7 +1366,7 @@ select {
   padding: 0 24px;
 }
 :host([data-spacing="compact"]) .reading-pane > article,
-:host([data-spacing="compact"]) .reading-pane .thread-heading {
+:host([data-spacing="compact"]) .conversation-region .thread-heading {
   padding: 16px 0;
   margin: 0;
 }
@@ -1395,14 +1391,14 @@ select {
   .workspace-body[data-boards-collapsed="true"] > .overview {
     grid-column: 1;
   }
-  .workspace-body[data-boards-collapsed="true"] > .reading-pane,
+  .workspace-body[data-boards-collapsed="true"] > .conversation-region,
   .workspace-body[data-boards-collapsed="true"] > .reader-placeholder,
-  .workspace-body[data-threads-collapsed="true"] > .reading-pane,
+  .workspace-body[data-threads-collapsed="true"] > .conversation-region,
   .workspace-body[data-threads-collapsed="true"] > .reader-placeholder {
     grid-column: 2;
   }
   .workspace-body[data-boards-collapsed="true"][data-threads-collapsed="true"]
-    > .reading-pane,
+    > .conversation-region,
   .workspace-body[data-boards-collapsed="true"][data-threads-collapsed="true"]
     > .reader-placeholder {
     grid-column: 1;
@@ -1417,9 +1413,8 @@ select {
   .workspace-body > .results-pane {
     grid-column: 1;
   }
-  .workspace-body[data-view="board"] > .reading-pane,
-  .workspace-body[data-view="directory"] > .reading-pane {
-    display: none;
+  .conversation-region {
+    grid-column: 1;
   }
 }
 @media (max-width: 559px) {
@@ -1427,13 +1422,13 @@ select {
   :host([data-spacing="compact"]) .reading-pane {
     padding-inline: 16px;
   }
-  .reading-pane .thread-heading h1 {
+  .conversation-region .thread-heading h1 {
     font-size: calc(1.25rem * var(--text-scale, 1));
   }
 }
 
 @media (min-width: 960px) {
-  .workspace-body > .reading-pane,
+  .workspace-body > .conversation-region,
   .workspace-body > .reader-placeholder {
     grid-row: 1;
   }
@@ -1479,22 +1474,17 @@ select {
 .workspace-body[data-boards-collapsed="true"] > #thread-list-pane {
   grid-column: 1;
 }
-.workspace-body > .reading-pane,
-.workspace-body > .reader-placeholder {
-  display: block;
+.workspace-body > .conversation-region {
+  display: flex;
   grid-column: 3;
   grid-row: 1;
 }
-.workspace-body[data-boards-collapsed="true"] > .reading-pane,
-.workspace-body[data-threads-collapsed="true"] > .reading-pane,
-.workspace-body[data-boards-collapsed="true"] > .reader-placeholder,
-.workspace-body[data-threads-collapsed="true"] > .reader-placeholder {
+.workspace-body[data-boards-collapsed="true"] > .conversation-region,
+.workspace-body[data-threads-collapsed="true"] > .conversation-region {
   grid-column: 2;
 }
 .workspace-body[data-boards-collapsed="true"][data-threads-collapsed="true"]
-  > .reading-pane,
-.workspace-body[data-boards-collapsed="true"][data-threads-collapsed="true"]
-  > .reader-placeholder {
+  > .conversation-region {
   grid-column: 1;
 }
 
@@ -1570,4 +1560,94 @@ select {
 
 .pane-drawer .narrow-overview-link {
   display: none;
+}
+/* Both presentations keep one source/visual session below reading. */
+.source-writing .post-editor textarea,
+.source-writing .visual-editor .ProseMirror {
+  min-height: 64px;
+  height: 64px;
+  overflow: auto;
+}
+.source-writing.writing-expanded .post-editor textarea,
+.source-writing.writing-expanded .visual-editor .ProseMirror {
+  min-height: 140px;
+  height: 140px;
+}
+.source-writing input:not([type="checkbox"]),
+.source-writing select {
+  min-height: 48px;
+}
+@media (max-width: 559px) {
+  .source-writing,
+  :host([data-spacing="compact"]) .source-writing {
+    padding: 0 16px 8px;
+  }
+  .source-writing.writing-expanded .post-editor textarea,
+  .source-writing.writing-expanded .visual-editor .ProseMirror {
+    min-height: 100px;
+    height: 100px;
+  }
+}
+
+.board-context-tools .workspace-tools,
+.thread-context-tools .workspace-tools,
+.board-context-tools .writing-actions {
+  padding: 8px 0;
+}
+.board-context-tools .workspace-tools,
+.board-context-tools .workspace-tools nav {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.conversation-status {
+  flex: 0 0 auto;
+  max-height: 30dvh;
+  overflow: auto;
+}
+.conversation-status:empty {
+  display: none;
+}
+
+.conversation-heading {
+  flex: 0 0 auto;
+  padding-inline: 24px;
+  min-width: 0;
+}
+.conversation-region .thread-heading,
+:host([data-spacing="compact"]) .conversation-region .thread-heading {
+  padding: 8px 0 4px;
+}
+.conversation-heading .thread-heading h1,
+.conversation-heading .thread-heading p {
+  margin-block: 4px;
+}
+.conversation-heading .eyebrow {
+  font-size: calc(0.75rem * var(--text-scale, 1));
+}
+.conversation-heading > nav {
+  margin-block: 4px;
+}
+.conversation-heading > nav:empty {
+  display: none;
+}
+.conversation-tool-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding-block: 4px;
+  border-bottom: 1px solid var(--separator);
+}
+.conversation-tool-row .thread-context-tools,
+.conversation-tool-row .workspace-tools {
+  display: contents;
+}
+.conversation-tool-row button {
+  font-size: calc(0.875rem * var(--text-scale, 1));
+}
+@media (max-width: 559px) {
+  .conversation-heading {
+    padding-inline: 16px;
+  }
 }

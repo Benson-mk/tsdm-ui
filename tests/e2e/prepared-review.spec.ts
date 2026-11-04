@@ -190,6 +190,17 @@ async function capture(page: Page, info: TestInfo) {
     }, previous);
   }
 }
+async function waitForDocking(page: Page, width: number) {
+  const body = page.locator(".workspace-body");
+  await expect(body).toHaveAttribute(
+    "data-boards-collapsed",
+    String(width < 960),
+  );
+  await expect(body).toHaveAttribute(
+    "data-threads-collapsed",
+    String(width < 768),
+  );
+}
 test.afterEach(async ({ page }, info) => {
   if (fixtures.has(page)) await capture(page, info);
 });
@@ -288,8 +299,18 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
     width: node.clientWidth,
     scrollWidth: node.scrollWidth,
   }));
-  expect(geometry.top).toBeLessThanOrEqual(240);
-  expect(geometry.height).toBeGreaterThanOrEqual(422);
+  const conversationTop = await page
+    .locator(".conversation-region")
+    .evaluate((node) => node.getBoundingClientRect().top);
+  expect(conversationTop).toBeLessThanOrEqual(240);
+  expect(geometry.top).toBeGreaterThanOrEqual(conversationTop);
+  const headingHeight = await page
+    .locator(".conversation-heading")
+    .evaluate((node) => node.getBoundingClientRect().height);
+  // The former reader box included this heading; retain that area budget and
+  // separately require actual scrollable post space in the docked layout.
+  expect(headingHeight + geometry.height).toBeGreaterThanOrEqual(422);
+  expect(geometry.height).toBeGreaterThanOrEqual(96);
   expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width + 1);
   await info.attach("integrated-retained-reader.png", {
     body: await page.screenshot(),
@@ -346,16 +367,14 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
-  await revealNavigation(page);
   const beforeBack = f.requests.length;
   await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
   await expect(results.locator(".thread-row")).toHaveCount(30);
   await expect(results.getByText("Page 2", { exact: true })).toBeVisible();
   expect(await results.evaluate((node) => node.scrollTop)).toBe(boardOffset);
   expect(f.requests).toHaveLength(beforeBack);
-  await page
-    .getByRole("button", { name: "Boards pane", exact: true })
-    .press("Escape");
+  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();
@@ -528,6 +547,7 @@ test("UX62.disclosed-validation: enlarged drawer navigation retains a usable wri
     { width: 390, height: 844 },
   ]) {
     await page.setViewportSize(viewport);
+    await waitForDocking(page, viewport.width);
     expect(await retained(page)).toEqual(before);
     const geometry = await page
       .locator(".writing-content")
@@ -574,7 +594,8 @@ for (const [entry, width, height, textSize, theme, language] of [
         await page
           .locator(".reading-pane")
           .evaluate((node) => node.getBoundingClientRect().left),
-      ).toBeLessThan(400);
+      ).toBe(516);
+      await expect(page.locator(".results-placeholder")).toBeVisible();
       await expect(page.locator(".results-pane")).toHaveCount(0);
       await page
         .getByRole("button", { name: "Return to writing", exact: true })
@@ -1097,9 +1118,7 @@ test("UX59.delayed-uncertain: delayed unknown result owns the frozen revision wh
   ).toBe(body);
   await expect(source).toHaveValue(body + " LATER LOCAL WRITING");
   await page.reload();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+  await expect(source).toBeVisible();
   await expect(source).toHaveValue(body + " LATER LOCAL WRITING");
   expect(
     (await retained(page)).attempts[0].publication.submission.writing.source,
@@ -1232,6 +1251,7 @@ for (const profile of [
     );
     for (const width of [profile.width, 390, 768, 1440]) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+      await waitForDocking(page, width);
       const metrics = await review.evaluate((node) => ({
         client: node.clientWidth,
         scroll: node.scrollWidth,
@@ -1483,6 +1503,7 @@ for (const profile of [
     await expect(activeEditor).toHaveAccessibleDescription(profile.bodyError);
     for (const width of [profile.width, 390, 768, 1440]) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+      await waitForDocking(page, width);
       const metrics = await page
         .locator("#writing-title-error")
         .evaluate((node) => ({
@@ -1566,6 +1587,9 @@ test("UX60.new-context: deliberate owned-edit replacement does not inherit previ
     .click();
   await page
     .getByRole("link", { name: "Existing thread", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Keep writing and read thread", exact: true })
     .click();
   await page
     .getByRole("button", { name: "Edit post 101", exact: true })
