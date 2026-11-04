@@ -496,6 +496,28 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
         !(key(entry.readingKey) && Object.hasOwn(entries, entry.readingKey))) ||
       !nullableString(entry.selection) ||
       !nullableString(entry.account) ||
+      !(
+        entry.drafts === undefined ||
+        entry.drafts === null ||
+        (object(entry.drafts) &&
+          entry.drafts.kind === "drafts" &&
+          account(entry.drafts.account) &&
+          finite(entry.drafts.generation) &&
+          url(entry.drafts.sourceURL, true) &&
+          object(entry.drafts.drafts) &&
+          url(entry.drafts.drafts.url, true) &&
+          pages(entry.drafts.drafts.pages) &&
+          string(entry.drafts.drafts.empty) &&
+          list(
+            entry.drafts.drafts.rows,
+            (row) =>
+              object(row) &&
+              id(row.threadId) &&
+              id(row.boardId) &&
+              string(row.title) &&
+              url(row.url, true),
+          ))
+      ) ||
       !(entry.documentNavigations === 0 || entry.documentNavigations === 1) ||
       !(entry.result === null || result(entry.result))
     )

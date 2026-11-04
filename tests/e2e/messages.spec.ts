@@ -108,6 +108,65 @@ test("J75.messages-passive-entry: open Messages without a request, deliberately 
 
 const populated = `${header}<div id="ct"><div class="mn"><div class="bm"><ul class="tb"><li class="a"><a href="home.php?mod=space&do=pm&filter=privatepm">私人消息</a></li></ul><form id="deletepmform"><div class="xld xlda pml"><dl id="pmlist_81" class="bbda cur1 cl newpm"><dd class="m avt"><div class="newpm_avt"></div><a href="home.php?mod=space&uid=9"><img src="https://fixture.example/avatar.png"></a></dd><dd class="ptm pm_c"><div class="o"><input name="deletepm_deluid[]" value="9"></div><a class="xw1" href="home.php?mod=space&uid=9">Listener Nine</a> 对 <span class="xi2">您</span> 说 :<br>Controlled &amp; complete preview.<script>window.messageScriptRan=true</script><br><span class="xg1"><span title="2026-11-04 17:00">now</span></span><span class="pm_o y"><span class="xg1 z">共 2 条</span><a id="pmlist_81_a" href="home.php?mod=space&do=pm&subop=view&touid=9#last">回复</a></span></dd></dl><dl id="pmlist_82" class="bbda cur1 cl"><dd class="m avt"><div class="newpm_avt"></div><a href="home.php?mod=space&uid=10">Avatar</a></dd><dd class="ptm pm_c"><a class="xw1" href="home.php?mod=space&uid=10">Reader Ten</a> 对 您 说 :<br>Already read preview.<br><span class="xg1"><span title="2026-11-03 10:00">yesterday</span></span><span class="pm_o"><a id="pmlist_82_a" href="home.php?mod=space&do=pm&subop=view&touid=10#last">回复</a></span></dd></dl></div></form></div></div></div>`;
 
+test("J67.messages-scroll-owner: shared list ownership retains an existing private-list offset without another read", async ({
+  page,
+}, info) => {
+  const ledger = await openMessageFixture(page, () => ({
+    body: populated.replace(
+      "Controlled &amp; complete preview.",
+      "Controlled complete preview. ".repeat(80),
+    ),
+  }));
+  try {
+    await expect(
+      page.getByRole("heading", { name: "Listener Nine", exact: true }),
+    ).toBeVisible();
+    await page.locator(".messages-pane").evaluate((node) => {
+      node.scrollTop = 320;
+    });
+    expect(
+      await page.locator(".messages-pane").evaluate((node) => node.scrollTop),
+    ).toBe(320);
+    const geometry = () =>
+      page.locator(".messages-pane").evaluate((node) => ({
+        scrollTop: node.scrollTop,
+        pane: node.getBoundingClientRect().toJSON(),
+        row: node
+          .querySelector('[data-peer-id="9"]')
+          ?.getBoundingClientRect()
+          .toJSON(),
+      }));
+    const before = await geometry();
+    await page
+      .getByRole("navigation", { name: "Main destinations", exact: true })
+      .getByRole("button", { name: "Boards", exact: true })
+      .click();
+    const count = ledger.length;
+    await page.goBack();
+    await expect(page.locator(".messages-pane")).toBeVisible();
+    await info.attach("messages-list-owner-geometry.json", {
+      body: JSON.stringify({ before, after: await geometry() }),
+      contentType: "application/json",
+    });
+    await expect
+      .poll(async () => (await geometry()).scrollTop)
+      .toBeGreaterThan(0);
+    await expect
+      .poll(async () => Math.abs((await geometry()).row.top - before.row.top))
+      .toBeLessThanOrEqual(0.5);
+    expect(ledger).toHaveLength(count);
+  } finally {
+    await info.attach("messages-list-owner.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("messages-list-owner-ledger.json", {
+      body: JSON.stringify(ledger),
+      contentType: "application/json",
+    });
+  }
+});
+
 type MessageResponse = {
   body: string;
   status?: number;

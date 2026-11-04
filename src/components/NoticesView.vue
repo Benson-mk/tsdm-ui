@@ -17,9 +17,9 @@ const emit = defineEmits<{ load: [] }>();
 </script>
 <template>
   <section
-    class="overview pane notices-pane"
+    class="overview pane results-pane notices-pane"
     :class="{ 'secondary-results': secondary }"
-    data-scroll-pane="overview"
+    data-scroll-pane="results"
     :aria-label="text.noticesOverviewLabel"
   >
     <h1>{{ text.notices }}</h1>

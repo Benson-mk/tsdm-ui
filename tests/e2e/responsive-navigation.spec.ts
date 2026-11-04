@@ -64,6 +64,11 @@ test("UX53.result-context: direct arrival has useful list navigation while popul
   });
   await row.scrollIntoViewIfNeeded();
   const offset = await results.evaluate((node) => node.scrollTop);
+  const positionBefore = {
+    scrollTop: offset,
+    pane: await results.boundingBox(),
+    row: await row.boundingBox(),
+  };
   expect(offset).toBeGreaterThan(0);
   await row.click();
   await expect(page.getByRole("article")).toHaveCount(15);
@@ -78,7 +83,25 @@ test("UX53.result-context: direct arrival has useful list navigation while popul
   const count = requests.length;
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(results.locator(".thread-row")).toHaveCount(30);
-  expect(await results.evaluate((node) => node.scrollTop)).toBe(offset);
+  await info.attach("result-context-return-geometry.json", {
+    body: JSON.stringify({
+      before: positionBefore,
+      after: {
+        scrollTop: await results.evaluate((node) => node.scrollTop),
+        pane: await results.boundingBox(),
+        row: await row.boundingBox(),
+      },
+    }),
+    contentType: "application/json",
+  });
+  expect(await results.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  // History adds snapshot chrome. Preserve the visible row position, rather
+  // than the old numeric scrollTop; drawer docking retains its own exact rule.
+  await expect
+    .poll(async () =>
+      Math.abs((await row.boundingBox())!.y - positionBefore.row!.y),
+    )
+    .toBeLessThanOrEqual(0.5);
   await expect(
     page.getByRole("link", { name: "Continue in native forum", exact: true }),
   ).toHaveAttribute("href", `${boardURL}&tsdm-native=1`);

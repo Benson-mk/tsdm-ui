@@ -8,6 +8,7 @@ const props = defineProps<{
   loading: boolean;
   secondary: boolean;
   boardTarget: boolean;
+  selection?: string | null;
   language: Preferences["language"];
 }>();
 const emit = defineEmits<{
@@ -19,9 +20,9 @@ const t = (value: string) => favoriteText(value, props.language);
 <template>
   <section
     v-if="!boardTarget"
-    class="overview pane favorites-pane"
+    class="overview pane results-pane favorites-pane"
     :class="{ 'secondary-results': secondary }"
-    data-scroll-pane="overview"
+    data-scroll-pane="results"
   >
     <h1>{{ t("Saved") }}</h1>
     <h2 v-if="!favorites">{{ t("Saved boards and threads") }}</h2>
@@ -46,6 +47,7 @@ const t = (value: string) => favoriteText(value, props.language);
         :id="`favorite-${record.id}`"
         :key="record.id"
         :data-favorite-id="record.id"
+        :aria-current="selection === record.id ? 'true' : undefined"
         tabindex="-1"
       >
         <a v-if="record.url" :href="record.url">{{ record.title }}</a>

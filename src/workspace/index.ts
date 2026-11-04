@@ -77,6 +77,17 @@ export function createWorkspace(
   async function loadDrafts(url?: string) {
     if (drafts.value.loading) return;
     const prior = drafts.value.result;
+    let entry: NavigationEntry | undefined;
+    if (state.value.section === "drafts") {
+      capture();
+      entry = newEntry(
+        `${new URL(destination).origin}/forum.php`,
+        state.value.key || null,
+      );
+      entry.section = "drafts";
+      host.push(entry.key);
+      show(entry);
+    }
     const current = ++draftSequence;
     drafts.value = { ...drafts.value, loading: true };
     const result = await client.readDrafts(
@@ -86,7 +97,14 @@ export function createWorkspace(
     );
     observeAccount(result.account);
     writing.observe(result.account);
-    if (current === draftSequence) drafts.value = { loading: false, result };
+    if (current === draftSequence) {
+      drafts.value = { loading: false, result };
+      if (entry && result.kind === "drafts") {
+        entry.drafts = result;
+        entry.account = accountKey(result.account);
+      }
+      void persist();
+    }
   }
 
   const writing = createWriting(
@@ -526,6 +544,16 @@ export function createWorkspace(
     );
     const readingPosition =
       retained || retainedPrivate ? view?.captureReading() : null;
+    ++draftSequence;
+    drafts.value = {
+      loading: false,
+      result:
+        entry.section === "drafts"
+          ? mismatch
+            ? null
+            : (entry.drafts ?? null)
+          : drafts.value.result,
+    };
     state.value = {
       ...state.value,
       section:
@@ -552,7 +580,7 @@ export function createWorkspace(
           (!entry.section ||
             entry.section === "boards" ||
             routeFor(entry.destination)?.kind === "notices")),
-      stale: restored && entry.result !== null,
+      stale: restored && (entry.result !== null || Boolean(entry.drafts)),
       restored,
       canBack: entry.originKey !== null,
       documentNavigation: null,
@@ -573,9 +601,14 @@ export function createWorkspace(
   }
   function newEntry(url: string, originKey: string | null): NavigationEntry {
     const previous = originKey ? entryFor(originKey) : undefined;
-    const browsingList = ["board", "directory", "messages"].includes(
-      routeFor(url)?.kind ?? "",
-    );
+    const browsingList = [
+      "board",
+      "directory",
+      "search",
+      "favorites",
+      "notices",
+      "messages",
+    ].includes(routeFor(url)?.kind ?? "");
     const choosingThread = [
       "thread",
       "redirect",
@@ -630,6 +663,14 @@ export function createWorkspace(
   function observeAccount(account: Account) {
     let invalidated = false;
     const observed = accountKey(account);
+    for (const entry of Object.values(record.entries))
+      if (
+        entry.drafts &&
+        (!observed || accountKey(entry.drafts.account) !== observed)
+      ) {
+        entry.drafts = null;
+        invalidated = true;
+      }
     if (
       drafts.value.result &&
       (!observed || accountKey(drafts.value.result.account) !== observed)
@@ -898,11 +939,12 @@ export function createWorkspace(
       updateAnchor(requested.url.hash);
       return;
     }
-    if (!["board", "directory"].includes(requested?.kind ?? "")) writing.hide();
+    if (["thread", "redirect"].includes(requested?.kind ?? "")) writing.hide();
     capture();
     const previous = entryFor(state.value.key);
     if (previous && selection) previous.selection = selection;
     const entry = newEntry(url, previous?.key ?? null);
+    entry.selection = selection;
     host.push(entry.key);
     const searchContext =
       current?.kind === "search" ? current : state.value.origin;
@@ -1040,7 +1082,6 @@ export function createWorkspace(
         ? state.value.destination
         : `${new URL(destination).origin}/home.php?mod=space&do=notice`);
     clearDownload();
-    writing.hide();
     capture();
     const entry = newEntry(destinationURL, state.value.key || null);
     entry.section = "notices";
@@ -1262,7 +1303,6 @@ export function createWorkspace(
       })
     )
       return;
-    if (section !== "boards") writing.hide();
     if (section === "boards")
       return openThread(`${new URL(destination).origin}/forum.php`);
     if (
@@ -1294,6 +1334,24 @@ export function createWorkspace(
     privateHistory,
     drafts: readonly(drafts),
     loadDrafts,
+    resumeDraft: (threadId: string) => {
+      const choose = () => {
+        const result = drafts.value.result;
+        const row =
+          result?.kind === "drafts"
+            ? result.drafts.rows.find((row) => row.threadId === threadId)
+            : null;
+        const entry = entryFor(state.value.key);
+        if (!row || !result || !entry || state.value.section !== "drafts")
+          return;
+        capture();
+        entry.selection = threadId;
+        state.value = { ...state.value, selection: threadId };
+        void persist();
+        void writing.resumeDraft(row, result.account);
+      };
+      if (!writing.deferViewChange(choose)) choose();
+    },
     favorite: readonly(favorite),
     prepareFavorite,
     sendFavorite,

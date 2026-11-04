@@ -1,5 +1,5 @@
 import type { WritingContext } from "./writing";
-import type { ReadResult } from "../forum-client";
+import type { ReadResult, DraftListResult } from "../forum-client";
 export type Section =
   "boards" | "search" | "saved" | "notices" | "messages" | "drafts";
 export interface ViewPosition {
@@ -12,6 +12,7 @@ export interface ViewPosition {
 export interface NavigationEntry {
   section?: Section;
   readingKey?: string | null;
+  drafts?: Extract<DraftListResult, { kind: "drafts" }> | null;
   key: string;
   destination: string;
   originKey: string | null;

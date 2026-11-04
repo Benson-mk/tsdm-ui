@@ -424,7 +424,9 @@ test("J9.favorite-last-page: removing the last record uses observed remaining pa
   await expect(
     page.getByRole("link", { name: "Saved thread 41", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Page 1", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".favorites-pane").getByText("Page 1", { exact: true }),
+  ).toBeVisible();
   expect(server.writes).toEqual(["POST remove-record-942"]);
   await artifact(page, info, server);
 });

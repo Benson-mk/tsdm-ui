@@ -804,12 +804,18 @@ onMounted(() => {
   const root = (props.portal.getRootNode() as ShadowRoot).host as HTMLElement;
   const pane = () =>
     root.shadowRoot?.querySelector<HTMLElement>(
-      `[data-scroll-pane="${["thread", "private-conversation"].includes(state.value.result?.kind ?? "") || describeDestination(state.value.destination)?.kind === "private-conversation" ? "reading" : state.value.result?.kind === "board" ? "results" : "overview"}"]`,
+      ["thread", "private-conversation"].includes(
+        state.value.result?.kind ?? "",
+      ) ||
+        describeDestination(state.value.destination)?.kind ===
+          "private-conversation"
+        ? '[data-scroll-pane="reading"]'
+        : "#thread-list-pane",
     );
   const capturePane = (container: HTMLElement | null | undefined) => {
     const blocks =
       container?.querySelectorAll<HTMLElement>(
-        "article[id], [data-thread-id]",
+        "article[id], [data-thread-id], [data-draft-id]",
       ) ?? [];
     const anchor = [...blocks].find(
       (node) =>
@@ -879,10 +885,10 @@ onMounted(() => {
       )
         container.scrollTop +=
           node.getBoundingClientRect().top - position.offset;
-      if (node && (!position || position.readingScrollTop === 0))
+      if (node && target && (!position || position.readingScrollTop === 0))
         node.scrollIntoView({ block: "start" });
       if (
-        !position &&
+        (!position || position.resultsScrollTop === 0) &&
         !state.value.loading &&
         state.value.result?.kind === "search" &&
         state.value.result.search.results
@@ -891,7 +897,10 @@ onMounted(() => {
           ?.querySelector<HTMLElement>(".search-results h2")
           ?.scrollIntoView({ block: "start" });
       const selected = selection
-        ? (root.shadowRoot?.getElementById(`favorite-${selection}`) ??
+        ? (root.shadowRoot
+            ?.getElementById(`draft-${selection}`)
+            ?.querySelector<HTMLElement>("button") ??
+          root.shadowRoot?.getElementById(`favorite-${selection}`) ??
           root.shadowRoot?.getElementById(`notice-${selection}`) ??
           root.shadowRoot
             ?.getElementById(`row-${selection}`)
@@ -911,7 +920,10 @@ onMounted(() => {
   });
 });
 const accountLabel = computed(() => {
-  const account = state.value.result?.account;
+  const account =
+    state.value.section === "drafts"
+      ? props.workspace.drafts.value.result?.account
+      : state.value.result?.account;
   if (state.value.restored && account?.kind === "member")
     return insert(text.value.snapshotMember, account.name);
   if (state.value.restored && account?.kind === "guest")
@@ -1487,8 +1499,8 @@ function boardIdFrom(url: string) {
           v-if="sectionInfo"
           v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
           id="thread-list-pane"
-          class="overview pane"
-          data-scroll-pane="overview"
+          class="overview pane results-pane drafts-pane"
+          data-scroll-pane="results"
         >
           <h1>{{ sectionInfo.title }}</h1>
           <h2>{{ sectionInfo.heading }}</h2>
@@ -1519,16 +1531,17 @@ function boardIdFrom(url: string) {
               <ul>
                 <li
                   v-for="draft in workspace.drafts.value.result.drafts.rows"
+                  :id="`draft-${draft.threadId}`"
                   :key="draft.threadId"
+                  class="thread-row"
+                  :data-draft-id="draft.threadId"
+                  :aria-current="
+                    state.selection === draft.threadId ? 'true' : undefined
+                  "
                 >
                   <button
                     :aria-label="insert(text.resumeDraft, draft.title)"
-                    @click="
-                      workspace.writing.resumeDraft(
-                        draft as import('../forum-client').DraftRow,
-                        workspace.drafts.value.result!.account,
-                      )
-                    "
+                    @click="workspace.resumeDraft(draft.threadId)"
                   >
                     {{ draft.title }}
                   </button>
@@ -1595,6 +1608,7 @@ function boardIdFrom(url: string) {
           v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
           id="thread-list-pane"
           :favorites="favoriteContext"
+          :selection="state.selection"
           :secondary="state.result?.kind === 'thread'"
           :board-target="state.result?.kind === 'board'"
           :loading="state.loading"
@@ -1814,10 +1828,16 @@ function boardIdFrom(url: string) {
       </Teleport>
       <div class="conversation-region">
         <section
-          v-if="state.section === 'boards' && !reading && !state.privateReading"
+          v-if="!reading && !state.privateReading && !pendingPrivate"
           class="reader-placeholder pane"
         >
-          <p>{{ text.chooseThreadContext }}</p>
+          <p>
+            {{
+              state.section === "boards"
+                ? text.chooseThreadContext
+                : text.chooseThread
+            }}
+          </p>
         </section>
         <section
           v-if="pendingPrivate"
