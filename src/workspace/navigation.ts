@@ -54,6 +54,8 @@ export interface NavigationHost {
 }
 export interface ViewAdapter {
   captureReading(): ViewPosition;
+  followLatest(): void;
+  nearLatest(): boolean;
   restoreReading(position: ViewPosition): void;
   capture(): ViewPosition;
   restore(

@@ -605,7 +605,8 @@ test("IM69.search-priority: delayed passive completion cannot replace a delibera
   await expect(page.getByLabel("Keywords", { exact: true })).toHaveValue(
     "Deliberate criteria",
   );
-  await expect(page.locator(".reading-pane article")).toHaveCount(0);
+  await expect(page.locator(".reading-pane article")).toHaveCount(3);
+  await expect(page.locator("#pid107")).toHaveCount(0);
   expect(requests).toHaveLength(3);
   expect(new URL(requests[2]!.slice(4)).pathname).toBe("/search.php");
   expect(requests.every((value) => value.startsWith("GET "))).toBe(true);

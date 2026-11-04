@@ -394,6 +394,8 @@ export function createWorkspace(
   let view: ViewAdapter | null = null;
   let knownAccount: string | null = null;
   const threadHistory = createThreadHistory(client, {
+    active: () =>
+      state.value.result?.kind === "thread" && !state.value.privateReading,
     busy: () =>
       state.value.loading ||
       writing.state.value.preparing ||
@@ -406,6 +408,11 @@ export function createWorkspace(
     restore: async (position) => {
       await nextTick();
       if (position) view?.restoreReading(position);
+    },
+    nearLatest: () => view?.nearLatest() ?? false,
+    followLatest: async () => {
+      await nextTick();
+      view?.followLatest();
     },
     observe: (account) => {
       observeAccount(account);
@@ -1434,6 +1441,11 @@ export function createWorkspace(
     );
   }
   async function refresh() {
+    if (
+      state.value.result?.kind === "thread" &&
+      threadHistory.state.value.result?.thread.history
+    )
+      return threadHistory.refresh();
     if (state.value.section === "messages") return loadMessages();
     if (
       state.value.section === "notices" &&

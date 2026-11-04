@@ -709,6 +709,26 @@ function navigate(event: MouseEvent) {
       null,
   );
 }
+let refreshTimer: ReturnType<typeof setInterval> | undefined;
+function tickThreadRefresh() {
+  const root = workspaceHost().shadowRoot;
+  const visible =
+    !document.hidden &&
+    !!root?.querySelector(".reading-pane")?.getClientRects().length &&
+    ![
+      ...(root?.querySelectorAll('[role="dialog"], [role="alertdialog"]') ??
+        []),
+    ].some((dialog) => dialog.getClientRects().length > 0);
+  props.workspace.threadHistory.tick(visible);
+}
+onMounted(() => {
+  refreshTimer = setInterval(tickThreadRefresh, 1000);
+  document.addEventListener("visibilitychange", tickThreadRefresh);
+});
+onUnmounted(() => {
+  clearInterval(refreshTimer);
+  document.removeEventListener("visibilitychange", tickThreadRefresh);
+});
 let historyFrame: number | null = null;
 let restoringHistory = false;
 let restorationFrame: number | null = null;
@@ -763,15 +783,17 @@ function followPendingReadingImages(
   container: HTMLElement,
   target: HTMLElement,
   savedOffset: number | null,
+  followEnd = false,
 ) {
   const pending = new Set(
     [...container.querySelectorAll<HTMLImageElement>("img")].filter(
       (image) =>
         !image.complete &&
-        !!(
-          target.compareDocumentPosition(image) &
-          Node.DOCUMENT_POSITION_PRECEDING
-        ),
+        (followEnd ||
+          !!(
+            target.compareDocumentPosition(image) &
+            Node.DOCUMENT_POSITION_PRECEDING
+          )),
     ),
   );
   if (!pending.size) return;
@@ -795,7 +817,8 @@ function followPendingReadingImages(
       return;
     if (!target.isConnected) return stop();
     suppressAutomaticHistory();
-    if (savedOffset !== null)
+    if (followEnd) container.scrollTop = container.scrollHeight;
+    else if (savedOffset !== null)
       container.scrollTop += target.getBoundingClientRect().top - savedOffset;
     else target.scrollIntoView({ block: "start" });
     expectedScrollTop = container.scrollTop;
@@ -857,6 +880,25 @@ onMounted(() => {
     };
   };
   props.workspace.setViewAdapter({
+    nearLatest() {
+      const reader =
+        root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
+      return (
+        !!reader &&
+        reader.scrollHeight - reader.clientHeight - reader.scrollTop <= 64
+      );
+    },
+    followLatest() {
+      suppressAutomaticHistory();
+      const reader =
+        root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
+      stopReadingImageRestore?.();
+      if (reader) {
+        reader.scrollTop = reader.scrollHeight;
+        const last = reader.querySelector<HTMLElement>("article:last-of-type");
+        if (last) followPendingReadingImages(reader, last, null, true);
+      }
+    },
     capture: () => capturePane(pane()),
     captureReading: () =>
       capturePane(root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")),
@@ -1953,15 +1995,66 @@ function boardIdFrom(url: string) {
           >
             {{ notice }}
           </p>
-        </div>
-        <section
-          v-if="reading"
-          class="reading-pane pane"
-          data-scroll-pane="reading"
-          :aria-label="text.threadReading"
-          @scroll.passive="approachHistory"
-        >
           <div class="history-controls" :aria-label="text.threadHistory">
+            <label
+              v-if="
+                history.automatic ||
+                (history.later.status === 'end' &&
+                  history.result?.thread.history?.order === 'ascending')
+              "
+            >
+              <input
+                type="checkbox"
+                :checked="history.automatic"
+                @change="
+                  workspace.threadHistory.setAutomatic(
+                    ($event.target as HTMLInputElement).checked,
+                  )
+                "
+              />
+              {{ text.automaticChecks }}
+            </label>
+            <p role="status">
+              {{
+                history.checking
+                  ? text.refreshChecking
+                  : history.refreshFailure
+                    ? history.retryMinutes
+                      ? insert(text.refreshCooldown, history.retryMinutes)
+                      : text.refreshRetry
+                    : history.automatic
+                      ? history.paused
+                        ? text.refreshPaused
+                        : text.refreshEnabled
+                      : text.refreshManual
+              }}
+            </p>
+            <span v-if="history.checkedAt">{{
+              insert(
+                text.lastSuccessfulCheck,
+                new Date(history.checkedAt).toLocaleString(
+                  workspace.preferences.state.value.language,
+                ),
+              )
+            }}</span>
+            <p
+              v-if="
+                history.refreshFailure && 'message' in history.refreshFailure
+              "
+            >
+              {{
+                description(
+                  history.refreshFailure.message,
+                  workspace.preferences.state.value.language,
+                )
+              }}
+            </p>
+            <button
+              v-if="history.arrivals.length"
+              @click="workspace.threadHistory.revealArrivals()"
+            >
+              {{ insert(text.newReplies, history.arrivals.length) }}
+            </button>
             <template
               v-for="direction in ['earlier', 'later'] as const"
               :key="direction"
@@ -1969,6 +2062,7 @@ function boardIdFrom(url: string) {
               <button
                 v-if="history[direction].url"
                 :disabled="
+                  history.checking ||
                   history.earlier.status === 'loading' ||
                   history.later.status === 'loading'
                 "
@@ -2016,6 +2110,14 @@ function boardIdFrom(url: string) {
               }}
             </p>
           </div>
+        </div>
+        <section
+          v-if="reading"
+          class="reading-pane pane"
+          data-scroll-pane="reading"
+          :aria-label="text.threadReading"
+          @scroll.passive="approachHistory"
+        >
           <article
             v-for="post in reading.thread.posts"
             :id="`pid${post.id}`"

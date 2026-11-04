@@ -672,6 +672,12 @@ test("IM70.automatic-cached-range: an automatically loaded page survives ordinar
         ),
     };
   });
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
   await page.locator(".reading-pane").evaluate((pane) => {
     pane.scrollTop = pane.scrollHeight;
   });
