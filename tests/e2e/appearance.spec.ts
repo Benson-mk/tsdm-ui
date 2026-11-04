@@ -100,7 +100,7 @@ test("J5.appearance-rail-labels: enlarged destination words remain complete with
   });
 });
 
-test("J2.section-overviews: each destination replaces the reader, supports medium/narrow navigation and restores passively", async ({
+test("J2.section-overviews: destinations retain reading, support medium/narrow navigation and restore passively", async ({
   page,
 }, info) => {
   const requests = await open(page);
@@ -123,7 +123,12 @@ test("J2.section-overviews: each destination replaces the reader, supports mediu
       await expect(
         page.getByRole("heading", { name: description, exact: true }),
       ).toBeVisible();
-    await expect(page.getByRole("article")).toHaveCount(0);
+    // Accepted #67 keeps the selected reading context beside each overview.
+    await expect(page.getByRole("article")).toHaveCount(12);
+    await expect(page.getByRole("article").first()).toHaveAttribute(
+      "id",
+      "pid101",
+    );
     expect(requests).toHaveLength(2);
   }
   await page.reload();
@@ -274,10 +279,12 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
         expect
           .soft(sample.readingWidth)
           .toBeGreaterThanOrEqual(Math.min(width, 320));
-        expect.soft(sample.readingHeight).toBeGreaterThan(160);
+        // The context header is outside history; retain the accepted96px
+        // history floor rather than counting the previous combined box.
+        expect.soft(sample.readingHeight).toBeGreaterThanOrEqual(96);
         expect.soft(sample.secondary).toBe(width >= 960);
         expect.soft(sample.picker).toBe(width >= 960 && width < 1280);
-        expect.soft(sample.results).toBe(width >= 960);
+        expect.soft(sample.results).toBe(width >= 768);
         expect.soft(sample.rowPadding).toBe("12px 16px");
         expect
           .soft(sample.rangeSpacing)

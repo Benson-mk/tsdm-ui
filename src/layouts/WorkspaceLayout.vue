@@ -375,6 +375,37 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
         (relativeToPane ? pane.getBoundingClientRect().top - paneTop : 0);
 }
 function resize() {
+  const viewport = window.visualViewport;
+  const magnified =
+    viewport && Number.isFinite(viewport.scale) && viewport.scale > 1;
+  if (
+    magnified &&
+    window.innerWidth === viewportWidth &&
+    window.innerHeight === viewportHeight
+  )
+    return;
+  const height = magnified
+    ? window.innerHeight
+    : viewport?.scale === 1
+      ? viewport.height
+      : undefined;
+  const top = viewport?.scale === 1 ? viewport.offsetTop : 0;
+  const host = workspaceHost();
+  host.style.setProperty(
+    "--view-height",
+    height && Number.isFinite(height) && height > 0
+      ? `${height}px`
+      : CSS.supports("height", "100dvh")
+        ? "100dvh"
+        : "100vh",
+  );
+  host.style.setProperty(
+    "--view-top",
+    top !== undefined && Number.isFinite(top) && top >= 0 ? `${top}px` : "0px",
+  );
+  host.style.top = "var(--view-top)";
+  host.style.height = "var(--view-height)";
+  host.style.bottom = "auto";
   const positions = viewportPositions;
   appearanceAnchors = [];
   rememberPaneScroll();
@@ -390,6 +421,15 @@ function resize() {
       true,
     );
     restorePaneScroll();
+    // Resize may clip the still-focused source without a new focus event.
+    // Scroll its existing node; focusing it again would disturb composition.
+    const focused = host.shadowRoot?.activeElement;
+    if (
+      !magnified &&
+      focused instanceof HTMLElement &&
+      focused.closest(".source-writing")
+    )
+      focused.scrollIntoView({ block: "nearest", inline: "nearest" });
     rememberPositions();
   });
   viewportWidth = window.innerWidth;
@@ -399,6 +439,7 @@ watch(() => [state.value.result, state.value.section], rememberPositions, {
   flush: "post",
 });
 onMounted(() => {
+  resize();
   rememberPositions();
   workspaceHost().shadowRoot!.addEventListener(
     "scroll",
@@ -412,6 +453,8 @@ onMounted(() => {
   );
   window.addEventListener("pagehide", props.workspace.saveReadingPosition);
   window.addEventListener("resize", resize);
+  window.visualViewport?.addEventListener("resize", resize);
+  window.visualViewport?.addEventListener("scroll", resize);
 });
 onUnmounted(() => {
   workspaceHost().shadowRoot!.removeEventListener(
@@ -427,6 +470,8 @@ onUnmounted(() => {
   );
   window.removeEventListener("pagehide", props.workspace.saveReadingPosition);
   window.removeEventListener("resize", resize);
+  window.visualViewport?.removeEventListener("resize", resize);
+  window.visualViewport?.removeEventListener("scroll", resize);
 });
 watch(
   props.workspace.preferences.state,

@@ -161,7 +161,8 @@ article header {
 }
 .dialog-overlay {
   position: fixed;
-  inset: 0;
+  inset: var(--view-top, 0px) 0 auto;
+  height: var(--view-height, 100dvh);
   background: rgba(0, 0, 0, 0.6);
   z-index: 1;
 }
@@ -319,7 +320,7 @@ summary {
 .workspace {
   font-size: calc(1.125rem * var(--text-scale, 1));
   font-weight: 320;
-  height: 100dvh;
+  height: var(--view-height, 100dvh);
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -327,7 +328,7 @@ summary {
 .dialog-content {
   font-size: calc(1.125rem * var(--text-scale, 1));
   line-height: 1.45;
-  max-height: calc(100dvh - 32px);
+  max-height: calc(var(--view-height, 100dvh) - 32px);
   overflow: auto;
 }
 .settings-dialog input[type="range"] {
@@ -886,9 +887,9 @@ select {
   flex: 0 0 auto;
   min-width: 0;
   min-height: 96px;
-  height: 46dvh;
-  max-height: 46dvh;
-  overflow: hidden;
+  height: calc(var(--view-height, 100dvh) * 0.46);
+  max-height: calc(var(--view-height, 100dvh) * 0.46);
+  overflow: auto;
   width: 100%;
   margin: 0;
   padding: 0 24px 12px;
@@ -913,7 +914,7 @@ select {
 .writing-content {
   scroll-padding-block: 8px;
   flex: 1;
-  min-height: 0;
+  min-height: 64px;
   overflow: auto;
 }
 .writing-presentation-actions {
@@ -932,7 +933,7 @@ select {
   min-height: 0;
   overflow: auto;
   padding-inline: 24px;
-  max-height: 30dvh;
+  max-height: calc(var(--view-height, 100dvh) * 0.3);
 }
 .retained-writing summary {
   min-height: 44px;
@@ -1167,7 +1168,7 @@ select {
   }
   .workspace-tools {
     flex: 0 0 auto;
-    max-height: 40dvh;
+    max-height: calc(var(--view-height, 100dvh) * 0.4);
     overflow: auto;
   }
   .workspace-tools > *,
@@ -1497,10 +1498,10 @@ select {
 
 .pane-drawer {
   position: fixed;
-  inset: 0 auto 0 0;
+  inset: var(--view-top, 0px) auto auto 0;
   z-index: 2;
   width: min(340px, calc(100vw - 32px));
-  height: 100dvh;
+  height: var(--view-height, 100dvh);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -1609,7 +1610,7 @@ select {
 }
 .conversation-status {
   flex: 0 0 auto;
-  max-height: 30dvh;
+  max-height: calc(var(--view-height, 100dvh) * 0.3);
   overflow: auto;
 }
 .conversation-status:empty {
@@ -1721,10 +1722,13 @@ select {
     var(--safe-left) + (100% - var(--safe-left) - var(--safe-right)) / 2
   );
   top: calc(
-    var(--safe-top) + (100% - var(--safe-top) - var(--safe-bottom)) / 2
+    var(--view-top, 0px) + var(--safe-top) +
+      (var(--view-height, 100dvh) - var(--safe-top) - var(--safe-bottom)) / 2
   );
   width: min(520px, calc(100% - var(--safe-left) - var(--safe-right) - 32px));
-  max-height: calc(100% - var(--safe-top) - var(--safe-bottom) - 32px);
+  max-height: calc(
+    var(--view-height, 100dvh) - var(--safe-top) - var(--safe-bottom) - 32px
+  );
 }
 .pane-drawer {
   width: min(340px, calc(100% - var(--safe-right) - 32px));
