@@ -330,6 +330,7 @@ function rememberPositions() {
   ];
 }
 function restorePositions(positions: PanePosition[], relativeToPane = false) {
+  suppressAutomaticHistory();
   for (const { pane, anchor, offset, paneTop } of positions)
     if (anchor.isConnected && pane.getClientRects().length)
       pane.scrollTop +=
@@ -658,6 +659,55 @@ function navigate(event: MouseEvent) {
       null,
   );
 }
+let historyFrame: number | null = null;
+let restoringHistory = false;
+let restorationFrame: number | null = null;
+// Restoration scroll events can arrive in the next rendering frame.
+function suppressAutomaticHistory() {
+  restoringHistory = true;
+  if (restorationFrame !== null) cancelAnimationFrame(restorationFrame);
+  restorationFrame = requestAnimationFrame(() => {
+    restorationFrame = requestAnimationFrame(() => {
+      restorationFrame = null;
+      restoringHistory = false;
+    });
+  });
+}
+function approachHistory(event: Event) {
+  const pane = event.currentTarget;
+  if (
+    !(pane instanceof HTMLElement) ||
+    historyFrame !== null ||
+    restoringHistory
+  )
+    return;
+  historyFrame = requestAnimationFrame(() => {
+    historyFrame = null;
+    if (
+      restoringHistory ||
+      document.hidden ||
+      [
+        ...(workspaceHost().shadowRoot?.querySelectorAll(
+          '[role="dialog"], [role="alertdialog"]',
+        ) ?? []),
+      ].some((dialog) => dialog.getClientRects().length > 0) ||
+      !pane.isConnected ||
+      !pane.getClientRects().length
+    )
+      return;
+    if (pane.scrollTop <= 160 && history.value.earlier.status === "unloaded")
+      void props.workspace.threadHistory.load("earlier", true);
+    else if (
+      pane.scrollHeight - pane.clientHeight - pane.scrollTop <= 160 &&
+      history.value.later.status === "unloaded"
+    )
+      void props.workspace.threadHistory.load("later", true);
+  });
+}
+onUnmounted(() => {
+  if (historyFrame !== null) cancelAnimationFrame(historyFrame);
+  if (restorationFrame !== null) cancelAnimationFrame(restorationFrame);
+});
 let stopReadingImageRestore: (() => void) | undefined;
 function followPendingReadingImages(
   container: HTMLElement,
@@ -694,6 +744,7 @@ function followPendingReadingImages(
     )
       return;
     if (!target.isConnected) return stop();
+    suppressAutomaticHistory();
     if (savedOffset !== null)
       container.scrollTop += target.getBoundingClientRect().top - savedOffset;
     else target.scrollIntoView({ block: "start" });
@@ -753,6 +804,7 @@ onMounted(() => {
     captureReading: () =>
       capturePane(root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")),
     restoreReading(position) {
+      suppressAutomaticHistory();
       stopReadingImageRestore?.();
       const container =
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
@@ -768,6 +820,7 @@ onMounted(() => {
       }
     },
     restore(position, target, selection) {
+      suppressAutomaticHistory();
       stopReadingImageRestore?.();
 
       const container = pane();
@@ -1787,6 +1840,7 @@ function boardIdFrom(url: string) {
           class="reading-pane pane"
           data-scroll-pane="reading"
           :aria-label="text.threadReading"
+          @scroll.passive="approachHistory"
         >
           <div class="history-controls" :aria-label="text.threadHistory">
             <template

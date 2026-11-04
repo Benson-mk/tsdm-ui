@@ -120,7 +120,7 @@ export function createThreadHistory(
   function cancelPending() {
     epoch++;
   }
-  async function load(direction: HistoryDirection) {
+  async function load(direction: HistoryDirection, automatic = false) {
     const prior = state.value.result;
     const edge = state.value[direction];
     if (
@@ -128,6 +128,7 @@ export function createThreadHistory(
       !edge.url ||
       pending ||
       options.busy() ||
+      (automatic && edge.status !== "unloaded") ||
       !["unloaded", "failed"].includes(edge.status)
     )
       return;
