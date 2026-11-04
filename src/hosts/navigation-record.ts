@@ -311,6 +311,15 @@ function result(value: unknown): boolean {
       destination(t.url) &&
       list(t.posts, post) &&
       pages(t.pages) &&
+      (t.history === undefined ||
+        (object(t.history) &&
+          (t.history.earlier === null || link(t.history.earlier)) &&
+          (t.history.later === null || link(t.history.later)) &&
+          (t.history.latest === null || link(t.history.latest)) &&
+          typeof t.history.beginning === "boolean" &&
+          typeof t.history.end === "boolean" &&
+          (t.history.order === "ascending" ||
+            t.history.order === "descending"))) &&
       list(t.filters, link) &&
       (t.parent === null || link(t.parent)) &&
       (t.target === null || id(t.target)) &&

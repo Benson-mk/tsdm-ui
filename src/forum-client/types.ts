@@ -196,7 +196,17 @@ export interface Board {
   pages: Pagination;
   empty: string;
 }
+/** Native pager provenance added in 0.16.0; absence means unqualified boundaries. */
+export interface ThreadHistory {
+  earlier: ForumLink | null;
+  later: ForumLink | null;
+  beginning: boolean;
+  end: boolean;
+  latest: ForumLink | null;
+  order: "ascending" | "descending";
+}
 export interface Thread {
+  history?: ThreadHistory;
   id: string;
   title: string;
   url: string;

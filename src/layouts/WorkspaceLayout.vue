@@ -26,7 +26,8 @@ import { strings, insert, description } from "./strings";
 import type { Section } from "../workspace/navigation";
 const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
 const state = props.workspace.state;
-const reading = computed(() => state.value.reading);
+const history = props.workspace.threadHistory.state;
+const reading = computed(() => history.value.result ?? state.value.reading);
 const boardsCollapsed = ref(false);
 const threadsCollapsed = ref(false);
 function togglePane(pane: "boards" | "threads") {
@@ -507,7 +508,7 @@ let stopReadingImageRestore: (() => void) | undefined;
 function followPendingReadingImages(
   container: HTMLElement,
   target: HTMLElement,
-  savedScrollTop: number | null,
+  savedOffset: number | null,
 ) {
   const pending = new Set(
     [...container.querySelectorAll<HTMLImageElement>("img")].filter(
@@ -539,7 +540,8 @@ function followPendingReadingImages(
     )
       return;
     if (!target.isConnected) return stop();
-    if (savedScrollTop !== null) container.scrollTop = savedScrollTop;
+    if (savedOffset !== null)
+      container.scrollTop += target.getBoundingClientRect().top - savedOffset;
     else target.scrollIntoView({ block: "start" });
     expectedScrollTop = container.scrollTop;
     if (!pending.size) stop();
@@ -570,29 +572,46 @@ onMounted(() => {
     root.shadowRoot?.querySelector<HTMLElement>(
       `[data-scroll-pane="${state.value.result?.kind === "thread" ? "reading" : state.value.result?.kind === "board" ? "results" : "overview"}"]`,
     );
+  const capturePane = (container: HTMLElement | null | undefined) => {
+    const blocks =
+      container?.querySelectorAll<HTMLElement>(
+        "article[id], [data-thread-id]",
+      ) ?? [];
+    const anchor = [...blocks].find(
+      (node) =>
+        node.getBoundingClientRect().bottom >
+        (container?.getBoundingClientRect().top ?? 0),
+    );
+    return {
+      anchor: anchor?.id ?? null,
+      offset: anchor?.getBoundingClientRect().top ?? 0,
+      scrollTop: container?.scrollTop ?? root.scrollTop,
+      readingScrollTop:
+        root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")
+          ?.scrollTop ?? 0,
+      resultsScrollTop:
+        root.shadowRoot?.querySelector<HTMLElement>(".results-pane")
+          ?.scrollTop ?? 0,
+    };
+  };
   props.workspace.setViewAdapter({
-    capture() {
-      const container = pane();
-      const blocks =
-        container?.querySelectorAll<HTMLElement>(
-          "article[id], [data-thread-id]",
-        ) ?? [];
-      const anchor = [...blocks].find(
-        (node) =>
-          node.getBoundingClientRect().bottom >
-          (container?.getBoundingClientRect().top ?? 0),
-      );
-      return {
-        anchor: anchor?.id ?? null,
-        offset: anchor?.getBoundingClientRect().top ?? 0,
-        scrollTop: container?.scrollTop ?? root.scrollTop,
-        readingScrollTop:
-          root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")
-            ?.scrollTop ?? 0,
-        resultsScrollTop:
-          root.shadowRoot?.querySelector<HTMLElement>(".results-pane")
-            ?.scrollTop ?? 0,
-      };
+    capture: () => capturePane(pane()),
+    captureReading: () =>
+      capturePane(root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")),
+    restoreReading(position) {
+      stopReadingImageRestore?.();
+      const container =
+        root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
+      if (!container) return;
+      container.scrollTop = position.scrollTop;
+      const node = position.anchor
+        ? root.shadowRoot?.getElementById(position.anchor)
+        : null;
+      if (node && container.contains(node)) {
+        container.scrollTop +=
+          node.getBoundingClientRect().top - position.offset;
+        followPendingReadingImages(container, node, position.offset);
+      }
     },
     restore(position, target, selection) {
       stopReadingImageRestore?.();
@@ -609,7 +628,17 @@ onMounted(() => {
         results.scrollTop = position.resultsScrollTop;
       const node = target
         ? root.shadowRoot?.getElementById(`pid${target}`)
-        : null;
+        : position?.anchor
+          ? root.shadowRoot?.getElementById(position.anchor)
+          : null;
+      if (
+        container &&
+        node &&
+        position &&
+        (!target || position.readingScrollTop !== 0)
+      )
+        container.scrollTop +=
+          node.getBoundingClientRect().top - position.offset;
       if (node && (!position || position.readingScrollTop === 0))
         node.scrollIntoView({ block: "start" });
       if (
@@ -635,7 +664,7 @@ onMounted(() => {
           node,
           target && position?.readingScrollTop === 0
             ? null
-            : (position?.scrollTop ?? null),
+            : (position?.offset ?? null),
         );
     },
   });
@@ -1571,6 +1600,61 @@ function boardIdFrom(url: string) {
         data-scroll-pane="reading"
         :aria-label="text.threadReading"
       >
+        <div class="history-controls" :aria-label="text.threadHistory">
+          <template
+            v-for="direction in ['earlier', 'later'] as const"
+            :key="direction"
+          >
+            <button
+              v-if="history[direction].url"
+              :disabled="
+                history.earlier.status === 'loading' ||
+                history.later.status === 'loading'
+              "
+              @click="workspace.threadHistory.load(direction)"
+            >
+              {{
+                history[direction].status === "loading"
+                  ? text.historyLoading
+                  : direction === "earlier"
+                    ? history[direction].status === "failed"
+                      ? text.retryEarlier
+                      : text.loadEarlier
+                    : history[direction].status === "failed"
+                      ? text.retryLater
+                      : text.loadLater
+              }}
+            </button>
+            <span v-else>{{
+              history[direction].status === "end"
+                ? direction === "earlier"
+                  ? text.historyBeginning
+                  : text.historyEnd
+                : direction === "earlier"
+                  ? text.historyEarlierUnknown
+                  : text.historyLaterUnknown
+            }}</span>
+          </template>
+          <a v-if="history.latest" :href="history.latest">{{
+            text.jumpLatest
+          }}</a>
+          <p
+            v-for="direction in ['earlier', 'later'] as const"
+            v-show="history[direction].failure"
+            :key="`failure-${direction}`"
+            role="status"
+          >
+            {{
+              history[direction].failure &&
+              "message" in history[direction].failure
+                ? description(
+                    history[direction].failure.message,
+                    workspace.preferences.state.value.language,
+                  )
+                : ""
+            }}
+          </p>
+        </div>
         <section class="thread-heading">
           <p class="eyebrow">{{ text.thread }} {{ reading.thread.id }}</p>
           <h1>{{ reading.thread.title }}</h1>

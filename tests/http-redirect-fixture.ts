@@ -25,6 +25,7 @@ export async function withRedirectFixture(
     redirect: string;
     document: (url: URL) => string;
     readHeaders?: Record<string, string>;
+    readRedirect?: (url: URL) => string | null;
     search?: {
       resultURL: string;
       formUID?: number;
@@ -123,6 +124,12 @@ export async function withRedirectFixture(
       }
       if (url.searchParams.get("tsdmapp") === "json") {
         reads.push(url.href);
+        const target = fixture.readRedirect?.(url);
+        if (target) {
+          response.writeHead(302, { location: target });
+          response.end();
+          return;
+        }
         response.writeHead(200, {
           "content-type": "application/json",
           ...fixture.readHeaders,

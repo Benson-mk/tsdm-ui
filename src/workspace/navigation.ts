@@ -43,6 +43,8 @@ export interface NavigationHost {
   navigateDocument(url: string): void;
 }
 export interface ViewAdapter {
+  captureReading(): ViewPosition;
+  restoreReading(position: ViewPosition): void;
   capture(): ViewPosition;
   restore(
     position: ViewPosition | null,

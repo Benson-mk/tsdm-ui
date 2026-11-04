@@ -1,3 +1,4 @@
+import { createThreadHistory } from "./thread-history";
 import type { DownloadHost, PreparedFile } from "../hosts/download";
 import { createWriting } from "./writing";
 import { shallowRef, readonly, nextTick, watch } from "vue";
@@ -136,8 +137,8 @@ export function createWorkspace(
   );
   async function prepareDownload(postId: string, attachmentId: string) {
     if (download.value?.status === "checking") return;
-    const result = state.value.reading;
-    if (!result) return;
+    const result = threadHistory.state.value.result ?? state.value.reading;
+    if (result?.kind !== "thread") return;
     const attachment = result.thread.posts
       .find((post) => post.id === postId)
       ?.attachments?.find((item) => item.id === attachmentId);
@@ -153,7 +154,7 @@ export function createWorkspace(
     };
     const accountGeneration = client.generation;
     const received = await client.downloadAttachment({
-      threadURL: result.thread.url,
+      threadURL: threadHistory.sourceFor(postId) ?? result.thread.url,
       postId,
       attachmentId,
       account: result.account,
@@ -364,6 +365,48 @@ export function createWorkspace(
     Object.hasOwn(record.entries, key) ? record.entries[key] : undefined;
   let view: ViewAdapter | null = null;
   let knownAccount: string | null = null;
+  const threadHistory = createThreadHistory(client, {
+    busy: () =>
+      state.value.loading ||
+      writing.state.value.preparing ||
+      writing.state.value.publishing ||
+      writing.state.value.findingMention ||
+      drafts.value.loading ||
+      favorite.value.busy ||
+      download.value?.status === "checking",
+    capture: () => view?.captureReading() ?? null,
+    restore: async (position) => {
+      await nextTick();
+      if (position) view?.restoreReading(position);
+    },
+    observe: (account) => {
+      observeAccount(account);
+      writing.observe(account);
+    },
+  });
+  watch(
+    () => [
+      writing.state.value.preparing,
+      writing.state.value.publishing,
+      writing.state.value.findingMention,
+      drafts.value.loading,
+      favorite.value.busy,
+      download.value?.status,
+    ],
+    () => {
+      if (
+        writing.state.value.preparing ||
+        writing.state.value.publishing ||
+        writing.state.value.findingMention ||
+        drafts.value.loading ||
+        favorite.value.busy ||
+        download.value?.status === "checking"
+      )
+        threadHistory.cancelPending();
+    },
+    { flush: "sync" },
+  );
+
   function capture() {
     const entry = entryFor(state.value.key);
     if (entry && view) entry.position = view.capture();
@@ -410,6 +453,12 @@ export function createWorkspace(
       knownAccount !== null &&
       entry.account !== null &&
       entry.account !== knownAccount;
+    const retained = threadHistory.activate(
+      mismatch ? null : readingFor(entry),
+      entry.result?.kind === "thread" ? entry.key : (entry.readingKey ?? ""),
+      true,
+    );
+    const readingPosition = retained ? view?.captureReading() : null;
     state.value = {
       ...state.value,
       section:
@@ -441,13 +490,14 @@ export function createWorkspace(
       documentNavigation: null,
       origin: originContext(entry),
     };
-    void nextTick().then(() =>
+    void nextTick().then(() => {
       view?.restore(
         entry.position,
         entry.result?.kind === "thread" ? entry.result.thread.target : null,
         entry.selection,
-      ),
-    );
+      );
+      if (readingPosition) view?.restoreReading(readingPosition);
+    });
   }
   function newEntry(url: string, originKey: string | null): NavigationEntry {
     const previous = originKey ? entryFor(originKey) : undefined;
@@ -536,6 +586,11 @@ export function createWorkspace(
         state.value = { ...state.value, origin: null };
     }
     if (observed) {
+      if (
+        threadHistory.state.value.result &&
+        accountKey(threadHistory.state.value.result.account) !== observed
+      )
+        threadHistory.activate(null, state.value.key);
       knownAccount = observed;
       if (
         state.value.reading &&
@@ -567,6 +622,7 @@ export function createWorkspace(
   }
   async function read(entry: NavigationEntry, submitted?: Promise<ReadResult>) {
     const current = ++sequence;
+    threadHistory.cancelPending();
     state.value = {
       ...state.value,
       loading: true,
@@ -638,6 +694,12 @@ export function createWorkspace(
           /^#pid([1-9]\d*)$/.exec(new URL(entry.destination).hash)?.[1] ??
           result.thread.target;
       entry.result = result;
+      const retained = threadHistory.activate(
+        readingFor(entry),
+        result.kind === "thread" ? entry.key : (entry.readingKey ?? ""),
+        result.kind !== "thread",
+      );
+      const readingPosition = retained ? view?.captureReading() : null;
       entry.account = observed;
       if (result.kind === "search" && result.search.results)
         entry.destination = result.search.results.url;
@@ -660,13 +722,14 @@ export function createWorkspace(
         restored: false,
         destination: entry.destination,
       };
-      void nextTick().then(() =>
+      void nextTick().then(() => {
         view?.restore(
           entry.position,
           result.kind === "thread" ? result.thread.target : null,
           entry.selection,
-        ),
-      );
+        );
+        if (readingPosition) view?.restoreReading(readingPosition);
+      });
     } else {
       state.value = {
         ...state.value,
@@ -783,6 +846,7 @@ export function createWorkspace(
       result: entry.result,
       reading: readingFor(entry),
     };
+    threadHistory.target(hash.slice(4));
     void nextTick().then(() =>
       view?.restore(null, hash.slice(4), entry.selection),
     );
@@ -984,6 +1048,7 @@ export function createWorkspace(
   }
   return {
     preferences,
+    threadHistory,
     drafts: readonly(drafts),
     loadDrafts,
     favorite: readonly(favorite),

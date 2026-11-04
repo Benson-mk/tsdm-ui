@@ -173,6 +173,18 @@ const english = {
   lastReply: "Last reply to {value}",
   boardPages: "Board pages",
   threadReading: "Thread reading",
+  threadHistory: "Thread history",
+  loadEarlier: "Load earlier",
+  loadLater: "Load later",
+  retryEarlier: "Retry earlier",
+  retryLater: "Retry later",
+  historyLoading: "Loading history…",
+  historyBeginning: "Beginning of thread",
+  historyEnd: "Latest known content",
+  historyEarlierUnknown: "Earlier boundary unverified",
+  historyLaterUnknown: "Later boundary unverified",
+  jumpLatest: "Jump to latest",
+
   thread: "THREAD",
   threadFilters: "Thread filters",
   authorFilter: "Author filter",
@@ -509,6 +521,18 @@ const simplified: Strings = {
   lastReply: "{value} 的最新回复",
   boardPages: "版块分页",
   threadReading: "主题阅读",
+  threadHistory: "主题历史",
+  loadEarlier: "加载更早的帖子",
+  loadLater: "加载后续帖子",
+  retryEarlier: "重试加载更早的帖子",
+  retryLater: "重试加载后续帖子",
+  historyLoading: "正在加载帖子…",
+  historyBeginning: "主题开头",
+  historyEnd: "已知的最新内容",
+  historyEarlierUnknown: "较早边界尚未确认",
+  historyLaterUnknown: "后续边界尚未确认",
+  jumpLatest: "跳至最新",
+
   thread: "主题",
   threadFilters: "主题筛选",
   authorFilter: "作者筛选",
@@ -835,6 +859,18 @@ const traditional: Strings = {
   lastReply: "{value} 的最新回覆",
   boardPages: "版塊分頁",
   threadReading: "主題閱讀",
+  threadHistory: "主題歷史",
+  loadEarlier: "載入更早的帖子",
+  loadLater: "載入後續帖子",
+  retryEarlier: "重試載入更早的帖子",
+  retryLater: "重試載入後續帖子",
+  historyLoading: "正在載入帖子…",
+  historyBeginning: "主題開頭",
+  historyEnd: "已知的最新內容",
+  historyEarlierUnknown: "較早邊界尚未確認",
+  historyLaterUnknown: "後續邊界尚未確認",
+  jumpLatest: "跳至最新",
+
   thread: "主題",
   threadFilters: "主題篩選",
   authorFilter: "作者篩選",
@@ -1004,6 +1040,11 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "The returned history did not match this thread, account, filter or adjacent page.":
+    [
+      "返回的历史与当前主题、账号、筛选条件或相邻页面不符。",
+      "傳回的歷史與目前主題、帳號、篩選條件或相鄰頁面不符。",
+    ],
   "The writing context or account changed while reading files. Select them again for the current writing.":
     [
       "读取文件时编辑上下文或账号已改变。请为当前编辑重新选择文件。",

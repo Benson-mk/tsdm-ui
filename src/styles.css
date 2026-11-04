@@ -1438,3 +1438,17 @@ select {
     grid-row: 1;
   }
 }
+
+.history-controls {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+}
+.reading-pane {
+  overflow-anchor: none;
+}
