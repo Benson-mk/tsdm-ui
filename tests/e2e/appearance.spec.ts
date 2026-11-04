@@ -147,8 +147,9 @@ test("J2.section-overviews: each destination replaces the reader, supports mediu
   await page.setViewportSize({ width: 390, height: 844 });
   await revealNavigation(page);
   await page
-    .getByRole("combobox", { name: "Main destinations", exact: true })
-    .selectOption("search");
+    .getByRole("navigation", { name: "Main destinations", exact: true })
+    .getByRole("button", { name: "Search", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
   ).toBeVisible();

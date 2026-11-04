@@ -759,18 +759,41 @@ export function createWorkspace(
     }
     void persist();
   }
-  async function openThread(url: string, selection: string | null = null) {
+  const pendingThread = shallowRef<{
+    url: string;
+    selection: string | null;
+    contextId: string;
+  } | null>(null);
+  async function openThread(
+    url: string,
+    selection: string | null = null,
+    retainedContextId?: string,
+  ) {
     if (
       writing.deferViewChange(() => {
-        void openThread(url, selection);
+        void openThread(url, selection, retainedContextId);
       })
     )
       return;
     if (routeFor(url)?.kind === "messages") return loadMessages(url);
     if (routeFor(url)?.kind === "notices") return loadNotices(url);
-    clearDownload();
     const current = state.value.result;
     const requested = routeFor(url);
+    const context = writing.state.value.context;
+    const requestedThread =
+      requested?.url.searchParams.get("ptid") ??
+      requested?.url.searchParams.get("tid");
+    if (
+      (requested?.kind === "thread" || requested?.kind === "redirect") &&
+      context &&
+      context.id !== retainedContextId &&
+      requestedThread !== state.value.reading?.thread.id
+    ) {
+      pendingThread.value = { url, selection, contextId: context.id };
+      return;
+    }
+    pendingThread.value = null;
+    clearDownload();
     if (
       current?.kind === "thread" &&
       requested?.kind === "thread" &&
@@ -1151,6 +1174,16 @@ export function createWorkspace(
         host.navigateDocument(state.value.documentNavigation);
     },
     start,
+    pendingThread: readonly(pendingThread),
+    cancelThreadChange: () => {
+      pendingThread.value = null;
+      writing.show();
+    },
+    retainWritingAndRead: () => {
+      const pending = pendingThread.value;
+      if (pending)
+        void openThread(pending.url, pending.selection, pending.contextId);
+    },
     openThread,
     refresh,
     updateAnchor,

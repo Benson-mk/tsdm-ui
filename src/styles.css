@@ -1452,3 +1452,122 @@ select {
 .reading-pane {
   overflow-anchor: none;
 }
+
+/* Effective docking comes from the single layout viewport rule. */
+.workspace-body {
+  grid-template-columns: 216px 300px minmax(0, 1fr);
+}
+.workspace-body[data-boards-collapsed="true"] {
+  grid-template-columns: 300px minmax(0, 1fr);
+}
+.workspace-body[data-threads-collapsed="true"] {
+  grid-template-columns: 216px minmax(0, 1fr);
+}
+.workspace-body[data-boards-collapsed="true"][data-threads-collapsed="true"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.workspace-body > .boards-region {
+  display: block;
+  grid-column: 1;
+  grid-row: 1;
+}
+.workspace-body > #thread-list-pane {
+  display: block;
+  grid-column: 2;
+  grid-row: 1;
+}
+.workspace-body[data-boards-collapsed="true"] > #thread-list-pane {
+  grid-column: 1;
+}
+.workspace-body > .reading-pane,
+.workspace-body > .reader-placeholder {
+  display: block;
+  grid-column: 3;
+  grid-row: 1;
+}
+.workspace-body[data-boards-collapsed="true"] > .reading-pane,
+.workspace-body[data-threads-collapsed="true"] > .reading-pane,
+.workspace-body[data-boards-collapsed="true"] > .reader-placeholder,
+.workspace-body[data-threads-collapsed="true"] > .reader-placeholder {
+  grid-column: 2;
+}
+.workspace-body[data-boards-collapsed="true"][data-threads-collapsed="true"]
+  > .reading-pane,
+.workspace-body[data-boards-collapsed="true"][data-threads-collapsed="true"]
+  > .reader-placeholder {
+  grid-column: 1;
+}
+
+.pane-drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 2;
+  width: min(340px, calc(100vw - 32px));
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid var(--boundary);
+  background: var(--surface);
+  color: var(--ink);
+}
+.pane-drawer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  flex: 0 0 auto;
+}
+.pane-drawer-heading h2 {
+  margin: 0;
+  font-size: calc(1.125rem * var(--text-scale, 1));
+}
+.pane-drawer-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.pane-drawer-content > .pane {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.pane-drawer .main-destinations {
+  display: block;
+}
+.pane-drawer .workspace-tools {
+  max-height: none;
+  overflow: visible;
+}
+.pane-drawer .board-picker,
+.pane-drawer .narrow-section-picker {
+  display: none;
+}
+.workspace-body[data-view] > .reading-pane {
+  display: block;
+}
+
+.thread-change-overlay {
+  z-index: 3;
+}
+.thread-change-dialog {
+  z-index: 4;
+}
+
+@media (max-width: 959px) {
+  .workspace:has(> .source-writing.writing-expanded) {
+    overflow-y: auto;
+  }
+  .workspace > .source-writing.writing-expanded {
+    flex-shrink: 0;
+    min-height: 48dvh;
+  }
+}
+
+.pane-drawer .narrow-overview-link {
+  display: none;
+}

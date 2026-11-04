@@ -619,8 +619,9 @@ for (const width of [1100, 390])
     if (width === 390) {
       await revealNavigation(page);
       await page
-        .getByRole("combobox", { name: "Main destinations", exact: true })
-        .selectOption("saved");
+        .getByRole("navigation", { name: "Main destinations", exact: true })
+        .getByRole("button", { name: "Saved", exact: true })
+        .click();
     } else
       await page
         .getByRole("navigation", { name: "Main destinations", exact: true })

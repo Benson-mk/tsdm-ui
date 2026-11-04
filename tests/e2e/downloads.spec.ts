@@ -797,8 +797,9 @@ for (const [width, section] of [
     if (width === 375) {
       await revealNavigation(page);
       await page
-        .getByRole("combobox", { name: "Main destinations", exact: true })
-        .selectOption(section.toLowerCase());
+        .getByRole("navigation", { name: "Main destinations", exact: true })
+        .getByRole("button", { name: section, exact: true })
+        .click();
     } else {
       await page.getByRole("button", { name: section, exact: true }).click();
     }
@@ -822,6 +823,7 @@ for (const [width, section] of [
       ),
     ).toEqual([]);
     expect(downloads).toEqual([]);
+    if (width === 375) await revealNavigation(page);
     await page.getByRole("button", { name: "Back", exact: true }).click();
     await expect(
       page.getByRole("heading", {

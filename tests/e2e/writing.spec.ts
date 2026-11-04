@@ -1123,8 +1123,8 @@ test("J5.composing-section: section navigation waits for final composition input
   );
   await editor.dispatchEvent("compositionstart", { data: "中" });
   await page
-    .getByRole("combobox", { name: "Main destinations", exact: true })
-    .selectOption("notices");
+    .getByRole("button", { name: "Boards pane", exact: true })
+    .dispatchEvent("click");
   await expect(editor).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Notices", exact: true }),
@@ -1149,10 +1149,15 @@ test("J5.composing-section: section navigation waits for final composition input
       }),
     );
   }, source + "中文");
+  await page
+    .getByRole("dialog", { name: "Boards navigation", exact: true })
+    .getByRole("button", { name: "Notices", exact: true })
+    .click();
   await expect(editor).toBeHidden();
   await expect(
     page.getByRole("heading", { name: "Notices", exact: true, level: 1 }),
   ).toBeVisible();
+  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();
@@ -1766,8 +1771,8 @@ test("J5.composing-search: Search preparation waits for final composition input 
   );
   await editor.dispatchEvent("compositionstart", { data: "中" });
   await page
-    .getByRole("combobox", { name: "Main destinations", exact: true })
-    .selectOption("search");
+    .getByRole("button", { name: "Boards pane", exact: true })
+    .dispatchEvent("click");
   await expect(editor).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Search", exact: true }),
@@ -1793,10 +1798,15 @@ test("J5.composing-search: Search preparation waits for final composition input 
       }),
     );
   }, source + "中文");
+  await page
+    .getByRole("dialog", { name: "Boards navigation", exact: true })
+    .getByRole("button", { name: "Search", exact: true })
+    .click();
   await expect(editor).toBeHidden();
   await expect(
     page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
   ).toBeVisible();
+  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();

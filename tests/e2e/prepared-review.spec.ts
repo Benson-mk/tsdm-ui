@@ -354,7 +354,7 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
   expect(await results.evaluate((node) => node.scrollTop)).toBe(boardOffset);
   expect(f.requests).toHaveLength(beforeBack);
   await page
-    .getByRole("button", { name: "Navigation · Boards", exact: true })
+    .getByRole("button", { name: "Boards pane", exact: true })
     .press("Escape");
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
@@ -396,14 +396,14 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
 });
 
 for (const input of ["pointer", "keyboard"] as const)
-  test(`UX62.disclosed-writing-${input}: narrow enlarged new-thread review remains reachable with Navigation open`, async ({
+  test(`UX62.disclosed-writing-${input}: narrow enlarged new-thread review remains reachable after drawer navigation`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const f = await fixture(page);
     await expect(
-      page.getByRole("button", { name: "Navigation · Boards", exact: true }),
-    ).toHaveAttribute("aria-expanded", "true");
+      page.getByRole("button", { name: "Boards pane", exact: true }),
+    ).toHaveAttribute("aria-expanded", "false");
     await page.getByLabel("Title", { exact: true }).fill(title);
     await page
       .getByLabel("Complete source", { exact: true })
@@ -475,16 +475,20 @@ for (const input of ["pointer", "keyboard"] as const)
     await page
       .getByRole("button", { name: "Return to reading", exact: true })
       .click();
+    await page
+      .getByRole("button", { name: "Threads pane", exact: true })
+      .click();
     await expect(page.locator(".results-pane")).toBeVisible();
+    await page.keyboard.press("Escape");
     await page
       .getByRole("button", { name: "Return to writing", exact: true })
       .click();
     expect(await retained(page)).toEqual(beforeReturn);
     await page
-      .getByRole("button", { name: "Navigation · Boards", exact: true })
+      .getByRole("button", { name: "Boards pane", exact: true })
       .press("Escape");
     await expect(
-      page.getByRole("button", { name: "Navigation · Boards", exact: true }),
+      page.getByRole("button", { name: "Boards pane", exact: true }),
     ).toHaveAttribute("aria-expanded", "false");
     expect(
       await page.locator(".workspace").evaluate((node) => node.scrollTop),
@@ -493,7 +497,7 @@ for (const input of ["pointer", "keyboard"] as const)
     expect(f.posts).toHaveLength(0);
   });
 
-test("UX62.disclosed-validation: enlarged open Navigation retains a usable writing viewport for body correction and state through resizing", async ({
+test("UX62.disclosed-validation: enlarged drawer navigation retains a usable writing viewport for body correction and state through resizing", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -555,7 +559,7 @@ for (const [entry, width, height, textSize, theme, language] of [
     await page.setViewportSize({ width, height });
     const f = await fixture(page, entry, true);
     const navigation = page.getByRole("button", {
-      name: "Navigation · Boards",
+      name: "Boards pane",
       exact: true,
     });
     if (await navigation.isVisible()) await navigation.press("Escape");

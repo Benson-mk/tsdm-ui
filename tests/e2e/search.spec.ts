@@ -1368,8 +1368,9 @@ for (const width of [1280, 960, 375]) {
     await revealNavigation(page);
     if (width < 640)
       await page
-        .getByRole("combobox", { name: "Main destinations", exact: true })
-        .selectOption("search");
+        .getByRole("navigation", { name: "Main destinations", exact: true })
+        .getByRole("button", { name: "Search", exact: true })
+        .click();
     else
       await page
         .getByRole("navigation", { name: "Main destinations", exact: true })
@@ -1379,8 +1380,8 @@ for (const width of [1280, 960, 375]) {
     await page.getByLabel("Keywords", { exact: true }).fill("autumn");
     if (width < 640)
       await expect(
-        page.getByRole("combobox", { name: "Main destinations", exact: true }),
-      ).toHaveValue("search");
+        page.locator(".main-destinations button[aria-current=page]"),
+      ).toHaveText("Search");
     else
       await expect(
         page
@@ -1411,8 +1412,9 @@ async function openSearch(page: Page) {
   await revealNavigation(page);
   if ((page.viewportSize()?.width ?? 1280) < 640)
     await page
-      .getByRole("combobox", { name: "Main destinations", exact: true })
-      .selectOption("search");
+      .getByRole("navigation", { name: "Main destinations", exact: true })
+      .getByRole("button", { name: "Search", exact: true })
+      .click();
   else
     await page
       .getByRole("navigation", { name: "Main destinations", exact: true })
@@ -1788,6 +1790,7 @@ for (const width of [375, 960, 1279]) {
     await expect(
       page.getByRole("link", { name: "Autumn 1 listening", exact: true }),
     ).toBeVisible();
+    if (width < 768) await revealNavigation(page);
     await page
       .getByRole("link", { name: "New search", exact: true })
       .filter({ visible: true })

@@ -136,6 +136,11 @@ const english = {
   mainDestinations: "Main destinations",
   sectionNavigation: "Section navigation",
   boards: "Boards",
+  threadChangeTitle: "Keep current writing?",
+  threadChangeDescription:
+    "Your writing stays attached to its original destination. Continue editing, or keep it for a deliberate return while reading this thread.",
+  continueEditing: "Continue editing",
+  retainWritingRead: "Keep writing and read thread",
   boardsPane: "Boards pane",
   threadsPane: "Threads pane",
   chooseThreadContext:
@@ -497,6 +502,11 @@ const simplified: Strings = {
   mainDestinations: "主要导航",
   sectionNavigation: "栏目导航",
   boards: "版块",
+  threadChangeTitle: "保留当前写作？",
+  threadChangeDescription:
+    "写作仍属于原来的目标。继续编辑，或保留写作并阅读此主题，稍后再返回。",
+  continueEditing: "继续编辑",
+  retainWritingRead: "保留写作并阅读主题",
   boardsPane: "版块面板",
   threadsPane: "主题面板",
   chooseThreadContext: "选择主题阅读。浏览版块会保留当前主题和写作。",
@@ -846,6 +856,11 @@ const traditional: Strings = {
   mainDestinations: "主要導覽",
   sectionNavigation: "欄目導覽",
   boards: "版塊",
+  threadChangeTitle: "保留目前寫作？",
+  threadChangeDescription:
+    "寫作仍屬於原來的目標。繼續編輯，或保留寫作並閱讀此主題，稍後再返回。",
+  continueEditing: "繼續編輯",
+  retainWritingRead: "保留寫作並閱讀主題",
   boardsPane: "版塊面板",
   threadsPane: "主題面板",
   chooseThreadContext: "選擇主題閱讀。瀏覽版塊會保留目前主題和寫作。",

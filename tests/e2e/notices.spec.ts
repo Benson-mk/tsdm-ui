@@ -1072,13 +1072,17 @@ for (const width of [390, 1000]) {
     await revealNavigation(page);
     if (width < 960)
       await page
-        .getByRole("combobox", { name: "Main destinations", exact: true })
-        .selectOption("notices");
+        .getByRole("navigation", { name: "Main destinations", exact: true })
+        .getByRole("button", { name: "Notices", exact: true })
+        .click();
     else await overview(page);
+    if (width < 768) await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.locator("#interface-language").selectOption("zh-TW");
     await page.getByLabel("文字大小", { exact: true }).fill("90");
     await page.keyboard.press("Escape");
+    if (width < 768)
+      await page.getByRole("button", { name: "主題面板", exact: true }).click();
     await page.getByRole("button", { name: "載入通知", exact: true }).click();
     await expect(page.getByText(completeTail, { exact: true })).toBeVisible();
     await expect(
