@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ViewPosition } from "../workspace/navigation";
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import {
   DialogRoot,
@@ -766,6 +767,7 @@ function tickThreadRefresh() {
         []),
     ].some((dialog) => dialog.getClientRects().length > 0);
   props.workspace.threadHistory.tick(visible);
+  props.workspace.privateHistory.tick(visible);
 }
 onMounted(() => {
   refreshTimer = setInterval(tickThreadRefresh, 1000);
@@ -811,6 +813,19 @@ function approachHistory(event: Event) {
       !pane.getClientRects().length
     )
       return;
+    if (pane.classList.contains("private-reading-pane")) {
+      if (
+        pane.scrollTop <= 160 &&
+        privateHistory.value.result?.conversation.earlier
+      )
+        void props.workspace.privateHistory.load("earlier", true);
+      else if (
+        pane.scrollHeight - pane.clientHeight - pane.scrollTop <= 160 &&
+        privateHistory.value.result?.conversation.later
+      )
+        void props.workspace.privateHistory.load("later", true);
+      return;
+    }
     if (pane.scrollTop <= 160 && history.value.earlier.status === "unloaded")
       void props.workspace.threadHistory.load("earlier", true);
     else if (
@@ -903,6 +918,7 @@ onMounted(() => {
         : "#thread-list-pane",
     );
   const capturePane = (container: HTMLElement | null | undefined) => {
+    const reader = root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
     const blocks =
       container?.querySelectorAll<HTMLElement>(
         "article[id], [data-thread-id], [data-draft-id]",
@@ -919,11 +935,52 @@ onMounted(() => {
       readingScrollTop:
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")
           ?.scrollTop ?? 0,
+      ...(reader?.classList.contains("private-reading-pane")
+        ? {
+            readingPaneTop: reader.getBoundingClientRect().top,
+            readingRegionScrollTop:
+              reader.closest(".conversation-region")?.scrollTop ?? 0,
+          }
+        : {}),
       resultsScrollTop:
         root.shadowRoot?.querySelector<HTMLElement>(
           ".results-pane, .messages-pane",
         )?.scrollTop ?? 0,
     };
+  };
+  const restoreReadingViewport = (position: ViewPosition | null) => {
+    const reader = root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
+    const region = reader?.closest<HTMLElement>(".conversation-region");
+    if (
+      !reader?.classList.contains("private-reading-pane") ||
+      !region ||
+      !position
+    )
+      return 0;
+    if (position.readingRegionScrollTop !== undefined)
+      region.scrollTop = position.readingRegionScrollTop;
+    if (position.readingPaneTop === undefined) return 0;
+    const bounds = region.getBoundingClientRect();
+    const visibleTop = Math.max(0, bounds.top);
+    const visibleBottom = Math.min(window.innerHeight, bounds.bottom);
+    const visibleHeight = Math.min(
+      reader.clientHeight,
+      Number.parseFloat(getComputedStyle(reader).minHeight) ||
+        reader.clientHeight,
+      Math.max(0, visibleBottom - visibleTop),
+    );
+    const targetTop = Math.min(
+      position.readingPaneTop,
+      Math.max(visibleTop, visibleBottom - visibleHeight),
+    );
+    region.scrollTop += reader.getBoundingClientRect().top - targetTop;
+    // An old screen position can fall outside a resized viewport. Rebase the
+    // retained line there, and also protect it from unabsorbed heading growth.
+    return (
+      targetTop -
+      position.readingPaneTop +
+      Math.max(0, reader.getBoundingClientRect().top - targetTop)
+    );
   };
   props.workspace.setViewAdapter({
     nearLatest() {
@@ -940,6 +997,7 @@ onMounted(() => {
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
       stopReadingImageRestore?.();
       if (reader) {
+        restoreReadingViewport(capturePane(reader));
         reader.scrollTop = reader.scrollHeight;
         const last = reader.querySelector<HTMLElement>("article:last-of-type");
         if (last) followPendingReadingImages(reader, last, null, true);
@@ -954,20 +1012,21 @@ onMounted(() => {
       const container =
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
       if (!container) return;
+      const offset = position.offset + restoreReadingViewport(position);
       container.scrollTop = position.scrollTop;
       const node = position.anchor
         ? root.shadowRoot?.getElementById(position.anchor)
         : null;
       if (node && container.contains(node)) {
-        container.scrollTop +=
-          node.getBoundingClientRect().top - position.offset;
-        followPendingReadingImages(container, node, position.offset);
+        container.scrollTop += node.getBoundingClientRect().top - offset;
+        followPendingReadingImages(container, node, offset);
       }
     },
     restore(position, target, selection) {
       suppressAutomaticHistory();
       stopReadingImageRestore?.();
 
+      const viewportShift = restoreReadingViewport(position);
       const container = pane();
       if (container) container.scrollTop = position?.scrollTop ?? 0;
       const reader =
@@ -993,7 +1052,8 @@ onMounted(() => {
         (!target || position.readingScrollTop !== 0)
       )
         container.scrollTop +=
-          node.getBoundingClientRect().top - position.offset;
+          node.getBoundingClientRect().top -
+          (position.offset + (container === reader ? viewportShift : 0));
       if (node && target && (!position || position.readingScrollTop === 0))
         node.scrollIntoView({ block: "start" });
       if (
@@ -1023,7 +1083,9 @@ onMounted(() => {
           node,
           target && position?.readingScrollTop === 0
             ? null
-            : (position?.offset ?? null),
+            : position
+              ? position.offset + (container === reader ? viewportShift : 0)
+              : null,
         );
     },
   });
@@ -1975,7 +2037,18 @@ function boardIdFrom(url: string) {
           "
           :loading="privateHistory.loading"
           :failure="privateHistory.failure"
+          :automatic="privateHistory.automatic"
+          :paused="privateHistory.paused"
+          :retry-minutes="privateHistory.retryMinutes"
+          :checking="privateHistory.checking"
+          :checked-at="privateHistory.checkedAt"
+          :refresh-failure="privateHistory.refreshFailure"
+          :arrivals="privateHistory.arrivals.length"
           :language="workspace.preferences.state.value.language"
+          @scroll="approachHistory"
+          @automatic="workspace.privateHistory.setAutomatic($event)"
+          @refresh="workspace.privateHistory.refresh()"
+          @arrivals="workspace.privateHistory.revealArrivals()"
           @load="workspace.privateHistory.load($event)"
           @write="
             workspace.writing.preparePrivate(

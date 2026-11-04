@@ -1,4 +1,4 @@
-import { createPrivateHistory } from "./private-history";
+import { createPrivateHistory, privateContext } from "./private-history";
 import { createThreadHistory, threadContext } from "./thread-history";
 import type { DownloadHost, PreparedFile } from "../hosts/download";
 import { createWriting } from "./writing";
@@ -420,8 +420,25 @@ export function createWorkspace(
     },
   });
   const privateHistory = createPrivateHistory(client, {
+    active: () =>
+      state.value.result?.kind === "private-conversation" &&
+      !writing.state.value.visible &&
+      !writing.state.value.context?.privateAttempts?.some((attempt) =>
+        ["pending", "uncertain"].includes(attempt.status),
+      ),
+    nearLatest: () => view?.nearLatest() ?? false,
+    followLatest: async () => {
+      await nextTick();
+      view?.followLatest();
+    },
     busy: () =>
       state.value.loading ||
+      writing.state.value.composing ||
+      (!!writing.state.value.privateReview &&
+        !writing.state.value.privateReviewConsumed) ||
+      threadHistory.state.value.checking ||
+      threadHistory.state.value.earlier.status === "loading" ||
+      threadHistory.state.value.later.status === "loading" ||
       writing.state.value.preparing ||
       writing.state.value.publishing ||
       writing.state.value.findingMention ||
@@ -463,28 +480,43 @@ export function createWorkspace(
     { flush: "sync" },
   );
 
+  watch(
+    [
+      () => writing.state.value.composing,
+      () => writing.state.value.context?.revision,
+      () => writing.state.value.privateReview,
+    ],
+    () => privateHistory.cancelPending(),
+    { flush: "sync" },
+  );
+
   function capture() {
     const entry = entryFor(state.value.key);
     if (entry && view) {
       entry.position = view.capture();
       const position = view.captureReading();
       threadHistory.remember(position);
-      const readingEntry =
-        entry.result?.kind === "thread"
-          ? entry
-          : entry.readingKey
-            ? entryFor(entry.readingKey)
-            : null;
-      const current = threadHistory.state.value.result;
+      privateHistory.remember(position);
+      const privateResult = privateHistory.state.value.result;
+      const readingEntry = ["thread", "private-conversation"].includes(
+        entry.result?.kind ?? "",
+      )
+        ? entry
+        : entry.readingKey
+          ? entryFor(entry.readingKey)
+          : null;
+      const current = privateResult ?? threadHistory.state.value.result;
       const url = position.anchor
-        ? threadHistory.sourceFor(position.anchor.slice(3))
+        ? privateResult
+          ? privateHistory.sourceFor(position.anchor.slice(7))
+          : threadHistory.sourceFor(position.anchor.slice(3))
         : null;
       const account = current ? accountKey(current.account) : null;
       if (
         readingEntry &&
         url &&
         account &&
-        /^pid[1-9]\d*$/.test(position.anchor ?? "") &&
+        /^(?:pid|pmlist_)[1-9]\d*$/.test(position.anchor ?? "") &&
         ![...new URL(url).searchParams.keys()].some((name) =>
           /^(?:formhash|token|auth|password|sid)$/i.test(name),
         )
@@ -587,7 +619,8 @@ export function createWorkspace(
     const readingPosition =
       retained || retainedPrivate
         ? view?.captureReading()
-        : (threadHistory.rememberedPosition() ??
+        : (privateHistory.rememberedPosition() ??
+          threadHistory.rememberedPosition() ??
           (entry.result?.kind === "thread"
             ? entry.readingMarker?.position
             : entry.readingKey
@@ -897,7 +930,8 @@ export function createWorkspace(
       const readingPosition =
         retained || retainedPrivate
           ? view?.captureReading()
-          : threadHistory.rememberedPosition();
+          : (privateHistory.rememberedPosition() ??
+            threadHistory.rememberedPosition());
 
       entry.account = observed;
       if (result.kind === "search" && result.search.results)
@@ -1108,13 +1142,63 @@ export function createWorkspace(
     capture();
     const previous = entryFor(state.value.key);
     if (previous && selection) previous.selection = selection;
+    const requested = new URL(url);
+    const ordinary =
+      !requested.searchParams.has("page") &&
+      (!requested.hash || (selection !== null && requested.hash === "#last"));
+    const passiveCurrent =
+      !previous?.result &&
+      !!previous?.readingMarker &&
+      previous.destination === url;
+    const marker =
+      ordinary || passiveCurrent
+        ? (Object.values(record.entries)
+            .map((other) => other.readingMarker)
+            .filter(
+              (marker) =>
+                marker &&
+                routeFor(marker.url)?.kind === "private-conversation" &&
+                (!knownAccount || marker.account === knownAccount) &&
+                privateContext(marker.url, marker.account) ===
+                  privateContext(url, marker.account),
+            )
+            .sort((a, b) => b!.savedAt - a!.savedAt)[0] ?? null)
+        : null;
     const entry = newEntry(url, previous?.key ?? null);
+    if (marker) {
+      entry.readingMarker = marker;
+      entry.account = marker.account;
+    }
     entry.section = "messages";
     entry.selection = selection;
     host.push(entry.key);
+    const retained =
+      ordinary && knownAccount ? privateHistory.find(url, knownAccount) : null;
+    if (retained) {
+      entry.result = retained;
+      entry.account = knownAccount;
+      show(entry);
+      void persist();
+      return;
+    }
     show(entry);
     void persist();
-    await read(entry, client.readPrivateConversation(url));
+    const loadURL = marker ? new URL(marker.url) : new URL(url);
+    if (marker) loadURL.hash = marker.position.anchor ?? "";
+    await read(entry, client.readPrivateConversation(loadURL.href));
+    const loaded = privateHistory.state.value.result;
+    if (
+      marker &&
+      loaded &&
+      accountKey(loaded.account) === marker.account &&
+      loaded.conversation.messages.some(
+        (m) => `pmlist_${m.id}` === marker.position.anchor,
+      )
+    ) {
+      privateHistory.remember(marker.position);
+      await nextTick();
+      view?.restoreReading(marker.position);
+    }
   }
   async function loadMessages(url?: string) {
     if (state.value.loading) return;
@@ -1506,7 +1590,12 @@ export function createWorkspace(
   return {
     preferences,
     saveReadingPosition: () => {
-      if (state.value.loading || !view || !threadHistory.state.value.result)
+      if (
+        state.value.loading ||
+        !view ||
+        (!threadHistory.state.value.result &&
+          !privateHistory.state.value.result)
+      )
         return;
       capture();
       void persist();

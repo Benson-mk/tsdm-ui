@@ -544,31 +544,64 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
         !string(marker.account) ||
         marker.account !== entry.account ||
         !object(marker.position) ||
-        !object(entry.result) ||
-        entry.result.kind !== "thread" ||
-        !object(entry.result.thread)
+        !string(marker.position.anchor) ||
+        !finite(marker.position.offset) ||
+        !finite(marker.position.scrollTop) ||
+        marker.position.scrollTop < 0 ||
+        (marker.position.readingPaneTop !== undefined &&
+          !finite(marker.position.readingPaneTop)) ||
+        (marker.position.readingRegionScrollTop !== undefined &&
+          (!finite(marker.position.readingRegionScrollTop) ||
+            marker.position.readingRegionScrollTop < 0))
       )
         return false;
       const target = describeDestination(marker.url);
-      const source = new URL(String(entry.result.thread.url));
       const targetURL = new URL(marker.url);
       if (
-        target?.kind !== "thread" ||
-        targetURL.searchParams.get("tid") !== entry.result.thread.id ||
-        targetURL.searchParams.get("authorid") !==
-          source.searchParams.get("authorid") ||
-        (targetURL.searchParams.get("ordertype") ?? "0") !==
-          (source.searchParams.get("ordertype") ?? "0") ||
         [...targetURL.searchParams.keys()].some((name) =>
           /^(?:formhash|token|auth|password|sid)$/i.test(name),
-        ) ||
-        !string(marker.position.anchor) ||
-        !/^pid[1-9]\d*$/.test(marker.position.anchor) ||
-        !finite(marker.position.offset) ||
-        !finite(marker.position.scrollTop) ||
-        marker.position.scrollTop < 0
+        )
       )
         return false;
+      if (target?.kind === "private-conversation") {
+        const source = describeDestination(String(entry.destination));
+        const sourceURL = new URL(String(entry.destination));
+        if (
+          source?.kind !== "private-conversation" ||
+          !/^member:[1-9]\d*$/.test(marker.account) ||
+          !/^pmlist_[1-9]\d*$/.test(marker.position.anchor) ||
+          targetURL.origin !== sourceURL.origin ||
+          targetURL.searchParams.get("touid") !==
+            sourceURL.searchParams.get("touid") ||
+          (targetURL.searchParams.get("daterange") ?? "0") !==
+            (sourceURL.searchParams.get("daterange") ?? "0") ||
+          [...targetURL.searchParams.keys()].some(
+            (name) =>
+              !["mod", "do", "subop", "touid", "daterange", "page"].includes(
+                name,
+              ),
+          )
+        )
+          return false;
+      } else {
+        if (
+          !object(entry.result) ||
+          entry.result.kind !== "thread" ||
+          !object(entry.result.thread)
+        )
+          return false;
+        const source = new URL(String(entry.result.thread.url));
+        if (
+          target?.kind !== "thread" ||
+          targetURL.searchParams.get("tid") !== entry.result.thread.id ||
+          targetURL.searchParams.get("authorid") !==
+            source.searchParams.get("authorid") ||
+          (targetURL.searchParams.get("ordertype") ?? "0") !==
+            (source.searchParams.get("ordertype") ?? "0") ||
+          !/^pid[1-9]\d*$/.test(marker.position.anchor)
+        )
+          return false;
+      }
     }
     const position = entry.position;
     if (!(
@@ -578,6 +611,11 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
         finite(position.offset) &&
         finite(position.scrollTop) &&
         position.scrollTop >= 0 &&
+        (position.readingPaneTop === undefined ||
+          finite(position.readingPaneTop)) &&
+        (position.readingRegionScrollTop === undefined ||
+          (finite(position.readingRegionScrollTop) &&
+            position.readingRegionScrollTop >= 0)) &&
         (position.readingScrollTop === undefined ||
           (finite(position.readingScrollTop) &&
             position.readingScrollTop >= 0)) &&

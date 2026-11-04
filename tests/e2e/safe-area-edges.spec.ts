@@ -500,10 +500,7 @@ for (const mode of [
     await expect(reader).toBeVisible();
     const last =
       mode === "private"
-        ? reader.getByRole("link", {
-            name: "Continue in native forum",
-            exact: true,
-          })
+        ? reader.locator("article .post-content").last()
         : mode === "public"
           ? reader
               .getByRole("button", { name: "Reply to this post", exact: true })

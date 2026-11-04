@@ -7,6 +7,8 @@ export interface ViewPosition {
   offset: number;
   scrollTop: number;
   readingScrollTop?: number;
+  readingPaneTop?: number;
+  readingRegionScrollTop?: number;
   resultsScrollTop?: number;
 }
 export interface ReadingMarker {

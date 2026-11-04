@@ -122,6 +122,16 @@ const english = {
   back: "Back",
   refresh: "Refresh",
   refreshThread: "Refresh thread",
+  refreshConversation: "Refresh conversation",
+  privateAutomaticChecks:
+    "Check private conversation every 2 minutes while active",
+  privateCheckEffects:
+    "Checks may mark private messages read. This is an optional 2-minute app policy, not an instant-delivery promise.",
+  privateRefreshChecking: "Checking private conversation…",
+  privateRefreshCooldown:
+    "Check failed. Retry available in {value} minutes. Use Refresh conversation to recover.",
+  privateRefreshRetry: "Check failed. Use Refresh conversation to retry.",
+  newMessages: "New messages ({value})",
   native: "Continue in native forum",
   boardNavigation: "Board navigation",
   chooseBoard: "Choose a board",
@@ -528,6 +538,15 @@ const simplified: Strings = {
   back: "返回",
   refresh: "刷新",
   refreshThread: "刷新主题",
+  refreshConversation: "刷新私信交谈",
+  privateAutomaticChecks: "活动期间每 2 分钟检查私信交谈",
+  privateCheckEffects:
+    "检查可能将私信标记为已读。这是可选的应用内两分钟检查策略，不保证即时送达。",
+  privateRefreshChecking: "正在检查私信交谈…",
+  privateRefreshCooldown:
+    "检查失败。{value} 分钟后可重试。请使用刷新私信交谈恢复。",
+  privateRefreshRetry: "检查失败。请使用刷新私信交谈重试。",
+  newMessages: "新私信（{value}）",
   native: "在原版论坛中继续",
   boardNavigation: "版块导航",
   chooseBoard: "选择版块",
@@ -915,6 +934,15 @@ const traditional: Strings = {
   back: "返回",
   refresh: "重新整理",
   refreshThread: "重新整理主題",
+  refreshConversation: "重新整理私訊交談",
+  privateAutomaticChecks: "活動期間每 2 分鐘檢查私訊交談",
+  privateCheckEffects:
+    "檢查可能將私訊標記為已讀。這是可選的應用程式內兩分鐘檢查策略，不保證即時送達。",
+  privateRefreshChecking: "正在檢查私訊交談…",
+  privateRefreshCooldown:
+    "檢查失敗。{value} 分鐘後可重試。請使用重新整理私訊交談復原。",
+  privateRefreshRetry: "檢查失敗。請使用重新整理私訊交談重試。",
+  newMessages: "新私訊（{value}）",
   native: "在原版論壇中繼續",
   boardNavigation: "版塊導覽",
   chooseBoard: "選擇版塊",

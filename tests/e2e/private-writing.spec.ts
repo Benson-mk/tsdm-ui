@@ -36,13 +36,17 @@ function history(state: Server) {
     .join("");
   return `<div id="um"><strong><a href="home.php?mod=space&uid=${state.member}">Writer Seven</a></strong></div><div id="ct"><div class="tbmu pml">There are <span id="membernum">${state.messages.length}</span> messages with <a href="home.php?mod=space&uid=9">Listener Nine</a></div><div id="pm_ul" class="pml">${rows}</div><form id="pmform" method="post" action="home.php?mod=spacecp&ac=pm&op=send&pmid=101&daterange=0&handlekey=pmsend&pmsubmit=yes"><textarea name="message" rows="12"></textarea><button type="submit" name="pmsubmit" value="true">Send native</button><input type="hidden" name="formhash" value="AUTHORED_PRIVATE_TOKEN"><input type="hidden" name="topmuid" value="9"></form></div>`;
 }
-async function open(page: Page, start = conversationURL) {
+async function open(
+  page: Page,
+  start = conversationURL,
+  initialMessages?: Server["messages"],
+) {
   const state: Server = {
     member: "7",
     pendingRecords: [],
     reads: [],
     posts: [],
-    messages: [
+    messages: initialMessages ?? [
       {
         id: "101",
         sender: "9",
@@ -722,6 +726,12 @@ for (const bad of [
     }, bad);
     const commands = server.posts.length,
       reads = server.reads.length;
+    // Install untrusted recovery at the next document boundary, after the outgoing
+    // page has saved its current acknowledged position on pagehide.
+    await page.addInitScript(
+      (raw) => sessionStorage.setItem("tsdm.workspace.recovery", raw),
+      malformed,
+    );
     await page.reload();
     await page.addScriptTag({
       content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
@@ -1090,4 +1100,167 @@ test("J77.public-private-history: explicit private replacement keeps the origina
     "Original public reply remains identifiable",
   );
   expect(server.posts).toHaveLength(1);
+});
+
+test("J78.private-review-priority: checking yields to immutable private review without changing approved source or sending", async ({
+  page,
+}) => {
+  const server = await open(page);
+  await page
+    .getByRole("checkbox", {
+      name: "Check private conversation every 2 minutes while active",
+      exact: true,
+    })
+    .check();
+  const editor = await prepare(page);
+  const reads = server.reads.length;
+  await expect(page.getByText("Checks paused", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Refresh conversation", exact: true })
+    .click({ force: true });
+  expect(server.reads).toHaveLength(reads);
+  await expect(
+    page.getByRole("region", {
+      name: "Prepared private message review",
+      exact: true,
+    }),
+  ).toContainText(sourceText);
+  await expect(editor).toHaveValue(sourceText);
+  expect(server.posts).toHaveLength(0);
+});
+test("J78.private-uncertain-original: independent reading arrivals cannot confirm or rewrite the original immutable attempt", async ({
+  page,
+}) => {
+  const server = await open(page);
+  await prepare(page);
+  server.failReadback = true;
+  await send(page);
+  await expect(attempt(page)).toContainText("could not confirm");
+  const original = JSON.parse(
+    await page.evaluate(() =>
+      sessionStorage.getItem("tsdm.workspace.recovery")!,
+    ),
+  ).writing.privateAttempts[0];
+  server.failReadback = false;
+  await page
+    .getByRole("button", { name: "Refresh conversation", exact: true })
+    .click({ force: true });
+  await expect(page.locator("#pmlist_203")).toHaveCount(1);
+  const after = JSON.parse(
+    await page.evaluate(() =>
+      sessionStorage.getItem("tsdm.workspace.recovery")!,
+    ),
+  ).writing.privateAttempts[0];
+  expect(after).toEqual(original);
+  await expect(attempt(page)).toContainText("could not confirm");
+  expect(server.posts).toHaveLength(1);
+  await page
+    .getByRole("checkbox", {
+      name: "Check private conversation every 2 minutes while active",
+      exact: true,
+    })
+    .check();
+  await expect(page.getByText("Checks paused", { exact: true })).toBeVisible();
+});
+test("J78.private-send-priority: pending publication preserves its original baseline and refuses concurrent reading refresh", async ({
+  page,
+}) => {
+  const server = await open(page);
+  await prepare(page);
+  let release!: () => void;
+  server.gate = new Promise<void>((r) => {
+    release = r;
+  });
+  await send(page);
+  await expect.poll(() => server.posts.length).toBe(1);
+  const original = JSON.parse(
+    await page.evaluate(() =>
+      sessionStorage.getItem("tsdm.workspace.recovery")!,
+    ),
+  ).writing.privateAttempts[0];
+  const count = server.reads.length;
+  await page
+    .getByRole("button", { name: "Refresh conversation", exact: true })
+    .click({ force: true });
+  expect(server.reads).toHaveLength(count);
+  release();
+  await expect(attempt(page)).toContainText(
+    "Stored private message independently verified",
+  );
+  const final = JSON.parse(
+    await page.evaluate(() =>
+      sessionStorage.getItem("tsdm.workspace.recovery")!,
+    ),
+  ).writing.privateAttempts[0];
+  expect(final.submission).toEqual(original.submission);
+  expect(server.posts).toHaveLength(1);
+});
+
+test("J78.private-first-refresh-writing: first successful check preserves the visible private line beside retained writing", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1119, height: 626 });
+  const server = await open(
+    page,
+    conversationURL,
+    [101, 102, 103, 104].map((id) => ({
+      id: String(id),
+      sender: id === 104 ? "7" : "9",
+      source: ("Authored complete private line " + id + "\n").repeat(8),
+    })),
+  );
+  await page
+    .getByRole("button", { name: "Write private message", exact: true })
+    .click();
+  const editor = page.getByRole("textbox", {
+    name: "Private message text",
+    exact: true,
+  });
+  await editor.fill("Retained unsent private source 中文");
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await page.locator("#pmlist_104").focus();
+  await page.locator(".private-reading-pane").evaluate((n) => {
+    const anchor = n.querySelector("#pmlist_104")!;
+    n.scrollTop +=
+      anchor.getBoundingClientRect().top - n.getBoundingClientRect().top;
+  });
+  const geometry = () =>
+    page.locator(".private-reading-pane").evaluate((n) => ({
+      paneTop: n.getBoundingClientRect().top,
+      anchorTop: n.querySelector("#pmlist_104")!.getBoundingClientRect().top,
+      offset:
+        n.querySelector("#pmlist_104")!.getBoundingClientRect().top -
+        n.getBoundingClientRect().top,
+      height: n.clientHeight,
+      scrollTop: n.scrollTop,
+      scrollHeight: n.scrollHeight,
+      outerScroll: n.closest(".conversation-region")!.scrollTop,
+    }));
+  const before = await geometry();
+  expect(
+    before.scrollHeight - before.height - before.scrollTop,
+  ).toBeGreaterThan(64);
+  const reads = server.reads.length;
+  await page
+    .getByRole("button", { name: "Refresh conversation", exact: true })
+    .click();
+  await expect(page.getByText(/Last successful check:/)).toBeVisible();
+  const after = await geometry();
+  await test.info().attach("first-refresh-geometry.json", {
+    body: JSON.stringify({ before, after }),
+    contentType: "application/json",
+  });
+  await expect(
+    page.getByRole("textbox", {
+      name: "Private message text",
+      exact: true,
+      includeHidden: true,
+    }),
+  ).toHaveValue("Retained unsent private source 中文");
+  expect(server.reads).toHaveLength(reads + 1);
+  expect(server.posts).toHaveLength(0);
+  expect(Math.abs(after.offset - before.offset)).toBeLessThanOrEqual(1);
+  expect(Math.abs(after.anchorTop - before.anchorTop)).toBeLessThanOrEqual(1);
 });

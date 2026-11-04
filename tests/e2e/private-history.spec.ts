@@ -125,7 +125,7 @@ test("J76.private-open: deliberately read named recipient with complete chronolo
     "true",
   );
   await expect(reader.locator("#pmlist_102")).toBeFocused();
-  await expect(reader.getByRole("button", { name: /send/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /send/i })).toHaveCount(0);
   expect(await page.evaluate(() => "privateScriptRan" in window)).toBe(false);
   expect(ledger.filter((x) => x.url.includes("subop=view"))).toHaveLength(1);
   expect(ledger.every((x) => x.method === "GET")).toBe(true);
@@ -215,18 +215,34 @@ test("J76.private-pages: merge only returned adjacent pages chronologically, ded
     n.scrollTop = 420;
   });
   const anchor = page.locator("#pmlist_103");
-  const before = await anchor.evaluate((n) => n.getBoundingClientRect().top);
+  const geometry = () =>
+    anchor.evaluate((n) => ({
+      top: n.getBoundingClientRect().top,
+      readingTop: n.closest(".reading-pane")!.getBoundingClientRect().top,
+      scroll: n.closest(".reading-pane")!.scrollTop,
+      outerTop: n.closest(".conversation-region")?.scrollTop,
+      height: n.closest(".reading-pane")!.clientHeight,
+    }));
+  const initialGeometry = await geometry();
+  const before = initialGeometry.top;
   const historyLength = await page.evaluate(() => window.history.length);
-  await reader
+  await page
     .getByRole("button", { name: "Load earlier messages", exact: true })
     .click({ force: true });
   await expect(reader.locator("article")).toHaveCount(4);
+  await test.info().attach("manual-anchor-geometry.json", {
+    body: JSON.stringify({
+      before: initialGeometry,
+      after: await geometry(),
+    }),
+    contentType: "application/json",
+  });
   expect(
     Math.abs(
       (await anchor.evaluate((n) => n.getBoundingClientRect().top)) - before,
     ),
   ).toBeLessThanOrEqual(1);
-  await reader
+  await page
     .getByRole("button", { name: "Load later messages", exact: true })
     .click({ force: true });
   await expect(reader.locator("article")).toHaveCount(6);
@@ -248,7 +264,7 @@ test("J76.private-pages: merge only returned adjacent pages chronologically, ded
     ),
   ).toBeLessThanOrEqual(1);
   await expect(
-    reader.getByText("All known messages loaded", { exact: true }),
+    page.getByText("All known messages loaded", { exact: true }),
   ).toBeVisible();
   expect(await page.evaluate(() => window.history.length)).toBe(historyLength);
   expect(
@@ -369,14 +385,14 @@ test("J76.private-page-retry: failure retains loaded content, discloses possible
     .click();
   const reader = page.locator(".private-reading-pane");
   await expect(reader.locator("#pmlist_102")).toBeVisible();
-  await reader
+  await page
     .getByRole("button", { name: "Load earlier messages", exact: true })
     .click();
-  await expect(reader.getByText(/request failed.*marked.*read/i)).toBeVisible();
+  await expect(page.getByText(/request failed.*marked.*read/i)).toBeVisible();
   await expect(reader.locator("#pmlist_102")).toBeVisible();
   expect(ledger.filter((x) => x.url.includes("page=1"))).toHaveLength(1);
   failed = false;
-  await reader
+  await page
     .getByRole("button", { name: "Load earlier messages", exact: true })
     .click();
   await expect(reader.locator("article")).toHaveCount(2);
@@ -504,9 +520,34 @@ test("J76.private-context-return: public to private to another peer and Back ret
   await page.locator(".private-reading-pane").evaluate((n) => {
     n.scrollTop = 370;
   });
-  const top = await page
-    .locator("#pmlist_101")
-    .evaluate((n) => n.getBoundingClientRect().top);
+  const readingPosition = async () => {
+    await page.evaluate(
+      () =>
+        new Promise<void>((r) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => r())),
+        ),
+    );
+    return page.locator(".private-reading-pane").evaluate((reader) => {
+      const rect = reader.getBoundingClientRect(),
+        outer = reader.closest(".conversation-region")!.getBoundingClientRect();
+      const top = Math.max(0, rect.top, outer.top),
+        bottom = Math.min(innerHeight, rect.bottom, outer.bottom);
+      const paragraphs = [...reader.querySelectorAll("article p")];
+      const first = paragraphs.find((p) => {
+        const r = p.getBoundingClientRect();
+        return bottom > top && r.bottom > top && r.top < bottom;
+      });
+      return {
+        paragraph: first ? paragraphs.indexOf(first) : null,
+        offset: first ? first.getBoundingClientRect().top - top : null,
+        visibleHeight: Math.max(0, bottom - top),
+        paneTop: rect.top,
+        articleTop: reader.querySelector("article")!.getBoundingClientRect()
+          .top,
+      };
+    });
+  };
+  const readingBefore = await readingPosition();
   await page
     .getByRole("link", {
       name: "Read private conversation with Reader Ten",
@@ -526,13 +567,21 @@ test("J76.private-context-return: public to private to another peer and Back ret
     list.locator('[data-peer-id="9"] a[aria-current="true"]'),
   ).toBeVisible();
   expect(await list.evaluate((n) => n.scrollTop)).toBeGreaterThan(0);
+  const readingAfter = await readingPosition();
+  await test.info().attach("context-visible-position.json", {
+    body: JSON.stringify({ before: readingBefore, after: readingAfter }),
+    contentType: "application/json",
+  });
+  expect(readingBefore.paragraph).not.toBeNull();
+  expect(readingAfter.visibleHeight).toBeGreaterThan(0);
+  expect(readingAfter.paragraph).toBe(readingBefore.paragraph);
   expect(
-    Math.abs(
-      (await page
-        .locator("#pmlist_101")
-        .evaluate((n) => n.getBoundingClientRect().top)) - top,
-    ),
+    Math.abs(readingAfter.offset! - readingBefore.offset!),
   ).toBeLessThanOrEqual(1);
+  if (Math.abs(readingAfter.paneTop - readingBefore.paneTop) <= 1)
+    expect(
+      Math.abs(readingAfter.articleTop - readingBefore.articleTop),
+    ).toBeLessThanOrEqual(1);
   expect(ledger).toHaveLength(before);
   await page.goBack();
   await page.goBack();
@@ -609,7 +658,7 @@ test("J76.private-late-media: prepended rich content and delayed image keep the 
   const top = await page
     .locator("#pmlist_102")
     .evaluate((n) => n.getBoundingClientRect().top);
-  await reader
+  await page
     .getByRole("button", { name: "Load earlier messages", exact: true })
     .click({ force: true });
   await expect(reader.locator("article")).toHaveCount(2);
@@ -1038,7 +1087,7 @@ for (const composing of [false, true])
     }
   });
 
-test("J76.private-scroll-manual: approaching a private history boundary never borrows public automatic loading", async ({
+test("J78.private-scroll-owner: qualified private approach uses the private reader without public loads", async ({
   page,
 }) => {
   const ledger = await open(page, (url) =>
@@ -1070,13 +1119,12 @@ test("J76.private-scroll-manual: approaching a private history boundary never bo
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     );
   });
-  expect(
-    ledger.filter((request) => request.url.includes("subop=view")),
-  ).toHaveLength(1);
-  await expect(reader.locator("article")).toHaveCount(1);
-  await reader
-    .getByRole("button", { name: "Load earlier messages", exact: true })
-    .click();
+  await expect
+    .poll(
+      () =>
+        ledger.filter((request) => request.url.includes("subop=view")).length,
+    )
+    .toBe(2);
   await expect(reader.locator("article")).toHaveCount(2);
   expect(
     ledger.filter((request) => request.url.includes("subop=view")),

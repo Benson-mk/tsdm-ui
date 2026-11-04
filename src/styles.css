@@ -1767,3 +1767,14 @@ select {
 .conversation-heading .history-controls {
   position: static;
 }
+
+/* Keep the latest private body readable in the minimum-height reader. */
+.private-reading-pane > article:last-of-type {
+  padding-block-end: 8px;
+}
+.private-reading-pane
+  > article:last-of-type
+  .post-content
+  :not(br):not(:has(~ :not(br))) {
+  margin-block-end: 0;
+}

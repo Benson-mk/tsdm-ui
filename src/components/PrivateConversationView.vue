@@ -11,20 +11,25 @@ defineProps<{
   language: Preferences["language"];
   loading: "earlier" | "later" | null;
   failure: DeepReadonly<ReadResult> | null;
+  checking: boolean;
+  automatic: boolean;
+  paused: boolean;
+  retryMinutes: number;
+  checkedAt: number | null;
+  refreshFailure: DeepReadonly<ReadResult> | null;
+  arrivals: number;
 }>();
 const emit = defineEmits<{
   load: [direction: "earlier" | "later"];
   write: [];
+  refresh: [];
+  arrivals: [];
+  automatic: [enabled: boolean];
+  scroll: [event: Event];
 }>();
 </script>
 <template>
-  <section
-    class="reading-pane pane private-reading-pane"
-    data-scroll-pane="reading"
-    :aria-label="
-      insert(strings(language).privateConversation, conversation.peerName)
-    "
-  >
+  <div class="conversation-heading">
     <section class="thread-heading">
       <p class="eyebrow">{{ strings(language).privateContext }}</p>
       <h1>
@@ -35,6 +40,46 @@ const emit = defineEmits<{
       <p>{{ strings(language).privateReadEffects }}</p>
     </section>
     <div class="history-controls">
+      <label v-if="automatic || (conversation.end && !conversation.later)"
+        ><input
+          type="checkbox"
+          :checked="automatic"
+          @change="
+            emit('automatic', ($event.target as HTMLInputElement).checked)
+          "
+        />{{ strings(language).privateAutomaticChecks }}</label
+      >
+      <p>{{ strings(language).privateCheckEffects }}</p>
+      <p role="status">
+        {{
+          checking
+            ? strings(language).privateRefreshChecking
+            : refreshFailure
+              ? retryMinutes
+                ? insert(strings(language).privateRefreshCooldown, retryMinutes)
+                : strings(language).privateRefreshRetry
+              : automatic
+                ? paused
+                  ? strings(language).refreshPaused
+                  : strings(language).refreshEnabled
+                : strings(language).refreshManual
+        }}
+      </p>
+      <button :disabled="checking || loading !== null" @click="emit('refresh')">
+        {{ strings(language).refreshConversation }}
+      </button>
+      <p v-if="refreshFailure && 'message' in refreshFailure" role="status">
+        {{ description(refreshFailure.message, language) }}
+      </p>
+      <span v-if="checkedAt">{{
+        insert(
+          strings(language).lastSuccessfulCheck,
+          new Date(checkedAt).toLocaleString(language),
+        )
+      }}</span>
+      <button v-if="arrivals" @click="emit('arrivals')">
+        {{ insert(strings(language).newMessages, arrivals) }}
+      </button>
       <button
         v-if="conversation.earlier"
         :disabled="loading !== null"
@@ -59,6 +104,18 @@ const emit = defineEmits<{
     <button @click="emit('write')">
       {{ privateWritingText("Write private message", language) }}
     </button>
+    <a :href="nativeDestination(conversation.url)">{{
+      strings(language).native
+    }}</a>
+  </div>
+  <section
+    class="reading-pane pane private-reading-pane"
+    data-scroll-pane="reading"
+    :aria-label="
+      insert(strings(language).privateConversation, conversation.peerName)
+    "
+    @scroll.passive="emit('scroll', $event)"
+  >
     <p v-if="conversation.targetMissing" role="status">
       {{ strings(language).privateMissingTarget }}
     </p>
@@ -81,8 +138,5 @@ const emit = defineEmits<{
         :native-links="true"
       />
     </article>
-    <a :href="nativeDestination(conversation.url)">{{
-      strings(language).native
-    }}</a>
   </section>
 </template>
