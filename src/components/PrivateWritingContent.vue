@@ -74,12 +74,7 @@ watch(
       plain
     />
     <p v-if="state.message" role="alert">{{ t(state.message) }}</p>
-    <button
-      :disabled="state.preparing || state.publishing || state.composing"
-      @click="workspace.writing.reviewPublication()"
-    >
-      {{ t("Review private message") }}
-    </button>
+
     <section
       v-if="state.privateReview"
       :aria-label="t('Prepared private message review')"

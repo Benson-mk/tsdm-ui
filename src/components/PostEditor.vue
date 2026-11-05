@@ -183,6 +183,7 @@ function focus(automaticEntry = false, showValidation = false) {
       source.value?.focus();
       const range = session.sourceSelection;
       source.value?.setSelectionRange(range.from, range.to, range.direction);
+      source.value?.scrollIntoView({ block: "nearest" });
     }
     if (showValidation) sourceError.value?.scrollIntoView({ block: "nearest" });
   });

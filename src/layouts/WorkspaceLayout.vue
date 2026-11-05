@@ -261,12 +261,20 @@ const threadFilters = computed(() => {
 });
 const sections: Section[] = [
   "boards",
+  "messages",
   "search",
   "saved",
   "notices",
-  "messages",
   "drafts",
 ];
+const sectionSymbols: Record<Section, string> = {
+  boards: "☷",
+  messages: "✉",
+  search: "⌕",
+  saved: "☆",
+  notices: "◉",
+  drafts: "▤",
+};
 const sectionInfo = computed(() => {
   const section = state.value.section;
   if (
@@ -537,7 +545,9 @@ watch(
   () => writing.value.context?.id,
   () => {
     const context = writing.value.context;
-    writingExpanded.value = Boolean(context && !context.replyTarget);
+    writingExpanded.value = Boolean(
+      context && context.action !== "private-message" && !context.replyTarget,
+    );
     if (context && drawer.value) changeDrawer(null);
   },
   { immediate: true },
@@ -1273,8 +1283,10 @@ function boardIdFrom(url: string) {
       </DialogPortal>
     </DialogRoot>
     <header>
-      <a class="brand" href="https://www.tsdm39.com/">TSDM</a
-      ><span class="header-account">{{ accountLabel }}</span>
+      <a class="brand" href="https://www.tsdm39.com/" aria-label="TSDM"
+        ><span aria-hidden="true">✳</span>TSDM</a
+      >
+      <span class="workspace-caption" aria-hidden="true">Forum / IM</span>
       <button
         ref="boardsTrigger"
         :aria-label="text.boardsPane"
@@ -1282,7 +1294,7 @@ function boardIdFrom(url: string) {
         aria-controls="boards-pane"
         @click="togglePane('boards')"
       >
-        {{ text.boards }}
+        <span aria-hidden="true">☷</span> {{ text.boards }}
       </button>
       <button
         ref="threadsTrigger"
@@ -1293,7 +1305,7 @@ function boardIdFrom(url: string) {
         aria-controls="thread-list-pane"
         @click="togglePane('threads')"
       >
-        {{ text.threadResults }}
+        <span aria-hidden="true">≡</span> {{ text.threadsPane }}
       </button>
       <SettingsDialog :workspace="workspace" :portal="portal" />
       <div id="navigation-preferences" class="navigation-preferences">
@@ -1674,6 +1686,7 @@ function boardIdFrom(url: string) {
           id="boards-pane"
           class="boards-region pane"
         >
+          <p class="navigation-caption">{{ text.mainDestinations }}</p>
           <nav :aria-label="text.mainDestinations" class="main-destinations">
             <button
               v-for="section in sections"
@@ -1681,7 +1694,10 @@ function boardIdFrom(url: string) {
               :aria-current="state.section === section ? 'page' : undefined"
               @click="selectSection(section)"
             >
-              {{ text[section] }}
+              <span class="nav-symbol" aria-hidden="true">{{
+                sectionSymbols[section]
+              }}</span
+              ><span class="destination-label">{{ text[section] }}</span>
             </button>
           </nav>
           <nav
@@ -1742,6 +1758,7 @@ function boardIdFrom(url: string) {
             <p v-if="!noticeContext">{{ text.noticesHeading }}</p>
           </nav>
           <div ref="boardContextTools" class="board-context-tools" />
+          <p class="navigation-account">{{ accountLabel }}</p>
         </div>
       </Teleport>
       <Teleport
@@ -2126,6 +2143,7 @@ function boardIdFrom(url: string) {
           :checked-at="privateHistory.checkedAt"
           :refresh-failure="privateHistory.refreshFailure"
           :arrivals="privateHistory.arrivals.length"
+          :has-writing="!!writing.context"
           :language="workspace.preferences.state.value.language"
           @scroll="approachHistory"
           @automatic="workspace.privateHistory.setAutomatic($event)"
@@ -2141,19 +2159,28 @@ function boardIdFrom(url: string) {
         />
         <div v-if="reading" class="conversation-heading">
           <section class="thread-heading">
-            <p class="eyebrow">{{ text.thread }} {{ reading.thread.id }}</p>
+            <div class="context-kind">
+              {{ text.thread }} {{ reading.thread.id
+              }}<template v-if="reading.thread.parent">
+                ·
+                {{ reading.thread.parent.label }}</template
+              >
+            </div>
             <h1>{{ reading.thread.title }}</h1>
-            <p v-if="!reading.thread.pages.links.length">
+            <p
+              v-if="!reading.thread.pages.links.length"
+              class="thread-metadata"
+            >
               {{ text.page }} {{ reading.thread.pages.current }}
             </p>
-            <a v-if="reading.thread.parent" :href="reading.thread.parent.url">{{
-              reading.thread.parent.label
-            }}</a>
           </section>
           <div class="conversation-tool-row">
             <div ref="threadContextTools" class="thread-context-tools" />
+            <a v-if="reading.thread.parent" :href="reading.thread.parent.url">{{
+              reading.thread.parent.label
+            }}</a>
             <button
-              v-if="reading.thread.parent"
+              v-if="reading?.thread.parent && writing.context"
               @click="
                 workspace.writing.prepareReply(
                   boardIdFrom(reading.thread.parent.url),
@@ -2334,12 +2361,21 @@ function boardIdFrom(url: string) {
             tabindex="-1"
           >
             <header class="post-header">
-              <strong class="post-author">{{ post.author }}</strong>
-              <div class="post-metadata">
-                <span>{{ text.floor }} {{ post.floor || text.unknown }}</span>
-                <time>{{ post.date }}</time>
-                <a :href="post.url">{{ text.post }} {{ post.id }}</a>
+              <span class="avatar" aria-hidden="true">{{
+                Array.from(post.author.trim())[0] ?? ""
+              }}</span>
+              <div class="post-identity">
+                <strong class="post-author">{{ post.author }}</strong>
+                <div class="post-metadata">
+                  <time>{{ post.date }}</time
+                  ><span
+                    >{{ text.floor }} {{ post.floor || text.unknown }}</span
+                  >
+                </div>
               </div>
+              <a class="post-number" :href="post.url"
+                >{{ text.post }} {{ post.id }}</a
+              >
             </header>
             <ContentView
               :nodes="post.content"
@@ -2611,6 +2647,54 @@ function boardIdFrom(url: string) {
               {{ text.retainedFinancialWarning }}
             </p>
           </section>
+        </div>
+        <div
+          v-if="reading?.thread.parent && !writing.context"
+          class="composer-entry"
+        >
+          <span class="composer-caption">{{ text.replyToThread }}</span>
+          <button
+            v-if="reading?.thread.parent"
+            @click="
+              workspace.writing.prepareReply(
+                boardIdFrom(reading.thread.parent.url),
+                {
+                  threadId: reading.thread.id,
+                  postId: null,
+                  author: '',
+                  authorId: null,
+                },
+              )
+            "
+          >
+            {{ text.replyToThread }}
+          </button>
+        </div>
+        <div
+          v-if="state.privateReading && !writing.context"
+          class="composer-entry"
+        >
+          <span class="composer-caption">{{
+            privateWritingText(
+              "To {value}",
+              workspace.preferences.state.value.language,
+            ).replace("{value}", state.privateReading.conversation.peerName)
+          }}</span>
+          <button
+            @click="
+              workspace.writing.preparePrivate(
+                state.privateReading.conversation.url,
+                state.privateReading.account,
+              )
+            "
+          >
+            {{
+              privateWritingText(
+                "Write private message",
+                workspace.preferences.state.value.language,
+              )
+            }}
+          </button>
         </div>
         <SourceWriting
           v-if="writing.context"

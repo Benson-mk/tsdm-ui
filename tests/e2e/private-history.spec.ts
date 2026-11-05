@@ -1110,6 +1110,10 @@ test("J78.private-scroll-owner: qualified private approach uses the private read
   const reader = page.locator(".private-reading-pane");
   await expect(reader.locator("#pmlist_102")).toBeVisible();
   await reader.evaluate(async (node) => {
+    // Start deliberate scrolling after the initial position restoration settles.
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
     node.scrollTop = 400;
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => resolve()),

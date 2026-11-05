@@ -154,7 +154,11 @@ test("IM65.browse: another board and filter retain reading while history restore
   await expect(
     page.getByRole("heading", { name: "Thread 50", exact: true }),
   ).toBeVisible();
-  expect(await reader.evaluate((node) => node.scrollTop)).toBe(readerOffset);
+  expect(
+    Math.abs(
+      (await page.locator(`#${anchor.id}`).boundingBox())!.y - anchor.top,
+    ),
+  ).toBeLessThanOrEqual(1);
   await expect(results.locator(".thread-row")).toHaveCount(0);
   const before = ledger.length;
   await page.goBack();

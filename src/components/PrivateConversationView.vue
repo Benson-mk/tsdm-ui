@@ -18,6 +18,7 @@ defineProps<{
   checkedAt: number | null;
   refreshFailure: DeepReadonly<ReadResult> | null;
   arrivals: number;
+  hasWriting: boolean;
 }>();
 const emit = defineEmits<{
   load: [direction: "earlier" | "later"];
@@ -31,7 +32,7 @@ const emit = defineEmits<{
 <template>
   <div class="conversation-heading">
     <section class="thread-heading">
-      <p class="eyebrow">{{ strings(language).privateContext }}</p>
+      <p class="context-kind private">{{ strings(language).privateContext }}</p>
       <h1>
         {{
           insert(strings(language).privateConversation, conversation.peerName)
@@ -40,10 +41,17 @@ const emit = defineEmits<{
       <p>{{ strings(language).privateReadEffects }}</p>
     </section>
     <div class="history-controls">
-      <label v-if="automatic || (conversation.end && !conversation.later)"
+      <label
+        :class="{
+          'unavailable-check': !(
+            automatic ||
+            (conversation.end && !conversation.later)
+          ),
+        }"
         ><input
           type="checkbox"
           :checked="automatic"
+          :disabled="!(automatic || (conversation.end && !conversation.later))"
           @change="
             emit('automatic', ($event.target as HTMLInputElement).checked)
           "
@@ -71,11 +79,13 @@ const emit = defineEmits<{
       <p v-if="refreshFailure && 'message' in refreshFailure" role="status">
         {{ description(refreshFailure.message, language) }}
       </p>
-      <span v-if="checkedAt">{{
-        insert(
-          strings(language).lastSuccessfulCheck,
-          new Date(checkedAt).toLocaleString(language),
-        )
+      <span class="check-timestamp">{{
+        checkedAt
+          ? insert(
+              strings(language).lastSuccessfulCheck,
+              new Date(checkedAt).toLocaleString(language),
+            )
+          : ""
       }}</span>
       <button v-if="arrivals" @click="emit('arrivals')">
         {{ insert(strings(language).newMessages, arrivals) }}
@@ -101,7 +111,7 @@ const emit = defineEmits<{
         {{ description(failure.message, language) }}
       </p>
     </div>
-    <button @click="emit('write')">
+    <button v-if="hasWriting" @click="emit('write')">
       {{ privateWritingText("Write private message", language) }}
     </button>
     <a :href="nativeDestination(conversation.url)">{{
@@ -127,10 +137,17 @@ const emit = defineEmits<{
       tabindex="-1"
       :data-targeted="conversation.target === message.id"
     >
-      <header>
-        <strong>{{ message.sender }}</strong
-        ><time>{{ message.time }}</time
-        ><a :href="message.url">#{{ message.id }}</a>
+      <header class="post-header">
+        <span class="avatar" aria-hidden="true">{{
+          Array.from(message.sender.trim())[0] ?? ""
+        }}</span>
+        <div class="post-identity">
+          <strong class="post-author">{{ message.sender }}</strong>
+          <div class="post-metadata">
+            <time>{{ message.time }}</time>
+          </div>
+        </div>
+        <a class="post-number" :href="message.url">#{{ message.id }}</a>
       </header>
       <ContentView
         :nodes="message.body"

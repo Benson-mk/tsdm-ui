@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { privateWritingText } from "./private-writing-text";
 import PrivateAttemptHistory from "./PrivateAttemptHistory.vue";
 import { computed, ref, watch, nextTick, type DeepReadonly } from "vue";
 import { attachmentText, attachmentFieldLabel } from "./attachment-text";
@@ -266,6 +267,18 @@ function updateOption(option: WritingOption, event: Event) {
       {{ text.finishComposition }}
     </p>
     <div class="writing-presentation-actions">
+      <strong class="composer-caption">{{
+        ownerState.context.action === "private-message"
+          ? privateWritingText(
+              "To {value}",
+              workspace.preferences.state.value.language,
+            ).replace("{value}", ownerState.context.recipient.name)
+          : state.context?.replyTarget
+            ? insert(text.replyIn, state.context.replyTarget.threadId)
+            : state.context?.action === "edit-post"
+              ? insert(text.editPost, state.context.editTarget?.postId ?? "")
+              : text.newThread
+      }}</strong>
       <button :aria-expanded="expanded" @click="emit('resize', !expanded)">
         {{ expanded ? text.compactWriting : text.expandWriting }}
       </button>
@@ -414,7 +427,6 @@ function updateOption(option: WritingOption, event: Event) {
       >
         {{ text.ordinaryReply }}
       </button>
-      <p class="writing-shortcut">{{ text.writingShortcut }}</p>
       <PostEditor
         ref="editor"
         :key="state.context.id"
@@ -931,17 +943,6 @@ function updateOption(option: WritingOption, event: Event) {
         review
       />
       <div class="writing-actions">
-        <button
-          v-if="!state.context.draft"
-          :disabled="state.preparing || state.publishing"
-          @click="requestReview(true)"
-        >
-          {{
-            state.context.action === "edit-post"
-              ? text.reviewEdit
-              : text.reviewPublication
-          }}
-        </button>
         <PreparedPublication
           v-if="state.publication"
           :publication="state.publication"
@@ -1277,6 +1278,36 @@ function updateOption(option: WritingOption, event: Event) {
           >
         </label>
       </fieldset>
+    </div>
+    <div class="composer-submit-row">
+      <span class="composer-help">{{ text.writingShortcut }}</span>
+      <button
+        v-if="state.context && !state.context.draft"
+        class="primary-action"
+        :disabled="state.preparing || state.publishing"
+        @click="requestReview(true)"
+      >
+        {{
+          state.context.action === "edit-post"
+            ? text.reviewEdit
+            : text.reviewPublication
+        }}
+      </button>
+      <button
+        v-if="ownerState.context.action === 'private-message'"
+        class="primary-action"
+        :disabled="
+          ownerState.preparing || ownerState.publishing || ownerState.composing
+        "
+        @click="workspace.writing.reviewPublication()"
+      >
+        {{
+          privateWritingText(
+            "Review private message",
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </button>
     </div>
   </section>
 </template>

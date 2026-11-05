@@ -190,6 +190,38 @@ test.afterEach(async ({ page }, info) => {
     contentType: "application/json",
   });
 });
+test("DESIGN.private-entry: named private reply starts deliberately from the dock and retains source through expansion", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const server = await open(page);
+  const entry = page.locator(".composer-entry");
+  await expect(entry).toBeVisible();
+  await expect(entry).toContainText("Listener Nine");
+  const reads = server.reads.length;
+  await entry
+    .getByRole("button", { name: "Write private message", exact: true })
+    .click();
+  const editor = page.getByRole("textbox", {
+    name: "Private message text",
+    exact: true,
+  });
+  await editor.fill(sourceText);
+  await expect(
+    page.getByRole("button", { name: "Review private message", exact: true }),
+  ).toBeInViewport();
+  await expect(editor).toBeInViewport();
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Compact writing", exact: true })
+    .click();
+  await expect(editor).toHaveValue(sourceText);
+  expect(server.reads.length).toBe(reads + 1);
+  expect(server.posts).toHaveLength(0);
+});
+
 test("J77.private-review-recovery: one explicit recipient-bound source session reviews without sending and reload restores text without tokens or received history", async ({
   page,
 }) => {

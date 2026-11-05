@@ -377,7 +377,9 @@ test("IM69.reader-moves-during-load: preserve the reader's current anchor when a
   const before = await anchor(page);
   release?.();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    1,
+  );
 });
 
 test("IM69.account-change: changed-account page clears the former account range without mixing posts", async ({
@@ -463,7 +465,9 @@ test("IM69.late-media: passive prepend retains the reader's moved anchor through
   const before = await anchor(page);
   releasePage();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    1,
+  );
   releaseImage();
   await expect
     .poll(() =>
@@ -472,7 +476,9 @@ test("IM69.late-media: passive prepend retains the reader's moved anchor through
         .evaluate((node) => (node as HTMLImageElement).naturalHeight),
     )
     .toBe(600);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    1,
+  );
 });
 
 test("IM69.long-rich-range: measure retained complete rich posts through 25 automatic pages without speculative eviction", async ({

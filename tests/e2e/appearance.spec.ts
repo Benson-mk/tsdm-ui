@@ -70,7 +70,9 @@ test("J5.appearance-rail-labels: enlarged destination words remain complete with
       .evaluate((rail) => {
         const words = Array.from(rail.querySelectorAll("button"), (button) => {
           const range = document.createRange();
-          range.selectNodeContents(button);
+          range.selectNodeContents(
+            button.querySelector(".destination-label") ?? button,
+          );
           const text = range.getBoundingClientRect();
           const target = button.getBoundingClientRect();
           return {
@@ -735,7 +737,7 @@ test("J5.appearance-roles: nested roles scale exactly once and compose with a la
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const slider = page.getByRole("slider", { name: "Text size", exact: true });
   const roles: [string, number][] = [
-    [".brand", 32],
+    [".brand", 24],
     [".post-content > p", 18],
     [".post-content blockquote p", 18],
     [".post-content pre code", 14],
@@ -959,7 +961,7 @@ test("J5.appearance-palettes-spacing: four palettes share exact Compact metrics 
       const metrics = await page.locator("#tsdm-workspace").evaluate((host) => {
         const root = host.shadowRoot!;
         const post = root.querySelector("article")!;
-        const paragraph = root.querySelector(".post-content > p")!;
+        const paragraph = root.querySelector(".post-content > p + p")!;
         const controls = [
           ...root.querySelectorAll<HTMLElement>(
             "button,select,input[type=range]",
