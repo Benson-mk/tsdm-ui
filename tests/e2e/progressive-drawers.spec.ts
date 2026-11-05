@@ -111,7 +111,10 @@ test("IM66.progressive: exact independent thresholds preserve all manual choices
       hideThreads
     )
       await threads.click();
-    for (const width of [960, 959, 768, 767, 375, 768, 959, 960, 1440]) {
+    for (const width of [
+      1920, 1440, 1280, 1200, 1199, 961, 960, 959, 769, 768, 767, 561, 560, 559,
+      390, 375, 559, 560, 561, 767, 768, 769, 959, 960, 961, 1440,
+    ]) {
       await page.setViewportSize({ width, height: 900 });
       const expected = [
         ...(width >= 960 && !hideBoards ? [216] : []),
@@ -477,4 +480,25 @@ test.describe("touch drawer", () => {
     expect(await reader.evaluate((node) => node.scrollTop)).toBe(500);
     expect(ledger).toHaveLength(1);
   });
+});
+
+test("F79.removed-opener: closing a drawer whose opener was removed focuses the connected workspace brand without scrolling the reader", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const ledger = await open(page, threadURL);
+  const reader = page.locator(".reading-pane");
+  await reader.evaluate((n) => {
+    n.scrollTop = 500;
+  });
+  const opener = page.getByRole("button", { name: "Boards pane", exact: true });
+  await opener.click();
+  await expect(page.locator(".pane-drawer")).toBeVisible();
+  // Browser/host removal is the specified environmental failure; no internal owner is replaced.
+  await opener.evaluate((node) => node.remove());
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".pane-drawer")).toBeHidden();
+  await expect(page.locator(".brand")).toBeFocused();
+  expect(await reader.evaluate((n) => n.scrollTop)).toBe(500);
+  expect(ledger).toHaveLength(1);
 });

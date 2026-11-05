@@ -26,6 +26,31 @@ function board(page = 1) {
 }
 const searchForm = `${account}<form method="post" action="search.php?mod=forum"><input type="hidden" name="formhash" value="private-token"><input type="hidden" name="searchsubmit" value="yes"><input name="srchtxt" type="text"><input name="srchuname" type="text"></form>`;
 const thread = `${account}<div id="pt"><a href="${directoryURL}">Boards</a><a href="${boardURL}">Music discussion</a></div><div id="postlist"><h1 id="thread_subject">Autumn listening</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=9">Composer Nine</a></div><a id="postnum101" href="${threadURL}#pid101">1</a><div class="pcb"><p>Complete autumn opening.</p></div></div></div>`;
+const navigationLedgers = new WeakMap<Page, string[]>();
+test.afterEach(async ({ page }, info) => {
+  if (!/J2.workspace-panes|UX54.discovery/.test(info.title)) return;
+  await info.attach("navigation-requests.json", {
+    body: JSON.stringify(navigationLedgers.get(page)),
+    contentType: "application/json",
+  });
+  await info.attach("navigation-geometry.json", {
+    body: JSON.stringify(
+      await page.locator(".pane, .pane-drawer").evaluateAll((nodes) =>
+        nodes.map((node) => ({
+          class: node.className,
+          rect: node.getBoundingClientRect().toJSON(),
+          scrollTop: node.scrollTop,
+          scrollHeight: node.scrollHeight,
+        })),
+      ),
+    ),
+    contentType: "application/json",
+  });
+  await info.attach("navigation-final.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
 async function open(
   page: Page,
   destination = directoryURL,
@@ -34,6 +59,7 @@ async function open(
   representation: "json" | "html" = "json",
 ) {
   const requests = Object.assign([] as string[], { effectful: [] as string[] });
+  navigationLedgers.set(page, requests);
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request();
@@ -973,10 +999,24 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
   page,
 }, info) => {
   await page.setViewportSize({ width: 1500, height: 900 });
-  await open(page, boardURL);
-  await page
-    .getByRole("link", { name: "Autumn listening — page 1", exact: true })
-    .click();
+  const requests = await open(page, boardURL, (url) =>
+    url.searchParams.get("mod") === "viewthread"
+      ? thread
+      : board().replace(
+          '</table><div class="pg">',
+          `${Array.from({ length: 25 }, (_, i) => threadRow(50 + i, `Retained result ${i}`)).join("")}</table><div class="pg">`,
+        ),
+  );
+  const selected = page.getByRole("link", {
+    name: "Retained result 10",
+    exact: true,
+  });
+  await selected.scrollIntoViewIfNeeded();
+  const originalOffset = await page
+    .locator(".results-pane")
+    .evaluate((node) => node.scrollTop);
+  expect(originalOffset).toBeGreaterThan(0);
+  await selected.click();
   const results = page.getByRole("region", {
     name: "Thread results",
     exact: true,
@@ -997,13 +1037,17 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(reading).toBeVisible();
   await expect(results).not.toBeVisible();
-  await revealNavigation(page);
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(results).toBeVisible();
   await expect(reading).not.toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Autumn listening — page 1", exact: true }),
-  ).toHaveAttribute("aria-current", "true");
+  await expect(selected).toHaveAttribute("aria-current", "true");
+  expect(
+    await page.locator(".results-pane").evaluate((node) => node.scrollTop),
+  ).toBe(originalOffset);
+  expect(requests).toHaveLength(2);
+  expect(requests.effectful).toEqual([]);
+  await page.keyboard.press("Escape");
+  await revealNavigation(page);
   await expect(
     page.getByRole("link", { name: "All boards", exact: true }).first(),
   ).toBeVisible();
@@ -1551,10 +1595,46 @@ for (const appearance of [
         scroll: element.scrollWidth,
       }));
     expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1);
+    const originalResults = await page.locator(".results-pane").elementHandle();
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    await page.locator(".results-pane").evaluate((node) => {
+      node.scrollTop = 40;
+    });
+    const retainedOffset = await page
+      .locator(".results-pane")
+      .evaluate((node) => node.scrollTop);
+    expect(retainedOffset).toBeGreaterThan(0);
+    const revealThreads = async () => {
+      const collapsed = (page.viewportSize()?.width ?? 1280) < 768;
+      await expect(page.locator(".workspace-body")).toHaveAttribute(
+        "data-threads-collapsed",
+        String(collapsed),
+      );
+      const toggle = page.getByRole("button", {
+        name: /^(Threads pane|主题面板|主題面板)$/,
+      });
+      if (collapsed && (await toggle.getAttribute("aria-expanded")) === "false")
+        await toggle.click();
+      await expect(page.locator(".results-pane")).toBeVisible();
+      expect(await originalResults!.evaluate((node) => node.isConnected)).toBe(
+        true,
+      );
+      await expect
+        .poll(() =>
+          page.locator(".results-pane").evaluate((node) => node.scrollTop),
+        )
+        .toBe(retainedOffset);
+    };
     await page.setViewportSize({
       width: appearance.width === 390 ? 1440 : 390,
       height: 900,
     });
+    await revealThreads();
     await expect(choice).toBeVisible();
     await expect(
       subordinate.getByText("Complete board description 7", { exact: true }),
@@ -1563,6 +1643,11 @@ for (const appearance of [
       width: appearance.width,
       height: appearance.height,
     });
+    await revealThreads();
+    await expect(choice).toBeVisible();
+    await expect(
+      subordinate.getByText("Complete board description 7", { exact: true }),
+    ).toBeVisible();
     await expect(page.locator(".workspace")).toHaveCount(1);
     await page.evaluate(
       () =>

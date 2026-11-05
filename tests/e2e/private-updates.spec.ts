@@ -1071,6 +1071,8 @@ for (const [width, size, returnHeight] of [
         return {
           outerScroll: region.scrollTop,
           innerScroll: n.scrollTop,
+          height: innerHeight,
+          outerBounds: outer.toJSON(),
           paneTop: rect.top,
           visibleHeight: Math.max(0, bottom - top),
           anchorTop: n.querySelector("article")!.getBoundingClientRect().top,

@@ -204,9 +204,9 @@ retained its exact unsent source. Board browsing and Back retained all 30 posts;
 a fresh Back network ledger shows no GET. Back changed surrounding chrome height,
 but preserved the post's absolute viewport top within 0.148px. Anchor assertions
 use absolute viewport coordinates, not distance from a pane whose top can move.
-Exact post 78261173 selected its returned page 3 and native escape retained that
+Exact post `H68-post-A` selected its returned page 3 and native escape retained that
 PID. Qualified Jump to latest followed the returned page 425 route and arrived at
-actual post 78308398. No publication or send was performed.
+actual post `H68-post-B`. No publication or send was performed.
 
 Initial locator-click observations showed apparent 54px drift. A controlled probe
 then measured 133px reader movement while the request was still pending, with

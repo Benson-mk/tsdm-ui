@@ -96,7 +96,12 @@ function changeDrawer(next: DrawerPane | null) {
   void nextTick().then(() => {
     restorePaneScroll();
     if (next) drawerClose.value?.focus({ preventScroll: true });
-    else drawerReturnFocus?.focus({ preventScroll: true });
+    else {
+      const target = drawerReturnFocus?.isConnected
+        ? drawerReturnFocus
+        : workspaceHost().shadowRoot?.querySelector<HTMLElement>(".brand");
+      target?.focus({ preventScroll: true });
+    }
     appearanceAnchors = [];
     rememberPositions();
   });
@@ -188,7 +193,11 @@ watch(
         threadsCollapsed.value = false;
       if (
         (drawer.value === "boards" && result !== previous) ||
-        (!previous && !reading.value && !state.value.privateReading)
+        ((!previous ||
+          ((result.kind === "board" || result.kind === "directory") &&
+            result !== previous)) &&
+          !reading.value &&
+          !state.value.privateReading)
       )
         revealResults();
     }
@@ -840,6 +849,25 @@ onUnmounted(() => {
   if (restorationFrame !== null) cancelAnimationFrame(restorationFrame);
 });
 let stopReadingImageRestore: (() => void) | undefined;
+function latestReadingScroll(reader: HTMLElement) {
+  const end = reader.scrollHeight - reader.clientHeight;
+  const last = reader.querySelector<HTMLElement>("article:last-of-type");
+  const content = last?.querySelector<HTMLElement>(".post-content");
+  if (!content || !last?.querySelector(".post-actions")) return end;
+  // Public reply/quote controls follow the content. Follow the content endpoint
+  // while leaving those controls available through ordinary further scrolling.
+  return Math.max(
+    0,
+    Math.min(
+      end,
+      Math.ceil(
+        reader.scrollTop +
+          content.getBoundingClientRect().bottom -
+          reader.getBoundingClientRect().bottom,
+      ),
+    ),
+  );
+}
 function followPendingReadingImages(
   container: HTMLElement,
   target: HTMLElement,
@@ -878,7 +906,7 @@ function followPendingReadingImages(
       return;
     if (!target.isConnected) return stop();
     suppressAutomaticHistory();
-    if (followEnd) container.scrollTop = container.scrollHeight;
+    if (followEnd) container.scrollTop = latestReadingScroll(container);
     else if (savedOffset !== null)
       container.scrollTop += target.getBoundingClientRect().top - savedOffset;
     else target.scrollIntoView({ block: "start" });
@@ -917,6 +945,8 @@ onMounted(() => {
         ? '[data-scroll-pane="reading"]'
         : "#thread-list-pane",
     );
+  const loadingRebasedPositions = new WeakSet<ViewPosition>();
+  let rebasedLoadingReader = false;
   const capturePane = (container: HTMLElement | null | undefined) => {
     const reader = root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
     const blocks =
@@ -928,14 +958,14 @@ onMounted(() => {
         node.getBoundingClientRect().bottom >
         (container?.getBoundingClientRect().top ?? 0),
     );
-    return {
+    const position = {
       anchor: anchor?.id ?? null,
       offset: anchor?.getBoundingClientRect().top ?? 0,
       scrollTop: container?.scrollTop ?? root.scrollTop,
       readingScrollTop:
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")
           ?.scrollTop ?? 0,
-      ...(reader?.classList.contains("private-reading-pane")
+      ...(reader
         ? {
             readingPaneTop: reader.getBoundingClientRect().top,
             readingRegionScrollTop:
@@ -947,16 +977,22 @@ onMounted(() => {
           ".results-pane, .messages-pane",
         )?.scrollTop ?? 0,
     };
+    if (state.value.loading && rebasedLoadingReader)
+      loadingRebasedPositions.add(position);
+    else if (!state.value.loading) rebasedLoadingReader = false;
+    return position;
   };
   const restoreReadingViewport = (position: ViewPosition | null) => {
+    // History can settle before the queued browser resize event. Update the
+    // existing viewport owner before the old host height clamps outer scrolling.
+    if (
+      window.innerWidth !== viewportWidth ||
+      window.innerHeight !== viewportHeight
+    )
+      resize();
     const reader = root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
     const region = reader?.closest<HTMLElement>(".conversation-region");
-    if (
-      !reader?.classList.contains("private-reading-pane") ||
-      !region ||
-      !position
-    )
-      return 0;
+    if (!reader || !region || !position) return 0;
     if (position.readingRegionScrollTop !== undefined)
       region.scrollTop = position.readingRegionScrollTop;
     if (position.readingPaneTop === undefined) return 0;
@@ -974,22 +1010,68 @@ onMounted(() => {
       Math.max(visibleTop, visibleBottom - visibleHeight),
     );
     region.scrollTop += reader.getBoundingClientRect().top - targetTop;
+    // Only reverse a loading-row displacement that actually rebased text.
+    // Weak membership stays local to this live view and adds no recovery fields.
+    if (
+      !reader.classList.contains("private-reading-pane") &&
+      loadingRebasedPositions.has(position)
+    )
+      return reader.getBoundingClientRect().top - position.readingPaneTop;
+    if (state.value.loading) rebasedLoadingReader = false;
+    if (!reader.classList.contains("private-reading-pane") && position.anchor) {
+      const anchor = root.shadowRoot?.getElementById(position.anchor);
+      if (anchor && reader.contains(anchor)) {
+        const delta = position.offset - anchor.getBoundingClientRect().top;
+        const current = reader.getBoundingClientRect();
+        const clippedTop = Math.max(visibleTop, current.top);
+        const clippedBottom = Math.min(visibleBottom, current.bottom);
+        const previousTop = Math.max(0, position.readingPaneTop);
+        const content = reader.querySelectorAll(".post-content");
+        let first: DOMRect | undefined;
+        for (const block of content) {
+          const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+          let text: Node | null;
+          while (!first && (text = walker.nextNode())) {
+            if (!text.textContent?.trim()) continue;
+            const range = document.createRange();
+            range.selectNodeContents(text);
+            first = [...range.getClientRects()].find(
+              (rect) =>
+                rect.width > 0 &&
+                rect.height > 0 &&
+                rect.bottom + delta > previousTop + 1,
+            );
+          }
+          if (first) break;
+        }
+        // Keep a valid screen anchor when changed chrome still leaves its
+        // previously visible text intact. Rebase only when that line is clipped.
+        if (
+          first &&
+          Math.max(previousTop, first.top + delta) >= clippedTop - 1 &&
+          first.bottom + delta <= clippedBottom + 1
+        )
+          return 0;
+      }
+    }
     // An old screen position can fall outside a resized viewport. Rebase the
     // retained line there, and also protect it from unabsorbed heading growth.
-    return (
+    const shift =
       targetTop -
       position.readingPaneTop +
-      Math.max(0, reader.getBoundingClientRect().top - targetTop)
-    );
+      Math.max(0, reader.getBoundingClientRect().top - targetTop);
+    if (
+      state.value.loading &&
+      !reader.classList.contains("private-reading-pane")
+    )
+      rebasedLoadingReader = shift !== 0;
+    return shift;
   };
   props.workspace.setViewAdapter({
     nearLatest() {
       const reader =
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
-      return (
-        !!reader &&
-        reader.scrollHeight - reader.clientHeight - reader.scrollTop <= 64
-      );
+      return !!reader && latestReadingScroll(reader) - reader.scrollTop <= 64;
     },
     followLatest() {
       suppressAutomaticHistory();
@@ -998,7 +1080,7 @@ onMounted(() => {
       stopReadingImageRestore?.();
       if (reader) {
         restoreReadingViewport(capturePane(reader));
-        reader.scrollTop = reader.scrollHeight;
+        reader.scrollTop = latestReadingScroll(reader);
         const last = reader.querySelector<HTMLElement>("article:last-of-type");
         if (last) followPendingReadingImages(reader, last, null, true);
       }

@@ -1768,11 +1768,11 @@ select {
   position: static;
 }
 
-/* Keep the latest private body readable in the minimum-height reader. */
-.private-reading-pane > article:last-of-type {
+/* Keep the latest body readable in the minimum-height reader. */
+.reading-pane > article:last-of-type {
   padding-block-end: 8px;
 }
-.private-reading-pane
+.reading-pane
   > article:last-of-type
   .post-content
   :not(br):not(:has(~ :not(br))) {

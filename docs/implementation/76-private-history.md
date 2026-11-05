@@ -74,7 +74,7 @@ consumer verifies strict declarations without DOM types and the new method.
 
 The approved seam uses the built userscript with real Vue/workspace/client/host
 and only external HTTP substituted. No unit tests were added. The preimplementation
-inventory at `/private/tmp/tsdm-im-run/76-research.md` covers implicit reads,
+inventory at `evidence/runs/79-private-document-aliases-2026-11-05/references/76-research.md` covers implicit reads,
 recipient/account confusion, stale responses, unsafe content, guessed paging,
 anchor loss, private serialization, writing transfer and compatibility.
 

@@ -369,7 +369,6 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
     .click();
   const beforeBack = f.requests.length;
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
   await expect(results.locator(".thread-row")).toHaveCount(30);
   await expect(results.getByText("Page 2", { exact: true })).toBeVisible();
   expect(await results.evaluate((node) => node.scrollTop)).toBe(boardOffset);

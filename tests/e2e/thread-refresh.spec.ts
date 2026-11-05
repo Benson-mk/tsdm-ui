@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { readableLines } from "./readable-lines";
 
 const origin = "https://www.tsdm39.com";
 const base = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -69,9 +70,15 @@ async function open(
     );
   });
   await page.goto(destination);
-  await expect(
-    page.getByRole("heading", { name: "Continuous rich history", exact: true }),
-  ).toBeVisible();
+  if (destination.includes("mod=forumdisplay"))
+    await expect(page.locator(".results-pane")).toBeVisible();
+  else
+    await expect(
+      page.getByRole("heading", {
+        name: "Continuous rich history",
+        exact: true,
+      }),
+    ).toBeVisible();
   await page.evaluate(
     () =>
       new Promise<void>((resolve) =>
@@ -136,11 +143,19 @@ test("IM71.refresh-range: manual refresh retains earlier pages, counts only new 
     .locator("#pid106")
     .evaluate((post) => post.getBoundingClientRect().top);
   changed = true;
+  const visibleBefore = await readableLines(page);
   await page
     .getByRole("button", { name: "Refresh thread", exact: true })
     .click();
   await expect(page.locator(".reading-pane article")).toHaveCount(6);
   await expect(page.locator("#pid106")).toContainText("Edited same post 106.");
+  await test.info().attach("refresh-absolute-control-lines.json", {
+    body: JSON.stringify({
+      before: visibleBefore,
+      after: await readableLines(page),
+    }),
+    contentType: "application/json",
+  });
   expect(
     await page
       .locator("#pid106")
@@ -188,10 +203,8 @@ for (const distance of [64, 65]) {
     await page.locator(".reading-pane").evaluate((pane, distance) => {
       pane.scrollTop = pane.scrollHeight - pane.clientHeight - distance;
     }, distance);
-    const before = await page
-      .locator("#pid107")
-      .evaluate((post) => post.getBoundingClientRect().top);
     changed = true;
+    const visibleBefore = await readableLines(page);
     await page
       .getByRole("button", { name: "Refresh thread", exact: true })
       .click();
@@ -201,6 +214,13 @@ for (const distance of [64, 65]) {
       .evaluate(
         (pane) => pane.scrollHeight - pane.clientHeight - pane.scrollTop,
       );
+    await test.info().attach("threshold-absolute-control-lines.json", {
+      body: JSON.stringify({
+        before: visibleBefore,
+        after: await readableLines(page),
+      }),
+      contentType: "application/json",
+    });
     if (distance === 64) {
       expect(remaining).toBeLessThan(1);
       await expect(
@@ -208,11 +228,14 @@ for (const distance of [64, 65]) {
       ).toHaveCount(0);
     } else {
       expect(remaining).toBeGreaterThan(100);
+      const visibleAfter = await readableLines(page);
+      expect(visibleAfter.first?.paragraph).toBe(
+        visibleBefore.first!.paragraph,
+      );
+      expect(visibleAfter.first?.line).toBe(visibleBefore.first!.line);
       expect(
-        await page
-          .locator("#pid107")
-          .evaluate((post) => post.getBoundingClientRect().top),
-      ).toBeCloseTo(before, 0);
+        Math.abs(visibleAfter.first!.offset - visibleBefore.first!.offset),
+      ).toBeLessThanOrEqual(1);
       await expect(
         page.getByRole("button", { name: "New replies (1)", exact: true }),
       ).toBeVisible();
@@ -232,19 +255,22 @@ test("IM71.intermediate-bottom: a refreshed intermediate page does not follow or
   });
   await page.waitForTimeout(100);
   await page.getByRole("button", { name: "Close", exact: true }).click();
-  const before = await page
-    .locator("#pid105")
-    .evaluate((post) => post.getBoundingClientRect().top);
+  const visibleBefore = await readableLines(page);
   changed = true;
   await page
     .getByRole("button", { name: "Refresh thread", exact: true })
     .click();
   await expect(page.locator("#pid108")).toHaveCount(1);
+  const visibleAfter = await readableLines(page);
+  await test.info().attach("intermediate-lines.json", {
+    body: JSON.stringify({ before: visibleBefore, after: visibleAfter }),
+    contentType: "application/json",
+  });
+  expect(visibleAfter.first?.paragraph).toBe(visibleBefore.first?.paragraph);
+  expect(visibleAfter.first?.line).toBe(visibleBefore.first?.line);
   expect(
-    await page
-      .locator("#pid105")
-      .evaluate((post) => post.getBoundingClientRect().top),
-  ).toBeCloseTo(before, 0);
+    Math.abs(visibleAfter.first!.offset - visibleBefore.first!.offset),
+  ).toBeLessThanOrEqual(1);
   await expect(page.getByRole("button", { name: /New replies/ })).toHaveCount(
     0,
   );
@@ -917,9 +943,7 @@ test("IM71.new-later-page: a refresh exposing unloaded later content does not fo
   await page.locator(".reading-pane").evaluate((pane) => {
     pane.scrollTop = pane.scrollHeight - pane.clientHeight - 30;
   });
-  const before = await page
-    .locator("#pid107")
-    .evaluate((post) => post.getBoundingClientRect().top);
+  const visibleBefore = await readableLines(page);
   changed = true;
   await page
     .getByRole("button", { name: "Refresh thread", exact: true })
@@ -928,11 +952,16 @@ test("IM71.new-later-page: a refresh exposing unloaded later content does not fo
   await expect(
     page.getByRole("button", { name: "Load later", exact: true }),
   ).toBeVisible();
+  const visibleAfter = await readableLines(page);
+  await test.info().attach("intermediate-lines.json", {
+    body: JSON.stringify({ before: visibleBefore, after: visibleAfter }),
+    contentType: "application/json",
+  });
+  expect(visibleAfter.first?.paragraph).toBe(visibleBefore.first?.paragraph);
+  expect(visibleAfter.first?.line).toBe(visibleBefore.first?.line);
   expect(
-    await page
-      .locator("#pid107")
-      .evaluate((post) => post.getBoundingClientRect().top),
-  ).toBeCloseTo(before, 0);
+    Math.abs(visibleAfter.first!.offset - visibleBefore.first!.offset),
+  ).toBeLessThanOrEqual(1);
   await expect(
     page.getByRole("button", { name: "New replies (1)", exact: true }),
   ).toBeVisible();
@@ -967,4 +996,491 @@ test("IM71.last-success: a local successful-check time stays visible through a l
   ).toBeVisible();
   await expect(checked).toHaveText(last!);
   expect(requests).toHaveLength(3);
+});
+
+function auditHistory(tid = "42", arrived = false) {
+  const other = tid === "42" ? "84" : "42";
+  return `<div id="um"><strong><a href="home.php?mod=space&uid=7">Reader Seven</a></strong></div><div id="postlist"><h1 id="thread_subject">${tid === "42" ? "Continuous rich history" : "Second rich thread"}</h1><div id="post_201"><div class="authi"><a href="home.php?mod=space&uid=9">Listener</a></div><a id="postnum201">1</a><div class="pcb">${Array.from({ length: 100 }, (_, i) => `<p>Public paragraph ${i}: complete authored body. <a href="${origin}/forum.php?mod=viewthread&tid=${other}">Other ${i}</a></p>`).join("")}</div></div><div id="post_202"><a id="postnum202">2</a><div class="pcb"><p>Original final public body.</p></div></div>${arrived ? '<div id="post_203"><a id="postnum203">3</a><div class="pcb"><p>New visible public arrival.</p></div></div>' : ""}</div><div class="pg"><strong>1</strong><label><input name="custompage" value="1"><span title="共 1 页"> / 1 页</span></label></div>`;
+}
+async function auditAppearance(
+  page: Page,
+  width: number,
+  size: number,
+  height = 700,
+) {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("dialog").getByRole("slider").fill(String(size));
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.setViewportSize({ width, height });
+  await readableLines(page);
+  await page.locator(".conversation-region").evaluate((n) => {
+    n.scrollTop = n.scrollHeight;
+  });
+}
+for (const [width, size, returnHeight] of [
+  [390, 150, 700],
+  [1440, 100, 700],
+  [390, 150, 500],
+]) {
+  test(`F79.public-visible-return-${width}-${returnHeight}: cached return retains the real clipped text line and valid absolute control`, async ({
+    page,
+  }, info) => {
+    const requests = await open(
+      page,
+      (_n, url) => ({
+        body: auditHistory(new URL(url).searchParams.get("tid") ?? "42"),
+      }),
+      base,
+    );
+    await auditAppearance(page, width!, size!);
+    await page.locator(".reading-pane").evaluate((n) => {
+      n.scrollTop = 650;
+    });
+    let before = await readableLines(page);
+    expect(before.visibleHeight).toBeGreaterThan(50);
+    expect(before.first).not.toBeNull();
+    const p = before.first!.paragraph;
+    const link = page
+      .locator(".reading-pane .post-content p")
+      .nth(p)
+      .getByRole("link");
+    await link.scrollIntoViewIfNeeded();
+    before = await readableLines(page);
+    await link.click();
+    await expect(
+      page.getByRole("heading", { name: "Second rich thread", exact: true }),
+    ).toBeVisible();
+    const reads = requests.length;
+    await page.setViewportSize({ width: width!, height: returnHeight! });
+    await page.goBack();
+    await expect(
+      page.getByRole("heading", {
+        name: "Continuous rich history",
+        exact: true,
+      }),
+    ).toBeVisible();
+    const after = await readableLines(page);
+    await info.attach("public-return-lines.json", {
+      body: JSON.stringify({ before, after }),
+      contentType: "application/json",
+    });
+    expect(requests).toHaveLength(reads);
+    expect(after.visibleHeight).toBeGreaterThan(50);
+    expect(after.first?.paragraph).toBe(before.first!.paragraph);
+    expect(after.first?.line).toBe(before.first!.line);
+    expect(
+      Math.abs(after.first!.offset - before.first!.offset),
+    ).toBeLessThanOrEqual(1);
+    if (Math.abs(after.paneTop - before.paneTop) <= 1)
+      expect(
+        Math.abs(after.articleTop! - before.articleTop!),
+      ).toBeLessThanOrEqual(1);
+  });
+}
+for (const height of [700, 500]) {
+  test(`F79.public-visible-follow-${height}: strict latest end exposes a complete new public text line`, async ({
+    page,
+  }, info) => {
+    let arrived = false;
+    await open(page, () => ({ body: auditHistory("42", arrived) }), base);
+    await auditAppearance(page, 390, 150, height);
+    await page.locator(".reading-pane").evaluate((n) => {
+      n.scrollTop = n.scrollHeight;
+    });
+    const before = await readableLines(page);
+    expect(before.visibleHeight).toBeGreaterThan(50);
+    arrived = true;
+    // Isolate the update's restoration from click-induced scrolling to its heading.
+    await page
+      .getByRole("button", { name: "Refresh thread", exact: true })
+      .dispatchEvent("click");
+    await expect(page.locator("#pid203")).toHaveCount(1);
+    const after = await readableLines(page);
+    await info.attach("public-follow-lines.json", {
+      body: JSON.stringify({ before, after }),
+      contentType: "application/json",
+    });
+    expect(after.remaining).toBeLessThanOrEqual(1);
+    expect(after.visibleHeight).toBeGreaterThan(50);
+    expect(
+      after.lines
+        .filter((line) => line.text === "New visible public arrival.")
+        .some((line) => line.complete),
+    ).toBe(true);
+  });
+}
+function actionHistory(arrivals: number, intermediate = false) {
+  let body = auditHistory("42", arrivals > 0)
+    .replace(
+      "<p>Original final public body.</p>",
+      Array.from(
+        { length: 8 },
+        (_, i) =>
+          `<p>Original final public line ${i}: complete readable body.</p>`,
+      ).join(""),
+    )
+    .replace(
+      '<div id="postlist">',
+      '<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music discussion</a></div><div id="postlist">',
+    );
+  if (arrivals > 1)
+    body = body.replace(
+      '</div><div class="pg">',
+      '<div id="post_204"><a id="postnum204">4</a><div class="pcb"><p>Second complete public arrival.</p></div></div></div><div class="pg">',
+    );
+  if (intermediate)
+    body = body
+      .replace(
+        "<strong>1</strong>",
+        '<strong>1</strong><a class="nxt" href="' + route(2) + '">2</a>',
+      )
+      .replace("共 1 页", "共 2 页")
+      .replace("/ 1 页", "/ 2 页");
+  return body;
+}
+async function atContentEnd(page: Page, distance: number) {
+  await page.locator(".reading-pane").evaluate((reader, gap) => {
+    const body = reader.querySelector("article:last-of-type .post-content")!;
+    reader.scrollTop =
+      Math.ceil(
+        reader.scrollTop +
+          body.getBoundingClientRect().bottom -
+          reader.getBoundingClientRect().bottom,
+      ) - gap;
+  }, distance);
+}
+for (const height of [700, 500])
+  for (const distance of [64, 65]) {
+    test(`F79.public-actions-follow-${height}-${distance}: content endpoint preserves exact follow boundary, repeated arrivals and trailing actions`, async ({
+      page,
+    }, info) => {
+      let arrivals = 0;
+      await open(page, () => ({ body: actionHistory(arrivals) }), base);
+      await auditAppearance(page, 390, 150, height);
+      await atContentEnd(page, distance);
+      const before = await readableLines(page);
+      arrivals = 1;
+      await page
+        .getByRole("button", { name: "Refresh thread", exact: true })
+        .dispatchEvent("click");
+      await expect(page.locator("#pid203")).toHaveCount(1);
+      const after = await readableLines(page);
+      await info.attach("public-actions-lines.json", {
+        body: JSON.stringify({ before, after }),
+        contentType: "application/json",
+      });
+      if (distance === 64) {
+        expect(
+          after.lines
+            .filter((line) => line.text === "New visible public arrival.")
+            .some((line) => line.complete),
+        ).toBe(true);
+        await expect(
+          page.getByRole("button", { name: "New replies (1)", exact: true }),
+        ).toHaveCount(0);
+        arrivals = 2;
+        await page
+          .getByRole("button", { name: "Refresh thread", exact: true })
+          .dispatchEvent("click");
+        await expect(page.locator("#pid204")).toHaveCount(1);
+        const repeated = await readableLines(page);
+        await info.attach("public-actions-repeated.json", {
+          body: JSON.stringify(repeated),
+          contentType: "application/json",
+        });
+        expect(
+          repeated.lines
+            .filter((line) => line.text === "Second complete public arrival.")
+            .some((line) => line.complete),
+        ).toBe(true);
+        await expect(
+          page.getByRole("button", { name: /^New replies/ }),
+        ).toHaveCount(0);
+        const action = page.locator("#pid204 .post-actions button").first();
+        await action.scrollIntoViewIfNeeded();
+        const reachable = await action.evaluate((node) => {
+          const r = node.getBoundingClientRect(),
+            reader = node.closest(".reading-pane")!.getBoundingClientRect(),
+            outer = node
+              .closest(".conversation-region")!
+              .getBoundingClientRect();
+          return {
+            height: r.height,
+            visible:
+              Math.min(innerHeight, reader.bottom, outer.bottom, r.bottom) -
+              Math.max(0, reader.top, outer.top, r.top),
+          };
+        });
+        expect(reachable.height).toBeGreaterThanOrEqual(44);
+        expect(reachable.visible).toBeGreaterThanOrEqual(43);
+      } else {
+        expect(after.first?.paragraph).toBe(before.first?.paragraph);
+        expect(after.first?.line).toBe(before.first?.line);
+        expect(
+          Math.abs(after.first!.offset - before.first!.offset),
+        ).toBeLessThanOrEqual(1);
+        await expect(
+          page.getByRole("button", { name: "New replies (1)", exact: true }),
+        ).toBeVisible();
+      }
+    });
+  }
+
+for (const move of [false, true]) {
+  test(`F79.public-actions-media-${move}: delayed media follows the body endpoint unless the reader moves`, async ({
+    page,
+  }, info) => {
+    let arrivals = 0;
+    let releaseImage!: () => void;
+    let requestedImage!: () => void;
+    const held = new Promise<void>((resolve) => {
+      releaseImage = resolve;
+    });
+    const requested = new Promise<void>((resolve) => {
+      requestedImage = resolve;
+    });
+    await open(
+      page,
+      async (_number, url) => {
+        if (url.endsWith("late.png")) {
+          requestedImage();
+          await held;
+          return {
+            contentType: "image/svg+xml",
+            body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="600"><rect width="400" height="600" fill="orange"/></svg>',
+          };
+        }
+        return {
+          body: actionHistory(arrivals).replace(
+            "<p>New visible public arrival.</p>",
+            '<img src="https://www.tsdm39.com/late.png" alt="Delayed footer arrival"><p>New visible public arrival.</p>',
+          ),
+        };
+      },
+      base,
+    );
+    await auditAppearance(page, 390, 150, 500);
+    await atContentEnd(page, 0);
+    arrivals = 1;
+    await page
+      .getByRole("button", { name: "Refresh thread", exact: true })
+      .dispatchEvent("click");
+    await expect(page.locator("#pid203")).toHaveCount(1);
+    await requested;
+    if (move)
+      await page.locator(".reading-pane").evaluate((pane) => {
+        pane.dispatchEvent(new WheelEvent("wheel"));
+        pane.scrollTop -= 300;
+      });
+    const before = await readableLines(page);
+    releaseImage();
+    await expect
+      .poll(() =>
+        page
+          .getByAltText("Delayed footer arrival")
+          .evaluate((image) => (image as HTMLImageElement).naturalHeight),
+      )
+      .toBe(600);
+    const after = await readableLines(page);
+    await info.attach("public-actions-media-lines.json", {
+      body: JSON.stringify({ before, after }),
+      contentType: "application/json",
+    });
+    if (move) {
+      expect(after.first?.paragraph).toBe(before.first?.paragraph);
+      expect(after.first?.line).toBe(before.first?.line);
+      expect(
+        Math.abs(after.first!.offset - before.first!.offset),
+      ).toBeLessThanOrEqual(1);
+    } else {
+      expect(
+        after.lines
+          .filter((line) => line.text === "New visible public arrival.")
+          .some((line) => line.complete),
+      ).toBe(true);
+      expect(after.remaining).toBeGreaterThan(0);
+    }
+  });
+}
+test("F79.public-actions-intermediate: content-bottom positioning never qualifies an unloaded later page", async ({
+  page,
+}, info) => {
+  let arrivals = 0;
+  const requests = await open(
+    page,
+    () => ({ body: actionHistory(arrivals, true) }),
+    base,
+  );
+  await auditAppearance(page, 390, 150);
+  await atContentEnd(page, 0);
+  const before = await readableLines(page);
+  arrivals = 1;
+  await page
+    .getByRole("button", { name: "Refresh thread", exact: true })
+    .dispatchEvent("click");
+  await expect(page.locator("#pid203")).toHaveCount(1);
+  const after = await readableLines(page);
+  await info.attach("intermediate-content-lines.json", {
+    body: JSON.stringify({ before, after, requests }),
+    contentType: "application/json",
+  });
+  expect(after.first?.paragraph).toBe(before.first?.paragraph);
+  expect(after.first?.line).toBe(before.first?.line);
+  expect(
+    Math.abs(after.first!.offset - before.first!.offset),
+  ).toBeLessThanOrEqual(1);
+  await expect(page.getByRole("button", { name: /^New replies/ })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("button", { name: "Load later", exact: true }),
+  ).toBeVisible();
+});
+test("F79.public-first-timestamp: first successful refresh preserves the real visible public line", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1119, height: 626 });
+  await open(page, () => ({ body: auditHistory() }), base);
+  await page.locator(".reading-pane").evaluate((n) => {
+    n.scrollTop = 650;
+  });
+  const before = await readableLines(page);
+  await page
+    .getByRole("button", { name: "Refresh thread", exact: true })
+    .click();
+  await expect(page.getByText(/Last successful check/)).toBeVisible();
+  const after = await readableLines(page);
+  await info.attach("public-timestamp-lines.json", {
+    body: JSON.stringify({ before, after }),
+    contentType: "application/json",
+  });
+  expect(after.first?.paragraph).toBe(before.first!.paragraph);
+  expect(after.first?.line).toBe(before.first!.line);
+  expect(
+    Math.abs(after.first!.offset - before.first!.offset),
+  ).toBeLessThanOrEqual(1);
+});
+
+test("F79.public-context-review: populated board through loaded range and addressed source keeps one editor and separate immutable approval", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
+  const member =
+    '<div id="um"><strong><a href="home.php?mod=space&uid=7">Reader Seven</a></strong></div>';
+  const board =
+    member +
+    `<div id="ct"><h1><a href="${boardURL}">Music discussion</a></h1></div><table id="threadlisttableid">${Array.from({ length: 25 }, (_, i) => `<tbody id="normalthread_${i === 15 ? 42 : 200 + i}"><tr><th><a class="xst" href="${i === 15 ? route(2) : base.replace("42", String(200 + i))}">Mixed result ${i}</a></th><td class="by"><cite>Listener</cite></td></tr></tbody>`).join("")}</table>`;
+  const requests = await open(
+    page,
+    (n, url) => {
+      const u = new URL(url);
+      if (u.searchParams.get("mod") === "forumdisplay") return { body: board };
+      if (u.searchParams.get("mod") === "post")
+        return {
+          body:
+            member +
+            '<form id="postform" method="post" action="forum.php?mod=post&action=reply&fid=5&tid=42&replysubmit=yes"><input type="hidden" name="formhash" value="AUTHORED_ONLY"><input type="hidden" name="posttime" value="1793793600"><input type="hidden" name="wysiwyg" value="0"><input type="hidden" name="reppid" value="106"><input type="hidden" name="reppost" value="106"><input type="hidden" name="noticeauthor" value="AUTHOR_9"><input type="hidden" name="noticeauthormsg" value="Listener"><input type="hidden" name="noticetrimstr" value=""><input name="subject" value=""><textarea name="message"></textarea><button type="submit" name="replysubmit" value="yes">Reply</button></form>',
+        };
+      return {
+        body: fixture(n).replace(
+          '<div id="postlist">',
+          `<div id="pt"><a href="${boardURL}">Music discussion</a></div><div id="postlist">`,
+        ),
+      };
+    },
+    boardURL,
+  );
+  const row = page.getByRole("link", { name: "Mixed result 15", exact: true });
+  await row.scrollIntoViewIfNeeded();
+  const offset = await page
+    .locator(".results-pane")
+    .evaluate((n) => n.scrollTop);
+  expect(offset).toBeGreaterThan(0);
+  await row.click();
+  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await expect(page.locator(".reading-pane article")).toHaveCount(5);
+  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await expect(page.locator(".reading-pane article")).toHaveCount(7);
+  const ids = await page
+    .locator(".reading-pane article")
+    .evaluateAll((nodes) => nodes.map((n) => n.id));
+  expect(ids).toEqual([
+    "pid101",
+    "pid102",
+    "pid103",
+    "pid104",
+    "pid105",
+    "pid106",
+    "pid107",
+  ]);
+  await page
+    .locator("#pid106")
+    .getByRole("button", { name: "Reply to this post", exact: true })
+    .click();
+  const editor = page.getByRole("textbox", {
+    name: "Complete source",
+    exact: true,
+  });
+  const source =
+    "[quote=Independent author]Separately authored quote[/quote]\nMixed exact source 中文";
+  await editor.fill(source);
+  const handle = await editor.elementHandle();
+  await editor.press("End");
+  await editor.press("!");
+  await editor.press("ControlOrMeta+z");
+  await expect(editor).toHaveValue(source);
+  const presentationRequests = requests.length;
+  for (const width of [959, 960, 767, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(editor).toHaveValue(source);
+    expect(await handle!.evaluate((n) => n.isConnected)).toBe(true);
+    await expect(page.locator(".reading-pane article")).toHaveCount(7);
+  }
+  await page
+    .getByRole("button", { name: "Visual editor", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Source editor", exact: true })
+    .click();
+  await expect(editor).toHaveValue(source);
+  expect(requests).toHaveLength(presentationRequests);
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Post 106");
+  await editor.press("Control+Enter");
+  const review = page.getByRole("region", {
+    name: "Prepared publication review",
+    exact: true,
+  });
+  await expect(review).toBeVisible();
+  await expect(review.locator(".prepared-source")).toHaveText(source);
+  await editor.fill(source + "\nLater revision");
+  await expect(review).toHaveCount(0);
+  await editor.press("Control+Enter");
+  await expect(review.locator(".prepared-source")).toHaveText(
+    source + "\nLater revision",
+  );
+  await page
+    .getByRole("button", {
+      name: "Cancel review and return to writing",
+      exact: true,
+    })
+    .click();
+  expect(requests.every((r) => r.startsWith("GET "))).toBe(true);
+  expect(
+    await page
+      .locator(".reading-pane article")
+      .evaluateAll((nodes) => nodes.map((n) => n.id)),
+  ).toEqual(ids);
+  const stored = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+  expect(stored.replyTarget.postId).toBe("106");
+  expect(stored.replyTarget.threadId).toBe("42");
+  await info.attach("mixed-public-state.json", {
+    body: JSON.stringify({ ids, offset, requests, writing: stored }),
+    contentType: "application/json",
+  });
 });

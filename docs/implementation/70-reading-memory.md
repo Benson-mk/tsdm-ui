@@ -252,7 +252,7 @@ post IDs, repairing the original range-identity failure. After earlier page2
 loaded, ordinary navigation to the actual linked thread and Back retained all
 20 posts, identical absolute geometry and exact unsent source.
 
-Reload from page2 post78260049 reconstructed only its containing page (10 posts)
+Reload from page2 post `H70-post-A` reconstructed only its containing page (10 posts)
 and restored absolute post top259.796875px, equal to the pre-reload position,
 while preserving source characters and newlines. Writing recovery changed the
 reader's dimensions, so this evidence asserts the post's absolute anchor rather

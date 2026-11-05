@@ -144,7 +144,7 @@ export default class EvidenceReporter implements Reporter {
       readFileSync("tests/e2e/foundation.spec.ts"),
     );
     for (const file of readdirSync("tests/e2e")) {
-      if (file.endsWith(".spec.ts"))
+      if (file.endsWith(".ts"))
         writeFileSync(
           `${this.directory}/synthetic/${file}`,
           readFileSync(`tests/e2e/${file}`),

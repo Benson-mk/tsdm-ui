@@ -10,9 +10,9 @@ and final BDFL. No live social traffic or fixture timer is production evidence.
 ## Research and premise verification before implementation
 
 Current native observation `71-live-refresh.json` (root, 2026-11-04) reloaded the
-actual returned public thread1269743 page5. The response was200, not disk cached;
+actual returned public thread `H71-thread-A` page5. The response was200, not disk cached;
 no Cache-Control/Expires/Pragma/Retry-After/ETag/Last-Modified/Age or meta-refresh
-was observed. Pager current5, prior4, no next, and IDs78298708/78306905 agree with
+was observed. Pager current5, prior4, no next, and post aliases `H71-post-A`/`H71-post-B` agree with
 #68 native evidence. #68 also qualifies classed last links and native latest/exact
 redirects. This establishes a supported fresh reread, not a server polling rate.
 

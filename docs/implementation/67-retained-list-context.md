@@ -30,7 +30,7 @@ The approved seam is the complete built userscript in Edge with only external
 HTTP substituted. Tests observe visible controls, geometry, source, request
 and effect ledgers. They do not mock workspace/client functions. The initial
 research/failure inventory was recorded before feature code at
-`/private/tmp/tsdm-im-run/67-research.md`.
+`evidence/runs/79-private-document-aliases-2026-11-05/references/67-research.md`.
 
 - List presentation may replace the reader, reset its position, or hide the
   active source editor; a current-form fetch must not become a search.
@@ -148,7 +148,7 @@ then applying #67's immutable stash hash. Both original stashes and extra-file
 safety copies remain preserved; the final diff contains only #67's scope.
 
 Final installed Edge evidence is sealed at
-`/Users/benson/Documents/code/tsdm-ui/evidence/runs/67-installed-2026-11-04/`.
+`evidence/runs/67-installed-2026-11-04/`.
 Its six-file manifest covers the exact full manager source, receipt, observations,
 report and two screenshots. The installed candidate retained public reading and
 local writing while loading two real Saved records, selecting a Saved thread

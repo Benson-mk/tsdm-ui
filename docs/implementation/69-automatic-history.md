@@ -163,7 +163,7 @@ Scoped installed Edge and final BDFL acceptance remain pending.
 Root sealed installed Edge evidence in
 `evidence/runs/69-installed-2026-11-04` in the integration checkout. All seven
 manifested files and the full manager-returned source match exact `3383e7fd…`.
-Native scrolling on public thread 1269743 loaded earlier from 10 to 20 unique
+Native scrolling on public thread `H69-thread-A` loaded earlier from 10 to 20 unique
 posts and later from 20 to 30 in returned chronological order. Exact retained
 writing source/account/target stayed intact. Appending retained the former loaded
 end position rather than jumping to the new end. The actual Boards drawer at

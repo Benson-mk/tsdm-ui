@@ -1264,3 +1264,126 @@ test("J78.private-first-refresh-writing: first successful check preserves the vi
   expect(Math.abs(after.offset - before.offset)).toBeLessThanOrEqual(1);
   expect(Math.abs(after.anchorTop - before.anchorTop)).toBeLessThanOrEqual(1);
 });
+
+test("F79.private-domain-recovery: guarded public/private writing, reading arrivals, viewport review and native return retain the sole private source without sending", async ({
+  page,
+}) => {
+  const server = await open(page, `${origin}/forum.php?mod=viewthread&tid=42`);
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "Complete source", exact: true })
+    .fill("Original public source stays public");
+  await page
+    .getByRole("navigation", { name: "Main destinations", exact: true })
+    .getByRole("button", { name: "Messages", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Load messages", exact: true })
+    .click();
+  await page
+    .getByRole("link", {
+      name: "Read private conversation with Listener Nine",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Keep writing and read private conversation",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await expect(
+    page.getByRole("textbox", { name: "Complete source", exact: true }),
+  ).toHaveValue("Original public source stays public");
+  await page
+    .getByRole("button", { name: "Write private message", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Discard and write private message",
+      exact: true,
+    })
+    .click();
+  const editor = page.getByRole("textbox", {
+    name: "Private message text",
+    exact: true,
+  });
+  await expect(editor).toHaveValue("");
+  const source =
+    "Mixed controlled private source 中文\nRetain this exact recipient and text.";
+  await editor.fill(source);
+  const handle = await editor.elementHandle();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.locator('input[name="theme"][value="dark"]').check();
+  await page.getByRole("slider").fill("150");
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  const automatic = page.getByRole("checkbox", {
+    name: "Check private conversation every 2 minutes while active",
+    exact: true,
+  });
+  await expect(automatic).not.toBeChecked();
+  await automatic.check();
+  server.messages.push({
+    id: "202",
+    sender: "9",
+    source: "Independently arrived private text.",
+  });
+  await page
+    .getByRole("button", { name: "Refresh conversation", exact: true })
+    .click();
+  await expect(page.locator("#pmlist_202")).toContainText(
+    "Independently arrived private text.",
+  );
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await expect(editor).toHaveValue(source);
+  expect(await handle!.evaluate((n) => n.isConnected)).toBe(true);
+  await expect(page.getByText("Checks paused", { exact: true })).toBeVisible();
+  await editor.press("Control+Enter");
+  const review = page.getByRole("region", {
+    name: "Prepared private message review",
+    exact: true,
+  });
+  await expect(review.locator(".prepared-source")).toHaveText(source);
+  const reads = server.reads.length;
+  await page
+    .getByRole("button", { name: "Refresh conversation", exact: true })
+    .dispatchEvent("click");
+  expect(server.reads).toHaveLength(reads);
+  await page
+    .getByRole("button", { name: "Return to private writing", exact: true })
+    .click();
+  await automatic.uncheck();
+  await page.setViewportSize({ width: 390, height: 500 });
+  await expect(editor).toHaveValue(source);
+  await page
+    .locator(".source-writing")
+    .getByRole("link", { name: "Continue in native forum", exact: true })
+    .click();
+  await expect(page).toHaveURL(/tsdm-native=1/);
+  await expect(page.locator("#tsdm-workspace")).toHaveCount(0);
+  await page.goBack();
+  if ((await page.locator("#tsdm-workspace").count()) === 0)
+    await page.addScriptTag({
+      content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
+    });
+  await expect(editor).toHaveValue(source);
+  await expect(review).toHaveCount(0);
+  expect(server.posts).toHaveLength(0);
+  const saved = await page.evaluate(() =>
+    sessionStorage.getItem("tsdm.workspace.recovery")!,
+  );
+  expect(saved).not.toContain("Independently arrived private text.");
+  expect(saved).not.toContain("AUTHORED_PRIVATE_TOKEN");
+  expect(JSON.parse(saved).schema).toBe(3);
+});

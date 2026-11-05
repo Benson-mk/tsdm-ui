@@ -523,3 +523,112 @@ for (const destination of ["Saved", "Notices"]) {
     }
   });
 }
+
+test("F79.retained-lists-and-draft: search saved notices and paged drafts retain exact source, one editor and immutable review together", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  try {
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    const editor = page.getByLabel("Complete source", { exact: true });
+    const source = "Mixed retained source 中文\n[b]exact[/b]";
+    await editor.fill(source);
+    const handle = await editor.elementHandle();
+    await select(page, "Search");
+    await page.getByLabel("Keywords", { exact: true }).fill("autumn");
+    await page
+      .locator(".search-pane")
+      .getByRole("button", { name: "Search", exact: true })
+      .click();
+    await expect(
+      page.getByRole("link", { name: "Search conversation 42", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByLabel("Keywords", { exact: true })
+      .fill("retained edited criteria");
+    for (const section of ["Saved", "Notices"]) {
+      await select(page, section);
+      await page
+        .getByRole("button", {
+          name: section === "Saved" ? "Load saved threads" : "Load notices",
+          exact: true,
+        })
+        .click();
+      const link = page.getByRole("link", {
+        name: `${section === "Saved" ? "Saved" : "Notice"} conversation 62`,
+        exact: true,
+      });
+      await link.scrollIntoViewIfNeeded();
+      expect(
+        await page.locator("#thread-list-pane").evaluate((n) => n.scrollTop),
+      ).toBeGreaterThan(0);
+    }
+    await select(page, "Drafts");
+    await page
+      .getByRole("button", { name: "Load forum drafts", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Draft page 2", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Resume Draft 2-0", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Resume Draft 2-20", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "Discard local changes and resume draft",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Return", exact: true }).click();
+    for (let i = 0; i < 8; i++) {
+      await page.goBack();
+      const field = page.getByLabel("Keywords", { exact: true });
+      if (
+        (await field.count()) &&
+        (await field.inputValue()) === "retained edited criteria"
+      )
+        break;
+    }
+    await expect(page.getByLabel("Keywords", { exact: true })).toHaveValue(
+      "retained edited criteria",
+    );
+    await expect(
+      page.getByRole("link", { name: "Search conversation 42", exact: true }),
+    ).toHaveAttribute("href", /tid=42/);
+    await page.setViewportSize({ width: 767, height: 900 });
+    await page
+      .getByRole("button", { name: "Threads pane", exact: true })
+      .click();
+    await expect(page.getByLabel("Keywords", { exact: true })).toHaveValue(
+      "retained edited criteria",
+    );
+    await page.keyboard.press("Escape");
+    await page.setViewportSize({ width: 768, height: 900 });
+    await expect(editor).toHaveValue(source);
+    expect(await handle!.evaluate((n) => n.isConnected)).toBe(true);
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    const review = page.getByRole("region", {
+      name: "Prepared publication review",
+      exact: true,
+    });
+    await expect(review.locator(".prepared-source")).toHaveText(source);
+    await page
+      .getByRole("button", {
+        name: "Cancel review and return to writing",
+        exact: true,
+      })
+      .click();
+    expect(state.searches).toBe(1);
+    expect(state.noticeEffects).toBe(1);
+    expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(1);
+  } finally {
+    await artifact(page, info, state);
+  }
+});

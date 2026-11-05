@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { readableLines } from "./readable-lines";
 
 const origin = "https://www.tsdm39.com";
 const base = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -138,6 +139,7 @@ test("IM70.local-ranges: ordinary return and Back retain loaded ranges while exp
       post.getBoundingClientRect().top - pane.getBoundingClientRect().top - 37;
   });
   const before = await anchor(page);
+  const linesBefore = await readableLines(page);
   await page
     .locator("#pid104")
     .getByRole("link", { name: "Other thread", exact: true })
@@ -158,6 +160,13 @@ test("IM70.local-ranges: ordinary return and Back retain loaded ranges while exp
   ).toBeVisible();
   await page.goBack();
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
+  await test.info().attach("return-absolute-control-lines.json", {
+    body: JSON.stringify({
+      before: linesBefore,
+      after: await readableLines(page),
+    }),
+    contentType: "application/json",
+  });
   expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
   await page.goForward();
   await expect(

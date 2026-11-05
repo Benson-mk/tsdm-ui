@@ -206,11 +206,11 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
     await expect(page.getByRole("article")).toHaveCount(12);
     const metrics: unknown[] = [];
     const widths = [
-      375, 559, 560, 767, 768, 959, 960, 1279, 1280, 1400, 1440, 1920,
+      375, 390, 559, 560, 767, 768, 959, 960, 1199, 1200, 1280, 1440, 1920,
     ];
     let index = 0;
     for (const width of widths) {
-      await page.setViewportSize({ width, height: 900 });
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
       let paneWidths: number[] | null = null;
       for (const size of [100, 90, 70, 150]) {
         const locale = ["en", "zh-CN", "zh-TW"][index++ % 3]!;
@@ -313,7 +313,7 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
             )
             .toBeGreaterThanOrEqual(4.5);
         }
-        if ([375, 960, 1280].includes(width) && [70, 150].includes(size))
+        if ([390, 768, 1440].includes(width))
           await info.attach(`${theme}-${width}-${size}-${locale}.png`, {
             body: await page.screenshot(),
             contentType: "image/png",

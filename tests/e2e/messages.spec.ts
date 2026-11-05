@@ -1,3 +1,4 @@
+import { readableLines } from "./readable-lines";
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -618,6 +619,9 @@ test("J75.messages-three-regions: reveal the peer-list pane and retain thread re
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const ledger: string[] = [];
+  const steps: unknown[] = [];
+  const observe = async (name: string) =>
+    steps.push({ name, ...(await readableLines(page)) });
   const thread = `${header}<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music discussion</a></div><div id="postlist"><h1 id="thread_subject">Retained forum thread</h1><div id="post_100"><div class="authi"><a href="home.php?mod=space&uid=9">Listener Nine</a></div><a id="postnum100">1</a><div class="pcb">${"<p>Complete retained reading text.</p>".repeat(150)}</div></div></div>`;
   await page.route("**/*", async (route) => {
     const request = route.request();
@@ -654,6 +658,7 @@ test("J75.messages-three-regions: reveal the peer-list pane and retain thread re
       node.scrollTop = 450;
     });
     const anchor = page.locator("#pid100");
+    const visibleBefore = await readableLines(page);
     const postTop = await anchor.evaluate(
       (node) => node.getBoundingClientRect().top,
     );
@@ -672,11 +677,13 @@ test("J75.messages-three-regions: reveal the peer-list pane and retain thread re
     // A retained reader must not add a second list placeholder in Messages.
     await expect(page.locator("#thread-list-pane")).toHaveCount(1);
     await expect(peers).toBeVisible();
+    await observe("first messages");
     const beforeReselect = ledger.length;
     await page
       .getByRole("button", { name: "Threads pane", exact: true })
       .click();
     await expect(peers).toBeHidden();
+    await observe("hidden peers");
     await page
       .getByRole("navigation", { name: "Main destinations", exact: true })
       .getByRole("button", { name: "Messages", exact: true })
@@ -685,6 +692,7 @@ test("J75.messages-three-regions: reveal the peer-list pane and retain thread re
     await expect(
       page.getByRole("button", { name: "Threads pane", exact: true }),
     ).toHaveAttribute("aria-expanded", "true");
+    await observe("reselected messages");
     expect(ledger).toHaveLength(beforeReselect);
     expect(Math.round((await peers.boundingBox())!.width)).toBe(300);
     await expect(
@@ -706,6 +714,14 @@ test("J75.messages-three-regions: reveal the peer-list pane and retain thread re
         exact: true,
       }),
     ).toBeVisible();
+    await info.attach("messages-retained-lines.json", {
+      body: JSON.stringify({
+        before: visibleBefore,
+        after: await readableLines(page),
+        steps,
+      }),
+      contentType: "application/json",
+    });
     // Native integer scroll positions can round across successive restores.
     expect(
       Math.abs(
@@ -717,6 +733,16 @@ test("J75.messages-three-regions: reveal the peer-list pane and retain thread re
     await page
       .getByRole("button", { name: "Refresh messages", exact: true })
       .click();
+    await expect(
+      page.getByRole("button", { name: "Refresh messages", exact: true }),
+    ).toBeEnabled();
+    await info.attach("messages-refreshed-lines.json", {
+      body: JSON.stringify({
+        before: visibleBefore,
+        after: await readableLines(page),
+      }),
+      contentType: "application/json",
+    });
     await expect(
       page.locator(".conversation-region").getByRole("heading", {
         name: "Retained forum thread",
