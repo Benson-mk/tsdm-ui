@@ -87,11 +87,15 @@
         .prototype-shell { height:100vh; height:100dvh; display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; }
         .preview-banner { padding:calc(8px + var(--safe-top)) max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); background:var(--soft); border-bottom:1px solid var(--separator); font-size:13px; line-height:1.5; }
         .workspace { min-height:0; height:100%; display:grid; grid-template-rows:auto minmax(0,1fr); }
-        .workspace > header { min-height:56px; padding:8px max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); gap:12px; flex-wrap:wrap; }
+        .workspace > header { display:flex; min-height:56px; padding:8px max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); gap:12px; flex-wrap:nowrap; }
         .brand { display:flex; gap:8px; font-size:24px; }
         svg { width:20px; height:20px; flex:none; }
         .brand svg { width:24px; height:24px; }
-        header button { gap:8px; }
+        .workspace > header .brand { flex:none; margin-right:0; }
+        .workspace > header .workspace-caption { flex:none; margin-right:0; }
+        .pane-controls { display:flex; flex:none; flex-wrap:nowrap; align-items:center; gap:8px; margin-left:auto; }
+        .pane-controls button { display:inline-flex; flex:none; gap:8px; justify-content:center; min-width:44px; min-height:44px; }
+        @media(max-width:959px) { .workspace > header .workspace-caption,.pane-control-label { display:none; } .pane-controls button { width:44px; height:44px; padding:10px; } }
         .workspace-caption { font-size:12px; }
         main.preview-body { display:grid; grid-template-columns:216px 300px minmax(0,1fr); min-height:0; max-width:none; width:100%; margin:0; padding:0; overflow:hidden; }
         .preview-body .boards-region { display:flex; flex-direction:column; overflow:hidden; padding:0; min-height:0; min-width:0; border-right:1px solid var(--separator); }
@@ -139,13 +143,13 @@
         dialog::backdrop { background:#0009; }
         dialog p { line-height:1.5; }
         dialog button { border:1px solid var(--separator); }
-        @media(max-width:760px) { main.preview-body { grid-template-columns:216px minmax(0,1fr); } .preview-reader { display:none; } .workspace-caption { display:none; } header .brand { margin-right:auto; } }
-        @media(max-width:540px) { main.preview-body { grid-template-columns:minmax(0,1fr); } .preview-results { display:none; } .workspace > header { padding:8px max(12px,var(--safe-right)) 8px max(12px,var(--safe-left)); } header .threads-control { display:none; } .preview-tools { gap:4px 12px; } .preview-body .boards-region { border-right:0; } .sidebar-scroll,.preview-body .navigation-account { padding-right:max(12px,var(--safe-right)); } .preview-state { font-size:11px; } }
+        @media(max-width:760px) { main.preview-body { grid-template-columns:216px minmax(0,1fr); } .preview-reader { display:none; } }
+        @media(max-width:540px) { main.preview-body { grid-template-columns:minmax(0,1fr); } .preview-results { display:none; } .workspace > header { padding:8px max(12px,var(--safe-right)) 8px max(12px,var(--safe-left)); } .preview-tools { gap:4px 12px; } .preview-body .boards-region { border-right:0; } .sidebar-scroll,.preview-body .navigation-account { padding-right:max(12px,var(--safe-right)); } .preview-state { font-size:11px; } }
       </style>
       <div class="prototype-shell">
         <div class="preview-banner"><strong>Sidebar MVP · revised A</strong> — synthetic content. Scroll the boards; the account and tools stay visible.</div>
         <div class="workspace">
-          <header><a class="brand" href="#" data-stub="Home">${icon("brand")}TSDM</a><span class="workspace-caption">Forum / IM</span><button data-stub="Boards pane">${icon("boards")}Boards</button><button class="threads-control" data-stub="Threads pane">${icon("threads")}Threads pane</button></header>
+          <header><a class="brand" href="#" data-stub="Home">${icon("brand")}TSDM</a><span class="workspace-caption">Forum / IM</span><div class="pane-controls" role="group" aria-label="Pane controls"><button data-stub="Boards pane" aria-label="Boards pane" title="Boards pane">${icon("boards")}<span class="pane-control-label">Boards</span></button><button class="threads-control" data-stub="Threads pane" aria-label="Threads pane" title="Threads pane">${icon("threads")}<span class="pane-control-label">Threads pane</span></button></div></header>
           <main class="preview-body">
             <aside class="boards-region" aria-label="Preview sidebar">
               <div class="sidebar-scroll" tabindex="0" aria-label="Scrollable navigation">

@@ -100,3 +100,28 @@ Final A browser observations at 1052×874: the footer stayed at y=742, height=69
 Final artifacts are in `evidence/runs/sidebar-preview-2026-11-05-revision-a/`: screenshots, `observations.json`, replay report, receipt with source/reference hashes, and manifest. Intermediate B evidence stays separate in the `revision-b` directory. These are Git-ignored local artifacts. The actual reference document was read but not modified.
 
 The same gpt-6.1-sol xhigh advisor validated the final A source and artifacts using `validate-gpt-code-review`, found no significant preview-scope defect, confirmed the partial edge-to-edge wording, and identified no additional trade-offs. It did not independently repeat browser checks. Production integration and physical-device edge-to-edge acceptance remain future work.
+
+## Header feedback — compact pane controls
+
+The owner reported Threads wrapping at 779px, Boards/Threads separating at 714px, and Threads disappearing at 504px; icon-only controls are accepted for narrow views. The prior A/footer, group colors, unchanged fonts and About-inside-Settings selections remain active.
+
+Before editing, browser geometry reproduced the 779px separate rows and 504px `display:none`. At 714px the Boards button stretched to 415.875px, separating its left-aligned content from Threads even though the button boxes were adjacent. The inherited header is a three-column grid while the prototype has four direct children; hiding the caption then shifts button placement. The prototype explicitly hides Threads below 540px.
+
+Plan: explicitly own the prototype header layout with flex; group pane buttons in one non-wrapping trailing container; use icon-only 44px controls below 960px, retaining accessible names and tooltips; keep labels at 960px and wider. Remove the rule hiding Threads. This is a contained visual-prototype correction, so use a repeatable browser geometry check instead of adding a production E2E/unit-test suite. The browser probe is written and exercised before the fix.
+
+Failure cases to verify: both controls remain visible; they share a row and stay adjacent; neither target shrinks below 44px; icon-only controls retain names; keyboard navigation reaches both; labels return at the breakpoint; 125% text and a 375px viewport do not hide or push controls outside the header. Preserve baseline and corrected geometry with screenshots and replay instructions.
+
+Additional actual trade-off: below 960px, removing pane-button text and the decorative caption preserves a compact, stable header but makes icon recognition more important. Accessible names, native tooltips and 44px targets retain keyboard/assistive access; full text returns on wider screens.
+
+Browser verification passed at 375, 504, 714, 779, 959, 960 and 1280px, at both 100% and 125% text. Both buttons share a row, have an 8px gap, remain inside the viewport, and retain at least 44×44px targets. Below 960px both are exactly 44px wide with labels visually hidden; at 960px and wider labels return. At 375px, Tab moved from Boards to Threads and Enter activated the Threads preview action. No console errors were observed. Formatting, module syntax and whitespace checks pass.
+
+Evidence is in `evidence/runs/sidebar-header-2026-11-05/`, including baseline/final measurements, the reusable read-only `geometry-probe.js`, screenshots, source hashes and replay instructions. The initial box-adjacency probe returned true at 714px because the stretched button boxes touched correctly; its measured 415.875px Boards width demonstrates the visual separation. The final probe also requires exact compact button widths, preventing that false-positive interpretation. These are browser checks of the isolated preview, not installed-browser or functional-drawer qualification.
+
+Header revision acceptance:
+
+- [x] Keep both pane controls visible, adjacent and on the same row at all three reported widths.
+- [x] Use accessible icon-only 44px controls below 960px and retain visible labels at wider widths.
+- [x] Verify keyboard access, 125% text and both sides of the breakpoint; preserve repeatable artifacts.
+- [x] Pass static checks and final advisor validation; record the new trade-off.
+
+The gpt-6.1-sol xhigh advisor applied `validate-gpt-code-review` to the completed correction and retained evidence. It found no significant preview defect or distinct additional trade-off, and confirmed the inherited-grid/explicit-hide diagnosis. It did not independently rerun browser checks.
