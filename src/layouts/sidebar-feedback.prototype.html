@@ -45,6 +45,8 @@
         settings:
           '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--surface)"/><circle cx="15" cy="17" r="3" fill="var(--surface)"/>',
         threads: '<path d="M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"/>',
+        external: '<path d="M14 3h7v7M21 3l-10 10M10 5H4v15h15v-6"/>',
+        refresh: '<path d="M20 7a9 9 0 1 0 1 8M20 3v5h-5"/>',
         brand: '<path d="M12 2v20M2 12h20M5 5l14 14M5 19 19 5"/>',
       };
       const icon = (name) =>
@@ -81,6 +83,24 @@
         ["动态 / UI组", "界面设计交流。", 2],
         ["平面设计组", "平面设计交流。", 2],
         ["版主申请区 / 各工作组", "社区协作与申请。", 0],
+      ];
+      const groups = ["Community", "Anime", "Creative", "Music"];
+      const sampleThreads = [
+        {
+          id: 1,
+          title: "最近有什么值得分享的新发现？",
+          excerpt: "聊聊最近的作品、音乐与日常。",
+        },
+        {
+          id: 2,
+          title: "本周交流与提问",
+          excerpt: "分享你的想法，也欢迎提出问题。",
+        },
+        {
+          id: 3,
+          title: "一起整理实用资料",
+          excerpt: "和同好交流、补充有用的信息。",
+        },
       ];
       root.innerHTML = `<style>${workspaceStyles}</style><style>
         :host { display:block; height:100%; --hover-surface:var(--soft); --safe-top:env(safe-area-inset-top,0px); --safe-right:env(safe-area-inset-right,0px); --safe-bottom:env(safe-area-inset-bottom,0px); --safe-left:env(safe-area-inset-left,0px); --text-scale:1; }
@@ -135,43 +155,75 @@
         .preview-tools label { display:flex; gap:6px; align-items:center; }
         .preview-tools input { width:18px; height:18px; }
         .preview-state { flex-basis:100%; margin:0; color:var(--ink); font-size:12px; }
-        .history-tools { display:grid; gap:4px; padding:16px 0; border-top:1px solid var(--separator); }
-        .history-tools button { text-align:left; font-size:14px; }
+        [hidden] { display:none !important; }
+        .board-disclosure { width:100%; }
+        .board-disclosure summary { display:flex; align-items:center; gap:8px; min-height:44px; padding:8px 12px; cursor:pointer; border-radius:8px; list-style:none; font-size:calc(14px * var(--text-scale)); }
+        .board-disclosure summary::-webkit-details-marker { display:none; }
+        .board-disclosure summary::before { content:""; border-right:2px solid currentColor; border-bottom:2px solid currentColor; width:6px; height:6px; transform:rotate(-45deg); flex:none; }
+        .board-disclosure[open] summary::before { transform:rotate(45deg); }
+        .board-disclosure summary:hover { background:var(--soft); }
+        .group-count { margin-left:auto; color:var(--muted); }
+        .board-group-links { display:grid; gap:4px; }
+        .boards-navigation .board-group-links a::before { content:""; flex:none; width:10px; height:10px; border-radius:50%; margin-right:10px; background:var(--support); }
+        .results-heading { display:flex; gap:8px; align-items:center; }
+        .results-heading h1 { flex:1; min-width:0; }
+        .context-action { font-size:calc(14px * var(--text-scale)); gap:8px; }
+        .sample-thread-list { display:grid; gap:8px; margin-top:16px; }
+        .sample-thread { display:block; text-align:left; width:100%; padding:16px; border:1px solid var(--separator); border-radius:8px; }
+        .sample-thread strong,.sample-thread span { display:block; line-height:1.5; }
+        .sample-thread span { margin-top:8px; font-size:calc(14px * var(--text-scale)); }
+        .sample-thread[aria-current="true"] { border-color:var(--ink); }
+        .preview-reader h1 { font-size:calc(26px * var(--text-scale)); }
+        .preview-reader article { padding:20px 0; border:0; }
+        .preview-reader article p { margin-block:16px; line-height:1.6; }
+        .pane-controls [aria-pressed="true"] { background:var(--soft); }
         .group-key { display:none; margin:12px 0; font-size:12px; color:var(--muted); }
         :host([data-colors="groups"]) .group-key { display:block; }
         dialog { color:var(--ink); background:var(--surface); border:1px solid var(--separator); border-radius:24px; padding:24px; max-width:min(440px,calc(100vw - var(--safe-left) - var(--safe-right) - 32px)); max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px); overflow:auto; position:fixed; inset:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left); margin:auto; }
         dialog::backdrop { background:#0009; }
         dialog p { line-height:1.5; }
         dialog button { border:1px solid var(--separator); }
-        @media(max-width:760px) { main.preview-body { grid-template-columns:216px minmax(0,1fr); } .preview-reader { display:none; } }
-        @media(max-width:540px) { main.preview-body { grid-template-columns:minmax(0,1fr); } .preview-results { display:none; } .workspace > header { padding:8px max(12px,var(--safe-right)) 8px max(12px,var(--safe-left)); } .preview-tools { gap:4px 12px; } .preview-body .boards-region { border-right:0; } .sidebar-scroll,.preview-body .navigation-account { padding-right:max(12px,var(--safe-right)); } .preview-state { font-size:11px; } }
+        @media(min-width:768px) and (max-width:959px) { main.preview-body { grid-template-columns:300px minmax(0,1fr); } .preview-body .boards-region { display:none; } :host([data-mobile-view="boards"]) main.preview-body { grid-template-columns:216px minmax(0,1fr); } :host([data-mobile-view="boards"]) .preview-body .boards-region { display:flex; } :host([data-mobile-view="boards"]) .preview-reader { display:none; } }
+        @media(max-width:767px) {
+          main.preview-body { grid-template-columns:minmax(0,1fr); }
+          .preview-body .boards-region,.preview-body .preview-results,.preview-body .preview-reader { display:none; min-width:0; }
+          :host([data-mobile-view="boards"]) .preview-body .boards-region { display:flex; border-right:0; }
+          :host([data-mobile-view="results"]) .preview-results { display:block; border-right:0; }
+          :host([data-mobile-view="reader"]) .preview-reader { display:block; }
+          .preview-results,.preview-reader { padding:20px max(16px,var(--safe-right)) 20px max(16px,var(--safe-left)); }
+          .workspace > header { padding:8px max(12px,var(--safe-right)) 8px max(12px,var(--safe-left)); }
+          .preview-tools { gap:4px 12px; }
+          .sidebar-scroll,.preview-body .navigation-account { padding-right:max(12px,var(--safe-right)); }
+          .preview-state { font-size:11px; }
+        }
       </style>
       <div class="prototype-shell">
-        <div class="preview-banner"><strong>Sidebar MVP · revised A</strong> — synthetic content. Scroll the boards; the account and tools stay visible.</div>
+        <div class="preview-banner"><strong>Sidebar MVP · revised A</strong> — synthetic content. Try grouped boards, choose a sample thread, and resize the preview.</div>
         <div class="workspace">
-          <header><a class="brand" href="#" data-stub="Home">${icon("brand")}TSDM</a><span class="workspace-caption">Forum / IM</span><div class="pane-controls" role="group" aria-label="Pane controls"><button data-stub="Boards pane" aria-label="Boards pane" title="Boards pane">${icon("boards")}<span class="pane-control-label">Boards</span></button><button class="threads-control" data-stub="Threads pane" aria-label="Threads pane" title="Threads pane">${icon("threads")}<span class="pane-control-label">Threads pane</span></button></div></header>
+          <header><a class="brand" href="#" data-stub="Home">${icon("brand")}TSDM</a><span class="workspace-caption">Forum / IM</span><div class="pane-controls" role="group" aria-label="Workspace controls"><button data-pane="boards" aria-label="Boards pane" title="Boards pane">${icon("boards")}<span class="pane-control-label">Boards</span></button><button class="threads-control" data-pane="results" aria-label="Threads pane" title="Threads pane">${icon("threads")}<span class="pane-control-label">Threads pane</span></button><button data-stub="Continue in native forum" aria-label="Continue in native forum" title="Continue in native forum">${icon("external")}<span class="pane-control-label">Native forum</span></button></div></header>
           <main class="preview-body">
             <aside class="boards-region" aria-label="Preview sidebar">
               <div class="sidebar-scroll" tabindex="0" aria-label="Scrollable navigation">
                 <p class="navigation-caption">Main destinations</p>
                 <nav aria-label="Main destinations" class="main-destinations">${sections.map((section, i) => `<button ${i === 0 ? 'aria-current="page"' : ""} data-stub="${section}">${icon(section.toLowerCase())}<span>${section}</span></button>`).join("")}</nav>
-                <nav class="boards-navigation" aria-label="Browse boards"><h2>Browse boards</h2><a href="#" data-stub="All boards">All boards</a>${boards.map(([name, , group]) => `<a href="#" lang="zh-Hans" data-group="${group}" data-stub="Board preview">${name}</a>`).join("")}</nav>
+                <nav class="boards-navigation" aria-label="Browse boards"><h2>Browse boards</h2><a href="#" data-all-boards>All boards</a>${groups.map((groupName, group) => `<details class="board-disclosure" open><summary aria-label="${groupName} boards"><span>${groupName}</span><span class="group-count">${boards.filter((b) => b[2] === group).length}</span></summary><div class="board-group-links">${boards.map(([name, , g], index) => (g === group ? `<a href="#" lang="zh-Hans" data-group="${group}" data-board="${index}">${name}</a>` : "")).join("")}</div></details>`).join("")}</nav>
                 <p class="group-key">Sample groups: green · Community; rose · Anime; lavender · Creative; blue · Music. Color supplements the board name.</p>
-                <div class="history-tools"><button disabled>Back</button><button data-stub="Refresh">Refresh</button><button data-stub="Native forum">Continue in native forum</button></div>
               </div>
               <footer class="navigation-account"><div class="identity"><small>Signed in as</small><strong>demo-member</strong></div><div class="account-actions"><button aria-label="Settings" title="Settings" data-dialog="Settings">${icon("settings")}<span class="action-text">Settings</span></button></div></footer>
             </aside>
-            <section class="preview-results"><h1>Boards</h1><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
+            <section class="preview-results"><div class="results-heading"><h1 id="results-title" tabindex="-1">Boards</h1><button class="context-action" data-stub="Refresh current list" aria-label="Refresh current list" title="Refresh current list">${icon("refresh")}</button></div><button class="context-action" data-all-boards id="list-back" hidden>All boards</button><button class="context-action" id="resume-reading" hidden>Return to reading</button><div id="directory-results"><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
               .slice(0, 5)
               .map(
-                ([name, description]) =>
-                  `<a href="#" class="board-card" lang="zh-Hans" data-stub="Board preview"><strong>${name}</strong><span>${description}</span></a>`,
+                ([name, description], index) =>
+                  `<a href="#" class="board-card" lang="zh-Hans" data-board="${index}"><strong>${name}</strong><span>${description}</span></a>`,
               )
-              .join("")}</div></section>
-            <section class="preview-reader"><p>Choose a thread to read. Browsing boards keeps your current thread and writing.</p></section>
+              .join(
+                "",
+              )}</div></div><div id="thread-results" hidden><p>Select a thread to read.</p><div class="sample-thread-list">${sampleThreads.map((thread) => `<button class="sample-thread" data-thread="${thread.id}" lang="zh-Hans"><strong>${thread.title}</strong><span>${thread.excerpt}</span></button>`).join("")}</div></div></section>
+            <section class="preview-reader"><div id="reader-empty"><p>Choose a thread to read. Browsing boards keeps your current thread and writing.</p></div><div id="reader-content" hidden><button class="context-action" id="reader-back">Back to threads</button><p id="reader-board"></p><h1 id="reader-title" lang="zh-Hans" tabindex="-1"></h1><button class="context-action" data-stub="Refresh current thread">${icon("refresh")}Refresh thread</button><article lang="zh-Hans"><p>这是用于预览阅读布局的示例内容。</p><p>选择一个话题后，这里会显示帖子。返回列表时仍保留当前阅读内容。</p></article></div></section>
           </main>
         </div>
-        <div class="preview-tools" aria-label="Preview controls"><strong>A · Compact Settings · About inside</strong><label><input type="checkbox" id="large"/>125% text</label><p class="preview-state" role="status"></p></div>
+        <div class="preview-tools" aria-label="Preview controls"><strong>Browse-first · Collapsible groups</strong><label><input type="checkbox" id="large"/>125% text</label><p class="preview-state" role="status"></p></div>
         <dialog aria-labelledby="dialog-title"><h2 id="dialog-title">Settings</h2><p>Preview only. No preferences are saved.</p><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3><p>Your existing appearance controls belong here.</p></section><section aria-labelledby="about-heading"><h3 id="about-heading">About this workspace</h3><p>TSDM — a workspace for boards, threads and private conversations.</p></section><button id="close-dialog">Close</button></dialog>
       </div>`;
       host.dataset.variant = "A";
@@ -179,13 +231,33 @@
       const url = new URL(location.href);
       url.searchParams.set("variant", "A");
       history.replaceState(null, "", url);
+      let selectedBoard = null;
+      let selectedThread = null;
+      let mobileView = "results";
+      let listScroll = 0;
+      const showView = (view) => {
+        mobileView = view;
+        host.dataset.mobileView = view;
+        root
+          .querySelectorAll("[data-pane]")
+          .forEach((button) =>
+            button.setAttribute(
+              "aria-pressed",
+              String(button.dataset.pane === view),
+            ),
+          );
+        state();
+      };
       const state = () => {
+        root.querySelector("#resume-reading").hidden = !selectedThread;
+        root.querySelector("#reader-back").textContent =
+          selectedBoard === null ? "Back to boards" : "Back to threads";
         host.style.setProperty(
           "--text-scale",
           root.querySelector("#large").checked ? "1.25" : "1",
         );
         root.querySelector(".preview-state").textContent =
-          `Group colors: DESIGN.md palette · Hover: surface-soft #eeeeee · Font: unchanged · Text: ${root.querySelector("#large").checked ? "125%" : "100%"} · Synthetic preview`;
+          `View: ${mobileView} · ${selectedBoard === null ? "Board directory" : boards[selectedBoard][0]} · ${selectedThread ? "Sample thread retained" : "No thread selected"} · ${root.querySelector("#large").checked ? "125%" : "100%"} text · Synthetic preview`;
       };
       root.querySelector("#large").addEventListener("change", state);
       const dialog = root.querySelector("dialog");
@@ -206,6 +278,80 @@
             `${control.dataset.stub}: visual preview only; no forum action performed.`;
         }),
       );
+      root.querySelectorAll("[data-pane]").forEach((button) =>
+        button.addEventListener("click", () => {
+          showView(
+            button.dataset.pane === "boards" && mobileView === "boards"
+              ? selectedThread
+                ? "reader"
+                : "results"
+              : button.dataset.pane,
+          );
+        }),
+      );
+      const showBoard = (index) => {
+        selectedBoard = index;
+        root.querySelector("#results-title").textContent =
+          index === null ? "Boards" : boards[index][0];
+        root.querySelector("#directory-results").hidden = index !== null;
+        root.querySelector("#thread-results").hidden = index === null;
+        root.querySelector("#list-back").hidden = index === null;
+        root
+          .querySelectorAll("[data-thread]")
+          .forEach((button) => button.removeAttribute("aria-current"));
+        listScroll = 0;
+        root.querySelector(".preview-results").scrollTop = 0;
+        showView("results");
+        root.querySelector("#results-title").focus();
+      };
+      root.querySelectorAll("[data-board]").forEach((link) =>
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          showBoard(Number(link.dataset.board));
+        }),
+      );
+      root.querySelectorAll("[data-all-boards]").forEach((link) =>
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          showBoard(null);
+        }),
+      );
+      root.querySelectorAll("[data-thread]").forEach((button) =>
+        button.addEventListener("click", () => {
+          selectedThread = {
+            ...sampleThreads.find(
+              (thread) => thread.id === Number(button.dataset.thread),
+            ),
+            board: boards[selectedBoard][0],
+          };
+          listScroll = root.querySelector(".preview-results").scrollTop;
+          root
+            .querySelectorAll("[data-thread]")
+            .forEach((item) =>
+              item.setAttribute("aria-current", String(item === button)),
+            );
+          root.querySelector("#reader-title").textContent =
+            selectedThread.title;
+          root.querySelector("#reader-board").textContent =
+            selectedThread.board;
+          root.querySelector("#reader-empty").hidden = true;
+          root.querySelector("#reader-content").hidden = false;
+          showView("reader");
+          root.querySelector("#reader-title").focus();
+        }),
+      );
+      root.querySelector("#resume-reading").addEventListener("click", () => {
+        showView("reader");
+        root.querySelector("#reader-title").focus();
+      });
+      root.querySelector("#reader-back").addEventListener("click", () => {
+        showView("results");
+        root.querySelector(".preview-results").scrollTop = listScroll;
+        (
+          root.querySelector('[data-thread][aria-current="true"]') ??
+          root.querySelector("#results-title")
+        ).focus({ preventScroll: true });
+      });
       const filter = root.querySelector("#filter");
       const filterCards = () => {
         const cards = [...root.querySelectorAll(".board-card")];
@@ -222,7 +368,7 @@
       };
       filter.addEventListener("input", filterCards);
       filterCards();
-      state();
+      showView("results");
     </script>
   </body>
 </html>

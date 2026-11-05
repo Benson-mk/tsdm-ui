@@ -1,6 +1,6 @@
 # Sidebar feedback and approval preview — 2026-11-05
 
-Branch: `feat/improve-ui-ux`. Status: final A selections captured; revised preview inspected and advisor-validated.
+Branch: `feat/improve-ui-ux`. Status: final A selections captured; browse-first/grouped-navigation preview verified and advisor-validated.
 This is a local feedback record for later GitHub tickets, not a published ticket or an accepted production change.
 
 ## Follow-up selections — 2026-11-05
@@ -125,3 +125,39 @@ Header revision acceptance:
 - [x] Pass static checks and final advisor validation; record the new trade-off.
 
 The gpt-6.1-sol xhigh advisor applied `validate-gpt-code-review` to the completed correction and retained evidence. It found no significant preview defect or distinct additional trade-off, and confirmed the inherited-grid/explicit-hide diagnosis. It did not independently rerun browser checks.
+
+## Browse-first narrow view, collapsible groups and contextual tools
+
+New feedback: the live workspace at 717px can leave an empty conversation surface when no thread is selected; show useful browsing content instead. Allow board groups to collapse. Reconsider sidebar Back/Refresh and move Continue in native forum into the header.
+
+Source context: the production layout docks Threads only at 768px and wider and always renders a conversation region, with a placeholder when no public/private reader is selected. Directory/board arrival can reveal a drawer, but closing it can leave an empty conversation surface: the placeholder markup exists, while CSS hides `.reader-placeholder` below 960px. The proposed no-selection fallback changes that presentation policy and will require production layout acceptance later. It must not auto-select/read a thread or override an already-open public/private conversation or writing context.
+
+Back is not simply disposable: `workspace.back()` uses the writing view-change guard before host history navigation. Refresh is context-specific: public thread history, messages and notices have their own loaders, and searches have deliberate rerun controls. Keep these functions, but preview them alongside the content rather than as a permanent sidebar block. Move the native escape to a persistent header control; preserve its exact destination and recovery/guard behavior when integrated. No global browser reload is introduced.
+
+Preview plan: below 768px start with a full-width board directory, then a full-width thread list after selecting a board, then a reader after selecting a sample thread. Boards/Threads header controls switch the visible preview surface; retain the selected sample reader when browsing again. Use independently collapsible native disclosure groups with names/counts and approved colors. Preserve disclosure state during in-page browsing only. Header native continuation remains an explicitly stubbed action in this synthetic preview.
+
+Before implementation, verify these failure scenarios: initial narrow screen is empty; choosing a board does not expose threads; opening/returning from a thread loses the list or selection; changing board silently destroys the retained reader; collapsing one group closes others or loses destinations; keyboard cannot toggle groups; native continuation disappears at narrow widths; adding its third icon reintroduces header wrapping; Refresh/Back disappear from their meaningful context; group state is falsely promised across reload. No new unit tests: use repeatable browser journeys for this isolated MVP.
+
+Additional actual trade-offs:
+
+- A full-width browse/list surface gives an immediate next action on small screens, while switching between browsing and reading takes an explicit action. The reader stays retained, and the prototype's single-screen switch is not the production modal-drawer implementation.
+- Collapsible groups shorten a long directory, at the cost of hiding board links until expanded. All groups start expanded, with counts and keyboard-operable disclosure controls; state lasts only for the mounted preview.
+- Moving Back/Refresh into the content makes their target clearer but reduces their global visibility. The list uses All boards and the reader uses Back to threads; production guarded history and refresh semantics must be retained.
+- Header native continuation is always reachable but adds a third control to the compact header. Its icon uses the same 44px target and tooltip/accessibility name as the pane controls.
+
+Browse/navigation preview acceptance:
+
+- [x] At narrow widths, show the full-width directory/list before selection and open the reader only after selecting a sample thread.
+- [x] Return to the list with its selected row retained; expose Return to reading and retain the previous reader when browsing another board.
+- [x] Collapse groups independently with keyboard-operable disclosures and preserve all 19 sample board destinations.
+- [x] Remove the sidebar history block, preview contextual return/refresh controls, and keep native continuation in the header.
+- [x] Keep all three header controls visible together at narrow widths and 125% text, with accessible names and 44px targets.
+- [x] Preserve repeatable browser evidence and pass formatting, module-syntax and whitespace checks.
+
+At 375×874 and 717×874, the initial results surface fills the viewport width and the empty reader is hidden. The board → sample thread → return journey preserves selection; changing to the Anime board leaves the Community reader available through Return to reading. Keyboard Enter collapsed only Community; that disclosure state remained unchanged through browsing. Community/Anime/Creative/Music retain 8/2/7/2 destinations, matching their displayed counts. All groups start expanded after reload; persistence across reload is not implemented.
+
+Header geometry passes at 375, 504, 717, 767, 768, 959, 960 and 1024px, at both 100% and 125% text. All three controls share a row, remain in the viewport and have at least 44×44px targets; below 960px each is exactly 44px wide with its visible label hidden. Native continuation and list refresh report that no forum action occurred. No browser console errors were observed. Prettier, extracted inline-module syntax and Git whitespace checks pass. No unit tests were added.
+
+Evidence: `evidence/runs/browse-first-2026-11-05/` contains observations, a reusable read-only header probe, replay instructions, source hashes, receipt, manifest and screenshots. The final `narrow-threads.jpg` (717×874) and `grouped-sidebar.jpg` (1024×874) were visually inspected. An initial narrow capture was scaled incorrectly; the final replacement is the approval image, and other early narrow captures are not used to establish visual acceptance. Viewport overrides and text enlargement were reset after verification. This remains a synthetic MVP using the available development runtime, not installed-browser, production drawer, writing-context or full edge-to-edge qualification.
+
+The gpt-6.1-sol xhigh advisor applied `validate-gpt-code-review` to the completed iteration, relevant production paths and retained artifacts. It found no significant preview-scope defect or egregious technical choice, and no distinct additional trade-off. It clarified that the production narrow placeholder is hidden by CSS, leaving an empty surface; the source-context wording above reflects that distinction. It did not independently rerun browser checks. All scoped preview acceptance criteria are verified; user design approval and production implementation remain pending.
