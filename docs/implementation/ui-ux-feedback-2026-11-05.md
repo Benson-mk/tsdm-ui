@@ -161,3 +161,25 @@ Header geometry passes at 375, 504, 717, 767, 768, 959, 960 and 1024px, at both 
 Evidence: `evidence/runs/browse-first-2026-11-05/` contains observations, a reusable read-only header probe, replay instructions, source hashes, receipt, manifest and screenshots. The final `narrow-threads.jpg` (717×874) and `grouped-sidebar.jpg` (1024×874) were visually inspected. An initial narrow capture was scaled incorrectly; the final replacement is the approval image, and other early narrow captures are not used to establish visual acceptance. Viewport overrides and text enlargement were reset after verification. This remains a synthetic MVP using the available development runtime, not installed-browser, production drawer, writing-context or full edge-to-edge qualification.
 
 The gpt-6.1-sol xhigh advisor applied `validate-gpt-code-review` to the completed iteration, relevant production paths and retained artifacts. It found no significant preview-scope defect or egregious technical choice, and no distinct additional trade-off. It clarified that the production narrow placeholder is hidden by CSS, leaving an empty surface; the source-context wording above reflects that distinction. It did not independently rerun browser checks. All scoped preview acceptance criteria are verified; user design approval and production implementation remain pending.
+
+## Narrow Threads toggle and redundant return action
+
+The owner questioned Return to reading and reported that Threads could not be turned off at 589px. That return button existed solely to expose a retained reader after browsing. A browser reproduction with a retained thread confirmed that clicking active Threads left `data-mobile-view="results"`, `aria-pressed="true"` and the reader hidden. The handler toggled only Boards; Threads always selected results. Reader loss and CSS visibility were alternative explanations, excluded by the retained title and unchanged selected view.
+
+Plan before editing: on narrow screens, clicking active Threads returns to a retained reader; clicking it again reopens the unchanged directory/list. Remove the now-redundant Return to reading control. With no retained reader, keep useful results visible instead of showing an empty surface. Keep the wider preview's docked-pane presentation unchanged. No irreversible decision requires early advisor consultation.
+
+Failure cases to replay: active Threads cannot close with a retained reader; reopening loses the selected row, browsing board or collapsed groups; removing Return to reading strands a reader after switching boards or returning to the directory; toggling without a retained reader yields blank content; keyboard activation differs from clicks; behavior changes unexpectedly at the 767/768 boundary. Use the already-failing browser journey and save before/after observations, not post-implementation unit tests.
+
+Actual trade-off: removing the explicit return button reduces duplicate controls but makes resuming reading depend on recognizing the Threads toggle. Its accessible name, pressed state and tooltip remain available. With no selected thread, the list remains the useful fallback and cannot toggle into an empty reader. This supersedes the previous iteration's explicit Return to reading choice.
+
+Toggle revision acceptance:
+
+- [x] Active Threads closes to the retained reader below 768px; another activation restores the current directory/list.
+- [x] Remove Return to reading without stranding the reader after directory or board changes.
+- [x] Preserve selected row on list return and collapsed groups through toggling; keyboard Enter works.
+- [x] With no selected thread keep results visible; preserve docked presentation from 768px.
+- [x] Save repeatable before/after browser evidence and pass formatting, module-syntax and whitespace checks.
+
+The original 589px reproduction changed from failing to passing: active results/pressed true/reader hidden becomes reader/pressed false/reader visible. The duplicate return control count is now zero. Click and keyboard journeys preserve the first selected row; returning from the directory or another board still shows the retained 事务所 reader. The collapsed Community group stays collapsed. Toggle checks pass at 375, 589 and 767px; at 768px repeated Threads activation retains the docked results and visible reader. The fresh no-selection state remains useful results. No browser console errors were observed. Screenshots at 589×874 were inspected; viewport overrides were reset. Evidence and replay instructions are retained in `evidence/runs/threads-toggle-2026-11-05/`. No unit tests or production changes were added.
+
+The gpt-6.1-sol xhigh advisor validated the finished correction with `validate-gpt-code-review`, found no significant defect or distinct additional trade-off, and confirmed the one-way-handler diagnosis. It reviewed retained artifacts without independently rerunning browser checks. In observations.json, `before` and `after` both record the failed baseline click; `reopened`, `closed`, keyboard and width records describe the fixed behavior. All scoped preview criteria above are verified.

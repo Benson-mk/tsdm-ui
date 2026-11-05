@@ -211,7 +211,7 @@
               </div>
               <footer class="navigation-account"><div class="identity"><small>Signed in as</small><strong>demo-member</strong></div><div class="account-actions"><button aria-label="Settings" title="Settings" data-dialog="Settings">${icon("settings")}<span class="action-text">Settings</span></button></div></footer>
             </aside>
-            <section class="preview-results"><div class="results-heading"><h1 id="results-title" tabindex="-1">Boards</h1><button class="context-action" data-stub="Refresh current list" aria-label="Refresh current list" title="Refresh current list">${icon("refresh")}</button></div><button class="context-action" data-all-boards id="list-back" hidden>All boards</button><button class="context-action" id="resume-reading" hidden>Return to reading</button><div id="directory-results"><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
+            <section class="preview-results"><div class="results-heading"><h1 id="results-title" tabindex="-1">Boards</h1><button class="context-action" data-stub="Refresh current list" aria-label="Refresh current list" title="Refresh current list">${icon("refresh")}</button></div><button class="context-action" data-all-boards id="list-back" hidden>All boards</button><div id="directory-results"><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
               .slice(0, 5)
               .map(
                 ([name, description], index) =>
@@ -249,7 +249,6 @@
         state();
       };
       const state = () => {
-        root.querySelector("#resume-reading").hidden = !selectedThread;
         root.querySelector("#reader-back").textContent =
           selectedBoard === null ? "Back to boards" : "Back to threads";
         host.style.setProperty(
@@ -280,13 +279,11 @@
       );
       root.querySelectorAll("[data-pane]").forEach((button) =>
         button.addEventListener("click", () => {
-          showView(
-            button.dataset.pane === "boards" && mobileView === "boards"
-              ? selectedThread
-                ? "reader"
-                : "results"
-              : button.dataset.pane,
-          );
+          const pane = button.dataset.pane;
+          const closing =
+            mobileView === pane &&
+            (pane === "boards" || matchMedia("(max-width:767px)").matches);
+          showView(closing ? (selectedThread ? "reader" : "results") : pane);
         }),
       );
       const showBoard = (index) => {
@@ -340,10 +337,6 @@
           root.querySelector("#reader-title").focus();
         }),
       );
-      root.querySelector("#resume-reading").addEventListener("click", () => {
-        showView("reader");
-        root.querySelector("#reader-title").focus();
-      });
       root.querySelector("#reader-back").addEventListener("click", () => {
         showView("results");
         root.querySelector(".preview-results").scrollTop = listScroll;
