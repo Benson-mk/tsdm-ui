@@ -2,8 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sidebar MVP — approval preview</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <title>Sidebar MVP — revised A</title>
     <style>
       html,
       body {
@@ -23,7 +27,7 @@
   <body>
     <div id="preview"></div>
     <script type="module">
-      // Throwaway approval MVP: two account-footer arrangements in workspace context.
+      // Throwaway approval MVP: selected A footer with About inside Settings.
       // Synthetic data only. Not imported by the production entry point.
       import workspaceStyles from "../styles.css?inline";
       const host = document.querySelector("#preview");
@@ -40,11 +44,8 @@
         drafts: '<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h8M8 16h6"/>',
         settings:
           '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--surface)"/><circle cx="15" cy="17" r="3" fill="var(--surface)"/>',
-        about: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/>',
         threads: '<path d="M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"/>',
         brand: '<path d="M12 2v20M2 12h20M5 5l14 14M5 19 19 5"/>',
-        left: '<path d="m15 5-7 7 7 7"/>',
-        right: '<path d="m9 5 7 7-7 7"/>',
       };
       const icon = (name) =>
         `<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
@@ -68,8 +69,8 @@
         ["活动专区", "查看近期活动。", 0],
         ["天使名册", "认识社区的朋友。", 0],
         ["天使动漫萌战", "动漫角色讨论。", 1],
-        ["音乐分享", "一起发现音乐。", 2],
-        ["动漫音乐", "分享喜欢的旋律。", 2],
+        ["音乐分享", "一起发现音乐。", 3],
+        ["动漫音乐", "分享喜欢的旋律。", 3],
         ["绘画交流", "分享创作与灵感。", 2],
         ["TSDM杂志社", "社区创作与投稿。", 2],
         ["萌化区", "主题与桌面交流。", 2],
@@ -82,78 +83,67 @@
         ["版主申请区 / 各工作组", "社区协作与申请。", 0],
       ];
       root.innerHTML = `<style>${workspaceStyles}</style><style>
-        :host { display:block; height:100%; --hover-surface:#edf2f7; --text-scale:1; }
-        .prototype-shell { height:100dvh; display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; }
-        .preview-banner { padding:8px 16px; background:#f2f0e9; border-bottom:1px solid var(--separator); font-size:13px; line-height:1.5; }
+        :host { display:block; height:100%; --hover-surface:var(--soft); --safe-top:env(safe-area-inset-top,0px); --safe-right:env(safe-area-inset-right,0px); --safe-bottom:env(safe-area-inset-bottom,0px); --safe-left:env(safe-area-inset-left,0px); --text-scale:1; }
+        .prototype-shell { height:100vh; height:100dvh; display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; }
+        .preview-banner { padding:calc(8px + var(--safe-top)) max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); background:var(--soft); border-bottom:1px solid var(--separator); font-size:13px; line-height:1.5; }
         .workspace { min-height:0; height:100%; display:grid; grid-template-rows:auto minmax(0,1fr); }
-        .workspace > header { min-height:56px; padding:8px 16px; gap:12px; flex-wrap:wrap; }
+        .workspace > header { min-height:56px; padding:8px max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); gap:12px; flex-wrap:wrap; }
         .brand { display:flex; gap:8px; font-size:24px; }
         svg { width:20px; height:20px; flex:none; }
         .brand svg { width:24px; height:24px; }
         header button { gap:8px; }
         .workspace-caption { font-size:12px; }
-        main.preview-body { display:grid; grid-template-columns:264px minmax(260px,320px) minmax(0,1fr); min-height:0; max-width:none; width:100%; margin:0; padding:0; overflow:hidden; }
+        main.preview-body { display:grid; grid-template-columns:216px 300px minmax(0,1fr); min-height:0; max-width:none; width:100%; margin:0; padding:0; overflow:hidden; }
         .preview-body .boards-region { display:flex; flex-direction:column; overflow:hidden; padding:0; min-height:0; min-width:0; border-right:1px solid var(--separator); }
-        .sidebar-scroll { flex:1; min-height:0; overflow:auto; padding:12px; scrollbar-gutter:stable; }
+        .sidebar-scroll { flex:1; min-height:0; overflow:auto; padding:12px 12px 12px max(12px,var(--safe-left)); scrollbar-gutter:stable; }
         .sidebar-scroll .main-destinations { display:grid; gap:4px; padding:0; background:var(--surface); border:0; }
         .main-destinations button { min-height:44px; }
         .boards-navigation { padding:24px 0 12px; border:0; gap:4px; }
         .boards-navigation a { line-height:1.5; min-height:44px; font-size:calc(16px * var(--text-scale)); }
         .boards-navigation a::before { background:var(--support); }
-        :host([data-colors="groups"]) .boards-navigation a[data-group="0"]::before { background:#88b5d5; }
-        :host([data-colors="groups"]) .boards-navigation a[data-group="1"]::before { background:#b4a0cc; }
-        :host([data-colors="groups"]) .boards-navigation a[data-group="2"]::before { background:#85b6a0; }
-        :host([data-font="cjk"]) [lang="zh-Hans"] { font-family:"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif; }
-        :host([data-font="cjk"]) [lang="zh-Hant"] { font-family:"PingFang TC","Noto Sans CJK TC","Microsoft JhengHei",sans-serif; }
-        .preview-body .navigation-account { flex:none; border-top:1px solid var(--separator); margin:0; padding:12px; display:flex; align-items:center; gap:4px; background:var(--surface); color:var(--ink); }
+        :host([data-colors="groups"]) .boards-navigation a[data-group="0"]::before { background:var(--accent); }
+        :host([data-colors="groups"]) .boards-navigation a[data-group="1"]::before { background:#dda49f; }
+        :host([data-colors="groups"]) .boards-navigation a[data-group="2"]::before { background:var(--secondary-accent); }
+        :host([data-colors="groups"]) .boards-navigation a[data-group="3"]::before { background:var(--support); }
+        .preview-body .navigation-account { flex:none; border-top:1px solid var(--separator); margin:0; padding:12px 12px 12px max(12px,var(--safe-left)); display:flex; align-items:center; gap:4px; background:var(--surface); color:var(--ink); }
         .identity { flex:1; min-width:0; overflow-wrap:anywhere; font-size:calc(14px * var(--text-scale)); line-height:1.45; }
         .identity small { display:block; font-size:calc(12px * var(--text-scale)); color:var(--muted); }
         .account-actions { display:flex; gap:4px; flex:none; }
-        .account-actions button { min-width:44px; min-height:44px; padding:10px; border-radius:12px; gap:8px; }
+        .account-actions button { min-width:44px; min-height:44px; padding:10px; border-radius:50%; gap:8px; }
         .action-text { display:none; }
-        :host([data-variant="B"]) .navigation-account { flex-direction:column; align-items:stretch; gap:8px; }
-        :host([data-variant="B"]) .action-text { display:inline; }
-        :host([data-variant="B"]) .account-actions button { flex:1; justify-content:center; border:1px solid var(--separator); font-size:calc(14px * var(--text-scale)); }
-        :host([data-variant="B"]) .account-actions { flex-wrap:wrap; }
         .preview-results { padding:24px; min-height:0; overflow:auto; border-right:1px solid var(--separator); }
         .preview-results h1 { font-size:calc(30px * var(--text-scale)); font-weight:600; }
         .preview-results h2 { font-size:calc(21px * var(--text-scale)); margin:24px 0 16px; }
         .preview-results > p { font-size:calc(18px * var(--text-scale)); }
         .board-grid { display:grid; grid-template-columns:minmax(0,1fr); }
-        .board-card { padding:20px; font-size:calc(16px * var(--text-scale)); }
+        .board-card { padding:20px; border-radius:24px; font-size:calc(16px * var(--text-scale)); }
         .board-card strong { font-weight:600; font-size:calc(18px * var(--text-scale)); }
-        .preview-reader { padding:24px; overflow:auto; font-size:calc(18px * var(--text-scale)); }
+        .preview-reader { padding:24px max(24px,var(--safe-right)) 24px 24px; overflow:auto; font-size:calc(18px * var(--text-scale)); }
         .preview-reader p { margin:0; }
-        .font-sample { margin-top:32px; padding-top:16px; border-top:1px solid var(--separator); line-height:1.8; }
-        .font-sample small { color:var(--muted); font-size:13px; }
         button:hover:not(:disabled), a:hover { background:var(--hover-surface); text-decoration:none; }
         .main-destinations [aria-current="page"] { background:var(--ink); color:var(--surface); }
-        .main-destinations [aria-current="page"]:hover { background:#303030; }
+        .main-destinations [aria-current="page"]:hover { background:var(--ink); text-decoration:underline; }
         .board-card:hover { border-color:var(--boundary); background:var(--hover-surface); }
         .board-card:hover > strong { text-decoration:none; }
-        button:disabled { opacity:.4; cursor:default; }
-        :focus-visible { outline:3px solid #285e9a; outline-offset:2px; }
-        .preview-tools { padding:8px 12px; background:#f2f0e9; border-top:1px solid var(--separator); display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; font-size:12px; z-index:1; }
+        button:disabled { color:var(--ink); background:var(--soft); cursor:default; }
+        :focus-visible { outline:3px solid var(--ink); outline-offset:2px; box-shadow:0 0 0 2px var(--surface); }
+        .preview-tools { padding:8px max(12px,var(--safe-right)) calc(8px + var(--safe-bottom)) max(12px,var(--safe-left)); background:var(--soft); border-top:1px solid var(--separator); display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; font-size:12px; z-index:1; }
         .preview-tools label { display:flex; gap:6px; align-items:center; }
         .preview-tools input { width:18px; height:18px; }
-        .variant-switcher { display:flex; align-items:center; border-radius:28px; background:#171717; color:white; padding:0 4px; }
-        .variant-switcher button { color:white; min-width:44px; padding:10px; }
-        .variant-switcher button:hover { background:#444; }
-        .variant-label { min-width:150px; text-align:center; }
-        .preview-state { flex-basis:100%; margin:0; color:#555; font-size:12px; }
+        .preview-state { flex-basis:100%; margin:0; color:var(--ink); font-size:12px; }
         .history-tools { display:grid; gap:4px; padding:16px 0; border-top:1px solid var(--separator); }
         .history-tools button { text-align:left; font-size:14px; }
         .group-key { display:none; margin:12px 0; font-size:12px; color:var(--muted); }
         :host([data-colors="groups"]) .group-key { display:block; }
-        dialog { color:var(--ink); background:var(--surface); border:1px solid var(--separator); border-radius:16px; padding:24px; max-width:min(440px,80vw); }
-        dialog::backdrop { background:#0006; }
+        dialog { color:var(--ink); background:var(--surface); border:1px solid var(--separator); border-radius:24px; padding:24px; max-width:min(440px,calc(100vw - var(--safe-left) - var(--safe-right) - 32px)); max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px); overflow:auto; position:fixed; inset:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left); margin:auto; }
+        dialog::backdrop { background:#0009; }
         dialog p { line-height:1.5; }
         dialog button { border:1px solid var(--separator); }
-        @media(max-width:760px) { main.preview-body { grid-template-columns:250px minmax(0,1fr); } .preview-reader { display:none; } .workspace-caption { display:none; } header .brand { margin-right:auto; } }
-        @media(max-width:540px) { main.preview-body { grid-template-columns:minmax(0,1fr); } .preview-results { display:none; } .workspace > header { padding:8px 12px; } header .threads-control { display:none; } .preview-tools { gap:4px 12px; padding:8px; } .preview-state { font-size:11px; } }
+        @media(max-width:760px) { main.preview-body { grid-template-columns:216px minmax(0,1fr); } .preview-reader { display:none; } .workspace-caption { display:none; } header .brand { margin-right:auto; } }
+        @media(max-width:540px) { main.preview-body { grid-template-columns:minmax(0,1fr); } .preview-results { display:none; } .workspace > header { padding:8px max(12px,var(--safe-right)) 8px max(12px,var(--safe-left)); } header .threads-control { display:none; } .preview-tools { gap:4px 12px; } .preview-body .boards-region { border-right:0; } .sidebar-scroll,.preview-body .navigation-account { padding-right:max(12px,var(--safe-right)); } .preview-state { font-size:11px; } }
       </style>
       <div class="prototype-shell">
-        <div class="preview-banner"><strong>Sidebar MVP · approval preview</strong> — synthetic content. Scroll the boards; the account and tools stay visible.</div>
+        <div class="preview-banner"><strong>Sidebar MVP · revised A</strong> — synthetic content. Scroll the boards; the account and tools stay visible.</div>
         <div class="workspace">
           <header><a class="brand" href="#" data-stub="Home">${icon("brand")}TSDM</a><span class="workspace-caption">Forum / IM</span><button data-stub="Boards pane">${icon("boards")}Boards</button><button class="threads-control" data-stub="Threads pane">${icon("threads")}Threads pane</button></header>
           <main class="preview-body">
@@ -162,10 +152,10 @@
                 <p class="navigation-caption">Main destinations</p>
                 <nav aria-label="Main destinations" class="main-destinations">${sections.map((section, i) => `<button ${i === 0 ? 'aria-current="page"' : ""} data-stub="${section}">${icon(section.toLowerCase())}<span>${section}</span></button>`).join("")}</nav>
                 <nav class="boards-navigation" aria-label="Browse boards"><h2>Browse boards</h2><a href="#" data-stub="All boards">All boards</a>${boards.map(([name, , group]) => `<a href="#" lang="zh-Hans" data-group="${group}" data-stub="Board preview">${name}</a>`).join("")}</nav>
-                <p class="group-key">Illustrative groups: blue · community; purple · anime; green · creative. Not unread status.</p>
+                <p class="group-key">Sample groups: green · Community; rose · Anime; lavender · Creative; blue · Music. Color supplements the board name.</p>
                 <div class="history-tools"><button disabled>Back</button><button data-stub="Refresh">Refresh</button><button data-stub="Native forum">Continue in native forum</button></div>
               </div>
-              <footer class="navigation-account"><div class="identity"><small>Signed in as</small><strong>demo-member</strong></div><div class="account-actions"><button aria-label="Settings" title="Settings" data-dialog="Settings">${icon("settings")}<span class="action-text">Settings</span></button><button aria-label="About this workspace" title="About this workspace" data-dialog="About this workspace">${icon("about")}<span class="action-text">About</span></button></div></footer>
+              <footer class="navigation-account"><div class="identity"><small>Signed in as</small><strong>demo-member</strong></div><div class="account-actions"><button aria-label="Settings" title="Settings" data-dialog="Settings">${icon("settings")}<span class="action-text">Settings</span></button></div></footer>
             </aside>
             <section class="preview-results"><h1>Boards</h1><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
               .slice(0, 5)
@@ -174,53 +164,26 @@
                   `<a href="#" class="board-card" lang="zh-Hans" data-stub="Board preview"><strong>${name}</strong><span>${description}</span></a>`,
               )
               .join("")}</div></section>
-            <section class="preview-reader"><p>Choose a thread to read. Browsing boards keeps your current thread and writing.</p><div class="font-sample"><small>Typography comparison · local fonts</small><p lang="zh-Hans">动漫游戏新闻<br/>欢迎来到天使动漫论坛。</p><p lang="zh-Hant">動漫遊戲新聞<br/>歡迎來到天使動漫論壇。</p></div></section>
+            <section class="preview-reader"><p>Choose a thread to read. Browsing boards keeps your current thread and writing.</p></section>
           </main>
         </div>
-        <div class="preview-tools" aria-label="Prototype comparisons"><div class="variant-switcher"><button aria-label="Previous footer">${icon("left")}</button><span class="variant-label" aria-live="polite"></span><button aria-label="Next footer">${icon("right")}</button></div><label><input type="checkbox" id="colors"/>Group colors (sample)</label><label><input type="checkbox" id="font"/>Chinese font stack</label><label><input type="checkbox" id="large"/>125% text</label><p class="preview-state" role="status"></p></div>
-        <dialog aria-labelledby="dialog-title"><h2 id="dialog-title"></h2><p>Preview only. Production will keep the existing Reka dialog and its behavior.</p><button id="close-dialog">Close</button></dialog>
+        <div class="preview-tools" aria-label="Preview controls"><strong>A · Compact Settings · About inside</strong><label><input type="checkbox" id="large"/>125% text</label><p class="preview-state" role="status"></p></div>
+        <dialog aria-labelledby="dialog-title"><h2 id="dialog-title">Settings</h2><p>Preview only. No preferences are saved.</p><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3><p>Your existing appearance controls belong here.</p></section><section aria-labelledby="about-heading"><h3 id="about-heading">About this workspace</h3><p>TSDM — a workspace for boards, threads and private conversations.</p></section><button id="close-dialog">Close</button></dialog>
       </div>`;
-      const initial = new URL(location.href).searchParams.get("variant");
-      let variant = initial === "B" ? "B" : "A";
+      host.dataset.variant = "A";
+      host.dataset.colors = "groups";
+      const url = new URL(location.href);
+      url.searchParams.set("variant", "A");
+      history.replaceState(null, "", url);
       const state = () => {
-        host.dataset.variant = variant;
-        host.dataset.colors = root.querySelector("#colors").checked
-          ? "groups"
-          : "single";
-        host.dataset.font = root.querySelector("#font").checked
-          ? "cjk"
-          : "current";
         host.style.setProperty(
           "--text-scale",
           root.querySelector("#large").checked ? "1.25" : "1",
         );
-        root.querySelector(".variant-label").textContent =
-          variant === "A" ? "A · Compact actions" : "B · Labelled actions";
         root.querySelector(".preview-state").textContent =
-          `Footer: ${variant} · Dots: ${host.dataset.colors === "groups" ? "illustrative groups" : "one color"} · Font: ${host.dataset.font === "cjk" ? "explicit Chinese fallbacks" : "current stack"} · Text: ${root.querySelector("#large").checked ? "125%" : "100%"} · Forum actions: stubbed`;
-        const url = new URL(location.href);
-        url.searchParams.set("variant", variant);
-        history.replaceState(null, "", url);
+          `Group colors: DESIGN.md palette · Hover: surface-soft #eeeeee · Font: unchanged · Text: ${root.querySelector("#large").checked ? "125%" : "100%"} · Synthetic preview`;
       };
-      const changeVariant = () => {
-        variant = variant === "A" ? "B" : "A";
-        state();
-      };
-      root
-        .querySelectorAll(".variant-switcher button")
-        .forEach((button) => button.addEventListener("click", changeVariant));
-      root
-        .querySelectorAll(".preview-tools input")
-        .forEach((input) => input.addEventListener("change", state));
-      root.addEventListener("keydown", (event) => {
-        if (
-          !["ArrowLeft", "ArrowRight"].includes(event.key) ||
-          event.target.closest("input,textarea,select,[contenteditable],dialog")
-        )
-          return;
-        event.preventDefault();
-        changeVariant();
-      });
+      root.querySelector("#large").addEventListener("change", state);
       const dialog = root.querySelector("dialog");
       root.querySelectorAll("[data-dialog]").forEach((button) =>
         button.addEventListener("click", () => {

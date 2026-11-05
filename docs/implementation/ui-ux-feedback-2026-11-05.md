@@ -1,9 +1,19 @@
 # Sidebar feedback and approval preview — 2026-11-05
 
-Branch: `feat/improve-ui-ux`. Status: feedback captured; design approval pending.
+Branch: `feat/improve-ui-ux`. Status: final A selections captured; revised preview inspected and advisor-validated.
 This is a local feedback record for later GitHub tickets, not a published ticket or an accepted production change.
 
-## Feedback captured
+## Follow-up selections — 2026-11-05
+
+The owner selected group colors, discarded the Chinese-font experiment, initially selected footer B, then corrected item 6 to A, and moved About inside Settings. These supersede the original comparison options below. No font-stack change is requested. Keep one accessible Settings icon beside the account; show About as a section in Settings, without an additional nested dialog.
+
+The owner also asked whether the hover color came from `/Users/benson/Documents/code/tsdm-ui-experiment/DESIGN.md` and whether the MVP was edge-to-edge. Inspection confirmed that the original `#edf2f7` hover color, sample dot colors and blue focus ring were outside its palette. Correct the preview to approved tokens: soft hover `#eeeeee`; Community `#ebf5e8`, Anime `#dda49f`, Creative `#a29bba`, Music `#a6c6e1`; black/white focus treatment. Keep selected primary fill unchanged and underline its label on hover as specified. Group assignments remain synthetic pending real forum group mapping.
+
+The initial preview filled the viewport but did not implement the complete edge-to-edge contract in DESIGN.md: `viewport-fit=cover`, safe content insets, visual-viewport keyboard behavior and device checks. Rounded cards and pane gutters are allowed by that contract. For this revision add viewport cover and basic safe-area protection to the sample's owning surfaces/content, and use the documented 216px/300px desktop tracks. This is still a sidebar preview, not qualification of system bars, physical cutouts, keyboard handling, drawers or the full mobile workflow.
+
+Before editing, check these failure cases: About remains independently visible in the footer; discarded font CSS/toggles remain active; comparison controls can restore rejected B; approved colors are assigned to the wrong illustrative categories; hover overrides selected fill; the footer moves while scrolling; safe-area padding clips the footer/dialog; imported CSS overrides the intended focus ring. Verify the revised Settings section, scroll geometry and computed palette values in the browser after editing.
+
+## Original feedback captured
 
 | Comment | Request                                               | Evidence and proposed direction                                                                                                                                                                                                                                                                                                                  |
 | ------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -14,7 +24,7 @@ This is a local feedback record for later GitHub tickets, not a published ticket
 | 5       | Keep sign-in information visible without scrolling.   | `.navigation-account` is inside the scrolling `.boards-region`. Preview a non-scrolling footer with the navigation body scrolling independently. Preserve accurate member/guest/unknown/restored wording in production.                                                                                                                          |
 | 6       | Move Settings and About beside sign-in information.   | Both triggers currently live in the header. Compare compact icon actions beside the account with a labelled action row below it. Production must preserve existing Reka dialogs, portals, focus return, collapsed-pane access and mobile drawers.                                                                                                |
 
-## Preview question and plan
+## Original preview question and plan
 
 Can one fixed account footer make identity and workspace tools reachable while the board list scrolls, and are compact icons or visible labels preferable?
 
@@ -31,13 +41,13 @@ Before writing the preview, consider these failure modes:
 7. A preview is mistaken for functional forum integration; label synthetic content and stub actions, with no forum requests or writes.
 8. Moving controls makes them inaccessible in a collapsed production sidebar; defer integration until the drawer/header entry behavior is verified through E2E expectations written before implementation.
 
-## Run and inspect
+## Run the revised preview
 
 Run `npm run dev -- --port 5173`, then open:
 
 `http://127.0.0.1:5173/src/layouts/sidebar-feedback.prototype.html?variant=A`
 
-Variant A places icon actions beside the account. Variant B places labelled actions below it. The comparison bar changes the URL variant; arrow keys switch variants outside editable/form controls. Dot/font choices live only in memory. Scroll the sidebar and try Settings/About, hover, keyboard focus, and the larger-text control. Dialogs are illustrative native-dialog stubs, not the existing Reka integration.
+The selected A layout places a Settings icon beside the account, with About as a section inside Settings. Group colors are enabled using the design palette, and the font experiment and A/B switcher have been removed. Scroll the sidebar and try Settings, hover, keyboard focus, and the larger-text control. The dialog remains an illustrative native-dialog stub, not the existing Reka integration.
 
 ## Actual trade-offs
 
@@ -45,11 +55,11 @@ Variant A places icon actions beside the account. Variant B places labelled acti
 2. Reserving a fixed footer keeps identity and tools visible but reduces the board list's visible height. The entire navigation body scrolls, keeping primary destinations reachable even at short heights.
 3. Compact icon actions preserve vertical space but rely on accessible names/tooltips for discoverability. The labelled alternative is clearer and handles long names more comfortably at the cost of a taller footer.
 4. Inline SVGs make this throwaway comparison dependency-free and consistent in size; production icon-library selection and its bundle/license cost remain pending.
-5. Local script-specific font fallbacks avoid font downloads and favor appropriate Chinese faces; appearance still varies by OS and installed fonts, and correct language tagging is required.
-6. Optional group colors add visual differentiation but require meaningful, stable group mapping; the preview uses illustrative groups and retains a one-color option. Color never carries the only identifying information.
+5. Original preview only, now discarded: local script-specific font fallbacks avoided font downloads but varied by OS and installed fonts. The revised preview uses the unchanged application stack.
+6. Selected group colors add visual differentiation but require meaningful, stable group mapping; the revised preview uses illustrative groups with the approved category palette. Color never carries the only identifying information. The one-color comparison was removed after selection.
 7. Surface-tint hover feedback is more visible but adds visual emphasis to controls; selected states remain stronger and keyboard focus uses an independent outline.
 
-## Verification and approval
+## Original preview verification — commit 51a8585
 
 Preview-delivery acceptance:
 
@@ -68,3 +78,25 @@ Local evidence: `evidence/runs/sidebar-preview-2026-11-05/` contains `report.md`
 The requested gpt-6.1-sol advisor at xhigh reasoning applied `validate-gpt-code-review` after the preview was complete. It confirmed the source hypotheses and found no significant preview-scope defect or egregious decision, with no distinct additional trade-offs. It identified the narrow capture limitation, now recorded above, and did not independently rerun the browser observations.
 
 Design approval remains pending. The prototype is not imported by `src/main.ts` or the Vite production entry. Production implementation, E2E expectations written before implementation, existing Reka dialog integration, collapsed/mobile access and installed-browser qualification remain future work. Approval of a preview is not installed-browser acceptance or permission to publish GitHub tickets immediately.
+
+## Revision trade-offs and verification
+
+Additional actual trade-offs in this revision:
+
+8. Putting About inside Settings simplifies the footer, with one additional action to reach that information. A section within the same dialog avoids a second modal/focus layer.
+9. The documented 216px/300px desktop tracks restore the reference proportions and give more room to the reader, at the cost of more wrapping in the sidebar than the initial 264px track.
+10. Basic safe-area padding keeps essential preview controls inside browser-reported insets but reduces usable content space when those insets are nonzero. It cannot establish physical keyboard/cutout behavior; the complete viewport and drawer integration remains outside this visual preview.
+
+Revision acceptance:
+
+- [x] Enable approved category colors and remove the font experiment.
+- [x] Apply the final A selection with one named Settings icon beside the account and About inside Settings.
+- [x] Correct hover/focus colors using DESIGN.md and accurately distinguish partial edge-to-edge support from the complete contract.
+- [x] Inspect the revised footer, Settings/About, hover and enlarged text; preserve repeatable artifacts.
+- [x] Pass formatting/module-syntax/whitespace checks and final advisor validation.
+
+Final A browser observations at 1052×874: the footer stayed at y=742, height=69 after navigation scrollTop=1022.5. Settings contained a visible About section; Escape returned focus to Settings. Computed group colors matched all four approved Light roles; hover was `rgb(238, 238, 238)` and the font stack was unchanged. At 125% text the footer bottom was 811, within viewport height 874, with no document horizontal overflow. No console errors were observed. No automated tests were added for this visual preview.
+
+Final artifacts are in `evidence/runs/sidebar-preview-2026-11-05-revision-a/`: screenshots, `observations.json`, replay report, receipt with source/reference hashes, and manifest. Intermediate B evidence stays separate in the `revision-b` directory. These are Git-ignored local artifacts. The actual reference document was read but not modified.
+
+The same gpt-6.1-sol xhigh advisor validated the final A source and artifacts using `validate-gpt-code-review`, found no significant preview-scope defect, confirmed the partial edge-to-edge wording, and identified no additional trade-offs. It did not independently repeat browser checks. Production integration and physical-device edge-to-edge acceptance remain future work.
