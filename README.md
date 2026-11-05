@@ -2268,3 +2268,9 @@ THE SOFTWARE.
 <!-- third-party-notices:end -->
 
 </details>
+
+Version 0.16.0 adds optional `Thread.history` with native-provenance earlier/later
+links, explicit known beginning/end, a returned latest target and ordering.
+Missing metadata means an unqualified boundary, not an empty history. Existing
+`Thread` models and required client/transport operations remain compatible. The
+workspace keeps loaded ranges transient rather than growing recovery snapshots.

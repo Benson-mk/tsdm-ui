@@ -20,6 +20,7 @@ import type {
   ContentNode,
   HostResponse,
   ReadResult,
+  ThreadHistory,
 } from "./types.js";
 const positive = (value: string | null): value is string =>
   value !== null && /^[1-9]\d*$/.test(value);
@@ -49,6 +50,98 @@ function readable(nodes: readonly ContentNode[]): boolean {
         node.tag === "img" ||
         readable(node.children),
   );
+}
+/** Native .pg controls, never link text or a guessed posts-per-page value. */
+function threadHistory(doc: Node, base: string): ThreadHistory | undefined {
+  const url = threadURL(base);
+  if (!url || ![null, "0", "1"].includes(url.searchParams.get("ordertype")))
+    return;
+  const root = descendants(
+    doc,
+    (node) => hasClass(node, "pg") && outsidePosts(node),
+  )[0];
+  if (!root) return;
+  const current = label(
+    descendants(root, (node) => node.tagName === "strong")[0],
+  );
+  const input = descendants(
+    root,
+    (node) => node.tagName === "input" && attr(node, "name") === "custompage",
+  );
+  if (
+    !positive(current) ||
+    input.length !== 1 ||
+    attr(input[0]!, "value") !== current ||
+    current !== (url.searchParams.get("page") ?? "1")
+  )
+    return;
+  const offered = (className: string) => {
+    const nodes = descendants(
+      root,
+      (node) => node.tagName === "a" && hasClass(node, className),
+    );
+    if (!nodes.length) return null;
+    if (nodes.length !== 1) return undefined;
+    const href = safeURL(attr(nodes[0]!, "href"), base);
+    const route = href && threadURL(href);
+    if (
+      !route ||
+      route.origin !== url.origin ||
+      ["tid", "authorid", "ordertype"].some(
+        (key) =>
+          (route.searchParams.get(key) ?? (key === "ordertype" ? "0" : "")) !==
+          (url.searchParams.get(key) ?? (key === "ordertype" ? "0" : "")),
+      )
+    )
+      return undefined;
+    return {
+      url: cleanURL(route.href),
+      label: label(nodes[0]) || route.searchParams.get("page") || "1",
+    };
+  };
+  const prev = offered("prev"),
+    next = offered("nxt"),
+    last = offered("last");
+  if (prev === undefined || next === undefined || last === undefined) return;
+  const page = Number(current);
+  if (
+    (prev &&
+      Number(new URL(prev.url).searchParams.get("page") ?? "1") !== page - 1) ||
+    (next &&
+      Number(new URL(next.url).searchParams.get("page") ?? "1") !== page + 1) ||
+    (!prev && page !== 1)
+  )
+    return;
+  const numbered = descendants(root, (node) => node.tagName === "a").flatMap(
+    (node) => {
+      const href = safeURL(attr(node, "href"), base);
+      const pageURL = href && threadURL(href);
+      return pageURL &&
+        pageURL.origin === url.origin &&
+        pageURL.searchParams.get("tid") === url.searchParams.get("tid")
+        ? [Number(pageURL.searchParams.get("page") ?? "1")]
+        : [];
+    },
+  );
+  if (
+    (!next && numbered.some((value) => value > page)) ||
+    (!prev && numbered.some((value) => value < page))
+  )
+    return;
+  const descending = url.searchParams.get("ordertype") === "1";
+  const beginning = !prev && page === 1;
+  const end = !next;
+  return {
+    earlier: descending ? next : prev,
+    later: descending ? prev : next,
+    beginning: descending ? end : beginning,
+    end: descending ? beginning : end,
+    latest:
+      !descending && last
+        ? { ...last, url: `${last.url.split("#")[0]}#lastpost` }
+        : null,
+    order: descending ? "descending" : "ascending",
+  };
 }
 export function accountFrom(doc: Node, base: string): Account {
   const headers = descendants(
@@ -402,6 +495,7 @@ export function decodeThread(
       "A post could not be interpreted. Continue in the native forum for complete content.",
     );
   const pages = pagination(doc, response.url);
+  const history = threadHistory(doc, response.url);
   let target =
     /^#pid([1-9]\d*)$/.exec(requested.hash)?.[1] ??
     requested.searchParams.get("viewpid");
@@ -448,6 +542,7 @@ export function decodeThread(
       url: cleanURL(response.url),
       posts: posts.filter((post) => post !== null),
       pages,
+      ...(history ? { history } : {}),
       filters: [
         ...new Map(
           descendants(

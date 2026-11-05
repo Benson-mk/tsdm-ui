@@ -272,6 +272,27 @@ function result(value: unknown): boolean {
       Object.values(search.edited).every((value) => list(value, string))
     );
   }
+  if (value.kind === "messages") {
+    const messages = value.messages;
+    return (
+      object(messages) &&
+      destination(messages.url) &&
+      string(messages.empty) &&
+      pages(messages.pages) &&
+      list(
+        messages.peers,
+        (peer) =>
+          object(peer) &&
+          id(peer.id) &&
+          id(peer.peerId) &&
+          string(peer.name) &&
+          url(peer.url, true) &&
+          string(peer.preview) &&
+          string(peer.time) &&
+          typeof peer.unread === "boolean",
+      )
+    );
+  }
   if (value.kind === "notices") {
     const notices = value.notices;
     return (
@@ -311,6 +332,15 @@ function result(value: unknown): boolean {
       destination(t.url) &&
       list(t.posts, post) &&
       pages(t.pages) &&
+      (t.history === undefined ||
+        (object(t.history) &&
+          (t.history.earlier === null || link(t.history.earlier)) &&
+          (t.history.later === null || link(t.history.later)) &&
+          (t.history.latest === null || link(t.history.latest)) &&
+          typeof t.history.beginning === "boolean" &&
+          typeof t.history.end === "boolean" &&
+          (t.history.order === "ascending" ||
+            t.history.order === "descending"))) &&
       list(t.filters, link) &&
       (t.parent === null || link(t.parent)) &&
       (t.target === null || id(t.target)) &&
@@ -395,7 +425,18 @@ function result(value: unknown): boolean {
 
 /** Recognize this application's inert navigation record, not arbitrary JSON. */
 export function isNavigationRecord(value: unknown): value is NavigationRecord {
-  if (!object(value) || value.schema !== 2 || !object(value.entries))
+  if (
+    !object(value) ||
+    (value.schema !== 2 && value.schema !== 3) ||
+    !object(value.entries)
+  )
+    return false;
+  if (
+    value.schema === 2 &&
+    object(value.writing) &&
+    (value.writing.action === "private-message" ||
+      value.writing.privateAttempts !== undefined)
+  )
     return false;
   if (!(value.writing === null || isWritingContext(value.writing)))
     return false;
@@ -447,21 +488,121 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
       !object(entry) ||
       (entry.section !== undefined &&
         (typeof entry.section !== "string" ||
-          !["boards", "search", "saved", "notices", "drafts"].includes(
-            entry.section,
-          ))) ||
+          ![
+            "boards",
+            "search",
+            "saved",
+            "notices",
+            "messages",
+            "drafts",
+          ].includes(entry.section))) ||
       entry.key !== entryKey ||
       !destination(entry.destination) ||
       !(
         entry.originKey === null ||
         (key(entry.originKey) && Object.hasOwn(entries, entry.originKey))
       ) ||
+      (entry.readingKey !== undefined &&
+        entry.readingKey !== null &&
+        !(key(entry.readingKey) && Object.hasOwn(entries, entry.readingKey))) ||
       !nullableString(entry.selection) ||
       !nullableString(entry.account) ||
+      !(
+        entry.drafts === undefined ||
+        entry.drafts === null ||
+        (object(entry.drafts) &&
+          entry.drafts.kind === "drafts" &&
+          account(entry.drafts.account) &&
+          finite(entry.drafts.generation) &&
+          url(entry.drafts.sourceURL, true) &&
+          object(entry.drafts.drafts) &&
+          url(entry.drafts.drafts.url, true) &&
+          pages(entry.drafts.drafts.pages) &&
+          string(entry.drafts.drafts.empty) &&
+          list(
+            entry.drafts.drafts.rows,
+            (row) =>
+              object(row) &&
+              id(row.threadId) &&
+              id(row.boardId) &&
+              string(row.title) &&
+              url(row.url, true),
+          ))
+      ) ||
       !(entry.documentNavigations === 0 || entry.documentNavigations === 1) ||
       !(entry.result === null || result(entry.result))
     )
       return false;
+    if (entry.readingMarker !== undefined) {
+      const marker = entry.readingMarker;
+      if (
+        !object(marker) ||
+        !finite(marker.savedAt) ||
+        marker.savedAt < 0 ||
+        !string(marker.url) ||
+        !destination(marker.url) ||
+        !string(marker.account) ||
+        marker.account !== entry.account ||
+        !object(marker.position) ||
+        !string(marker.position.anchor) ||
+        !finite(marker.position.offset) ||
+        !finite(marker.position.scrollTop) ||
+        marker.position.scrollTop < 0 ||
+        (marker.position.readingPaneTop !== undefined &&
+          !finite(marker.position.readingPaneTop)) ||
+        (marker.position.readingRegionScrollTop !== undefined &&
+          (!finite(marker.position.readingRegionScrollTop) ||
+            marker.position.readingRegionScrollTop < 0))
+      )
+        return false;
+      const target = describeDestination(marker.url);
+      const targetURL = new URL(marker.url);
+      if (
+        [...targetURL.searchParams.keys()].some((name) =>
+          /^(?:formhash|token|auth|password|sid)$/i.test(name),
+        )
+      )
+        return false;
+      if (target?.kind === "private-conversation") {
+        const source = describeDestination(String(entry.destination));
+        const sourceURL = new URL(String(entry.destination));
+        if (
+          source?.kind !== "private-conversation" ||
+          !/^member:[1-9]\d*$/.test(marker.account) ||
+          !/^pmlist_[1-9]\d*$/.test(marker.position.anchor) ||
+          targetURL.origin !== sourceURL.origin ||
+          targetURL.searchParams.get("touid") !==
+            sourceURL.searchParams.get("touid") ||
+          (targetURL.searchParams.get("daterange") ?? "0") !==
+            (sourceURL.searchParams.get("daterange") ?? "0") ||
+          [...targetURL.searchParams.keys()].some(
+            (name) =>
+              !["mod", "do", "subop", "touid", "daterange", "page"].includes(
+                name,
+              ),
+          )
+        )
+          return false;
+      } else {
+        if (
+          !object(entry.result) ||
+          entry.result.kind !== "thread" ||
+          !object(entry.result.thread)
+        )
+          return false;
+        const source = new URL(String(entry.result.thread.url));
+        if (
+          target?.kind !== "thread" ||
+          targetURL.searchParams.get("tid") !== entry.result.thread.id ||
+          targetURL.searchParams.get("authorid") !==
+            source.searchParams.get("authorid") ||
+          (targetURL.searchParams.get("ordertype") ?? "0") !==
+            (source.searchParams.get("ordertype") ?? "0") ||
+          !/^pid[1-9]\d*$/.test(marker.position.anchor)
+        )
+          return false;
+      }
+    }
     const position = entry.position;
     if (!(
       position === null ||
@@ -469,7 +610,18 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
         nullableString(position.anchor) &&
         finite(position.offset) &&
         finite(position.scrollTop) &&
-        position.scrollTop >= 0)
+        position.scrollTop >= 0 &&
+        (position.readingPaneTop === undefined ||
+          finite(position.readingPaneTop)) &&
+        (position.readingRegionScrollTop === undefined ||
+          (finite(position.readingRegionScrollTop) &&
+            position.readingRegionScrollTop >= 0)) &&
+        (position.readingScrollTop === undefined ||
+          (finite(position.readingScrollTop) &&
+            position.readingScrollTop >= 0)) &&
+        (position.resultsScrollTop === undefined ||
+          (finite(position.resultsScrollTop) &&
+            position.resultsScrollTop >= 0)))
     ))
       return false;
   }

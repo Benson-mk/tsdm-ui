@@ -70,7 +70,9 @@ test("J5.appearance-rail-labels: enlarged destination words remain complete with
       .evaluate((rail) => {
         const words = Array.from(rail.querySelectorAll("button"), (button) => {
           const range = document.createRange();
-          range.selectNodeContents(button);
+          range.selectNodeContents(
+            button.querySelector(".destination-label") ?? button,
+          );
           const text = range.getBoundingClientRect();
           const target = button.getBoundingClientRect();
           return {
@@ -100,7 +102,7 @@ test("J5.appearance-rail-labels: enlarged destination words remain complete with
   });
 });
 
-test("J2.section-overviews: each destination replaces the reader, supports medium/narrow navigation and restores passively", async ({
+test("J2.section-overviews: destinations retain reading, support medium/narrow navigation and restore passively", async ({
   page,
 }, info) => {
   const requests = await open(page);
@@ -123,7 +125,12 @@ test("J2.section-overviews: each destination replaces the reader, supports mediu
       await expect(
         page.getByRole("heading", { name: description, exact: true }),
       ).toBeVisible();
-    await expect(page.getByRole("article")).toHaveCount(0);
+    // Accepted #67 keeps the selected reading context beside each overview.
+    await expect(page.getByRole("article")).toHaveCount(12);
+    await expect(page.getByRole("article").first()).toHaveAttribute(
+      "id",
+      "pid101",
+    );
     expect(requests).toHaveLength(2);
   }
   await page.reload();
@@ -147,8 +154,9 @@ test("J2.section-overviews: each destination replaces the reader, supports mediu
   await page.setViewportSize({ width: 390, height: 844 });
   await revealNavigation(page);
   await page
-    .getByRole("combobox", { name: "Main destinations", exact: true })
-    .selectOption("search");
+    .getByRole("navigation", { name: "Main destinations", exact: true })
+    .getByRole("button", { name: "Search", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
   ).toBeVisible();
@@ -200,11 +208,11 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
     await expect(page.getByRole("article")).toHaveCount(12);
     const metrics: unknown[] = [];
     const widths = [
-      375, 559, 560, 767, 768, 959, 960, 1279, 1280, 1400, 1440, 1920,
+      375, 390, 559, 560, 767, 768, 959, 960, 1199, 1200, 1280, 1440, 1920,
     ];
     let index = 0;
     for (const width of widths) {
-      await page.setViewportSize({ width, height: 900 });
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
       let paneWidths: number[] | null = null;
       for (const size of [100, 90, 70, 150]) {
         const locale = ["en", "zh-CN", "zh-TW"][index++ % 3]!;
@@ -273,21 +281,13 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
         expect
           .soft(sample.readingWidth)
           .toBeGreaterThanOrEqual(Math.min(width, 320));
-        expect.soft(sample.readingHeight).toBeGreaterThan(160);
-        expect.soft(sample.secondary).toBe(width >= 1280);
+        // The context header is outside history; retain the accepted96px
+        // history floor rather than counting the previous combined box.
+        expect.soft(sample.readingHeight).toBeGreaterThanOrEqual(96);
+        expect.soft(sample.secondary).toBe(width >= 960);
         expect.soft(sample.picker).toBe(width >= 960 && width < 1280);
-        expect.soft(sample.results).toBe(width >= 960);
-        expect
-          .soft(sample.rowPadding)
-          .toBe(
-            size < 100
-              ? width < 960
-                ? "12px"
-                : "12px 16px"
-              : width < 960
-                ? "16px"
-                : "16px 24px",
-          );
+        expect.soft(sample.results).toBe(width >= 768);
+        expect.soft(sample.rowPadding).toBe("12px 16px");
         expect
           .soft(sample.rangeSpacing)
           .toBe(size < 100 ? "compact" : "default");
@@ -315,7 +315,7 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
             )
             .toBeGreaterThanOrEqual(4.5);
         }
-        if ([375, 960, 1280].includes(width) && [70, 150].includes(size))
+        if ([390, 768, 1440].includes(width))
           await info.attach(`${theme}-${width}-${size}-${locale}.png`, {
             body: await page.screenshot(),
             contentType: "image/png",
@@ -737,12 +737,12 @@ test("J5.appearance-roles: nested roles scale exactly once and compose with a la
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const slider = page.getByRole("slider", { name: "Text size", exact: true });
   const roles: [string, number][] = [
-    [".brand", 32],
+    [".brand", 24],
     [".post-content > p", 18],
     [".post-content blockquote p", 18],
-    [".post-content pre code", 16],
+    [".post-content pre code", 14],
     ["article header", 14],
-    [".thread-heading h1", 32],
+    [".thread-heading h1", 24],
     [".dialog-content p", 18],
     [".dialog-content h2", 24],
     [".boards-navigation a", 16],
@@ -961,7 +961,7 @@ test("J5.appearance-palettes-spacing: four palettes share exact Compact metrics 
       const metrics = await page.locator("#tsdm-workspace").evaluate((host) => {
         const root = host.shadowRoot!;
         const post = root.querySelector("article")!;
-        const paragraph = root.querySelector(".post-content > p")!;
+        const paragraph = root.querySelector(".post-content > p + p")!;
         const controls = [
           ...root.querySelectorAll<HTMLElement>(
             "button,select,input[type=range]",
@@ -998,7 +998,7 @@ test("J5.appearance-palettes-spacing: four palettes share exact Compact metrics 
       expect(metrics.rangeAccent).toBe(
         theme === "Dark" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       );
-      expect(metrics.postPadding).toBe(size < 100 ? "16px" : "32px");
+      expect(metrics.postPadding).toBe(size < 100 ? "16px 0px" : "24px 0px");
       expect(metrics.paragraphGap).toBeCloseTo(
         metrics.font * (size < 100 ? 0.75 : 1),
         1,

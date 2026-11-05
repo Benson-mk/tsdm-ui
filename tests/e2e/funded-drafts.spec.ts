@@ -1,3 +1,4 @@
+import { publishSavedDraft } from "./draft-review-controls";
 import {
   combinedSource,
   richRoundTrip,
@@ -545,9 +546,7 @@ test("J6.J7.funded-draft-lifecycle: save revise fresh resume publish and owned e
   await save(page);
   await expect.poll(() => state.commands.length).toBe(3);
   await expect(page.getByText(/Confirmed forum draft 42/).last()).toBeVisible();
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page
       .getByText(/Confirmed publication of forum draft 42/)
@@ -736,9 +735,9 @@ test("J6.J7.funded-draft-loss: lost initial Save retains unknown packet/credits 
     .getByLabel("Complete source", { exact: true })
     .fill("Later unsaved source");
   await page.reload();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+  await expect(
+    page.getByLabel("Complete source", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Later unsaved source",
   );
@@ -767,9 +766,7 @@ for (const outcome of ["expired", "moderation", "remaining-draft"] as const)
       page.getByText("Packet state: expired", { exact: true }).last(),
     ).toBeVisible();
     if (outcome !== "expired") state.publicationOutcome = outcome;
-    await page
-      .getByRole("button", { name: "Publish saved draft", exact: true })
-      .click();
+    await publishSavedDraft(page);
     await expect.poll(() => state.commands.length).toBe(3);
     if (outcome === "moderation")
       await expect(
@@ -952,9 +949,9 @@ for (const variant of ["missing-observation", "malformed-observation"] as const)
         page.getByText(/Stored recovery data is incompatible/),
       ).toBeVisible();
     else {
-      await page
-        .getByRole("button", { name: "Return to writing", exact: true })
-        .click();
+      await expect(
+        page.getByLabel("Complete source", { exact: true }),
+      ).toBeVisible();
       await expect(
         page.getByText(
           "Packet and credit observations were not retained. Their outcomes remain unknown.",
@@ -1063,9 +1060,9 @@ test("J6.J7.funded-draft-pending-recovery: acknowledged pending funding restores
   expect((await recovered(page)).draftAttempts![0]!.status).toBe("pending");
   await page.reload();
   release();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+  await expect(
+    page.getByLabel("Complete source", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText(/Pending draft save restored as uncertain/),
   ).toBeVisible();
@@ -1670,6 +1667,8 @@ for (const kind of ["direct", "funded"] as const)
       .getByRole("button", { name: "Replace with text copy", exact: true })
       .click();
     const copied = await recovered(page);
+    if (copied.action === "private-message")
+      throw new Error("Expected the public funded-draft text copy.");
     expect(copied.account).toMatchObject({ id: "8" });
     expect(copied.source).toBe(text);
     expect(copied.uploadedReferences).toEqual([]);

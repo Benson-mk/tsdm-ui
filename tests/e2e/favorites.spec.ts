@@ -1,3 +1,4 @@
+import { revealNavigation } from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -423,7 +424,9 @@ test("J9.favorite-last-page: removing the last record uses observed remaining pa
   await expect(
     page.getByRole("link", { name: "Saved thread 41", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Page 1", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".favorites-pane").getByText("Page 1", { exact: true }),
+  ).toBeVisible();
   expect(server.writes).toEqual(["POST remove-record-942"]);
   await artifact(page, info, server);
 });
@@ -615,11 +618,13 @@ for (const width of [1100, 390])
     await page.setViewportSize({ width, height: 850 });
     const server = await mutationFixture(page, "thread");
     server.present = true;
-    if (width === 390)
+    if (width === 390) {
+      await revealNavigation(page);
       await page
-        .getByRole("combobox", { name: "Main destinations", exact: true })
-        .selectOption("saved");
-    else
+        .getByRole("navigation", { name: "Main destinations", exact: true })
+        .getByRole("button", { name: "Saved", exact: true })
+        .click();
+    } else
       await page
         .getByRole("navigation", { name: "Main destinations", exact: true })
         .getByRole("button", { name: "Saved", exact: true })

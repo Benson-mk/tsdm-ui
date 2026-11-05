@@ -1368,8 +1368,9 @@ for (const width of [1280, 960, 375]) {
     await revealNavigation(page);
     if (width < 640)
       await page
-        .getByRole("combobox", { name: "Main destinations", exact: true })
-        .selectOption("search");
+        .getByRole("navigation", { name: "Main destinations", exact: true })
+        .getByRole("button", { name: "Search", exact: true })
+        .click();
     else
       await page
         .getByRole("navigation", { name: "Main destinations", exact: true })
@@ -1379,8 +1380,8 @@ for (const width of [1280, 960, 375]) {
     await page.getByLabel("Keywords", { exact: true }).fill("autumn");
     if (width < 640)
       await expect(
-        page.getByRole("combobox", { name: "Main destinations", exact: true }),
-      ).toHaveValue("search");
+        page.locator(".main-destinations button[aria-current=page]"),
+      ).toHaveText("Search");
     else
       await expect(
         page
@@ -1411,8 +1412,9 @@ async function openSearch(page: Page) {
   await revealNavigation(page);
   if ((page.viewportSize()?.width ?? 1280) < 640)
     await page
-      .getByRole("combobox", { name: "Main destinations", exact: true })
-      .selectOption("search");
+      .getByRole("navigation", { name: "Main destinations", exact: true })
+      .getByRole("button", { name: "Search", exact: true })
+      .click();
   else
     await page
       .getByRole("navigation", { name: "Main destinations", exact: true })
@@ -1788,6 +1790,7 @@ for (const width of [375, 960, 1279]) {
     await expect(
       page.getByRole("link", { name: "Autumn 1 listening", exact: true }),
     ).toBeVisible();
+    if (width < 768) await revealNavigation(page);
     await page
       .getByRole("link", { name: "New search", exact: true })
       .filter({ visible: true })
@@ -2439,3 +2442,74 @@ for (const heldPhase of ["submission", "result"] as const) {
     });
   }
 }
+
+test("IM65.search-pane-collapse: retained result list follows both global pane toggles without another operation", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const requests = await open(page, `${origin}/forum.php`, (url, method) =>
+    url.pathname !== "/search.php"
+      ? url.searchParams.get("mod") === "viewthread"
+        ? thread
+        : directory
+      : method === "POST" || url.searchParams.has("searchid")
+        ? results()
+        : form,
+  );
+  await openSearch(page);
+  await page.getByLabel("Keywords", { exact: true }).fill("autumn");
+  await page
+    .getByRole("region", { name: "Search overview", exact: true })
+    .getByRole("button", { name: "Search", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Autumn 1 listening", exact: true })
+    .click();
+  await expect(
+    page.getByText("Complete autumn opening.", { exact: true }),
+  ).toBeVisible();
+  const before = requests.length;
+  const list = page.locator(".search-pane"),
+    reader = page.locator(".reading-pane");
+  const geometry = async () =>
+    page
+      .locator(".workspace-body")
+      .evaluate((node) =>
+        getComputedStyle(node).gridTemplateColumns.split(" ").map(parseFloat),
+      );
+  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
+  await expect(list).toBeHidden();
+  expect(await geometry()).toEqual([216, 1224]);
+  expect(
+    await reader.evaluate((node) => node.getBoundingClientRect().left),
+  ).toBe(216);
+  await page.getByRole("button", { name: "Boards pane", exact: true }).click();
+  expect(await geometry()).toEqual([1440]);
+  expect(
+    await reader.evaluate((node) => node.getBoundingClientRect().left),
+  ).toBe(0);
+  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
+  await expect(list).toBeVisible();
+  expect(await geometry()).toEqual([300, 1140]);
+  expect(await list.evaluate((node) => node.getBoundingClientRect().left)).toBe(
+    0,
+  );
+  expect(
+    await reader.evaluate((node) => node.getBoundingClientRect().left),
+  ).toBe(300);
+  await expect(
+    page.getByRole("button", { name: "Threads pane", exact: true }),
+  ).toHaveAttribute(
+    "aria-controls",
+    (await list.getAttribute("id")) ?? "missing-list-id",
+  );
+  expect(requests).toHaveLength(before);
+  await info.attach("pane-requests.json", {
+    body: JSON.stringify(requests),
+    contentType: "application/json",
+  });
+  await info.attach("search-panes.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});

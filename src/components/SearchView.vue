@@ -59,9 +59,9 @@ const effective = computed(() =>
 </script>
 <template>
   <section
-    class="overview pane search-pane"
+    class="overview pane results-pane search-pane"
     :class="{ 'secondary-results': secondary }"
-    data-scroll-pane="overview"
+    data-scroll-pane="results"
     :aria-label="text.searchOverviewLabel"
   >
     <h1>{{ text.search }}</h1>

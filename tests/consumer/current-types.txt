@@ -98,3 +98,9 @@ const validationIssueContract: Frontier.WritingValidationIssue = { field: "optio
 const legacyPreparationFailure: Frontier.PublicationPreparationResult = { kind: "validation", message: "Legacy refusal", account: { kind: "unknown" }, generation: 0 };
 const currentPreparationFailure: Frontier.PublicationPreparationResult = { ...legacyPreparationFailure, validation: { source: "local", issues: [validationIssueContract] }, accountVerified: false };
 void currentPreparationFailure;
+
+const privatePrepareContract: (destination:string, account:Frontier.Account)=>Promise<Frontier.PrivateWritingPreparation> = frontierClient.preparePrivateWriting;
+const privateReviewContract: (submission:Frontier.PrivateSubmission)=>Promise<Frontier.PrivateReviewPreparation> = frontierClient.preparePrivateReview;
+const privateSendContract: (review:Frontier.PrivateReview, attempt:Frontier.PrivateAttempt, retain:(pending:Frontier.PrivateAttempt)=>Promise<boolean>)=>Promise<Frontier.PrivateAttempt> = frontierClient.sendPrivateMessage;
+const privateCheckContract: (attempt:Frontier.PrivateAttempt)=>Promise<Frontier.PrivateAttempt> = frontierClient.checkPrivateMessage;
+void [privatePrepareContract,privateReviewContract,privateSendContract,privateCheckContract];

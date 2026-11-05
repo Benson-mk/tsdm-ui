@@ -16,6 +16,18 @@ _Avoid_: Chat, conversation
 A contribution within a thread, including the opening post or a reply.
 _Avoid_: Message, bubble
 
+**Private conversation**:
+A one-to-one exchange of private messages between the current member and another member.
+_Avoid_: Thread, group conversation
+
+**Peer**:
+The other member in a private conversation, whether the latest private message was sent or received by the current member.
+_Avoid_: Latest sender
+
+**Private message**:
+A contribution from either member within a private conversation.
+_Avoid_: Post, broadcast
+
 **Forum draft**:
 An unpublished thread saved by the forum for its author to resume or publish.
 _Avoid_: Unfinished writing, unsent reply

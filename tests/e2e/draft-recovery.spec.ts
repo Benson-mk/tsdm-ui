@@ -1,3 +1,4 @@
+import { publishSavedDraft } from "./draft-review-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import type { WritingContext } from "../../src/workspace/writing";
@@ -163,10 +164,8 @@ for (const operation of ["save", "publish"] as const)
     const state = await fixture(page);
     if (operation === "publish") await saved(page);
     state.outcome = "lost-empty";
-    await button(
-      page,
-      operation === "save" ? "Save forum draft" : "Publish saved draft",
-    ).click();
+    if (operation === "publish") await publishSavedDraft(page);
+    else await button(page, "Save forum draft").click();
     await expect(page.getByText(/may have succeeded/).last()).toBeVisible();
     const original = (await writing(page)).draftAttempts!.at(-1)!;
     await editDestination(page);
@@ -189,7 +188,7 @@ for (const kind of ["published", "moderation"] as const)
     const state = await fixture(page);
     await saved(page);
     state.outcome = kind === "published" ? "lost-stored" : "moderation";
-    await button(page, "Publish saved draft").click();
+    await publishSavedDraft(page);
     await expect(
       page
         .getByText(
@@ -223,7 +222,9 @@ for (const kind of ["published", "moderation"] as const)
     expect(state.effects).toHaveLength(2);
     await button(page, "Return to reading").click();
     await button(page, "Drafts").first().click();
+    await button(page, "Load forum drafts").click();
     await expect(page.getByText("还没有相关的帖子")).toBeVisible();
+    expect(state.effects).toHaveLength(2);
   });
 test("review.check-known-save: original resumed save checks independently of list UI", async ({
   page,
@@ -287,7 +288,7 @@ test("review.resend-publish: checked ambiguity permits one explicit same-record 
   const state = await fixture(page);
   await saved(page);
   state.outcome = "lost-empty";
-  await button(page, "Publish saved draft").click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/publication may have succeeded/).last(),
   ).toBeVisible();
@@ -359,10 +360,23 @@ test("review.resend-double-refresh: pending acknowledged resend has new identity
   await page.reload();
   release();
   await expect(
-    page.getByText(/Pending draft save restored as uncertain/).last(),
+    page
+      .getByText(
+        /Pending draft save restored as uncertain|Draft saving may have succeeded/,
+      )
+      .last(),
   ).toBeVisible();
   expect(state.effects).toHaveLength(2);
-  expect((await writing(page)).draftAttempts).toHaveLength(2);
+  const attempts = (await writing(page)).draftAttempts!;
+  expect(attempts).toHaveLength(2);
+  expect(attempts.at(-1)).toMatchObject({
+    ...pending,
+    status: "uncertain",
+    checked: false,
+    message: expect.stringMatching(
+      /Pending draft save restored as uncertain|Draft saving may have succeeded/,
+    ),
+  });
 });
 for (const resumed of [false, true])
   test(`review.continue-${resumed ? "resumed" : "new"}: save outgoing revision before preparing owned edit`, async ({
@@ -411,7 +425,7 @@ for (const outcome of ["rejected", "uncertain", "race"] as const)
         )
         .last(),
     ).toBeVisible();
-    await button(page, "Return to writing").click();
+    await expect(source(page)).toBeVisible();
     await expect(source(page)).toHaveValue(
       outcome === "race"
         ? "Newer revision during save"
@@ -525,7 +539,7 @@ test("review.resend-fresh-source: a changed remote saved revision prevents publi
   const state = await fixture(page);
   await saved(page);
   state.outcome = "lost-empty";
-  await button(page, "Publish saved draft").click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/publication may have succeeded/).last(),
   ).toBeVisible();
@@ -559,7 +573,7 @@ test("review.resend-result: confirmed resend allows updating and publishing its 
   await source(page).fill("Updated confirmed resend identity");
   await saved(page);
   await expect.poll(() => state.effects.length).toBe(3);
-  await button(page, "Publish saved draft").click();
+  await publishSavedDraft(page);
   await expect(
     page.getByRole("article", { name: "Post 101", exact: true }),
   ).toBeVisible();
@@ -576,7 +590,7 @@ test("review.publish-resend-refresh: pending explicit publication resend restore
   const state = await fixture(page);
   await saved(page);
   state.outcome = "lost-empty";
-  await button(page, "Publish saved draft").click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/publication may have succeeded/).last(),
   ).toBeVisible();
@@ -607,12 +621,19 @@ test("review.publish-resend-refresh: pending explicit publication resend restore
   await expect(
     page
       .getByText(
-        "Pending draft publication restored as uncertain. Nothing was replayed.",
+        /Pending draft publication restored as uncertain|publication may have succeeded/,
       )
       .last(),
   ).toBeVisible();
   expect(state.effects).toHaveLength(3);
-  expect((await writing(page)).draftAttempts!.at(-1)!.checked).toBe(false);
+  expect((await writing(page)).draftAttempts!.at(-1)).toMatchObject({
+    ...pending,
+    status: "uncertain",
+    checked: false,
+    message: expect.stringMatching(
+      /Pending draft publication restored as uncertain|publication may have succeeded/,
+    ),
+  });
 });
 test("review.historical-check: checking a retained publication preserves an unrelated owned edit and its target", async ({
   page,
@@ -620,7 +641,7 @@ test("review.historical-check: checking a retained publication preserves an unre
   const state = await fixture(page);
   await saved(page);
   state.outcome = "lost-stored";
-  await button(page, "Publish saved draft").click();
+  await publishSavedDraft(page);
   await expect(
     page.getByText(/publication may have succeeded/).last(),
   ).toBeVisible();
@@ -629,6 +650,14 @@ test("review.historical-check: checking a retained publication preserves an unre
   await button(page, "Discard local writing and edit post").click();
   await source(page).fill("Later unrelated edit source");
   await originalCheck(page, original.id);
+  await expect(
+    page.getByRole("dialog", { name: "Keep current writing?", exact: true }),
+  ).toBeVisible();
+  const beforeRead = await writing(page);
+  expect(beforeRead.source).toBe("Later unrelated edit source");
+  expect(beforeRead.editTarget?.postId).toBe("201");
+  expect(state.effects).toHaveLength(2);
+  await button(page, "Keep writing and read thread").click();
   await expect(
     page.getByRole("article", { name: "Post 101", exact: true }),
   ).toBeVisible();

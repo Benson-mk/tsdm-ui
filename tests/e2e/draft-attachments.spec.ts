@@ -1,3 +1,4 @@
+import { publishSavedDraft } from "./draft-review-controls";
 import { combinedSource, richRoundTrip } from "./combined-authoring";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -320,9 +321,7 @@ test("J6.J8.draft-upload-lifecycle: upload save resume revise resave publish pre
   await expect(
     page.getByText("Saved association verified · second.txt", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page
       .getByText(/Confirmed publication of forum draft 42/)
@@ -370,9 +369,7 @@ test("J6.J8.pending-upload-draft-guards: held and cancelled uploads cannot save 
       { exact: true },
     ),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   expect(state.commands).toHaveLength(1);
   await page
     .getByRole("button", {
@@ -764,9 +761,7 @@ for (const outcome of [
     if (outcome === "missing-association")
       state.publicationMissingAssociation = true;
     if (outcome === "lost") state.saveOutcome = "lost";
-    await page
-      .getByRole("button", { name: "Publish saved draft", exact: true })
-      .click();
+    await publishSavedDraft(page);
     if (outcome === "remaining-draft")
       await expect(
         page.getByText(/record is still an unpublished forum draft/).last(),
@@ -817,9 +812,7 @@ test("J6.J8.draft-delivered-bytes: independently delivered saved attachment matc
   await expect(
     page.getByText("Saved association verified · note.txt", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Publish saved draft", exact: true })
-    .click();
+  await publishSavedDraft(page);
   await expect(
     page
       .getByText(/Confirmed publication of forum draft 42/)
@@ -898,9 +891,9 @@ for (const outcome of ["pending", "association-unknown"] as const)
         exact: true,
       })
       .click();
-    await page
-      .getByRole("button", { name: "Return to writing", exact: true })
-      .click();
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue("[unknown]Draft source[/unknown]");
@@ -1157,9 +1150,7 @@ for (const language of ["zh-CN", "zh-TW"] as const)
       if (outcome === "published") {
         await expect(page.getByText(/Confirmed forum draft 42/)).toBeVisible();
         state.publicationMissingAssociation = true;
-        await page
-          .getByRole("button", { name: "Publish saved draft", exact: true })
-          .click();
+        await publishSavedDraft(page);
       }
       await expect(
         page.getByText(/attachment associations unconfirmed/).first(),
@@ -1269,9 +1260,7 @@ for (const probe of [
       page.getByText(/Confirmed forum draft 42/).last(),
     ).toBeVisible();
     expect(state.saved!.get("attachnew[88][price]")).toBe(expectedPrice);
-    await page
-      .getByRole("button", { name: "Publish saved draft", exact: true })
-      .click();
+    await publishSavedDraft(page);
     await expect(
       page
         .getByText(/Confirmed publication of forum draft 42/)
@@ -1488,9 +1477,7 @@ for (const continuation of ["same-context", "fresh-resume"] as const)
         expect((await recoveredWriting(page)).draftAttempts[0]).toEqual(
           original,
         );
-      await page
-        .getByRole("button", { name: "Publish saved draft", exact: true })
-        .click();
+      await publishSavedDraft(page);
       await expect(
         page
           .getByText(/Confirmed publication of forum draft 42/)
@@ -1778,9 +1765,7 @@ for (const mismatch of ["missing", "extra"] as const)
                 '<input name="attachnew[90][description]" value=""><input name="attachnew[90][readperm]" value=""><input name="attachnew[90][price]" value="0"></div><script>',
               )
             : html;
-      await page
-        .getByRole("button", { name: "Publish saved draft", exact: true })
-        .click();
+      await publishSavedDraft(page);
       await expect(
         page
           .getByText(

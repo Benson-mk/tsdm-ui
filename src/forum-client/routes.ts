@@ -4,10 +4,14 @@ export type RouteKind =
   | "thread"
   | "redirect"
   | "search"
+  | "private-conversation"
+  | "messages"
   | "notices"
   | "favorites";
 const keys: Record<RouteKind, readonly string[]> = {
   favorites: ["mod", "do", "type", "page"],
+  "private-conversation": ["mod", "do", "subop", "touid", "page", "daterange"],
+  messages: ["mod", "do", "filter", "page"],
   notices: ["mod", "do", "view", "type", "isread", "page"],
   search: [
     "mod",
@@ -106,6 +110,23 @@ export function routeFor(value: string): { kind: RouteKind; url: URL } | null {
       ["thread", "forum"].includes(q.get("type") ?? "")
     )
       kind = "favorites";
+    if (
+      url.pathname === "/home.php" &&
+      q.get("mod") === "space" &&
+      q.get("do") === "pm" &&
+      (!q.has("filter") || q.get("filter") === "privatepm")
+    )
+      kind = "messages";
+    if (
+      url.pathname === "/home.php" &&
+      q.get("mod") === "space" &&
+      q.get("do") === "pm" &&
+      q.get("subop") === "view" &&
+      /^[1-9]\d*$/.test(q.get("touid") ?? "") &&
+      (!q.has("daterange") || q.get("daterange") === "0") &&
+      (!url.hash || /^#(?:last|pmlist_[1-9]\d*)$/.test(url.hash))
+    )
+      kind = "private-conversation";
     if (!kind) return null;
     const allowed = [...keys[kind], "extra", "mobile", "tsdmapp"];
     for (const key of q.keys())

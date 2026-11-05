@@ -1,13 +1,28 @@
 import type { WritingContext } from "./writing";
-import type { ReadResult } from "../forum-client";
-export type Section = "boards" | "search" | "saved" | "notices" | "drafts";
+import type { ReadResult, DraftListResult } from "../forum-client";
+export type Section =
+  "boards" | "search" | "saved" | "notices" | "messages" | "drafts";
 export interface ViewPosition {
   anchor: string | null;
   offset: number;
   scrollTop: number;
+  readingScrollTop?: number;
+  readingPaneTop?: number;
+  readingRegionScrollTop?: number;
+  resultsScrollTop?: number;
+}
+export interface ReadingMarker {
+  savedAt: number;
+  url: string;
+  account: string;
+  position: ViewPosition;
 }
 export interface NavigationEntry {
+  readingMarker?: ReadingMarker;
+
   section?: Section;
+  readingKey?: string | null;
+  drafts?: Extract<DraftListResult, { kind: "drafts" }> | null;
   key: string;
   destination: string;
   originKey: string | null;
@@ -18,7 +33,7 @@ export interface NavigationEntry {
   documentNavigations: number;
 }
 export interface NavigationRecord {
-  schema: 2;
+  schema: 2 | 3;
   favoriteAttempts?: import("../forum-client").FavoriteAttempt[];
   writing: WritingContext | null;
   entries: Record<string, NavigationEntry>;
@@ -40,6 +55,10 @@ export interface NavigationHost {
   navigateDocument(url: string): void;
 }
 export interface ViewAdapter {
+  captureReading(): ViewPosition;
+  followLatest(): void;
+  nearLatest(): boolean;
+  restoreReading(position: ViewPosition): void;
   capture(): ViewPosition;
   restore(
     position: ViewPosition | null,

@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { privateWritingText } from "./private-writing-text";
+import PrivateAttemptHistory from "./PrivateAttemptHistory.vue";
 import { computed, ref, watch, nextTick, type DeepReadonly } from "vue";
 import { attachmentText, attachmentFieldLabel } from "./attachment-text";
+import PrivateWritingContent from "./PrivateWritingContent.vue";
 import PostEditor from "./PostEditor.vue";
 import WritingDestination from "./WritingDestination.vue";
 import PreparedPublication from "./PreparedPublication.vue";
@@ -16,7 +19,14 @@ watch(
   () => props.expanded,
   () => editor.value?.focus(true),
 );
-const state = props.workspace.writing.state;
+const ownerState = props.workspace.writing.state;
+const state = computed(() => ({
+  ...ownerState.value,
+  context:
+    ownerState.value.context?.action === "private-message"
+      ? null
+      : ownerState.value.context,
+}));
 const titleInput = ref<HTMLInputElement | null>(null);
 const categoryInput = ref<HTMLSelectElement | null>(null);
 const optionFields = ref<HTMLElement | null>(null);
@@ -190,6 +200,31 @@ function optionCaption(option: WritingOption) {
     ? packetText(option.label)
     : option.label;
 }
+function requestReview(refresh = false) {
+  if (
+    state.value.preparing ||
+    state.value.publishing ||
+    state.value.composing ||
+    (state.value.publication && !refresh)
+  )
+    return;
+  if (refresh) props.workspace.writing.cancelPublicationReview();
+  void props.workspace.writing.reviewPublication();
+}
+function reviewShortcut(event: KeyboardEvent) {
+  if (event.key !== "Enter" || (!event.ctrlKey && !event.metaKey)) return;
+  const target = event.target;
+  if (
+    !(target instanceof HTMLElement) ||
+    !target.matches("textarea, input, [contenteditable='true']")
+  )
+    return;
+  if (event.isComposing || state.value.composing || event.keyCode === 229)
+    return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (!event.repeat) requestReview();
+}
 function cancelReview() {
   if (props.workspace.writing.deferViewChange(cancelReview)) return;
   props.workspace.writing.cancelPublicationReview();
@@ -220,10 +255,11 @@ function updateOption(option: WritingOption, event: Event) {
 </script>
 <template>
   <section
-    v-if="state.context"
+    v-if="ownerState.context"
     class="source-writing"
     :class="{ 'writing-expanded': expanded }"
     :aria-label="text.writingContext"
+    @keydown.capture="reviewShortcut"
     @compositionstart="workspace.writing.startComposition()"
     @compositionend="workspace.writing.endComposition()"
   >
@@ -231,6 +267,18 @@ function updateOption(option: WritingOption, event: Event) {
       {{ text.finishComposition }}
     </p>
     <div class="writing-presentation-actions">
+      <strong class="composer-caption">{{
+        ownerState.context.action === "private-message"
+          ? privateWritingText(
+              "To {value}",
+              workspace.preferences.state.value.language,
+            ).replace("{value}", ownerState.context.recipient.name)
+          : state.context?.replyTarget
+            ? insert(text.replyIn, state.context.replyTarget.threadId)
+            : state.context?.action === "edit-post"
+              ? insert(text.editPost, state.context.editTarget?.postId ?? "")
+              : text.newThread
+      }}</strong>
       <button :aria-expanded="expanded" @click="emit('resize', !expanded)">
         {{ expanded ? text.compactWriting : text.expandWriting }}
       </button>
@@ -238,7 +286,14 @@ function updateOption(option: WritingOption, event: Event) {
         {{ text.returnReading }}
       </button>
     </div>
-    <div class="writing-content">
+    <div
+      v-if="ownerState.context?.action === 'private-message'"
+      class="writing-content"
+    >
+      <PrivateWritingContent :workspace="workspace" :expanded="expanded" />
+    </div>
+    <div v-if="state.context" class="writing-content">
+      <PrivateAttemptHistory :workspace="workspace" />
       <h1>
         {{
           state.context.action === "edit-post"
@@ -359,6 +414,19 @@ function updateOption(option: WritingOption, event: Event) {
           )
         }}
       </p>
+      <button
+        v-if="state.context.replyTarget?.postId"
+        @click="
+          workspace.writing.prepare(state.context.board.id, false, {
+            threadId: state.context.replyTarget.threadId,
+            postId: null,
+            author: '',
+            authorId: null,
+          })
+        "
+      >
+        {{ text.ordinaryReply }}
+      </button>
       <PostEditor
         ref="editor"
         :key="state.context.id"
@@ -455,9 +523,9 @@ function updateOption(option: WritingOption, event: Event) {
       <button
         v-if="state.context.draft"
         :disabled="state.preparing || state.publishing"
-        @click="workspace.writing.publishDraft()"
+        @click="requestReview(true)"
       >
-        {{ text.publishSavedDraft }}
+        {{ text.reviewSavedDraft }}
       </button>
       <section
         v-for="attempt in state.context.draftAttempts"
@@ -875,17 +943,6 @@ function updateOption(option: WritingOption, event: Event) {
         review
       />
       <div class="writing-actions">
-        <button
-          v-if="!state.context.draft"
-          :disabled="state.preparing || state.publishing"
-          @click="workspace.writing.reviewPublication()"
-        >
-          {{
-            state.context.action === "edit-post"
-              ? text.reviewEdit
-              : text.reviewPublication
-          }}
-        </button>
         <PreparedPublication
           v-if="state.publication"
           :publication="state.publication"
@@ -940,7 +997,19 @@ function updateOption(option: WritingOption, event: Event) {
               }}
             </p>
           </template>
-          <p v-if="state.publication.submission.writing.action === 'edit-post'">
+          <p v-if="state.publication.submission.writing.draft">
+            {{
+              insert(
+                text.savedDraftReview,
+                state.publication.submission.writing.draft.threadId,
+              )
+            }}
+          </p>
+          <p
+            v-else-if="
+              state.publication.submission.writing.action === 'edit-post'
+            "
+          >
             {{
               insert(text.editReview, state.publication.submission.revision)
                 .replace(
@@ -978,16 +1047,22 @@ function updateOption(option: WritingOption, event: Event) {
           </p>
           <button
             :disabled="state.publishing"
-            @click="workspace.writing.publish()"
+            @click="
+              state.context.draft
+                ? workspace.writing.publishReviewedDraft()
+                : workspace.writing.publish()
+            "
           >
             {{
-              state.publication.submission.writing.action === "edit-post"
-                ? text.saveEditedPost
-                : state.publication.submission.writing.replyTarget
-                  ? text.sendReply
-                  : state.publication.submission.writing.redPacket
-                    ? packetText("Publish red packet")
-                    : text.publishThread
+              state.publication.submission.writing.draft
+                ? text.confirmSavedDraft
+                : state.publication.submission.writing.action === "edit-post"
+                  ? text.saveEditedPost
+                  : state.publication.submission.writing.replyTarget
+                    ? text.sendReply
+                    : state.publication.submission.writing.redPacket
+                      ? packetText("Publish red packet")
+                      : text.publishThread
             }}
           </button>
         </PreparedPublication>
@@ -1203,6 +1278,36 @@ function updateOption(option: WritingOption, event: Event) {
           >
         </label>
       </fieldset>
+    </div>
+    <div class="composer-submit-row">
+      <span class="composer-help">{{ text.writingShortcut }}</span>
+      <button
+        v-if="state.context && !state.context.draft"
+        class="primary-action"
+        :disabled="state.preparing || state.publishing"
+        @click="requestReview(true)"
+      >
+        {{
+          state.context.action === "edit-post"
+            ? text.reviewEdit
+            : text.reviewPublication
+        }}
+      </button>
+      <button
+        v-if="ownerState.context.action === 'private-message'"
+        class="primary-action"
+        :disabled="
+          ownerState.preparing || ownerState.publishing || ownerState.composing
+        "
+        @click="workspace.writing.reviewPublication()"
+      >
+        {{
+          privateWritingText(
+            "Review private message",
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </button>
     </div>
   </section>
 </template>

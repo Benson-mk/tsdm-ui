@@ -153,6 +153,44 @@ export interface Notices {
   empty: string;
   unread: { kind: "observed"; count: number } | { kind: "absent" | "unknown" };
 }
+export interface MessagePeer {
+  id: string;
+  peerId: string;
+  name: string;
+  url: string;
+  preview: string;
+  time: string;
+  unread: boolean;
+}
+export interface PrivateMessage {
+  id: string;
+  senderId: string;
+  sender: string;
+  time: string;
+  body: ContentNode[];
+  url: string;
+}
+export interface PrivateConversation {
+  url: string;
+  peerId: string;
+  peerName: string;
+  totalCount: number;
+  messages: PrivateMessage[];
+  pages: Pagination;
+  earlier: ForumLink | null;
+  later: ForumLink | null;
+  beginning: boolean;
+  end: boolean;
+  target: string | null;
+  targetMissing: boolean;
+  empty: string;
+}
+export interface Messages {
+  url: string;
+  peers: MessagePeer[];
+  pages: Pagination;
+  empty: string;
+}
 export interface BoardLink extends ForumLink {
   id: string;
   description: string;
@@ -196,7 +234,17 @@ export interface Board {
   pages: Pagination;
   empty: string;
 }
+/** Native pager provenance added in 0.16.0; absence means unqualified boundaries. */
+export interface ThreadHistory {
+  earlier: ForumLink | null;
+  later: ForumLink | null;
+  beginning: boolean;
+  end: boolean;
+  latest: ForumLink | null;
+  order: "ascending" | "descending";
+}
 export interface Thread {
+  history?: ThreadHistory;
   id: string;
   title: string;
   url: string;
@@ -238,6 +286,20 @@ export interface Favorites {
   pages: { current: string; links: ForumLink[] };
 }
 export type ReadResult =
+  | {
+      kind: "private-conversation";
+      conversation: PrivateConversation;
+      account: Account;
+      generation: number;
+      sourceURL: string;
+    }
+  | {
+      kind: "messages";
+      messages: Messages;
+      account: Account;
+      generation: number;
+      sourceURL: string;
+    }
   | {
       kind: "favorites";
       favorites: Favorites;
@@ -344,6 +406,19 @@ export type AttachmentRemovalResult = {
   latest?: PreparedWriting;
 };
 export interface ForumClient {
+  sendPrivateMessage(
+    review: PrivateReview,
+    attempt: PrivateAttempt,
+    retain: (pending: PrivateAttempt) => Promise<boolean>,
+  ): Promise<PrivateAttempt>;
+  checkPrivateMessage(attempt: PrivateAttempt): Promise<PrivateAttempt>;
+  preparePrivateWriting(
+    destination: string,
+    expectedAccount: Account,
+  ): Promise<PrivateWritingPreparation>;
+  preparePrivateReview(
+    submission: PrivateSubmission,
+  ): Promise<PrivateReviewPreparation>;
   removeUploadedAttachment(
     writing: PreparedWriting,
     id: string,
@@ -375,6 +450,16 @@ export interface ForumClient {
   ): Promise<FavoritePreparation>;
   changeFavorite(attempt: FavoriteAttempt): Promise<FavoriteAttempt>;
   checkFavoriteResult(attempt: FavoriteAttempt): Promise<FavoriteAttempt>;
+  readPrivateConversation(
+    destination: string,
+    prior?: PrivateConversation,
+    expectedAccount?: Account,
+  ): Promise<ReadResult>;
+  readMessages(
+    destination: string,
+    prior?: Messages,
+    expectedAccount?: Account,
+  ): Promise<ReadResult>;
   readNotices(
     destination: string,
     prior?: Notices,
@@ -469,6 +554,62 @@ export interface WritingBaseline {
   uploadedReferences: string[];
   attachmentFields?: { name: string; value: string; disabled: boolean }[];
 }
+/** Qualified one-to-one plaintext writing; no public-post capabilities are implied. */
+export interface PreparedPrivateWriting {
+  action: "private-message";
+  account: Extract<Account, { kind: "member" }>;
+  recipient: { id: string; name: string; url: string };
+  source: string;
+  maxLength: number | null;
+}
+export interface PrivateSubmission {
+  contextId: string;
+  revision: number;
+  writing: PreparedPrivateWriting;
+}
+export interface PrivateReview {
+  id: string;
+  generation: number;
+  submission: PrivateSubmission;
+}
+export interface PrivateAttempt {
+  id: string;
+  submission: PrivateSubmission;
+  before: string[];
+  status: "pending" | "not-sent" | "uncertain" | "confirmed";
+  checked: boolean;
+  message: string;
+  result: {
+    messageId: string;
+    url: string;
+    senderId: string;
+    recipientId: string;
+    source: string;
+  } | null;
+}
+export type PrivateWritingPreparation =
+  | {
+      kind: "prepared";
+      prepared: PreparedPrivateWriting;
+      account: Account;
+      generation: number;
+    }
+  | { kind: "refused"; message: string; account: Account; generation: number };
+export type PrivateReviewPreparation =
+  | {
+      kind: "ready";
+      review: PrivateReview;
+      account: Account;
+      generation: number;
+    }
+  | {
+      kind: "refused";
+      issue?: WritingValidationIssue;
+      message: string;
+      account: Account;
+      generation: number;
+    };
+
 export interface PreparedWriting {
   uploads?: WritingUpload[];
   action: "new-thread" | "reply" | "quick-quote" | "edit-post";

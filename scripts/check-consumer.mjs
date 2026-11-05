@@ -101,7 +101,7 @@ try {
   const source =
     `import assert from 'node:assert/strict';
 import { createForumClient, FORUM_CLIENT_VERSION, unresolvedWritingAttachments } from '@tsdm/forum-client';
-assert.equal(FORUM_CLIENT_VERSION, '0.15.0');
+assert.equal(FORUM_CLIENT_VERSION, '0.19.0');
 const origin = 'https://fixture.example';
 const threadURL = origin + '/forum.php?mod=viewthread&tid=42';
 const attachmentURL = origin + '/forum.php?mod=attachment&aid=authored-token';
@@ -241,13 +241,14 @@ assert.equal(noticeRequests.length, 6);
     readFileSync(resolve(root, "tests/consumer/favorites.mjs"), "utf8") +
     "\n" +
     readFileSync(resolve(root, "tests/consumer/packets.mjs"), "utf8") +
+    readFileSync(resolve(root, "tests/consumer/private-writing.mjs"), "utf8") +
     `
-console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases, favoriteCases, packetCases, boundaryCases }));
+console.log(JSON.stringify({ status: 'passed', version: FORUM_CLIENT_VERSION, threadId: read.thread.id, searchId: searched.search.results.id, resultTitle: searched.search.results.rows[0].label, downloadName: download.name, downloadBytes: [...download.bytes], requests, fileRequests, preparedBoard: prepared.prepared.board.id, preparationRequests, noticeRequests, noticeId: loadedNotices.notices.entries[0].id, noticePage: nextNotices.notices.pages.current, publicationCases, replyCases, editingCases, draftCases, favoriteCases, packetCases, boundaryCases, privateWritingCases }));
 `;
   writeFileSync(join(consumer, "consume.mjs"), source);
   writeFileSync(
     join(consumer, "consume.ts"),
-    `import { createForumClient, editBaseline, unresolvedWritingAttachments, type ForumClient, type ReadResult, type SearchForm, type SearchCriteria, type AttachmentRequest, type PrepareWritingResult, type Account, type Notice, type Notices, type ThreadSubmission, type ThreadAttempt, type PublicationPreparationResult, type ThreadVerification, type PreparedWriting, type WritingBaseline, type DraftList, type DraftListResult, type DraftRow, type DraftAttempt, type UploadFile, type UploadCancellation, type UploadResult, type AttachmentRemovalResult } from '@tsdm/forum-client';
+    `import { createForumClient, editBaseline, unresolvedWritingAttachments, type ForumClient, type ReadResult, type SearchForm, type SearchCriteria, type AttachmentRequest, type PrepareWritingResult, type Account, type Notice, type Notices, type Messages, type PrivateConversation, type ThreadSubmission, type ThreadAttempt, type PublicationPreparationResult, type ThreadVerification, type PreparedWriting, type WritingBaseline, type DraftList, type DraftListResult, type DraftRow, type DraftAttempt, type UploadFile, type UploadCancellation, type UploadResult, type AttachmentRemovalResult } from '@tsdm/forum-client';
 const client: ForumClient = createForumClient({ origin: 'https://fixture.example', transport: { async request(url) { return { status: 200, url, contentType: 'text/html', body: '' }; } } });
 const result: ReadResult = await client.readThread('https://fixture.example/forum.php?mod=viewthread&tid=42');
 const serialized: string = JSON.stringify(result);
@@ -258,6 +259,8 @@ void serialized;
 const search: (criteria: SearchCriteria, form: SearchForm, account: Account) => Promise<ReadResult> = client.search;
 const returnedPage: (url: string, prior: Extract<ReadResult, { kind: 'search' }>['search'], account: Account) => Promise<ReadResult> = client.readSearchPage;
 const attachment = (request: AttachmentRequest) => client.downloadAttachment(request);
+const privateHistory: (url: string, prior?: PrivateConversation, account?: Account) => Promise<ReadResult> = client.readPrivateConversation;
+const messages: (url: string, prior?: Messages, account?: Account) => Promise<ReadResult> = client.readMessages;
 const notices: (url: string, prior?: Notices, account?: Account) => Promise<ReadResult> = client.readNotices;
 const notice: Notice = { id: '73', time: '2026-10-20 21:40:00', body: [{ kind: 'text', text: 'Portable notice' }] };
 const publication: (submission: ThreadSubmission) => Promise<PublicationPreparationResult> = client.prepareThreadPublication;
@@ -269,7 +272,7 @@ const saveEdit: (attempt: ThreadAttempt) => Promise<ThreadAttempt> = client.save
 const checkEdit: (attempt: ThreadAttempt) => Promise<ThreadAttempt> = client.checkEditResult;
 const actions: Record<PreparedWriting["action"], string> = { "new-thread": "create", reply: "reply", "quick-quote": "quote", "edit-post": "edit" };
 const baseline: (writing: PreparedWriting) => WritingBaseline = editBaseline;
-void [search, returnedPage, attachment, notices, notice, publication, publish, check, prepareEdit, reviewEdit, saveEdit, checkEdit, actions, baseline];
+void [search, returnedPage, attachment, privateHistory, messages, notices, notice, publication, publish, check, prepareEdit, reviewEdit, saveEdit, checkEdit, actions, baseline];
 const verification: ThreadVerification = { stored: 'verified', normalizations: [{ name: 'price', submitted: '', stored: '0' }], creationEffects: [{ name: 'addfeed', requested: true, included: false, outcome: 'unknown' }] };
 const evidence = (attempt: ThreadAttempt): ThreadVerification | undefined => attempt.result?.verification;
 const attachmentVerification: ThreadVerification = { stored: 'verified', normalizations: [], attachmentNormalizations: [{ name: 'attachnew[88][price]', submitted: '', stored: '0' }], creationEffects: [] };
@@ -318,9 +321,9 @@ void [cancellation, transfer, removal];
       "utf8",
     ),
   );
-  if (installed.version !== "0.15.0")
+  if (installed.version !== "0.19.0")
     throw new Error(
-      "Expected the field-validation public package version 0.15.0.",
+      "Expected the private-writing public package version 0.19.0.",
     );
   if (
     Object.keys(installed.dependencies ?? {}).length ||

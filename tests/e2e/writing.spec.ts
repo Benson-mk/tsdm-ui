@@ -668,6 +668,12 @@ test("J5.redirect-writing: actual document redirect and app remount retain sourc
           exact: true,
         })
         .click();
+      await page
+        .getByRole("button", {
+          name: "Keep writing and read thread",
+          exact: true,
+        })
+        .click();
       await expect(
         page.getByLabel("Complete source", { exact: true }),
       ).toHaveValue(source);
@@ -680,8 +686,8 @@ test("J5.redirect-writing: actual document redirect and app remount retain sourc
       expect(redirects).toEqual(["fetch", "document"]);
       await page.getByRole("button", { name: "Back", exact: true }).click();
       await expect(
-        page.getByRole("button", { name: "Return to writing", exact: true }),
-      ).toBeVisible();
+        page.getByLabel("Complete source", { exact: true }),
+      ).toHaveValue(source);
       if (
         await page
           .getByRole("button", { name: "Return to reading", exact: true })
@@ -1108,7 +1114,7 @@ test("J5.section-writing: every section overview retains the sole writing contex
   });
 });
 
-test("J5.composing-section: section navigation waits for final composition input before replacing writing", async ({
+test("J5.composing-section: section drawer waits for final composition input and retains writing", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -1123,8 +1129,8 @@ test("J5.composing-section: section navigation waits for final composition input
   );
   await editor.dispatchEvent("compositionstart", { data: "中" });
   await page
-    .getByRole("combobox", { name: "Main destinations", exact: true })
-    .selectOption("notices");
+    .getByRole("button", { name: "Boards pane", exact: true })
+    .dispatchEvent("click");
   await expect(editor).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Notices", exact: true }),
@@ -1149,13 +1155,16 @@ test("J5.composing-section: section navigation waits for final composition input
       }),
     );
   }, source + "中文");
-  await expect(editor).toBeHidden();
+  await page
+    .getByRole("dialog", { name: "Boards navigation", exact: true })
+    .getByRole("button", { name: "Notices", exact: true })
+    .click();
+  await expect(editor).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Notices", exact: true, level: 1 }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+  await page.keyboard.press("Escape");
+  await editor.focus();
   await expect(editor).toHaveValue(source + "中文");
   const retained = await page.evaluate(
     () =>
@@ -1299,8 +1308,8 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
             .closest(".source-writing")!
             .querySelectorAll("label:has(input[type=checkbox])"),
         ].map((label) => label.getBoundingClientRect().height),
-        padding: parseFloat(
-          getComputedStyle(e.closest(".source-writing")!).paddingTop,
+        labelSpacing: parseFloat(
+          getComputedStyle(e.closest("label")!).marginBlockStart,
         ),
       };
     });
@@ -1311,7 +1320,9 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
     expect(metrics.font).toBeCloseTo((18 * sizes[i]!) / 100, 1);
     measurements.push(metrics);
   }
-  expect(measurements[1]!.padding).toBeLessThan(measurements[2]!.padding);
+  expect(measurements[1]!.labelSpacing).toBeLessThan(
+    measurements[2]!.labelSpacing,
+  );
   expect(
     await page.evaluate(() => ({
       writing: JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
@@ -1501,6 +1512,16 @@ for (const entry of ["return", "new"] as const)
     await page
       .getByRole("link", { name: "Autumn thread", exact: true })
       .click();
+    if (entry === "return")
+      await page
+        .getByRole("button", {
+          name: "Keep writing and read thread",
+          exact: true,
+        })
+        .click();
+    await expect(
+      page.getByRole("article", { name: "Post 101", exact: true }),
+    ).toBeVisible();
     let release = () => {};
     let received = () => {};
     const held = new Promise<void>((resolve) => {
@@ -1612,6 +1633,15 @@ for (const member of ["8", "guest"])
     await page
       .getByRole("link", { name: "Autumn thread", exact: true })
       .click();
+    await page
+      .getByRole("button", {
+        name: "Keep writing and read thread",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("article", { name: "Post 101", exact: true }),
+    ).toBeVisible();
     current = member;
     await page
       .getByRole("button", {
@@ -1745,7 +1775,7 @@ test("J5.search-writing: edited search criteria and the sole writing context sha
   });
 });
 
-test("J5.composing-search: Search preparation waits for final composition input before replacing writing", async ({
+test("J5.composing-search: Search drawer waits for final composition input and retains writing", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -1766,8 +1796,8 @@ test("J5.composing-search: Search preparation waits for final composition input 
   );
   await editor.dispatchEvent("compositionstart", { data: "中" });
   await page
-    .getByRole("combobox", { name: "Main destinations", exact: true })
-    .selectOption("search");
+    .getByRole("button", { name: "Boards pane", exact: true })
+    .dispatchEvent("click");
   await expect(editor).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Search", exact: true }),
@@ -1793,13 +1823,16 @@ test("J5.composing-search: Search preparation waits for final composition input 
       }),
     );
   }, source + "中文");
-  await expect(editor).toBeHidden();
+  await page
+    .getByRole("dialog", { name: "Boards navigation", exact: true })
+    .getByRole("button", { name: "Search", exact: true })
+    .click();
+  await expect(editor).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+  await page.keyboard.press("Escape");
+  await editor.focus();
   await expect(editor).toHaveValue(source + "中文");
   const retained = await page.evaluate(
     () =>
@@ -2026,10 +2059,14 @@ for (const member of ["guest", "8"])
           })
           .click();
         await expect.poll(() => waiting).toBe(true);
-        if (cancel)
+        if (cancel) {
+          await page
+            .getByRole("button", { name: "Return to reading", exact: true })
+            .click();
           await page
             .getByRole("button", { name: "Return to writing", exact: true })
             .click();
+        }
         const response = page.waitForResponse(
           (result) => new URL(result.url()).searchParams.get("mod") === "post",
         );

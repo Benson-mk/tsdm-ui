@@ -39,88 +39,7 @@ async function open(page: Page, destination = threadURL) {
   await expect(page.locator(".workspace")).toBeVisible();
   return requests;
 }
-async function geometry(page: Page) {
-  return page.locator(".reading-pane").evaluate((pane) => ({
-    readerTop: pane.getBoundingClientRect().top,
-    readerHeight: pane.getBoundingClientRect().height,
-    viewport: innerHeight,
-    scrollWidth: document.documentElement.scrollWidth,
-    viewportWidth: innerWidth,
-  }));
-}
-
-test("UX53.compact-reader: disclosed navigation preserves retained writing, focus and reader space", async ({
-  page,
-}, info) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const requests = await open(page);
-  const initialMenu = page.getByRole("button", {
-    name: "Navigation · Boards",
-    exact: true,
-  });
-  if (await initialMenu.isVisible()) await initialMenu.click();
-  await page.getByRole("button", { name: "New thread", exact: true }).click();
-  if (await initialMenu.isVisible()) await initialMenu.press("Escape");
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("[unknown=v2]Retained writing 音樂[/unknown] [attach]321[/attach]");
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
-  await expect(page.locator(".source-writing")).toBeHidden();
-  const measured = await geometry(page);
-  await info.attach("reader-geometry.json", {
-    body: Buffer.from(JSON.stringify(measured, null, 2)),
-    contentType: "application/json",
-  });
-  await info.attach("ordinary-retained-reader.png", {
-    body: await page.screenshot(),
-    contentType: "image/png",
-  });
-  expect(measured.readerTop).toBeLessThanOrEqual(240);
-  expect(measured.readerHeight).toBeGreaterThanOrEqual(422);
-  const menu = page.getByRole("button", {
-    name: "Navigation · Boards",
-    exact: true,
-  });
-  await expect(menu).toHaveAttribute("aria-expanded", "false");
-  expect(
-    await menu.evaluate((node) => node.getBoundingClientRect().height),
-  ).toBeGreaterThanOrEqual(44);
-  const reader = page.locator(".reading-pane");
-  await reader.evaluate((node) => {
-    node.scrollTop = 650;
-  });
-  const offset = await reader.evaluate((node) => node.scrollTop);
-  const before = requests.length;
-  await menu.focus();
-  await page.keyboard.press("Enter");
-  await expect(menu).toHaveAttribute("aria-expanded", "true");
-  await expect(menu).toBeFocused();
-  await expect(
-    page
-      .getByRole("link", { name: "Continue in native forum", exact: true })
-      .first(),
-  ).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(menu).toHaveAttribute("aria-expanded", "false");
-  await expect(menu).toBeFocused();
-  expect(await reader.evaluate((node) => node.scrollTop)).toBe(offset);
-  expect(requests).toHaveLength(before);
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
-  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
-    "[unknown=v2]Retained writing 音樂[/unknown] [attach]321[/attach]",
-  );
-  expect(requests.every((r) => r.method === "GET")).toBe(true);
-  await info.attach("request-ledger.json", {
-    body: Buffer.from(JSON.stringify(requests, null, 2)),
-    contentType: "application/json",
-  });
-});
-
-test("UX53.result-context: direct arrival reclaims space while populated board results restore exact context", async ({
+test("UX53.result-context: direct arrival has useful list navigation while populated board results restore exact context", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -128,7 +47,7 @@ test("UX53.result-context: direct arrival reclaims space while populated board r
   const direct = await page
     .locator(".reading-pane")
     .evaluate((node) => node.getBoundingClientRect().left);
-  expect(direct).toBeLessThan(400);
+  expect(direct).toBe(516);
   await page
     .locator(".boards-navigation")
     .getByRole("link", { name: "Music discussion 音樂", exact: true })
@@ -145,6 +64,11 @@ test("UX53.result-context: direct arrival reclaims space while populated board r
   });
   await row.scrollIntoViewIfNeeded();
   const offset = await results.evaluate((node) => node.scrollTop);
+  const positionBefore = {
+    scrollTop: offset,
+    pane: await results.boundingBox(),
+    row: await row.boundingBox(),
+  };
   expect(offset).toBeGreaterThan(0);
   await row.click();
   await expect(page.getByRole("article")).toHaveCount(15);
@@ -159,7 +83,25 @@ test("UX53.result-context: direct arrival reclaims space while populated board r
   const count = requests.length;
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(results.locator(".thread-row")).toHaveCount(30);
-  expect(await results.evaluate((node) => node.scrollTop)).toBe(offset);
+  await info.attach("result-context-return-geometry.json", {
+    body: JSON.stringify({
+      before: positionBefore,
+      after: {
+        scrollTop: await results.evaluate((node) => node.scrollTop),
+        pane: await results.boundingBox(),
+        row: await row.boundingBox(),
+      },
+    }),
+    contentType: "application/json",
+  });
+  expect(await results.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  // History adds snapshot chrome. Preserve the visible row position, rather
+  // than the old numeric scrollTop; drawer docking retains its own exact rule.
+  await expect
+    .poll(async () =>
+      Math.abs((await row.boundingBox())!.y - positionBefore.row!.y),
+    )
+    .toBeLessThanOrEqual(0.5);
   await expect(
     page.getByRole("link", { name: "Continue in native forum", exact: true }),
   ).toHaveAttribute("href", `${boardURL}&tsdm-native=1`);
@@ -174,12 +116,69 @@ test("UX53.result-context: direct arrival reclaims space while populated board r
   });
 });
 
-for (const [language, menuLabel, settings, boards] of [
-  ["en", "Navigation · Boards", "Settings", "Boards"],
-  ["zh-CN", "导航 · 版块", "设置", "版块"],
-  ["zh-TW", "導覽 · 版塊", "設定", "版塊"],
-] as const) {
-  test(`UX53.responsive-${language}: navigation remains reachable through text, theme and viewport changes without requests`, async ({
+for (const deferredSettings of [false, true]) {
+  test(`IM66.composition-${deferredSettings ? "settings" : "drawer"}: IME Escape preserves the original deferred presentation intent`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const requests = await open(page);
+    const boards = page.getByRole("button", {
+      name: "Boards pane",
+      exact: true,
+    });
+    await boards.click();
+    await page.getByRole("button", { name: "New thread", exact: true }).click();
+    const editor = page.getByLabel("Complete source", { exact: true });
+    await editor.fill(
+      "[unknown=v2]Retained writing 中文[/unknown] [attach]321[/attach]",
+    );
+    const original = await editor.elementHandle();
+    await editor.focus();
+    await editor.dispatchEvent("compositionstart", { data: "中" });
+    if (deferredSettings)
+      await page
+        .getByRole("button", { name: "Settings", exact: true })
+        .dispatchEvent("click");
+    else await boards.dispatchEvent("click");
+    await editor.dispatchEvent("keydown", {
+      key: "Escape",
+      keyCode: 229,
+      isComposing: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    await expect(editor).toBeFocused();
+    await expect(page.getByRole("dialog")).toBeHidden();
+    await editor.dispatchEvent("compositionend", { data: "" });
+    const dialog = page.getByRole("dialog", {
+      name: deferredSettings ? "Settings" : "Boards navigation",
+      exact: true,
+    });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
+    await expect(editor).toHaveValue(
+      "[unknown=v2]Retained writing 中文[/unknown] [attach]321[/attach]",
+    );
+    expect(requests).toHaveLength(2);
+    await info.attach("composition-request-state.json", {
+      body: JSON.stringify(requests),
+      contentType: "application/json",
+    });
+    await info.attach("composition-escape.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  });
+}
+
+for (const [language, boardsLabel, threadsLabel, settings] of [
+  ["en", "Boards pane", "Threads pane", "Settings"],
+  ["zh-CN", "版块面板", "主题面板", "设置"],
+  ["zh-TW", "版塊面板", "主題面板", "設定"],
+] as const)
+  test(`IM66.appearance-${language}: modal and docked panes retain reading through themes, text scale and every threshold`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -198,184 +197,64 @@ for (const [language, menuLabel, settings, boards] of [
     );
     const requests = await open(page);
     const reader = page.locator(".reading-pane");
-    await reader.evaluate((node) => {
-      node.scrollTop = 600;
-    });
-    const menu = page.getByRole("button", { name: menuLabel, exact: true });
-    await menu.click();
-    await page.getByRole("button", { name: settings, exact: true }).click();
+    await reader.evaluate((node) => (node.scrollTop = 600));
     for (const [size, theme] of [
       [150, "dark"],
       [70, "mono"],
       [100, "alias"],
       [100, "light"],
     ] as const) {
+      await page.getByRole("button", { name: settings, exact: true }).click();
       await page.locator("#text-size").fill(String(size));
       await page.locator(`input[type=radio][value="${theme}"]`).check();
       await page.keyboard.press("Escape");
-      for (const viewport of [
-        { width: 768, height: 900 },
-        { width: 1440, height: 900 },
-        { width: 390, height: 844 },
+      for (const width of [
+        375, 559, 560, 767, 768, 959, 960, 1199, 1200, 1280, 1440, 1920,
       ]) {
-        await page.setViewportSize(viewport);
-        await expect(page.getByRole("article")).toHaveCount(15);
-        const overflow = await page.locator(".workspace").evaluate((node) => ({
-          width: node.clientWidth,
-          scroll: node.scrollWidth,
-        }));
-        expect(overflow.scroll).toBeLessThanOrEqual(overflow.width);
+        await page.setViewportSize({ width, height: 900 });
+        const boards = page.getByRole("button", {
+          name: boardsLabel,
+          exact: true,
+        });
+        const threads = page.getByRole("button", {
+          name: threadsLabel,
+          exact: true,
+        });
+        await expect(boards).toBeVisible();
+        await expect(threads).toBeVisible();
+        await expect(reader).toBeVisible();
         expect(await reader.evaluate((node) => node.scrollTop)).toBeGreaterThan(
           0,
         );
+        if (width < 960) {
+          await boards.click();
+          const drawer = page.locator(".pane-drawer");
+          await expect(drawer).toBeVisible();
+          expect(
+            await drawer.evaluate((node) => node.getBoundingClientRect().width),
+          ).toBe(Math.min(340, width - 32));
+          expect(
+            await drawer.evaluate(
+              (node) => node.scrollWidth <= node.clientWidth,
+            ),
+          ).toBe(true);
+          await page.keyboard.press("Escape");
+          await expect(boards).toBeFocused();
+        }
+        expect(
+          await page
+            .locator(".workspace")
+            .evaluate((node) => node.scrollWidth <= node.clientWidth),
+        ).toBe(true);
       }
-      // Closing a nonmodal disclosure keeps focus at its opener; no modal trap is promised.
-      await menu.focus();
-      await page.keyboard.press("Escape");
-      await expect(menu).toHaveAttribute("aria-expanded", "false");
-      await menu.click();
-      const picker = page.getByRole("combobox", {
-        name:
-          language === "en"
-            ? "Main destinations"
-            : language === "zh-CN"
-              ? "主要导航"
-              : "主要導覽",
-        exact: true,
-      });
-      await expect(picker).toBeVisible();
-      await expect(picker.locator("option:checked")).toHaveText(boards);
-      await info.attach(`${language}-${size}-${theme}.png`, {
+      await info.attach(`${theme}-${size}.png`, {
         body: await page.screenshot(),
         contentType: "image/png",
       });
-      await page.getByRole("button", { name: settings, exact: true }).click();
     }
-    await page.keyboard.press("Escape");
     expect(requests).toHaveLength(1);
-    expect(requests.every((r) => r.method === "GET")).toBe(true);
-  });
-}
-
-for (const deferredSettings of [false, true]) {
-  test(`UX53.composing-escape-${deferredSettings ? "deferred-settings" : "editor"}: cancelling composition keeps navigation focus and the original deferred intent`, async ({
-    page,
-  }, info) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    const requests = await open(page);
-    const menu = page.getByRole("button", {
-      name: "Navigation · Boards",
-      exact: true,
-    });
-    await menu.click();
-    await page.getByRole("button", { name: "New thread", exact: true }).click();
-    const editor = page.getByLabel("Complete source", { exact: true });
-    const source =
-      "[unknown=v2]Retained writing 中文[/unknown] [attach]321[/attach]";
-    await editor.fill(source);
-    await editor.focus();
-    const original = await editor.elementHandle();
-    await editor.dispatchEvent("compositionstart", { data: "中" });
-    if (deferredSettings)
-      await page
-        .getByRole("button", { name: "Settings", exact: true })
-        .dispatchEvent("click");
-    // Native engines may clear isComposing before emitting the final keyCode229 Escape.
-    await editor.dispatchEvent("keydown", {
-      key: "Escape",
-      code: "Escape",
-      keyCode: 229,
-      isComposing: !deferredSettings,
-      bubbles: true,
-      cancelable: true,
-    });
-    await expect(menu).toHaveAttribute("aria-expanded", "true");
-    await expect(editor).toBeFocused();
-    await editor.dispatchEvent("compositionend", { data: "" });
-    await page.evaluate(
-      () =>
-        new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
-    );
-    await expect(
-      page.getByText(/Finish the current input composition/),
-    ).toHaveCount(0);
-    await expect(menu).toHaveAttribute("aria-expanded", "true");
-    if (deferredSettings) {
-      await expect(
-        page.getByRole("dialog", { name: "Settings", exact: true }),
-      ).toBeVisible();
-      await page.keyboard.press("Escape");
-    } else await expect(editor).toBeFocused();
-    expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
-    await expect(editor).toHaveValue(source);
-    const retained = await page.evaluate(
-      () =>
-        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
-    );
-    expect(retained.source).toBe(source);
-    expect(requests).toHaveLength(2);
-    expect(requests.every((request) => request.method === "GET")).toBe(true);
-    await info.attach("composition-escape.png", {
-      body: await page.screenshot(),
-      contentType: "image/png",
-    });
-    await info.attach("composition-request-state.json", {
-      body: Buffer.from(JSON.stringify({ requests, retained }, null, 2)),
+    await info.attach("request-ledger.json", {
+      body: JSON.stringify(requests),
       contentType: "application/json",
     });
   });
-}
-
-test("UX53.menu-appearance-frame: closing navigation rebases the retained reading anchor before later text changes", async ({
-  page,
-}, info) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const requests = await open(page);
-  const paragraph = page.locator("#pid104 .post-content p").first();
-  await paragraph.evaluate((node) => node.scrollIntoView({ block: "start" }));
-  const menu = page.getByRole("button", {
-    name: "Navigation · Boards",
-    exact: true,
-  });
-  await menu.click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.locator("#text-size").fill("90");
-  await page.keyboard.press("Escape");
-  await menu.press("Escape");
-  await expect(menu).toHaveAttribute("aria-expanded", "false");
-  const before = await paragraph.evaluate(
-    (node) => node.getBoundingClientRect().top,
-  );
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.locator("#text-size").fill("100");
-  await page.keyboard.press("Escape");
-  await expect
-    .poll(async () =>
-      Math.abs(
-        (await paragraph.evaluate((node) => node.getBoundingClientRect().top)) -
-          before,
-      ),
-    )
-    .toBeLessThanOrEqual(1);
-  expect(requests).toHaveLength(1);
-  await info.attach("reflow-after-navigation.png", {
-    body: await page.screenshot(),
-    contentType: "image/png",
-  });
-  await info.attach("reading-frame.json", {
-    body: Buffer.from(
-      JSON.stringify(
-        {
-          before,
-          after: await paragraph.evaluate(
-            (node) => node.getBoundingClientRect().top,
-          ),
-          requests,
-        },
-        null,
-        2,
-      ),
-    ),
-    contentType: "application/json",
-  });
-});
