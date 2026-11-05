@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sidebar MVP — approval preview</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        background: white;
+        font-family: system-ui, sans-serif;
+      }
+      #preview {
+        display: block;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="preview"></div>
+    <script type="module">
+      // Throwaway approval MVP: two account-footer arrangements in workspace context.
+      // Synthetic data only. Not imported by the production entry point.
+      import workspaceStyles from "../styles.css?inline";
+      const host = document.querySelector("#preview");
+      const root = host.attachShadow({ mode: "open" });
+      const paths = {
+        boards:
+          '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+        messages:
+          '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/>',
+        search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+        saved: '<path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4z"/>',
+        notices:
+          '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+        drafts: '<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h8M8 16h6"/>',
+        settings:
+          '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--surface)"/><circle cx="15" cy="17" r="3" fill="var(--surface)"/>',
+        about: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/>',
+        threads: '<path d="M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"/>',
+        brand: '<path d="M12 2v20M2 12h20M5 5l14 14M5 19 19 5"/>',
+        left: '<path d="m15 5-7 7 7 7"/>',
+        right: '<path d="m9 5 7 7-7 7"/>',
+      };
+      const icon = (name) =>
+        `<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
+      const sections = [
+        "Boards",
+        "Messages",
+        "Search",
+        "Saved",
+        "Notices",
+        "Drafts",
+      ];
+      const boards = [
+        [
+          "事务所",
+          "论坛公告发布 / 论坛系统问题上报处理。新人疑问帮助 / 意见反馈 / 版务投诉。",
+          0,
+        ],
+        ["动漫游戏新闻", "欢迎发表二次元新闻。子版：后花园、神秘园。", 1],
+        ["若闲小阁", "欢迎来到水区，和同好轻松聊天。", 0],
+        ["新人报到", "和大家打个招呼。", 0],
+        ["活动专区", "查看近期活动。", 0],
+        ["天使名册", "认识社区的朋友。", 0],
+        ["天使动漫萌战", "动漫角色讨论。", 1],
+        ["音乐分享", "一起发现音乐。", 2],
+        ["动漫音乐", "分享喜欢的旋律。", 2],
+        ["绘画交流", "分享创作与灵感。", 2],
+        ["TSDM杂志社", "社区创作与投稿。", 2],
+        ["萌化区", "主题与桌面交流。", 2],
+        ["宣传组", "社区协作。", 0],
+        ["学生会", "社区交流。", 0],
+        ["美工综合讨论区", "设计交流。", 2],
+        ["美工商店街", "创作交流。", 2],
+        ["动态 / UI组", "界面设计交流。", 2],
+        ["平面设计组", "平面设计交流。", 2],
+        ["版主申请区 / 各工作组", "社区协作与申请。", 0],
+      ];
+      root.innerHTML = `<style>${workspaceStyles}</style><style>
+        :host { display:block; height:100%; --hover-surface:#edf2f7; --text-scale:1; }
+        .prototype-shell { height:100dvh; display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; }
+        .preview-banner { padding:8px 16px; background:#f2f0e9; border-bottom:1px solid var(--separator); font-size:13px; line-height:1.5; }
+        .workspace { min-height:0; height:100%; display:grid; grid-template-rows:auto minmax(0,1fr); }
+        .workspace > header { min-height:56px; padding:8px 16px; gap:12px; flex-wrap:wrap; }
+        .brand { display:flex; gap:8px; font-size:24px; }
+        svg { width:20px; height:20px; flex:none; }
+        .brand svg { width:24px; height:24px; }
+        header button { gap:8px; }
+        .workspace-caption { font-size:12px; }
+        main.preview-body { display:grid; grid-template-columns:264px minmax(260px,320px) minmax(0,1fr); min-height:0; max-width:none; width:100%; margin:0; padding:0; overflow:hidden; }
+        .preview-body .boards-region { display:flex; flex-direction:column; overflow:hidden; padding:0; min-height:0; min-width:0; border-right:1px solid var(--separator); }
+        .sidebar-scroll { flex:1; min-height:0; overflow:auto; padding:12px; scrollbar-gutter:stable; }
+        .sidebar-scroll .main-destinations { display:grid; gap:4px; padding:0; background:var(--surface); border:0; }
+        .main-destinations button { min-height:44px; }
+        .boards-navigation { padding:24px 0 12px; border:0; gap:4px; }
+        .boards-navigation a { line-height:1.5; min-height:44px; font-size:calc(16px * var(--text-scale)); }
+        .boards-navigation a::before { background:var(--support); }
+        :host([data-colors="groups"]) .boards-navigation a[data-group="0"]::before { background:#88b5d5; }
+        :host([data-colors="groups"]) .boards-navigation a[data-group="1"]::before { background:#b4a0cc; }
+        :host([data-colors="groups"]) .boards-navigation a[data-group="2"]::before { background:#85b6a0; }
+        :host([data-font="cjk"]) [lang="zh-Hans"] { font-family:"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif; }
+        :host([data-font="cjk"]) [lang="zh-Hant"] { font-family:"PingFang TC","Noto Sans CJK TC","Microsoft JhengHei",sans-serif; }
+        .preview-body .navigation-account { flex:none; border-top:1px solid var(--separator); margin:0; padding:12px; display:flex; align-items:center; gap:4px; background:var(--surface); color:var(--ink); }
+        .identity { flex:1; min-width:0; overflow-wrap:anywhere; font-size:calc(14px * var(--text-scale)); line-height:1.45; }
+        .identity small { display:block; font-size:calc(12px * var(--text-scale)); color:var(--muted); }
+        .account-actions { display:flex; gap:4px; flex:none; }
+        .account-actions button { min-width:44px; min-height:44px; padding:10px; border-radius:12px; gap:8px; }
+        .action-text { display:none; }
+        :host([data-variant="B"]) .navigation-account { flex-direction:column; align-items:stretch; gap:8px; }
+        :host([data-variant="B"]) .action-text { display:inline; }
+        :host([data-variant="B"]) .account-actions button { flex:1; justify-content:center; border:1px solid var(--separator); font-size:calc(14px * var(--text-scale)); }
+        :host([data-variant="B"]) .account-actions { flex-wrap:wrap; }
+        .preview-results { padding:24px; min-height:0; overflow:auto; border-right:1px solid var(--separator); }
+        .preview-results h1 { font-size:calc(30px * var(--text-scale)); font-weight:600; }
+        .preview-results h2 { font-size:calc(21px * var(--text-scale)); margin:24px 0 16px; }
+        .preview-results > p { font-size:calc(18px * var(--text-scale)); }
+        .board-grid { display:grid; grid-template-columns:minmax(0,1fr); }
+        .board-card { padding:20px; font-size:calc(16px * var(--text-scale)); }
+        .board-card strong { font-weight:600; font-size:calc(18px * var(--text-scale)); }
+        .preview-reader { padding:24px; overflow:auto; font-size:calc(18px * var(--text-scale)); }
+        .preview-reader p { margin:0; }
+        .font-sample { margin-top:32px; padding-top:16px; border-top:1px solid var(--separator); line-height:1.8; }
+        .font-sample small { color:var(--muted); font-size:13px; }
+        button:hover:not(:disabled), a:hover { background:var(--hover-surface); text-decoration:none; }
+        .main-destinations [aria-current="page"] { background:var(--ink); color:var(--surface); }
+        .main-destinations [aria-current="page"]:hover { background:#303030; }
+        .board-card:hover { border-color:var(--boundary); background:var(--hover-surface); }
+        .board-card:hover > strong { text-decoration:none; }
+        button:disabled { opacity:.4; cursor:default; }
+        :focus-visible { outline:3px solid #285e9a; outline-offset:2px; }
+        .preview-tools { padding:8px 12px; background:#f2f0e9; border-top:1px solid var(--separator); display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; font-size:12px; z-index:1; }
+        .preview-tools label { display:flex; gap:6px; align-items:center; }
+        .preview-tools input { width:18px; height:18px; }
+        .variant-switcher { display:flex; align-items:center; border-radius:28px; background:#171717; color:white; padding:0 4px; }
+        .variant-switcher button { color:white; min-width:44px; padding:10px; }
+        .variant-switcher button:hover { background:#444; }
+        .variant-label { min-width:150px; text-align:center; }
+        .preview-state { flex-basis:100%; margin:0; color:#555; font-size:12px; }
+        .history-tools { display:grid; gap:4px; padding:16px 0; border-top:1px solid var(--separator); }
+        .history-tools button { text-align:left; font-size:14px; }
+        .group-key { display:none; margin:12px 0; font-size:12px; color:var(--muted); }
+        :host([data-colors="groups"]) .group-key { display:block; }
+        dialog { color:var(--ink); background:var(--surface); border:1px solid var(--separator); border-radius:16px; padding:24px; max-width:min(440px,80vw); }
+        dialog::backdrop { background:#0006; }
+        dialog p { line-height:1.5; }
+        dialog button { border:1px solid var(--separator); }
+        @media(max-width:760px) { main.preview-body { grid-template-columns:250px minmax(0,1fr); } .preview-reader { display:none; } .workspace-caption { display:none; } header .brand { margin-right:auto; } }
+        @media(max-width:540px) { main.preview-body { grid-template-columns:minmax(0,1fr); } .preview-results { display:none; } .workspace > header { padding:8px 12px; } header .threads-control { display:none; } .preview-tools { gap:4px 12px; padding:8px; } .preview-state { font-size:11px; } }
+      </style>
+      <div class="prototype-shell">
+        <div class="preview-banner"><strong>Sidebar MVP · approval preview</strong> — synthetic content. Scroll the boards; the account and tools stay visible.</div>
+        <div class="workspace">
+          <header><a class="brand" href="#" data-stub="Home">${icon("brand")}TSDM</a><span class="workspace-caption">Forum / IM</span><button data-stub="Boards pane">${icon("boards")}Boards</button><button class="threads-control" data-stub="Threads pane">${icon("threads")}Threads pane</button></header>
+          <main class="preview-body">
+            <aside class="boards-region" aria-label="Preview sidebar">
+              <div class="sidebar-scroll" tabindex="0" aria-label="Scrollable navigation">
+                <p class="navigation-caption">Main destinations</p>
+                <nav aria-label="Main destinations" class="main-destinations">${sections.map((section, i) => `<button ${i === 0 ? 'aria-current="page"' : ""} data-stub="${section}">${icon(section.toLowerCase())}<span>${section}</span></button>`).join("")}</nav>
+                <nav class="boards-navigation" aria-label="Browse boards"><h2>Browse boards</h2><a href="#" data-stub="All boards">All boards</a>${boards.map(([name, , group]) => `<a href="#" lang="zh-Hans" data-group="${group}" data-stub="Board preview">${name}</a>`).join("")}</nav>
+                <p class="group-key">Illustrative groups: blue · community; purple · anime; green · creative. Not unread status.</p>
+                <div class="history-tools"><button disabled>Back</button><button data-stub="Refresh">Refresh</button><button data-stub="Native forum">Continue in native forum</button></div>
+              </div>
+              <footer class="navigation-account"><div class="identity"><small>Signed in as</small><strong>demo-member</strong></div><div class="account-actions"><button aria-label="Settings" title="Settings" data-dialog="Settings">${icon("settings")}<span class="action-text">Settings</span></button><button aria-label="About this workspace" title="About this workspace" data-dialog="About this workspace">${icon("about")}<span class="action-text">About</span></button></div></footer>
+            </aside>
+            <section class="preview-results"><h1>Boards</h1><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
+              .slice(0, 5)
+              .map(
+                ([name, description]) =>
+                  `<a href="#" class="board-card" lang="zh-Hans" data-stub="Board preview"><strong>${name}</strong><span>${description}</span></a>`,
+              )
+              .join("")}</div></section>
+            <section class="preview-reader"><p>Choose a thread to read. Browsing boards keeps your current thread and writing.</p><div class="font-sample"><small>Typography comparison · local fonts</small><p lang="zh-Hans">动漫游戏新闻<br/>欢迎来到天使动漫论坛。</p><p lang="zh-Hant">動漫遊戲新聞<br/>歡迎來到天使動漫論壇。</p></div></section>
+          </main>
+        </div>
+        <div class="preview-tools" aria-label="Prototype comparisons"><div class="variant-switcher"><button aria-label="Previous footer">${icon("left")}</button><span class="variant-label" aria-live="polite"></span><button aria-label="Next footer">${icon("right")}</button></div><label><input type="checkbox" id="colors"/>Group colors (sample)</label><label><input type="checkbox" id="font"/>Chinese font stack</label><label><input type="checkbox" id="large"/>125% text</label><p class="preview-state" role="status"></p></div>
+        <dialog aria-labelledby="dialog-title"><h2 id="dialog-title"></h2><p>Preview only. Production will keep the existing Reka dialog and its behavior.</p><button id="close-dialog">Close</button></dialog>
+      </div>`;
+      const initial = new URL(location.href).searchParams.get("variant");
+      let variant = initial === "B" ? "B" : "A";
+      const state = () => {
+        host.dataset.variant = variant;
+        host.dataset.colors = root.querySelector("#colors").checked
+          ? "groups"
+          : "single";
+        host.dataset.font = root.querySelector("#font").checked
+          ? "cjk"
+          : "current";
+        host.style.setProperty(
+          "--text-scale",
+          root.querySelector("#large").checked ? "1.25" : "1",
+        );
+        root.querySelector(".variant-label").textContent =
+          variant === "A" ? "A · Compact actions" : "B · Labelled actions";
+        root.querySelector(".preview-state").textContent =
+          `Footer: ${variant} · Dots: ${host.dataset.colors === "groups" ? "illustrative groups" : "one color"} · Font: ${host.dataset.font === "cjk" ? "explicit Chinese fallbacks" : "current stack"} · Text: ${root.querySelector("#large").checked ? "125%" : "100%"} · Forum actions: stubbed`;
+        const url = new URL(location.href);
+        url.searchParams.set("variant", variant);
+        history.replaceState(null, "", url);
+      };
+      const changeVariant = () => {
+        variant = variant === "A" ? "B" : "A";
+        state();
+      };
+      root
+        .querySelectorAll(".variant-switcher button")
+        .forEach((button) => button.addEventListener("click", changeVariant));
+      root
+        .querySelectorAll(".preview-tools input")
+        .forEach((input) => input.addEventListener("change", state));
+      root.addEventListener("keydown", (event) => {
+        if (
+          !["ArrowLeft", "ArrowRight"].includes(event.key) ||
+          event.target.closest("input,textarea,select,[contenteditable],dialog")
+        )
+          return;
+        event.preventDefault();
+        changeVariant();
+      });
+      const dialog = root.querySelector("dialog");
+      root.querySelectorAll("[data-dialog]").forEach((button) =>
+        button.addEventListener("click", () => {
+          root.querySelector("#dialog-title").textContent =
+            button.dataset.dialog;
+          dialog.showModal();
+        }),
+      );
+      root
+        .querySelector("#close-dialog")
+        .addEventListener("click", () => dialog.close());
+      root.querySelectorAll("[data-stub]").forEach((control) =>
+        control.addEventListener("click", (event) => {
+          event.preventDefault();
+          root.querySelector(".preview-state").textContent =
+            `${control.dataset.stub}: visual preview only; no forum action performed.`;
+        }),
+      );
+      const filter = root.querySelector("#filter");
+      const filterCards = () => {
+        const cards = [...root.querySelectorAll(".board-card")];
+        const query = filter.value.trim().toLocaleLowerCase();
+        cards.forEach((card) => {
+          card.style.display = card.textContent
+            .toLocaleLowerCase()
+            .includes(query)
+            ? ""
+            : "none";
+        });
+        root.querySelector("#count").textContent =
+          `Preview boards shown: ${cards.filter((card) => card.style.display !== "none").length} / ${cards.length}`;
+      };
+      filter.addEventListener("input", filterCards);
+      filterCards();
+      state();
+    </script>
+  </body>
+</html>
