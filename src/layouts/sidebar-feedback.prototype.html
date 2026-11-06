@@ -198,11 +198,16 @@
         .reader-tools.compact #reader-title { font-size:calc(16px * var(--text-scale)); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .reader-control-stack { flex:none; display:flex; align-items:center; gap:8px; }
         @container reader (max-width:400px) {
-          .reader-control-stack { display:grid; grid-template-columns:auto auto; gap:4px 8px; }
-          .reader-tool-group { grid-column:1 / -1; justify-self:end; }
-          #order-state { grid-column:1; }
-          #reply-open { grid-column:2; }
+          .reader-tools.compact { flex-wrap:wrap; }
+          .reader-heading { flex-basis:100%; }
+          .reader-control-stack { margin-left:auto; }
+          #order-state { max-width:80px; }
         }
+        .fresh-status { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-height:44px; font-size:12px; flex:none; }
+        .fresh-status button { min-height:44px; font-size:12px; }
+        .fresh-status:has(button:not([hidden])) > span { display:none; }
+        .thread-end { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:20px 0; border-top:1px solid var(--separator); font-size:14px; }
+        #reply-open { justify-content:flex-end; }
         .reader-tool-group { position:relative; display:flex; align-items:center; flex:none; gap:8px; }
         .reader-tool-group #page-open { min-height:44px; border:0; border-radius:24px; padding:10px 12px; white-space:nowrap; }
         .reader-tool-group .reader-more { position:static; }
@@ -284,7 +289,7 @@
         }
       </style>
       <div class="prototype-shell">
-        <div class="preview-banner"><strong>Sidebar MVP · revised A</strong> — synthetic continuous reader. Scroll through sample pages or jump with Page. Drag a column edge to resize.</div>
+        <div class="preview-banner"><strong>Sidebar MVP · revised A</strong> — synthetic continuous reader. Stage sample arrivals, then check for updates. No forum requests.</div>
         <div class="workspace">
           <header><a class="brand" href="#" data-stub="Home">${icon("brand")}TSDM</a><span class="workspace-caption">Forum / IM</span><div class="pane-controls" role="group" aria-label="Workspace controls"><button data-pane="boards" aria-label="Boards pane" title="Boards pane">${icon("boards")}<span class="pane-control-label">Boards</span></button><button class="threads-control" data-pane="results" aria-label="Threads pane" title="Threads pane">${icon("threads")}<span class="pane-control-label">Threads pane</span></button><button data-stub="Continue in native forum" aria-label="Continue in native forum" title="Continue in native forum">${icon("external")}<span class="pane-control-label">Native forum</span></button></div></header>
           <main class="preview-body">
@@ -297,7 +302,7 @@
               </div>
               <footer class="navigation-account"><div class="identity"><small>Signed in as</small><strong>demo-member</strong></div><div class="account-actions"><button aria-label="Settings" title="Settings" data-dialog="Settings">${icon("settings")}<span class="action-text">Settings</span></button></div></footer>
             </aside>
-            <section class="preview-results"><div class="results-heading"><h1 id="results-title" tabindex="-1">Boards</h1><button class="context-action" data-stub="Refresh current list" aria-label="Refresh current list" title="Refresh current list">${icon("refresh")}</button></div><button class="context-action" data-all-boards id="list-back" hidden>All boards</button><div id="directory-results"><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
+            <section class="preview-results"><div class="results-heading"><h1 id="results-title" tabindex="-1">Boards</h1><button class="context-action" id="board-check" aria-label="Refresh current list" title="Refresh current list">${icon("refresh")}</button></div><button class="context-action" data-all-boards id="list-back" hidden>All boards</button><div id="directory-results"><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
               .slice(0, 5)
               .map(
                 ([name, description], index) =>
@@ -305,12 +310,13 @@
               )
               .join(
                 "",
-              )}</div></div><div id="thread-results" hidden><p>Select a thread to read.</p><div class="sample-thread-list">${sampleThreads.map((thread) => `<button class="sample-thread" data-thread="${thread.id}" lang="zh-Hans"><strong>${thread.title}</strong><span>${thread.excerpt}</span></button>`).join("")}</div></div></section>
+              )}</div></div><div id="thread-results" hidden><div class="fresh-status" aria-live="polite"><span id="board-fresh-state">Not checked</span><button id="board-reveal" hidden>Show new thread</button></div><div class="sample-thread-list">${sampleThreads.map((thread) => `<button class="sample-thread" data-thread="${thread.id}" lang="zh-Hans"><strong>${thread.title}</strong><span>${thread.excerpt}</span></button>`).join("")}</div></div></section>
             <section class="preview-reader"><div id="reader-empty"><p>Choose a thread to read.</p></div><div id="reader-content" hidden>
               <div class="reader-main">
-                <div class="reader-tools" role="group" aria-label="Reader controls"><div class="reader-heading"><a href="#" id="reader-board"></a><h1 id="reader-title" lang="zh-Hans" tabindex="-1"></h1></div><div class="reader-control-stack"><div class="reader-tool-group" role="group" aria-label="Page and thread options"><button id="page-open" aria-haspopup="dialog">Page 1 / 92</button><details class="reader-more"><summary aria-label="More thread options" title="More thread options">${icon("more")}</summary><div class="reader-more-options"><button data-stub="Back in history">Back in history</button><button data-stub="Refresh current thread">Refresh thread</button><button data-stub="Save thread">Save thread</button><button id="copy-url">Copy URL</button><button id="reverse-order" aria-pressed="false">Reverse order</button></div></details></div><span id="order-state" hidden>Newest first</span><button id="reply-open">Reply</button></div></div>
+                <div class="reader-tools" role="group" aria-label="Reader controls"><div class="reader-heading"><a href="#" id="reader-board"></a><h1 id="reader-title" lang="zh-Hans" tabindex="-1"></h1></div><div class="reader-control-stack"><span id="order-state" hidden>Newest first</span><div class="reader-tool-group" role="group" aria-label="Page and thread options"><button id="page-open" aria-haspopup="dialog">Page 1 / 92</button><details class="reader-more"><summary aria-label="More thread options" title="More thread options">${icon("more")}</summary><div class="reader-more-options"><button data-stub="Back in history">Back in history</button><button id="thread-check-menu">Refresh thread</button><button data-stub="Save thread">Save thread</button><button id="copy-url">Copy URL</button><button id="reverse-order" aria-pressed="false">Reverse order</button></div></details></div></div></div>
+                <div class="fresh-status" aria-live="polite"><span id="thread-fresh-state">Not checked</span><button id="thread-reveal" hidden>Show new posts</button></div>
                 <div class="reader-scroll">
-                <div id="sample-posts"></div>
+                <div id="thread-newest" class="thread-end" hidden><span>Newest end</span><button id="thread-check">Check for new posts</button></div><div id="sample-posts"></div>
                 </div>
               </div>
               <section class="reply-composer" aria-label="Compact reply" hidden><div class="reply-toolbar"><strong>Reply · demo-member</strong><button id="reply-expand" aria-label="Expand reply" title="Expand reply" aria-expanded="false">${icon("expand")}</button><button id="reply-hide" aria-label="Minimize reply" title="Minimize reply">${icon("minimize")}</button></div><span id="reply-target"></span><p id="reply-mismatch" role="status" hidden>Reply is still addressed to the earlier thread.</p><div class="rich-tools" role="group" aria-label="Rich text formatting">${[
@@ -331,13 +337,14 @@
                 .join(
                   "",
                 )}</div><div id="reply-editor" class="rich-editor"></div><p id="editor-message" role="status" hidden></p><details><summary>Details</summary><p>This ordinary reply addresses the named thread. A post-specific reply would also show its author and post.</p><p>Text stays in this preview until reload. Nothing is saved to the forum. Review remains a separate step before any real publication.</p></details><div class="reply-footer"><small>Unsaved preview text</small><button id="reply-review" disabled>Review reply</button></div></section>
+              <button id="reply-open" class="reply-resume">Reply</button>
               <button id="reply-resume" class="reply-resume" hidden><strong>Resume reply</strong><span id="resume-target"></span></button>
             </div></section>
             ${["boards", "threads", "writing"].map((pane) => `<div class="column-grip" tabindex="0" data-resize="${pane}" role="separator" aria-orientation="vertical" aria-label="Resize ${pane} column" title="Drag to resize ${pane}; Left/Right to adjust, Home to reset" hidden></div>`).join("")}
           </main>
         </div>
-        <div class="preview-tools" aria-label="Preview controls"><strong>Continuous reader MVP</strong><label><input type="checkbox" id="large"/>125% text</label><p class="preview-state" role="status"></p></div>
-        <dialog aria-labelledby="dialog-title"><h2 id="dialog-title">Settings</h2><p>Preview only. No preferences are saved.</p><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3><p>Drag a column edge directly. Focus a divider and use Left/Right to adjust, or Home to reset it. Widths stay in this preview until reload.</p><button id="reset-columns">Reset column widths</button></section><section aria-labelledby="about-heading"><h3 id="about-heading">About this workspace</h3><p>TSDM — a workspace for boards, threads and private conversations.</p></section><button id="close-dialog">Close</button></dialog>
+        <div class="preview-tools" aria-label="Preview controls"><strong>Fresh-content simulation</strong><button id="stage-arrivals">Stage sample arrivals</button><button id="advance-check">Advance 2 min</button><label><input type="checkbox" id="large"/>125% text</label><p class="preview-state" role="status"></p></div>
+        <dialog aria-labelledby="dialog-title"><h2 id="dialog-title">Settings</h2><p>Preview only. No preferences are saved.</p><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3><p>Drag a column edge directly. Focus a divider and use Left/Right to adjust, or Home to reset it. Widths stay in this preview until reload.</p><button id="reset-columns">Reset column widths</button></section><section aria-labelledby="updates-heading"><h3 id="updates-heading">Updates</h3><label><input id="automatic-updates" type="checkbox"/> Check visible open thread and board every 2 minutes</label><p>Checks pause when this tab or pane is hidden, or a dialog is open. New content waits for you to show it.</p></section><section aria-labelledby="about-heading"><h3 id="about-heading">About this workspace</h3><p>TSDM — a workspace for boards, threads and private conversations.</p></section><button id="close-dialog">Close</button></dialog>
         <dialog id="page-dialog" aria-labelledby="page-title"><h2 id="page-title">Jump to page</h2><form id="page-form"><label for="page-slider">Choose page <output id="page-choice">1</output> of 92</label><input id="page-slider" aria-label="Page slider" type="range" min="1" max="92" step="1" value="1"/><label for="page-number">Page number</label><input id="page-number" type="number" min="1" max="92" step="1" required value="1"/><div class="reply-footer"><button type="button" id="page-cancel">Cancel</button><button type="submit">Go to page</button></div></form></dialog>
         <dialog id="copy-dialog" aria-labelledby="copy-title"><h2 id="copy-title">Copy preview URL</h2><p>Clipboard access was unavailable. Copy this preview link manually.</p><input id="copy-value" aria-label="Preview URL" readonly/><button id="copy-close">Close</button></dialog>
         <dialog id="reply-dialog" aria-labelledby="review-title"><h2 id="review-title">Review reply</h2><p id="review-target"></p><div id="review-copy"></div><p>Preview only. No reply will be sent.</p><button id="review-close">Back to writing</button></dialog>
@@ -358,6 +365,89 @@
       let restoringStream = false,
         restorationToken = 0,
         streamFrame = null;
+      const threadUpdates = new Map(),
+        boardUpdates = new Map();
+      const updatesFor = (map, key) => {
+        if (!map.has(key))
+          map.set(key, { available: 0, found: 0, shown: 0, checked: false });
+        return map.get(key);
+      };
+      const currentThreadUpdates = () =>
+        updatesFor(
+          threadUpdates,
+          `${selectedThread.boardIndex}:${selectedThread.id}`,
+        );
+      const currentBoardUpdates = () => updatesFor(boardUpdates, selectedBoard);
+      const arrivalThread = {
+        id: 4,
+        title: "新话题 · 今天的新发现",
+        excerpt: "模拟新增话题，点击后可阅读。",
+      };
+      let simulatedTime = 0,
+        nextCheck = Date.now() + 120_000,
+        wasPaused = false;
+      function visiblePane(selector) {
+        return (
+          !document.hidden &&
+          !root.querySelector("dialog[open]") &&
+          !!root.querySelector(selector).getClientRects().length
+        );
+      }
+      function updateFreshUI() {
+        for (const [kind, entry] of [
+          ["thread", selectedThread && currentThreadUpdates()],
+          ["board", selectedBoard !== null && currentBoardUpdates()],
+        ]) {
+          if (!entry) continue;
+          const count = entry.found - entry.shown;
+          root.querySelector(`#${kind}-fresh-state`).textContent = count
+            ? `${count} new ${kind === "thread" ? "posts" : "thread"} available`
+            : entry.checked
+              ? "Up to date · sample"
+              : "Not checked";
+          const button = root.querySelector(`#${kind}-reveal`);
+          button.hidden = !count;
+          button.textContent = `Show ${count} new ${kind === "thread" ? "posts" : "thread"}`;
+        }
+        root.querySelector("#board-check").disabled = selectedBoard === null;
+      }
+      function checkUpdates(kind) {
+        if (kind === "thread" ? !selectedThread : selectedBoard === null)
+          return;
+        const entry =
+          kind === "thread" ? currentThreadUpdates() : currentBoardUpdates();
+        entry.found = entry.available;
+        entry.checked = true;
+        updateFreshUI();
+      }
+      function automaticTick() {
+        const now = Date.now() + simulatedTime;
+        const activeThread = selectedThread && visiblePane(".preview-reader");
+        const activeBoard =
+          selectedBoard !== null && visiblePane(".preview-results");
+        const paused =
+          !root.querySelector("#automatic-updates").checked ||
+          (!activeThread && !activeBoard);
+        if (paused || wasPaused) nextCheck = now + 120_000;
+        wasPaused = paused;
+        if (!paused && now >= nextCheck) {
+          nextCheck = now + 120_000;
+          if (activeThread) checkUpdates("thread");
+          if (activeBoard) checkUpdates("board");
+        }
+      }
+      function renderThreadList() {
+        const threads =
+          selectedBoard !== null && currentBoardUpdates().shown
+            ? [arrivalThread, ...sampleThreads]
+            : sampleThreads;
+        root.querySelector(".sample-thread-list").innerHTML = threads
+          .map(
+            (thread) =>
+              `<button class="sample-thread" data-thread="${thread.id}" lang="zh-Hans" aria-current="${selectedThread?.boardIndex === selectedBoard && selectedThread.id === thread.id}"><strong>${thread.title}</strong><span>${thread.excerpt}</span></button>`,
+          )
+          .join("");
+      }
       function suppressStreamLoading() {
         restoringStream = true;
         const token = ++restorationToken;
@@ -537,6 +627,8 @@
           );
         state();
         sizeColumns();
+        updateFreshUI();
+        nextCheck = Date.now() + simulatedTime + 120_000;
       };
       const state = () => {
         host.style.setProperty(
@@ -579,6 +671,7 @@
       );
       const showBoard = (index) => {
         selectedBoard = index;
+        renderThreadList();
         root.querySelector("#results-title").textContent =
           index === null ? "Boards" : boards[index][0];
         root.querySelector("#directory-results").hidden = index !== null;
@@ -603,10 +696,13 @@
           showBoard(null);
         }),
       );
-      root.querySelectorAll("[data-thread]").forEach((button) =>
-        button.addEventListener("click", () => {
+      root
+        .querySelector(".sample-thread-list")
+        .addEventListener("click", (event) => {
+          const button = event.target.closest("[data-thread]");
+          if (!button) return;
           selectedThread = {
-            ...sampleThreads.find(
+            ...[...sampleThreads, arrivalThread].find(
               (thread) => thread.id === Number(button.dataset.thread),
             ),
             board: boards[selectedBoard][0],
@@ -629,8 +725,7 @@
           updateReply();
           showView("reader");
           root.querySelector("#reader-title").focus();
-        }),
-      );
+        });
       root.querySelector("#reader-board").addEventListener("click", (event) => {
         event.preventDefault();
         showBoard(selectedThread.boardIndex);
@@ -655,7 +750,7 @@
         else if (scroll.scrollTop <= 8) header.classList.remove("compact");
         host.style.setProperty(
           "--reader-reserve",
-          `${header.offsetHeight + 104}px`,
+          `${header.offsetHeight + root.querySelector(".reader-main > .fresh-status").offsetHeight + 104}px`,
         );
       }
       function syncReading() {
@@ -663,6 +758,8 @@
         const scroll = root.querySelector(".reader-scroll");
         const box = scroll.getBoundingClientRect();
         if (!box.height) return;
+        const newest = root.querySelector("#thread-newest");
+        newest.hidden = loadedHigh !== 92;
         const posts = [...root.querySelectorAll(".sample-post")];
         const visible = posts.find((post) => {
           const rect = post.getBoundingClientRect();
@@ -688,6 +785,10 @@
       }
       function pageMarkup(samplePage) {
         const numbers = [1, 2, 3].map((n) => (samplePage - 1) * 3 + n);
+        if (samplePage === 92 && selectedThread) {
+          for (let n = 1; n <= currentThreadUpdates().shown; n++)
+            numbers.push(276 + n);
+        }
         if (reverse) numbers.reverse();
         return numbers
           .map((n) => {
@@ -738,6 +839,7 @@
           );
         loadedLow = Math.min(loadedLow, incoming);
         loadedHigh = Math.max(loadedHigh, incoming);
+        root.querySelector("#thread-newest").hidden = loadedHigh !== 92;
         if (anchor)
           scroll.scrollTop +=
             anchor.getBoundingClientRect().top -
@@ -770,6 +872,11 @@
         root.querySelector("#sample-posts").innerHTML = pages
           .map(pageMarkup)
           .join("");
+        const newest = root.querySelector("#thread-newest");
+        const stream = root.querySelector(".reader-scroll");
+        if (reverse) stream.prepend(newest);
+        else stream.append(newest);
+        newest.hidden = loadedHigh !== 92;
         jumpPage();
       };
       root.querySelector("#reverse-order").addEventListener("click", () => {
@@ -804,6 +911,66 @@
         page = Number(pageNumber.value);
         renderPage();
         pageDialog.close();
+      });
+      root
+        .querySelector("#thread-check")
+        .addEventListener("click", () => checkUpdates("thread"));
+      root
+        .querySelector("#thread-check-menu")
+        .addEventListener("click", () => checkUpdates("thread"));
+      root
+        .querySelector("#board-check")
+        .addEventListener("click", () => checkUpdates("board"));
+      root.querySelector("#thread-reveal").addEventListener("click", () => {
+        currentThreadUpdates().shown = currentThreadUpdates().found;
+        page = 92;
+        renderPage();
+        const target = root.querySelector(
+          `[data-post="${reverse ? 276 + currentThreadUpdates().shown : 277}"]`,
+        );
+        const scroll = root.querySelector(".reader-scroll");
+        scroll.scrollTop +=
+          target.getBoundingClientRect().top -
+          scroll.getBoundingClientRect().top -
+          6;
+        updateFreshUI();
+        syncReading();
+      });
+      root.querySelector("#board-reveal").addEventListener("click", () => {
+        currentBoardUpdates().shown = currentBoardUpdates().found;
+        renderThreadList();
+        updateFreshUI();
+        root.querySelector(".preview-results").scrollTop = 0;
+        root.querySelector('[data-thread="4"]').focus();
+      });
+      root.querySelector("#stage-arrivals").addEventListener("click", () => {
+        if (selectedThread) currentThreadUpdates().available = 2;
+        if (selectedBoard !== null) currentBoardUpdates().available = 1;
+        root.querySelector(".preview-state").textContent =
+          "Simulation: staged up to 2 new posts and 1 new thread for the open contexts. Check manually or enable automatic checks and advance 2 min. Each context has one sample batch.";
+      });
+      root
+        .querySelector("#automatic-updates")
+        .addEventListener("change", () => {
+          nextCheck = Date.now() + simulatedTime + 120_000;
+          wasPaused = false;
+          root.querySelector(".preview-state").textContent = root.querySelector(
+            "#automatic-updates",
+          ).checked
+            ? "Automatic checks enabled · every 2 min · visible panes only · synthetic data"
+            : "Automatic checks disabled";
+        });
+      root.querySelector("#advance-check").addEventListener("click", () => {
+        automaticTick();
+        simulatedTime += 120_000;
+        automaticTick();
+        root.querySelector(".preview-state").textContent =
+          "Simulation clock advanced 2 min. Automatic checks apply only when enabled and the context is visible; otherwise paused.";
+      });
+      setInterval(automaticTick, 1000);
+      document.addEventListener("visibilitychange", () => {
+        nextCheck = Date.now() + simulatedTime + 120_000;
+        automaticTick();
       });
       const composer = root.querySelector(".reply-composer");
       const session = createEditorSession();
@@ -981,7 +1148,7 @@
       filterCards();
       showView("results");
       const initialBoard = Number(url.searchParams.get("board"));
-      const initialThread = sampleThreads.find(
+      const initialThread = [...sampleThreads, arrivalThread].find(
         (thread) => String(thread.id) === url.searchParams.get("thread"),
       );
       if (
@@ -991,6 +1158,10 @@
         initialBoard < boards.length &&
         initialThread
       ) {
+        if (initialThread.id === arrivalThread.id) {
+          const entry = updatesFor(boardUpdates, initialBoard);
+          entry.available = entry.found = entry.shown = 1;
+        }
         showBoard(initialBoard);
         root.querySelector(`[data-thread="${initialThread.id}"]`).click();
         const initialPage = Number(url.searchParams.get("page"));

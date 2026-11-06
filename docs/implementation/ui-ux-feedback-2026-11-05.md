@@ -340,3 +340,39 @@ Final advisor correction: with a312px reader, reverse order active and Reply uno
 Additional actual trade-off: in narrow readers, the second action row preserves title space and control sizes but can increase compact-header height from56px to104px. This applies to reader width, so it also works after manual column resizing.
 
 The gpt-6.1-sol xhigh advisor used validate-gpt-code-review, validated the source, newest-build reference and retained browser evidence, and confirmed this correction. It found no remaining significant preview-scope concern. It independently checked syntax/whitespace but did not rerun browser journeys. All scoped acceptance criteria are verified; owner design approval and production integration remain pending.
+
+## Footer reply and fresh-content MVP — 2026-11-06
+
+Feedback: move Reply to the footer; order reader tools Newest first, Page, More; explore an end-of-thread refresh or automatic updates for the open thread and board. Scope remains the approval MVP on feat/improve-ui-ux; no ticket publication or production integration.
+
+Research before implementation: production thread-history.ts has an opt-in120-second check, qualified only at the ascending newest boundary, with visibility/busy guards, backoff and arrivals. The inspected tsdm_client v1 post_list.dart uses EasyRefresh with a refresh header and a load-more footer; the footer itself is not evidence of newest-post polling. No production board-polling capability is assumed.
+
+Plan: footer Reply shares the existing writing lifecycle; put the order indicator before the Page/More pair, wrapping the whole controls row below the title in cramped readers. Propose manual checks plus optional two-minute automatic checks for visible open contexts. Stage detected content until an explicit reveal, preserving the post stream and board list during checks. The local simulation has two additional posts on page92 and one new board thread per context, with a preview-only arrival button and clock advance to exercise the same polling path. Settings holds the opt-in; state is memory-only. This reversible experiment does not require early advisor consultation.
+
+Failure cases before code: header control overlap at minimum widths; Reply duplicated in header or inaccessible at footer; minimized writing lost or retargeted; checking unexpectedly jumps/reorders content; arrivals leak across boards/threads; repeated checks/reveal duplicate items; reverse order reveals the wrong end; jumping or copying loses existing page semantics; automatic checks happen while disabled, hidden or a dialog is open; returning from pause triggers a burst. Verify through browser journeys and retain repeatable observations/screenshots, without post-implementation unit tests.
+
+Actual trade-offs for this iteration:
+
+- Footer Reply and Resume share one writing lifecycle and stay reachable, consuming56px when closed/minimized. The header now orders Newest first → Page → More; readers400px or narrower put the complete row below the title, spending more height to preserve title width and action order.
+- Manual newest-end checks coexist with a More refresh and board-header refresh. This duplicates access intentionally so refresh is available both at the newest boundary and while reading older posts. In reverse order, the newest boundary is above the posts rather than the bottom.
+- Optional two-minute polling checks only visible open contexts, with no backlog after a pause. This saves requests and avoids background work but delays discovery for hidden panes; navigation starts a fresh interval. It extends beyond production's ascending/newest-only qualification and proposes board polling, so neither capability is claimed as integrated.
+- Detected updates require an explicit Show action, even at the newest boundary. This preserves reading and list order at the cost of an extra action. Show posts jumps to the first newly shown post; Show thread inserts the sample at the top and focuses it. A reserved status strip consumes at least44px to avoid shifting the reading edge when a notice appears.
+- Local fixtures model one batch of two new posts on existing page92 and one new thread per context. Keyed in-memory maps prevent cross-context leakage and duplicates but reload clears arrivals, shown posts, writing and the opt-in. A deep link to the sample new thread reconstructs its list entry; copied links do not serialize simulated arrival state.
+- The prototype uses instantaneous checks and an accelerated-clock control feeding the same timer path. This makes the interaction repeatable without forum traffic but does not qualify network latency, cancellation, errors/backoff, permissions, real timer throttling or page-count growth. The 92-page fixture stays bounded.
+
+Acceptance and verification:
+
+- [x] Move Reply to the fixed reader footer and retain the existing minimize/resume writing lifecycle.
+- [x] Order visible controls Newest first, Page, More; keep responsive title space and contained controls.
+- [x] Provide a newest-boundary check and board refresh; detection does not insert content or change the visible post offset.
+- [x] Explicit reveal adds the sample posts/thread once, supports reverse order and retains context isolation.
+- [x] Keep automatic checks off by default; the opt-in and accelerated two-minute path check visible contexts only.
+- [x] Retain repeatable browser observations/screenshots and pass formatting, module syntax and whitespace checks.
+
+Browser observations: at994px, manual detection retained post273 at6.046875px offset and unchanged IDs; board IDs stayed1/2/3 until reveal. Reveal showed reverse post278 at6px and board IDs4/1/2/3. Repeated checks retained counts2/1 with no insertion. With automatic checks disabled, staging and advancing left both Not checked. Enabled at994px, advancing detected both contexts. At375px on a different board/thread, only the visible reader detected arrivals; the hidden board stayed Not checked until switched into view and advanced. The new context initially had no prior arrivals. Ascending order retained sorted unique IDs271–278 and the newest-end refresh was clickable. Footer reply text survived minimize/resume, expanded writing and1706px aside. At375px with125% text, expanded writing retained102px of history and Review opened with the original text. Layout measurements at375/768/960/994/1440/1706px showed no document overflow. Screenshots were inspected.
+
+Evidence: `evidence/runs/fresh-content-2026-11-06/`. The accelerated path checks timer gating; real two-minute timing, native hidden-tab suspension and modal pause have source inspection only, not independent end-to-end timing qualification. No new unit tests, production changes or published tickets.
+
+Verification corrections: the first arrival notice combined a status sentence and Show button, wrapping the board strip and shifting existing rows. Showing only the actionable notice keeps it44px; the first board thread stayed184.5px below the list top before/after detection. The advisor also identified a reverse-prepend ordering defect: revealing the newest-end marker after anchor restoration could shift the post. The marker visibility now updates before compensation. Jump90 in reverse, then scroll upward to prepend92: IDs276–265 are unique and post273 stays at6.046875px. These corrections retain the existing trade-offs rather than adding a new policy. Copy/reopen of board0/thread4/page1/ascending succeeded. Console warnings/errors were empty.
+
+Final gpt-6.1-sol xhigh advisor review used validate-gpt-code-review and found no remaining significant concern or distinct trade-off beyond the six recorded above. It inspected source, screenshots, observations and replay instructions and independently passed syntax/whitespace checks; it did not rerun browser journeys. All scoped MVP acceptance criteria are verified. Owner design approval and production implementation remain pending.
