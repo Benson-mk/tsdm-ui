@@ -440,3 +440,34 @@ Verification corrections: eliminating post gaps exposed the old6px page-jump off
 Evidence: `evidence/runs/edge-to-edge-2026-11-06/` contains read-only DOM probes, observations, screenshots, replay instructions and source/artifact hashes. The folder uses the iteration start date; final verification finished on2026-11-07. The observations retain named before-correction records; final-prefixed records describe the corrected implementation. Browser viewport, text and inset overrides were reset. Device insets, physical touch/keyboard, full browser/OS zoom and native Android system bars are not qualified by this browser MVP. Visual approval and production implementation remain pending; no tickets were published.
 
 Final gpt-6.1-sol xhigh advisor review used validate-gpt-code-review and found no remaining significant issue or distinct additional trade-off. It inspected the diff, adjacent viewport/inset logic and retained screenshots/observations, and independently passed module syntax and whitespace checks. It did not independently rerun the browser journeys. All scoped MVP acceptance criteria are verified; owner visual approval remains pending.
+
+## Softer boundaries MVP — 2026-11-07
+
+Request: minimize borders and use shadows to indicate boundaries where possible. This revises the current edge-to-edge direction of the MVP on feat/improve-ui-ux; production integration and ticket publication remain later work.
+
+Research and plan before implementation: DESIGN.md defines a floating shadow of `0 4px 16px rgba(0,0,0,0.06)` and a modal shadow of `0 16px 48px rgba(0,0,0,0.24)`. It currently prescribes hairlines for cards and decorative separators; the owner's new preference authorizes exploring a broader shadow treatment in this MVP. Reuse those black compositing values, orient the subtle shadow toward each pane boundary, and remove decorative outlines from the header, panes, account/reply docks, cards, menu and dialogs. Keep the post stream flat, separating posts with whitespace rather than lifting every post. Use the existing black/white selection pairing when removing the selected thread's outline. Keep field boundaries, quote semantics, resize hover/focus indicators and keyboard focus rings where they carry useful information. This is a reversible visual adjustment; required advisor review follows verification.
+
+Failure cases before code: a pane's shadow is clipped or hidden behind its neighbor; changed stacking blocks menus or drag edges; borderless cards lose their selected/hover/focus distinction; field affordances or focus contrast disappear; shadows create overflow or break the edge-to-edge safe-area geometry; changed row heights break exact page jumps; menu/composer controls become obscured. Verify focused browser journeys and retain repeatable screenshots/measurements. No new unit tests.
+
+Actual trade-offs:
+
+- Subtle shadows replace decorative hairlines on the workspace, cards, docks and floating surfaces. This extends DESIGN.md's floating treatment to more surfaces at the owner's request: boundaries are softer but less sharply defined on white, and this light MVP does not qualify Dark or forced-color presentation.
+- Posts remain flat and borderless, with vertical padding increased from 16px to 24px. Whitespace supplies separation without making every post appear elevated, at the cost of lower reading density.
+- A selected thread uses the existing black surface/white text pairing instead of an outline. Selection stays explicit with strong contrast but carries more visual weight in the list.
+- Thin input boundaries, semantic quote rules and keyboard focus rings remain. This preserves editing affordances, content meaning and navigation clarity while deliberately retaining some lines.
+- Explicit pane/header/dock stacking makes directional shadows visible over neighboring surfaces. It adds a layer-order dependency; the divider targets and menus were checked against that order, and future overlapping surfaces must respect it.
+
+Acceptance and verification:
+
+- [x] Remove decorative outlines from the header, panes, account/reply docks, board/thread cards, menu and dialogs; use the documented shadow values and whitespace for their boundaries.
+- [x] Retain explicit selected-thread styling, keyboard focus and usable input boundaries; preserve the existing hover rules.
+- [x] Keep direct column sizing, exact page navigation, reply editing/review/minimize/resume and safe-area layout usable in the checked desktop, wide and narrow views.
+- [x] Save repeatable browser evidence and pass scoped formatting, inline-module syntax and whitespace checks.
+
+Browser checks at 993×874, 1706×874, 375×874 and 375×420: inspected screenshots show soft pane/dock shadows, borderless cards and flat post rows. Computed decorative borders are 0px; floating effects resolve to black at 6% with 4px offset/16px blur, and Settings resolves to the documented 24% modal shadow. Keyboard-focused thread cards retain a 3px black outline and 2px white gap plus their shadow. Selection is white on black; the filter and editor retain 1px field boundaries. Filter entry returns one matching board, and selecting its thread works. Existing hover behavior was inspected in CSS, rather than separately qualified with pointer-hover automation.
+
+Boards drag resizing changed 216→248 and Threads keyboard sizing changed 300→316; Home restored both. Jump 46 selects post 138 in reverse at −0.046875px, and cancelling 12 retains 46. The same sample writing text survived the wide aside, narrow expanded composer, Review and keyboard Resume. With portrait insets in a 375×420 viewport, the borderless More menu ends at y388 above the bottom reserve; Refresh activates and closes it. No horizontal document overflow or browser warning/error logs were observed. The viewport/inset simulation was reset and the deliverable tab retained.
+
+Evidence: `evidence/runs/softer-boundaries-2026-11-07/` contains screenshots, DOM observations/probe, replay instructions and source/artifact hashes. These are local browser checks of the approval MVP; physical devices, full zoom and other themes remain unqualified. Owner visual approval remains pending.
+
+Final gpt-6.1-sol xhigh advisor review used validate-gpt-code-review and found no significant scoped defect or distinct additional trade-off. It inspected the source, recorded measurements and screenshots, independently passed formatting/module-syntax/whitespace checks, and verified the four source hashes and 14 artifact hashes. It did not independently replay browser journeys. All scoped acceptance criteria are verified.
