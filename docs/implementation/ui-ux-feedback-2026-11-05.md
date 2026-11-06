@@ -258,3 +258,39 @@ Advisor correction: the original toolbar read marks only at the selection start,
 Additional actual trade-off: mixed-format selections display the toggle as inactive and the first click applies formatting to the whole selection. This keeps a two-state toolbar with predictable apply-all behavior instead of exposing an indeterminate third state.
 
 The gpt-6.1-sol xhigh advisor used validate-gpt-code-review, confirmed the toolbar correction against code and retained browser evidence, and found no remaining significant preview-scope issue. Its distinct mixed-selection trade-off is recorded above. It did not independently rerun browser checks. All scoped preview acceptance criteria are verified; design approval, ticket publication and production integration remain pending.
+
+## Persistent reader tools and direct column sizing — 2026-11-06
+
+New feedback: group Page with More, remove Previous/Next for continuous reading, keep the group at the head while scrolling, and adjust every column directly rather than only through Settings. The latest clarification supersedes the earlier Settings-only adjust-mode suggestion.
+
+Research before implementation: the preview currently puts More beside the title and pagination inside reader-scroll, so both disappear with posts. DESIGN.md describes chronological single-column waterfall loading, explicitly not staggered masonry cards, with a page/post jump facility. Interpret the owner's Masonry reference here as continuous reading; remove the redundant stepping controls while retaining the confirmed jump dialog. This MVP still renders three synthetic posts per selected page and does not prove automatic loading. DESIGN.md fixes the navigation/list at216/300px and records omitting drag handles as an intentional simplification. Direct sizing is a proposed revision to that policy; it does not change the ADR's ownership boundaries.
+
+Plan: keep an opaque compact Page/More group in a non-scrolling reader bar, with Reply and active-order context nearby. Give the visible boundaries between Boards, Threads, Reading and expanded Writing direct44px drag grips and keyboard Left/Right/Home controls. Reading receives the remaining width and can be resized from either adjacent boundary; responsive hidden panes have no handle. Clamp widths to keep all visible panes usable, retain desired widths in memory across narrower layouts, and offer Reset column widths in Settings. Reuse the editor and preserve the first visible sample-post offset during resizing. No early advisor consultation is needed for these reversible preview choices.
+
+Failure cases before code: More/page scroll away or menu clips beneath posts; grouped controls wrap apart on narrow screens; stale Previous/Next handlers break rendering; dragging selects text or loses pointer capture; keyboard sizing disagrees with drag; widths create horizontal overflow or squeeze the reader/editor below bounds; hidden panes leave grips; viewport resizing loses preferences or writing; a resize jumps the visible post; Reset does not restore defaults. Replay browser journeys and retain screenshots/measurements rather than adding post-implementation unit tests.
+
+Actual trade-offs for this iteration:
+
+- A persistent Page/More bar keeps controls reachable but consumes reading height. The title/breadcrumb still scroll; expanded bottom writing now leaves space for the bar plus a96px history viewport at the checked375×874 size, with the composer itself scrolling to reach its footer.
+- Removing Previous/Next reduces clutter for the intended continuous reader, but the synthetic MVP now requires the page-jump dialog for another sample page. It does not implement waterfall loading, retries or automatic current-page tracking.
+- Always-visible44px grips make direct sizing discoverable and keyboard operable but add visual furniture. Width limits protect the reader/editor; Reading uses remaining space, so resizing its neighbors changes its width and may clamp another pane.
+- Desired widths survive responsive constraints in memory, allowing wider layouts to restore them, but reload resets them. Settings offers a global reset rather than another sizing mode.
+- The isolated prototype uses a small pointer/keyboard sizing controller and CSS tracks, keeping the experiment local. Production integration still needs its existing layout/preferences lifecycle and full reading-anchor/selection qualification; the synthetic anchor check is deliberately bounded.
+
+Reader controls and sizing acceptance:
+
+- [x] Group Page and More together in a persistent reader bar and remove Previous/Next controls and their handlers.
+- [x] Keep the page-jump confirmation/cancellation and keyboard More menu usable, including narrow layouts.
+- [x] Directly resize visible Boards/Threads/Reading/Writing boundaries using pointer grips or Left/Right keys; Home resets an individual width.
+- [x] Clamp visible widths without horizontal document overflow, hide unavailable grips and restore desired widths after responsive transitions.
+- [x] Reset widths from Settings and retain reply text through sizing and minimize/resume.
+- [x] Preserve a visible sample post's offset during a checked resize; keep reader tools stationary during scrolling.
+- [x] Retain repeatable browser artifacts and pass formatting, module syntax and whitespace checks.
+
+Browser observations: at1706px, pointer drags changed Boards216→276, Threads300→360 and Writing420→500; keyboard increased Threads to376 while the same visible sample post stayed at offset41.09375px. Extreme widths clamped; at1440px Reading stayed320px and Writing280px, with no document overflow. Responsive checks at375/767/768/959/960/1439/1440/1706px hid the appropriate grips and restored desired360/520/434px widths on returning wide. The typed Chinese reply stayed intact. At768px Boards view exposed only the Boards boundary and keyboard resizing worked. Minimize hid the Writing grip; resume restored it and the text. Home reset Threads to300; Settings reset Boards/Threads to216/300 (Writing preference420).
+
+Page jump applied92 and cancelling a pending6 left92. Previous/Next element count is zero. More opens with Enter and closes with Escape. An initial right-anchored menu clipped after grouping; anchoring its left edge to the group corrected it, verified at375 and1706px. At1095×874, scrolling history to124px left the bar unchanged at y121.5px. The first375px expanded-editor measurement after reserving the fixed bar leaves96px nominal history; the editor footer can be reached by scrolling the composer. No console warnings/errors were captured.
+
+Evidence is in `evidence/runs/direct-columns-2026-11-06/`: observations, read-only probe, replay instructions and inspected screenshots. The new preview uses a separate local tab; viewport overrides were reset. No unit tests, production edits or published tickets. Full device/zoom/safe-area, touch cancellation, production anchor/selection and continuous-loading workflows remain unqualified.
+
+The final gpt-6.1-sol xhigh advisor used validate-gpt-code-review and identified one minor anchor issue: the first post below the visible history could be treated as visible, shifting the title when its line wrapping changed. At768px with expanded writing, resizing Threads220→408 reproduced scroll0→35 while no post was visible. The predicate now requires intersection with both viewport edges; the same journey stays0→0, and a genuinely visible post3 retains offset−92.9375px on resizing. The advisor found no remaining significant preview-scope defect or distinct additional trade-off. It reviewed retained evidence and independently checked syntax/whitespace, without independently rerunning browser journeys. All scoped acceptance criteria are verified; owner approval and production implementation remain pending.
