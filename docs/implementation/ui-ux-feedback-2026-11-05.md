@@ -1,7 +1,7 @@
 # Sidebar feedback and approval preview — 2026-11-05
 
-Branch: `feat/improve-ui-ux`. Status: final A selections captured; reader controls and compact-reply preview verified and advisor-validated.
-This is a local feedback record for later GitHub tickets, not a published ticket or an accepted production change.
+Branch: `feat/improve-ui-ux`. Status: selected MVP refinements captured; the consolidated production specification is published as [issue #81](https://github.com/Benson-mk/tsdm-ui/issues/81) with `ready-for-agent`.
+This is the historical feedback and prototype-evidence record. Issue publication does not establish owner visual approval or production acceptance; earlier no-publication statements describe their respective iteration dates.
 
 ## Follow-up selections — 2026-11-05
 
@@ -505,3 +505,11 @@ Browser evidence covers 993×874, 375×874 and 1706×874. The colored card's key
 Evidence: `evidence/runs/palette-2026-11-07/` includes the read-only DOM probe, observations, screenshots, replay report, receipt and hashes. These checks qualify the local Light approval MVP only. Physical devices, full zoom and other themes remain unqualified; owner visual approval and production integration remain pending. Feedback is retained here for later ticketing; no issue was published.
 
 Final gpt-6.1-sol xhigh advisor review used validate-gpt-code-review and found no significant scoped defect or distinct additional trade-off beyond the six recorded. It confirmed the specific quote-color guidance, context behavior and contrast calculations, inspected all six screenshots and relevant observations, independently passed formatting/module-syntax/whitespace checks, and verified all five source hashes and 11 artifact hashes before this disposition was appended. It inspected browser evidence without independently replaying the journeys. All four scoped acceptance criteria are verified; owner visual approval remains pending.
+
+## Consolidated spec publication — 2026-11-07
+
+The owner explicitly invoked the to-spec skill to synthesize and publish this conversation. The resulting specification is [Refine forum workspace navigation, continuous reading and writing — #81](https://github.com/Benson-mk/tsdm-ui/issues/81), labelled `ready-for-agent`. It covers the full feedback sequence rather than only the final palette adjustment, with 60 user stories, 18 implementation decisions, 12 open production-acceptance outcomes and a consolidated 16-item trade-off ledger.
+
+The owner confirmed the proposed existing full-workspace browser E2E boundary with controlled external forum responses, plus affected installed Edge/Chrome checks required by the ADRs, without a new unit-test seam. The spec retains production ownership, page-session recovery and the already-qualified latest-end follow contract; synthetic MVP simplifications do not replace those guarantees. Additional board/reverse automatic checks require real capability qualification. Existing completed work in #64/#79 is the foundation, while deferred #39/#47 remain untouched.
+
+The designated gpt-6.1-sol xhigh advisor applied validate-gpt-code-review to the completed draft and found no material publication blocker or distinct additional trade-off beyond its ledger. This was source/spec review, not new browser verification. Template validation confirmed all seven required sections, sequential user stories, open acceptance outcomes and no workstation paths. Prettier passed. A fresh GitHub readback confirmed that the published body matches the reviewed draft, the issue is open and the required label is present. Publication is complete; implementation and its acceptance criteria remain outstanding.
