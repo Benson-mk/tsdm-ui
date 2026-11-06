@@ -11,6 +11,8 @@ import {
   DialogDescription,
   DialogClose,
 } from "reka-ui";
+import WorkspaceIcon from "../components/WorkspaceIcon.vue";
+import WorkspaceBrand from "../components/WorkspaceBrand.vue";
 import SearchView from "../components/SearchView.vue";
 import { favoriteText } from "../components/favorite-labels";
 import FavoritesView from "../components/FavoritesView.vue";
@@ -32,6 +34,7 @@ const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
 const state = props.workspace.state;
 const history = props.workspace.threadHistory.state;
 const privateHistory = props.workspace.privateHistory.state;
+const writing = props.workspace.writing.state;
 const privateRecipientId = computed(
   () => new URL(state.value.destination).searchParams.get("touid") ?? "",
 );
@@ -56,6 +59,23 @@ const threadsCollapsed = ref(false);
 const paneWidth = ref(window.innerWidth);
 const boardsDocked = computed(() => paneWidth.value >= 960);
 const threadsDocked = computed(() => paneWidth.value >= 768);
+const narrowBrowsing = ref(false);
+const hasReader = computed(
+  () => !!reading.value || !!state.value.privateReading || pendingPrivate.value,
+);
+const hasConversation = computed(
+  () => hasReader.value || !!(writing.value.context && writing.value.visible),
+);
+const resultsVisible = computed(() =>
+  threadsDocked.value
+    ? !threadsCollapsed.value || !hasConversation.value
+    : !hasConversation.value || narrowBrowsing.value,
+);
+const browseOnly = computed(() => !hasConversation.value);
+const conversationVisible = computed(
+  () => !browseOnly.value && (threadsDocked.value || !resultsVisible.value),
+);
+const browsingWritingStatus = ref<HTMLElement | null>(null);
 type DrawerPane = "boards" | "threads";
 const drawer = ref<DrawerPane | null>(null);
 const drawerContent = ref<HTMLElement | null>(null);
@@ -141,6 +161,19 @@ function closeDrawer() {
 }
 function togglePane(pane: DrawerPane) {
   const change = () => {
+    if (pane === "threads" && !threadsDocked.value) {
+      rememberPositions();
+      rememberPaneScroll();
+      narrowBrowsing.value = hasConversation.value
+        ? !narrowBrowsing.value
+        : true;
+      if (drawer.value) changeDrawer(null);
+      void nextTick().then(() => {
+        restorePaneScroll();
+        rememberPositions();
+      });
+      return;
+    }
     if (!(pane === "boards" ? boardsDocked.value : threadsDocked.value)) {
       changeDrawer(drawer.value === pane ? null : pane);
       return;
@@ -170,10 +203,30 @@ function drawerEscape(event: KeyboardEvent) {
   event.stopPropagation();
   closeDrawer();
 }
+// A narrow result view hides, rather than remounts, the retained reader.
+// Capture before Vue changes visibility; later navigation snapshots can describe
+// the new list and must not overwrite this reader's visible anchor.
+let browsingReaderPosition: PanePosition[] = [];
+watch(resultsVisible, (visible, previous) => {
+  if (threadsDocked.value) return;
+  rememberPaneScroll();
+  void nextTick().then(restorePaneScroll);
+  if (visible && !previous) {
+    browsingReaderPosition = capturePositions().filter(({ pane }) =>
+      pane.classList.contains("reading-pane"),
+    );
+  } else if (!visible && previous) {
+    void nextTick().then(() => {
+      restorePositions(browsingReaderPosition);
+      browsingReaderPosition = [];
+      rememberPositions();
+    });
+  }
+});
 function revealResults() {
   threadsCollapsed.value = false;
-  if (!threadsDocked.value) changeDrawer("threads");
-  else if (drawer.value === "boards") changeDrawer(null);
+  narrowBrowsing.value = true;
+  if (drawer.value) changeDrawer(null);
 }
 watch(
   () => state.value.result,
@@ -218,14 +271,18 @@ watch(
   },
 );
 watch(
-  () => [state.value.reading, state.value.privateReading] as const,
-  ([next, nextPrivate], [previous, previousPrivate]) => {
+  () => [state.value.key, state.value.result] as const,
+  ([key, result], [previousKey, previousResult]) => {
+    // An accepted cached navigation can reuse the identical reading result.
+    // A new navigation key still selects its reader; a pending writing guard
+    // changes neither key nor result and therefore cannot hide the results.
     if (
-      ((next && next !== previous) ||
-        (nextPrivate && nextPrivate !== previousPrivate)) &&
-      drawer.value === "threads"
-    )
-      changeDrawer(null);
+      (key !== previousKey || result !== previousResult) &&
+      (result?.kind === "thread" || result?.kind === "private-conversation")
+    ) {
+      narrowBrowsing.value = false;
+      if (drawer.value === "threads") changeDrawer(null);
+    }
   },
 );
 const text = computed(() =>
@@ -267,14 +324,6 @@ const sections: Section[] = [
   "notices",
   "drafts",
 ];
-const sectionSymbols: Record<Section, string> = {
-  boards: "☷",
-  messages: "✉",
-  search: "⌕",
-  saved: "☆",
-  notices: "◉",
-  drafts: "▤",
-};
 const sectionInfo = computed(() => {
   const section = state.value.section;
   if (
@@ -338,17 +387,20 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
         position.anchor.isConnected &&
         position.scrollTop === pane.scrollTop,
     );
+    const visible = (node: HTMLElement) =>
+      node.getBoundingClientRect().bottom > bounds.top + 1 &&
+      node.getBoundingClientRect().top < bounds.bottom;
     const anchor =
       previous?.anchor ??
       [
         ...pane.querySelectorAll<HTMLElement>(
           ".post-content p, .post-content pre, .post-content .table-overflow, .post-content summary, .thread-row, .board-card, .board-group > h2, .thread-heading",
         ),
-      ].find(
-        (node) =>
-          node.getBoundingClientRect().bottom > bounds.top + 1 &&
-          node.getBoundingClientRect().top < bounds.bottom,
-      );
+      ].find(visible) ??
+      // Native posts need not contain paragraph elements. Keep their existing
+      // rendered body as the fallback anchor rather than losing div/text-only
+      // content when the reader is temporarily hidden.
+      [...pane.querySelectorAll<HTMLElement>(".post-content")].find(visible);
     return anchor
       ? [
           {
@@ -539,7 +591,6 @@ watch(download, async (value) => {
       .querySelector("[data-download-status]")
       ?.scrollIntoView({ block: "nearest" });
 });
-const writing = props.workspace.writing.state;
 const writingExpanded = ref(false);
 watch(
   () => writing.value.context?.id,
@@ -548,7 +599,10 @@ watch(
     writingExpanded.value = Boolean(
       context && context.action !== "private-message" && !context.replyTarget,
     );
-    if (context && drawer.value) changeDrawer(null);
+    if (context) {
+      narrowBrowsing.value = false;
+      if (drawer.value) changeDrawer(null);
+    }
   },
   { immediate: true },
 );
@@ -1226,6 +1280,7 @@ function boardIdFrom(url: string) {
           <button
             @click="
               workspace.cancelThreadChange();
+              narrowBrowsing = false;
               closeDrawer();
             "
           >
@@ -1284,33 +1339,55 @@ function boardIdFrom(url: string) {
     </DialogRoot>
     <header>
       <a class="brand" href="https://www.tsdm39.com/" aria-label="TSDM"
-        ><span aria-hidden="true">✳</span>TSDM</a
+        ><WorkspaceBrand />TSDM</a
       >
-      <span class="workspace-caption" aria-hidden="true">Forum / IM</span>
-      <button
-        ref="boardsTrigger"
-        :aria-label="text.boardsPane"
-        :aria-expanded="boardsDocked ? !boardsCollapsed : drawer === 'boards'"
-        aria-controls="boards-pane"
-        @click="togglePane('boards')"
-      >
-        <span aria-hidden="true">☷</span> {{ text.boards }}
-      </button>
-      <button
-        ref="threadsTrigger"
-        :aria-label="text.threadsPane"
-        :aria-expanded="
-          threadsDocked ? !threadsCollapsed : drawer === 'threads'
-        "
-        aria-controls="thread-list-pane"
-        @click="togglePane('threads')"
-      >
-        <span aria-hidden="true">≡</span> {{ text.threadsPane }}
-      </button>
+      <div class="header-navigation">
+        <button
+          ref="boardsTrigger"
+          class="header-action"
+          :title="text.boardsPane"
+          :aria-label="text.boardsPane"
+          :aria-expanded="boardsDocked ? !boardsCollapsed : drawer === 'boards'"
+          aria-controls="boards-pane"
+          @click="togglePane('boards')"
+        >
+          <WorkspaceIcon name="boards" /><span class="header-action-label">{{
+            text.boards
+          }}</span>
+        </button>
+        <button
+          ref="threadsTrigger"
+          class="header-action"
+          :title="text.threadsPane"
+          :aria-label="text.threadsPane"
+          :aria-expanded="resultsVisible"
+          aria-controls="thread-list-pane"
+          @click="togglePane('threads')"
+        >
+          <WorkspaceIcon name="threads" /><span class="header-action-label">{{
+            text.threadsPane
+          }}</span>
+        </button>
+        <a
+          class="header-action"
+          :aria-label="text.native"
+          :title="text.native"
+          :href="nativeDestination(sectionInfo?.nativeURL ?? state.destination)"
+          ><WorkspaceIcon name="native" /><span class="header-action-label">{{
+            text.native
+          }}</span></a
+        >
+      </div>
       <SettingsDialog :workspace="workspace" :portal="portal" />
       <div id="navigation-preferences" class="navigation-preferences">
         <DialogRoot :open="aboutOpen" @update:open="changeAboutOpen"
-          ><DialogTrigger>{{ text.about }}</DialogTrigger
+          ><DialogTrigger
+            class="header-action"
+            :aria-label="text.about"
+            :title="text.about"
+            ><WorkspaceIcon name="about" /><span class="header-action-label">{{
+              text.about
+            }}</span></DialogTrigger
           ><DialogPortal :to="portal"
             ><DialogOverlay class="dialog-overlay" /><DialogContent
               class="dialog-content"
@@ -1360,13 +1437,8 @@ function boardIdFrom(url: string) {
               state.destination.includes("mod=viewthread")
                 ? text.refreshThread
                 : text.refresh
-            }}</button
-          ><a
-            :href="
-              nativeDestination(sectionInfo?.nativeURL ?? state.destination)
-            "
-            >{{ text.native }}</a
-          >
+            }}
+          </button>
           <button
             v-if="
               state.result?.kind === 'thread' || state.result?.kind === 'board'
@@ -1672,10 +1744,14 @@ function boardIdFrom(url: string) {
     </section>
     <main
       class="workspace-body"
-      :class="{ 'thread-without-results': threadWithoutResults }"
+      :class="{
+        'thread-without-results': threadWithoutResults,
+        'browse-only': browseOnly,
+      }"
       :data-boards-collapsed="!boardsDocked || boardsCollapsed"
       :data-threads-collapsed="!threadsDocked || threadsCollapsed"
       :data-view="state.result?.kind ?? 'unavailable'"
+      :data-narrow-browsing="!threadsDocked && resultsVisible"
     >
       <Teleport
         :to="drawerContent ?? portal"
@@ -1694,10 +1770,10 @@ function boardIdFrom(url: string) {
               :aria-current="state.section === section ? 'page' : undefined"
               @click="selectSection(section)"
             >
-              <span class="nav-symbol" aria-hidden="true">{{
-                sectionSymbols[section]
-              }}</span
-              ><span class="destination-label">{{ text[section] }}</span>
+              <WorkspaceIcon :name="section" /><span
+                class="destination-label"
+                >{{ text[section] }}</span
+              >
             </button>
           </nav>
           <nav
@@ -1761,342 +1837,330 @@ function boardIdFrom(url: string) {
           <p class="navigation-account">{{ accountLabel }}</p>
         </div>
       </Teleport>
-      <Teleport
-        :to="drawerContent ?? portal"
-        :disabled="drawer !== 'threads' || !drawerContent"
+      <section
+        v-if="sectionInfo"
+        v-show="resultsVisible"
+        id="thread-list-pane"
+        class="overview pane results-pane drafts-pane"
+        data-scroll-pane="results"
       >
-        <section
-          v-if="sectionInfo"
-          v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
-          id="thread-list-pane"
-          class="overview pane results-pane drafts-pane"
-          data-scroll-pane="results"
-        >
-          <h1>{{ sectionInfo.title }}</h1>
-          <h2>{{ sectionInfo.heading }}</h2>
-          <p>{{ sectionInfo.description }}</p>
-          <template v-if="state.section === 'drafts'">
-            <button
-              :disabled="workspace.drafts.value.loading"
-              @click="workspace.loadDrafts()"
-            >
-              {{ text.loadDrafts }}
-            </button>
-            <p
-              v-if="
-                workspace.drafts.value.result &&
-                workspace.drafts.value.result.kind !== 'drafts'
-              "
-              role="alert"
-            >
-              {{
-                description(
-                  workspace.drafts.value.result.message,
-                  workspace.preferences.state.value.language,
-                )
-              }}
-            </p>
-            <template v-if="workspace.drafts.value.result?.kind === 'drafts'">
-              <p>{{ workspace.drafts.value.result.drafts.empty }}</p>
-              <ul>
-                <li
-                  v-for="draft in workspace.drafts.value.result.drafts.rows"
-                  :id="`draft-${draft.threadId}`"
-                  :key="draft.threadId"
-                  class="thread-row"
-                  :data-draft-id="draft.threadId"
-                  :aria-current="
-                    state.selection === draft.threadId ? 'true' : undefined
-                  "
-                >
-                  <button
-                    :aria-label="insert(text.resumeDraft, draft.title)"
-                    @click="workspace.resumeDraft(draft.threadId)"
-                  >
-                    {{ draft.title }}
-                  </button>
-                  · {{ insert(text.writingBoard, draft.boardId) }}
-                  <div
-                    v-for="attempt in writing.context?.draftAttempts?.filter(
-                      (a) =>
-                        a.status === 'uncertain' &&
-                        a.operation !== 'publish' &&
-                        !a.submission.writing.draft,
-                    )"
-                    :key="attempt.id"
-                    role="group"
-                    :aria-label="insert(text.draftAttempt, attempt.id)"
-                  >
-                    <span>{{ insert(text.draftAttempt, attempt.id) }}</span>
-                    <button
-                      :aria-label="insert(text.checkDraftRevision, draft.title)"
-                      :disabled="writing.publishing || writing.preparing"
-                      @click="
-                        workspace.writing.checkDraft(
-                          attempt.id,
-                          draft as import('../forum-client').DraftRow,
-                        )
-                      "
-                    >
-                      {{ text.checkDraftSave }}
-                    </button>
-                  </div>
-                </li>
-              </ul>
-              <nav :aria-label="text.draftPages">
-                <button
-                  v-for="link in workspace.drafts.value.result.drafts.pages
-                    .links"
-                  :key="link.url"
-                  :aria-label="insert(text.draftPage, link.label)"
-                  :disabled="workspace.drafts.value.loading"
-                  @click="workspace.loadDrafts(link.url)"
-                >
-                  {{ link.label }}
-                </button>
-              </nav>
-            </template>
-          </template>
-          <a :href="nativeDestination(sectionInfo.nativeURL)">{{
-            text.native
-          }}</a>
-        </section>
-        <SearchView
-          v-if="searchContext"
-          v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
-          id="thread-list-pane"
-          :search="searchContext"
-          :language="workspace.preferences.state.value.language"
-          :secondary="state.result?.kind === 'thread'"
-          :selection="state.selection ?? selectedThread"
-          :loading="state.loading"
-          @submit="workspace.submitSearch"
-          @edit="workspace.editSearch"
-        />
-        <FavoritesView
-          v-if="state.section === 'saved'"
-          v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
-          id="thread-list-pane"
-          :favorites="favoriteContext"
-          :selection="state.selection"
-          :secondary="state.result?.kind === 'thread'"
-          :board-target="state.result?.kind === 'board'"
-          :loading="state.loading"
-          :language="workspace.preferences.state.value.language"
-          @remove="
-            (kind, targetId, recordId) =>
-              workspace.prepareFavorite('remove', kind, targetId, recordId)
-          "
-          @load="
-            (kind) =>
-              workspace.openThread(
-                `https://www.tsdm39.com/home.php?mod=space&do=favorite&type=${kind}`,
-              )
-          "
-        />
-        <MessagesView
-          v-if="state.section === 'messages'"
-          v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
-          id="thread-list-pane"
-          :selected="
-            state.privateReading?.conversation.peerId ?? state.selection
-          "
-          :messages="
-            state.result?.kind === 'messages'
-              ? state.result.messages
-              : state.origin?.kind === 'messages'
-                ? state.origin.messages
-                : null
-          "
-          :loading="state.loading"
-          :language="workspace.preferences.state.value.language"
-          @load="workspace.loadMessages()"
-        />
-        <NoticesView
-          v-if="state.section === 'notices'"
-          v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
-          id="thread-list-pane"
-          :notices="noticeContext"
-          :loading="state.loading"
-          :language="workspace.preferences.state.value.language"
-          :secondary="state.result?.kind === 'thread'"
-          :selection="state.selection"
-          @load="workspace.loadNotices()"
-        />
-        <section
-          v-if="
-            state.section === 'boards' && state.result?.kind === 'directory'
-          "
-          v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
-          id="thread-list-pane"
-          class="overview pane"
-          data-scroll-pane="overview"
-          :aria-label="text.boardsOverview"
-        >
-          <h1>{{ text.boards }}</h1>
-          <p>{{ text.chooseBoardDescription }}</p>
-          <div class="board-filter">
-            <label for="board-filter">{{ text.filterBoards }}</label>
-            <input
-              id="board-filter"
-              ref="boardFilterInput"
-              v-model="boardFilter"
-              type="search"
-              aria-describedby="board-filter-scope"
-            />
-            <button v-if="boardFilter" @click="clearBoardFilter">
-              {{ text.clearBoardFilter }}
-            </button>
-          </div>
-          <p id="board-filter-scope" class="board-filter-scope">
-            {{ text.boardFilterScope }}
-          </p>
-          <p class="board-filter-status" role="status">
+        <h1>{{ sectionInfo.title }}</h1>
+        <h2>{{ sectionInfo.heading }}</h2>
+        <p>{{ sectionInfo.description }}</p>
+        <template v-if="state.section === 'drafts'">
+          <button
+            :disabled="workspace.drafts.value.loading"
+            @click="workspace.loadDrafts()"
+          >
+            {{ text.loadDrafts }}
+          </button>
+          <p
+            v-if="
+              workspace.drafts.value.result &&
+              workspace.drafts.value.result.kind !== 'drafts'
+            "
+            role="alert"
+          >
             {{
-              insert(
-                text.boardsShown,
-                `${filteredBoardCount} / ${boardChoices.length}`,
+              description(
+                workspace.drafts.value.result.message,
+                workspace.preferences.state.value.language,
               )
             }}
           </p>
-          <p v-if="!filteredBoardGroups.length">{{ text.noBoardMatches }}</p>
-          <section
-            v-for="group in filteredBoardGroups"
-            :key="group.title"
-            class="board-group"
-          >
-            <h2>{{ group.title }}</h2>
-            <div class="board-grid">
-              <a
-                v-for="board in group.boards"
-                :key="board.url"
-                :href="board.url"
-                :aria-label="board.label"
-                class="board-card"
-                ><strong>{{ board.label }}</strong
-                ><span>{{ board.description }}</span
-                ><small>{{ board.stats }}</small></a
+          <template v-if="workspace.drafts.value.result?.kind === 'drafts'">
+            <p>{{ workspace.drafts.value.result.drafts.empty }}</p>
+            <ul>
+              <li
+                v-for="draft in workspace.drafts.value.result.drafts.rows"
+                :id="`draft-${draft.threadId}`"
+                :key="draft.threadId"
+                class="thread-row"
+                :data-draft-id="draft.threadId"
+                :aria-current="
+                  state.selection === draft.threadId ? 'true' : undefined
+                "
               >
-            </div>
-          </section>
-          <nav :aria-label="text.directoryPages">
-            <a
-              v-for="link in state.result.directory.pages.links"
-              :key="link.url"
-              :href="link.url"
-              >{{ link.label }}</a
-            >
-          </nav>
-        </section>
-        <section
-          v-if="boardContext"
-          v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
-          id="thread-list-pane"
-          class="results-pane pane"
-          :class="{ 'secondary-results': state.result?.kind === 'thread' }"
-          data-scroll-pane="results"
-          :aria-label="text.threadResults"
-        >
-          <h1>{{ boardContext.title }}</h1>
-          <section v-if="boardContext.boards.length">
-            <h2>{{ text.subordinateBoards }}</h2>
-            <div class="board-grid">
-              <a
-                v-for="board in boardContext.boards"
-                :key="board.url"
-                :href="board.url"
-                :aria-label="board.label"
-                class="board-card"
-                ><strong>{{ board.label }}</strong
-                ><span v-if="board.description">{{ board.description }}</span
-                ><small v-if="board.stats">{{ board.stats }}</small></a
-              >
-            </div>
-          </section>
-          <nav
-            v-if="boardFilterGroups.length"
-            class="board-filters"
-            :aria-label="text.boardFilters"
-          >
-            <div
-              v-for="(group, index) in boardFilterGroups"
-              :key="`${group.sourceId}:${index}`"
-              role="group"
-              :aria-label="group.label"
-              class="board-filter-group"
-            >
-              <h2>{{ group.label }}</h2>
-              <div class="board-filter-links">
-                <a
-                  v-for="filter in group.links"
-                  :key="filter.url"
-                  :href="filter.url"
-                  >{{ filter.label }}</a
+                <button
+                  :aria-label="insert(text.resumeDraft, draft.title)"
+                  @click="workspace.resumeDraft(draft.threadId)"
                 >
-              </div>
-            </div>
-          </nav>
-          <ul :aria-label="text.criteria">
-            <li
-              v-for="criterion in boardContext.criteria"
-              :key="criterion.label"
-            >
-              {{ criterion.label }}
-            </li>
-          </ul>
-          <p>{{ text.page }} {{ boardContext.pages.current }}</p>
-          <div
-            v-for="row in boardContext.threads"
-            :id="`row-${row.rowId}`"
-            :key="row.rowId"
-            class="thread-row"
-            :data-thread-id="row.id"
-          >
-            <span v-if="row.pinned">{{ text.pinned }}</span
-            ><span v-if="row.moved">{{ text.moved }}</span
-            ><span>{{ row.category }}</span
-            ><a
-              :href="row.url"
-              class="subject"
-              :aria-current="
-                (state.selection ?? selectedThread) === row.id
-                  ? 'true'
-                  : undefined
-              "
-              >{{ row.label }}</a
-            ><span>{{ row.author }}</span
-            ><time>{{ row.date }}</time
-            ><span
-              >{{ row.replies }} {{ text.replies }} · {{ row.views }}
-              {{ text.views }}</span
-            ><a v-if="row.lastPost" :href="row.lastPost.url">{{
-              insert(text.lastReply, row.label)
-            }}</a>
-          </div>
-          <p v-if="!boardContext.threads.length">{{ boardContext.empty }}</p>
-          <nav :aria-label="text.boardPages">
-            <a
-              v-for="link in boardContext.pages.links"
-              :key="link.url"
-              :href="link.url"
-              >{{ link.label }}</a
-            >
-          </nav>
-        </section>
+                  {{ draft.title }}
+                </button>
+                · {{ insert(text.writingBoard, draft.boardId) }}
+                <div
+                  v-for="attempt in writing.context?.draftAttempts?.filter(
+                    (a) =>
+                      a.status === 'uncertain' &&
+                      a.operation !== 'publish' &&
+                      !a.submission.writing.draft,
+                  )"
+                  :key="attempt.id"
+                  role="group"
+                  :aria-label="insert(text.draftAttempt, attempt.id)"
+                >
+                  <span>{{ insert(text.draftAttempt, attempt.id) }}</span>
+                  <button
+                    :aria-label="insert(text.checkDraftRevision, draft.title)"
+                    :disabled="writing.publishing || writing.preparing"
+                    @click="
+                      workspace.writing.checkDraft(
+                        attempt.id,
+                        draft as import('../forum-client').DraftRow,
+                      )
+                    "
+                  >
+                    {{ text.checkDraftSave }}
+                  </button>
+                </div>
+              </li>
+            </ul>
+            <nav :aria-label="text.draftPages">
+              <button
+                v-for="link in workspace.drafts.value.result.drafts.pages.links"
+                :key="link.url"
+                :aria-label="insert(text.draftPage, link.label)"
+                :disabled="workspace.drafts.value.loading"
+                @click="workspace.loadDrafts(link.url)"
+              >
+                {{ link.label }}
+              </button>
+            </nav>
+          </template>
+        </template>
+        <a :href="nativeDestination(sectionInfo.nativeURL)">{{
+          text.native
+        }}</a>
+      </section>
+      <SearchView
+        v-if="searchContext"
+        v-show="resultsVisible"
+        id="thread-list-pane"
+        :search="searchContext"
+        :language="workspace.preferences.state.value.language"
+        :secondary="state.result?.kind === 'thread'"
+        :selection="state.selection ?? selectedThread"
+        :loading="state.loading"
+        @submit="workspace.submitSearch"
+        @edit="workspace.editSearch"
+      />
+      <FavoritesView
+        v-if="state.section === 'saved'"
+        v-show="resultsVisible"
+        id="thread-list-pane"
+        :favorites="favoriteContext"
+        :selection="state.selection"
+        :secondary="state.result?.kind === 'thread'"
+        :board-target="state.result?.kind === 'board'"
+        :loading="state.loading"
+        :language="workspace.preferences.state.value.language"
+        @remove="
+          (kind, targetId, recordId) =>
+            workspace.prepareFavorite('remove', kind, targetId, recordId)
+        "
+        @load="
+          (kind) =>
+            workspace.openThread(
+              `https://www.tsdm39.com/home.php?mod=space&do=favorite&type=${kind}`,
+            )
+        "
+      />
+      <MessagesView
+        v-if="state.section === 'messages'"
+        v-show="resultsVisible"
+        id="thread-list-pane"
+        :selected="state.privateReading?.conversation.peerId ?? state.selection"
+        :messages="
+          state.result?.kind === 'messages'
+            ? state.result.messages
+            : state.origin?.kind === 'messages'
+              ? state.origin.messages
+              : null
+        "
+        :loading="state.loading"
+        :language="workspace.preferences.state.value.language"
+        @load="workspace.loadMessages()"
+      />
+      <NoticesView
+        v-if="state.section === 'notices'"
+        v-show="resultsVisible"
+        id="thread-list-pane"
+        :notices="noticeContext"
+        :loading="state.loading"
+        :language="workspace.preferences.state.value.language"
+        :secondary="state.result?.kind === 'thread'"
+        :selection="state.selection"
+        @load="workspace.loadNotices()"
+      />
+      <section
+        v-if="state.section === 'boards' && state.result?.kind === 'directory'"
+        v-show="resultsVisible"
+        id="thread-list-pane"
+        class="overview pane"
+        data-scroll-pane="overview"
+        :aria-label="text.boardsOverview"
+      >
+        <h1>{{ text.boards }}</h1>
+        <p>{{ text.chooseBoardDescription }}</p>
+        <div class="board-filter">
+          <label for="board-filter">{{ text.filterBoards }}</label>
+          <input
+            id="board-filter"
+            ref="boardFilterInput"
+            v-model="boardFilter"
+            type="search"
+            aria-describedby="board-filter-scope"
+          />
+          <button v-if="boardFilter" @click="clearBoardFilter">
+            {{ text.clearBoardFilter }}
+          </button>
+        </div>
+        <p id="board-filter-scope" class="board-filter-scope">
+          {{ text.boardFilterScope }}
+        </p>
+        <p class="board-filter-status" role="status">
+          {{
+            insert(
+              text.boardsShown,
+              `${filteredBoardCount} / ${boardChoices.length}`,
+            )
+          }}
+        </p>
+        <p v-if="!filteredBoardGroups.length">{{ text.noBoardMatches }}</p>
         <section
-          v-if="threadWithoutResults"
-          v-show="(threadsDocked && !threadsCollapsed) || drawer === 'threads'"
-          id="thread-list-pane"
-          class="results-placeholder pane"
+          v-for="group in filteredBoardGroups"
+          :key="group.title"
+          class="board-group"
         >
-          <h2>{{ text.threadResults }}</h2>
-          <p>{{ text.chooseThreadContext }}</p>
-          <a v-if="reading?.thread.parent" :href="reading.thread.parent.url">{{
-            reading.thread.parent.label
-          }}</a>
+          <h2>{{ group.title }}</h2>
+          <div class="board-grid">
+            <a
+              v-for="board in group.boards"
+              :key="board.url"
+              :href="board.url"
+              :aria-label="board.label"
+              class="board-card"
+              ><strong>{{ board.label }}</strong
+              ><span>{{ board.description }}</span
+              ><small>{{ board.stats }}</small></a
+            >
+          </div>
         </section>
-      </Teleport>
+        <nav :aria-label="text.directoryPages">
+          <a
+            v-for="link in state.result.directory.pages.links"
+            :key="link.url"
+            :href="link.url"
+            >{{ link.label }}</a
+          >
+        </nav>
+      </section>
+      <section
+        v-if="boardContext"
+        v-show="resultsVisible"
+        id="thread-list-pane"
+        class="results-pane pane"
+        :class="{ 'secondary-results': state.result?.kind === 'thread' }"
+        data-scroll-pane="results"
+        :aria-label="text.threadResults"
+      >
+        <h1>{{ boardContext.title }}</h1>
+        <section v-if="boardContext.boards.length">
+          <h2>{{ text.subordinateBoards }}</h2>
+          <div class="board-grid">
+            <a
+              v-for="board in boardContext.boards"
+              :key="board.url"
+              :href="board.url"
+              :aria-label="board.label"
+              class="board-card"
+              ><strong>{{ board.label }}</strong
+              ><span v-if="board.description">{{ board.description }}</span
+              ><small v-if="board.stats">{{ board.stats }}</small></a
+            >
+          </div>
+        </section>
+        <nav
+          v-if="boardFilterGroups.length"
+          class="board-filters"
+          :aria-label="text.boardFilters"
+        >
+          <div
+            v-for="(group, index) in boardFilterGroups"
+            :key="`${group.sourceId}:${index}`"
+            role="group"
+            :aria-label="group.label"
+            class="board-filter-group"
+          >
+            <h2>{{ group.label }}</h2>
+            <div class="board-filter-links">
+              <a
+                v-for="filter in group.links"
+                :key="filter.url"
+                :href="filter.url"
+                >{{ filter.label }}</a
+              >
+            </div>
+          </div>
+        </nav>
+        <ul :aria-label="text.criteria">
+          <li v-for="criterion in boardContext.criteria" :key="criterion.label">
+            {{ criterion.label }}
+          </li>
+        </ul>
+        <p>{{ text.page }} {{ boardContext.pages.current }}</p>
+        <div
+          v-for="row in boardContext.threads"
+          :id="`row-${row.rowId}`"
+          :key="row.rowId"
+          class="thread-row"
+          :data-thread-id="row.id"
+        >
+          <span v-if="row.pinned">{{ text.pinned }}</span
+          ><span v-if="row.moved">{{ text.moved }}</span
+          ><span>{{ row.category }}</span
+          ><a
+            :href="row.url"
+            class="subject"
+            :aria-current="
+              (state.selection ?? selectedThread) === row.id
+                ? 'true'
+                : undefined
+            "
+            >{{ row.label }}</a
+          ><span>{{ row.author }}</span
+          ><time>{{ row.date }}</time
+          ><span
+            >{{ row.replies }} {{ text.replies }} · {{ row.views }}
+            {{ text.views }}</span
+          ><a v-if="row.lastPost" :href="row.lastPost.url">{{
+            insert(text.lastReply, row.label)
+          }}</a>
+        </div>
+        <p v-if="!boardContext.threads.length">{{ boardContext.empty }}</p>
+        <nav :aria-label="text.boardPages">
+          <a
+            v-for="link in boardContext.pages.links"
+            :key="link.url"
+            :href="link.url"
+            >{{ link.label }}</a
+          >
+        </nav>
+      </section>
+      <section
+        v-if="threadWithoutResults"
+        v-show="resultsVisible"
+        id="thread-list-pane"
+        class="results-placeholder pane"
+      >
+        <h2>{{ text.threadResults }}</h2>
+        <p>{{ text.chooseThreadContext }}</p>
+        <a v-if="reading?.thread.parent" :href="reading.thread.parent.url">{{
+          reading.thread.parent.label
+        }}</a>
+      </section>
       <div
+        v-show="conversationVisible"
         class="conversation-region"
         :data-writing-visible="!!writing.context && writing.visible"
       >
@@ -2481,173 +2545,178 @@ function boardIdFrom(url: string) {
             >
           </nav>
         </section>
-        <div class="conversation-status">
-          <div
-            v-if="
-              (writing.context && !writing.visible) ||
-              writing.preparing ||
-              writing.message ||
-              writing.privateReplacement ||
-              writing.editReplacement ||
-              writing.replacement ||
-              writing.draftReplacement
-            "
-            class="writing-actions"
-          >
-            <button
-              v-if="writing.context && !writing.visible"
-              @click="workspace.writing.show()"
-            >
-              {{ text.returnWriting }}
-            </button>
-            <p v-if="writing.preparing" role="status">
-              {{ text.preparingForm }}
-            </p>
-            <p
+        <Teleport
+          :to="browsingWritingStatus ?? portal"
+          :disabled="conversationVisible || !browsingWritingStatus"
+        >
+          <div class="conversation-status">
+            <div
               v-if="
-                writing.message &&
-                !(
-                  writing.visible &&
-                  writing.context?.action === 'private-message'
-                )
+                (writing.context && !writing.visible) ||
+                writing.preparing ||
+                writing.message ||
+                writing.privateReplacement ||
+                writing.editReplacement ||
+                writing.replacement ||
+                writing.draftReplacement
               "
-              role="alert"
+              class="writing-actions"
             >
-              {{
-                description(
-                  writing.message,
-                  workspace.preferences.state.value.language,
-                )
-              }}
-            </p>
-            <section v-if="writing.privateReplacement" role="alert">
-              <p>
+              <button
+                v-if="writing.context && !writing.visible"
+                @click="workspace.writing.show()"
+              >
+                {{ text.returnWriting }}
+              </button>
+              <p v-if="writing.preparing" role="status">
+                {{ text.preparingForm }}
+              </p>
+              <p
+                v-if="
+                  writing.message &&
+                  !(
+                    writing.visible &&
+                    writing.context?.action === 'private-message'
+                  )
+                "
+                role="alert"
+              >
                 {{
-                  privateWritingText(
-                    "Replace current writing with a private message? Its unsent text will be discarded; original attempts remain available.",
+                  description(
+                    writing.message,
                     workspace.preferences.state.value.language,
                   )
                 }}
               </p>
-              <button @click="workspace.writing.cancelPrivateReplacement()">
-                {{ text.keepCurrentWriting }}
-              </button>
-              <button @click="workspace.writing.replaceWithPrivate()">
+              <section v-if="writing.privateReplacement" role="alert">
+                <p>
+                  {{
+                    privateWritingText(
+                      "Replace current writing with a private message? Its unsent text will be discarded; original attempts remain available.",
+                      workspace.preferences.state.value.language,
+                    )
+                  }}
+                </p>
+                <button @click="workspace.writing.cancelPrivateReplacement()">
+                  {{ text.keepCurrentWriting }}
+                </button>
+                <button @click="workspace.writing.replaceWithPrivate()">
+                  {{
+                    privateWritingText(
+                      "Discard and write private message",
+                      workspace.preferences.state.value.language,
+                    )
+                  }}
+                </button>
+              </section>
+              <section v-if="writing.editReplacement" role="alert">
+                <p>{{ text.replaceEditWarning }}</p>
+                <button @click="workspace.writing.cancelEditReplacement()">
+                  {{ text.keepCurrentWriting }}
+                </button>
+                <button @click="workspace.writing.replaceWithEdit()">
+                  {{ text.discardAndEdit }}
+                </button>
+                <button
+                  v-if="writing.context?.draftSaveAvailable"
+                  :disabled="writing.preparing || writing.publishing"
+                  @click="workspace.writing.saveDraft(true)"
+                >
+                  {{ text.saveDraftContinue }}
+                </button>
+              </section>
+              <section
+                v-if="writing.replacement || writing.draftReplacement"
+                role="alert"
+              >
+                <p>{{ text.replaceWritingWarning }}</p>
+                <button @click="workspace.writing.show()">
+                  {{ text.returnOriginal }}</button
+                ><button
+                  :disabled="writing.preparing"
+                  @click="workspace.writing.discardAndPrepare()"
+                >
+                  {{
+                    writing.draftReplacement
+                      ? text.discardResumeDraft
+                      : text.discardPrepare
+                  }}
+                </button>
+                <button
+                  v-if="writing.context?.draftSaveAvailable"
+                  :disabled="writing.preparing || writing.publishing"
+                  @click="workspace.writing.saveDraft(true)"
+                >
+                  {{ text.saveDraftContinue }}
+                </button>
+              </section>
+            </div>
+            <section
+              v-if="writing.context && !writing.visible"
+              class="retained-writing"
+              :aria-label="text.retainedWriting"
+            >
+              <details>
+                <summary>{{ text.retainedWriting }}</summary>
+                <WritingDestination
+                  :writing="writing.context"
+                  :language="workspace.preferences.state.value.language"
+                  compact
+                />
+              </details>
+              <p v-if="!writing.accountVerified" role="alert">
                 {{
-                  privateWritingText(
-                    "Discard and write private message",
+                  insert(
+                    writing.accountObservation.kind === "guest"
+                      ? text.writingSignedOut
+                      : writing.accountObservation.kind === "member" &&
+                          writing.accountObservation.id !==
+                            writing.context.account.id
+                        ? text.writingAccountChanged
+                        : text.writingPaused,
+                    writing.context.account.name,
+                  )
+                }}
+              </p>
+              <p v-if="writing.recoveryAvailable === false" role="alert">
+                {{ text.writingRecoveryUnavailable }}
+              </p>
+              <p
+                v-if="workspace.writing.unresolvedAttachments.value.length"
+                role="alert"
+              >
+                {{
+                  insert(
+                    text.unresolvedAttachments,
+                    workspace.writing.unresolvedAttachments.value.join(", "),
+                  )
+                }}
+              </p>
+              <p v-if="retainedAttemptWarning" role="alert">
+                {{ text.retainedAttemptWarning }}
+              </p>
+              <p v-if="writing.conflict" role="alert">
+                {{ text.latestServerVersion }}. {{ text.editCompare }}
+              </p>
+              <p v-if="writing.context.editorUnresolved" role="alert">
+                {{
+                  editorText(
+                    "Some visual input has no unambiguous BBCode representation. Complete source is retained. Review it before choosing how it should be interpreted.",
                     workspace.preferences.state.value.language,
                   )
                 }}
-              </button>
-            </section>
-            <section v-if="writing.editReplacement" role="alert">
-              <p>{{ text.replaceEditWarning }}</p>
-              <button @click="workspace.writing.cancelEditReplacement()">
-                {{ text.keepCurrentWriting }}
-              </button>
-              <button @click="workspace.writing.replaceWithEdit()">
-                {{ text.discardAndEdit }}
-              </button>
-              <button
-                v-if="writing.context?.draftSaveAvailable"
-                :disabled="writing.preparing || writing.publishing"
-                @click="workspace.writing.saveDraft(true)"
+              </p>
+              <p
+                v-if="
+                  writing.context.redPacket || writing.context.existingRedPacket
+                "
+                role="alert"
               >
-                {{ text.saveDraftContinue }}
-              </button>
-            </section>
-            <section
-              v-if="writing.replacement || writing.draftReplacement"
-              role="alert"
-            >
-              <p>{{ text.replaceWritingWarning }}</p>
-              <button @click="workspace.writing.show()">
-                {{ text.returnOriginal }}</button
-              ><button
-                :disabled="writing.preparing"
-                @click="workspace.writing.discardAndPrepare()"
-              >
-                {{
-                  writing.draftReplacement
-                    ? text.discardResumeDraft
-                    : text.discardPrepare
-                }}
-              </button>
-              <button
-                v-if="writing.context?.draftSaveAvailable"
-                :disabled="writing.preparing || writing.publishing"
-                @click="workspace.writing.saveDraft(true)"
-              >
-                {{ text.saveDraftContinue }}
-              </button>
+                {{ text.retainedFinancialWarning }}
+              </p>
             </section>
           </div>
-          <section
-            v-if="writing.context && !writing.visible"
-            class="retained-writing"
-            :aria-label="text.retainedWriting"
-          >
-            <details>
-              <summary>{{ text.retainedWriting }}</summary>
-              <WritingDestination
-                :writing="writing.context"
-                :language="workspace.preferences.state.value.language"
-                compact
-              />
-            </details>
-            <p v-if="!writing.accountVerified" role="alert">
-              {{
-                insert(
-                  writing.accountObservation.kind === "guest"
-                    ? text.writingSignedOut
-                    : writing.accountObservation.kind === "member" &&
-                        writing.accountObservation.id !==
-                          writing.context.account.id
-                      ? text.writingAccountChanged
-                      : text.writingPaused,
-                  writing.context.account.name,
-                )
-              }}
-            </p>
-            <p v-if="writing.recoveryAvailable === false" role="alert">
-              {{ text.writingRecoveryUnavailable }}
-            </p>
-            <p
-              v-if="workspace.writing.unresolvedAttachments.value.length"
-              role="alert"
-            >
-              {{
-                insert(
-                  text.unresolvedAttachments,
-                  workspace.writing.unresolvedAttachments.value.join(", "),
-                )
-              }}
-            </p>
-            <p v-if="retainedAttemptWarning" role="alert">
-              {{ text.retainedAttemptWarning }}
-            </p>
-            <p v-if="writing.conflict" role="alert">
-              {{ text.latestServerVersion }}. {{ text.editCompare }}
-            </p>
-            <p v-if="writing.context.editorUnresolved" role="alert">
-              {{
-                editorText(
-                  "Some visual input has no unambiguous BBCode representation. Complete source is retained. Review it before choosing how it should be interpreted.",
-                  workspace.preferences.state.value.language,
-                )
-              }}
-            </p>
-            <p
-              v-if="
-                writing.context.redPacket || writing.context.existingRedPacket
-              "
-              role="alert"
-            >
-              {{ text.retainedFinancialWarning }}
-            </p>
-          </section>
-        </div>
+        </Teleport>
         <div
           v-if="reading?.thread.parent && !writing.context"
           class="composer-entry"
@@ -2706,5 +2775,6 @@ function boardIdFrom(url: string) {
         />
       </div>
     </main>
+    <div ref="browsingWritingStatus" class="browsing-writing-status" />
   </div>
 </template>

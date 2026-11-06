@@ -2068,3 +2068,123 @@ button:disabled {
 .history-controls .unavailable-check {
   visibility: hidden;
 }
+
+/* Shared workspace actions keep their target size independent of text scale. */
+.workspace-icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+.header-navigation {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.header-action {
+  gap: 8px;
+  justify-content: center;
+  text-decoration: none;
+}
+.main-destinations button {
+  gap: 8px;
+}
+.workspace > header {
+  display: flex;
+  flex-wrap: nowrap;
+}
+.workspace > header .brand {
+  flex: none;
+}
+@media (max-width: 959px) {
+  .workspace > header {
+    padding-left: max(8px, var(--safe-left));
+    padding-right: max(8px, var(--safe-right));
+    gap: 4px;
+  }
+  .workspace > header .brand {
+    font-size: 20px;
+    gap: 4px;
+    margin-right: auto;
+  }
+  .workspace > header .brand-mark {
+    width: 28px;
+    height: 28px;
+  }
+  .header-action-label {
+    display: none;
+  }
+  .workspace > header .header-action {
+    width: 44px;
+    height: 44px;
+    padding: 8px;
+    flex: none;
+  }
+  .navigation-preferences {
+    flex: none;
+  }
+}
+.workspace > header .header-action {
+  height: 44px;
+  line-height: 1.25;
+  white-space: nowrap;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+}
+
+/* Without a selected reader, results use the available browsing region. */
+.workspace-body.browse-only {
+  grid-template-columns: 216px minmax(0, 1fr);
+}
+.workspace-body.browse-only[data-boards-collapsed="true"],
+.workspace-body[data-narrow-browsing="true"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.workspace-body[data-narrow-browsing="true"] > #thread-list-pane {
+  grid-column: 1;
+}
+
+.workspace > header > .header-action,
+.workspace > header .navigation-preferences .header-action {
+  width: 44px;
+  flex: none;
+}
+.workspace > header > .header-action .header-action-label,
+.workspace > header .navigation-preferences .header-action-label {
+  display: none;
+}
+
+.browsing-writing-status {
+  flex: none;
+  max-height: calc(var(--view-height, 100dvh) * 0.3);
+  overflow: auto;
+  background: var(--surface);
+}
+.browsing-writing-status:not(:empty) {
+  padding-bottom: var(--safe-bottom);
+}
+.browsing-writing-status:empty {
+  display: none;
+}
+.browsing-writing-status {
+  --conversation-gutter: 16px;
+  --edge-left: var(--safe-left);
+}
+
+@media (max-width: 359px) {
+  .workspace > header,
+  .header-navigation {
+    gap: 0;
+  }
+  .workspace > header .brand {
+    gap: 0;
+  }
+  .workspace > header .brand-mark {
+    width: 24px;
+    height: 24px;
+  }
+}

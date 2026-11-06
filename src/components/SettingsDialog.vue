@@ -10,6 +10,7 @@ import {
   DialogDescription,
   DialogClose,
 } from "reka-ui";
+import WorkspaceIcon from "./WorkspaceIcon.vue";
 import type { Workspace } from "../workspace";
 import { strings } from "../layouts/strings";
 const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
@@ -43,7 +44,14 @@ function escape(event: KeyboardEvent) {
 </script>
 <template>
   <DialogRoot :open="open" @update:open="changeOpen">
-    <DialogTrigger>{{ text.settings }}</DialogTrigger>
+    <DialogTrigger
+      class="header-action"
+      :aria-label="text.settings"
+      :title="text.settings"
+      ><WorkspaceIcon name="settings" /><span class="header-action-label">{{
+        text.settings
+      }}</span></DialogTrigger
+    >
     <DialogPortal :to="portal">
       <DialogOverlay class="dialog-overlay" />
       <DialogContent

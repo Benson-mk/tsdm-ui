@@ -135,7 +135,7 @@ test("IM66.progressive: exact independent thresholds preserve all manual choices
   expect(ledger).toHaveLength(before);
 });
 
-test("IM66.drawer: one opaque bounded modal preserves list scroll through close and independent docking", async ({
+test("IM66.drawer: Boards stays modal while narrow Threads preserves list scroll through toggles and docking", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 900, height: 900 });
@@ -188,11 +188,13 @@ test("IM66.drawer: one opaque bounded modal preserves list scroll through close 
   await expect(drawer).toBeHidden();
   await expect(boards).toBeFocused();
   await threads.click();
-  await expect(drawer).toBeVisible();
+  await expect(drawer).toBeHidden();
+  await expect(results).toBeVisible();
   expect(await results.evaluate((node) => node.scrollTop)).toBe(offset);
   await results.evaluate((node) => (node.scrollTop = 430));
   const saved = await results.evaluate((node) => node.scrollTop);
-  await drawer.getByRole("button", { name: "Close", exact: true }).click();
+  await threads.click();
+  await expect(results).toBeHidden();
   await expect(threads).toBeFocused();
   await threads.click();
   expect(await results.evaluate((node) => node.scrollTop)).toBe(saved);
@@ -320,12 +322,14 @@ for (const width of [900, 390])
       .getByRole("link", { name: "Music discussion", exact: true })
       .click();
     await expect(page.locator(".results-pane .thread-row")).toHaveCount(30);
-    const drawer = page.getByRole("dialog", {
-      name: "Thread results",
-      exact: true,
-    });
-    if (width < 768) await expect(drawer).toBeVisible();
-    else await expect(page.getByRole("dialog")).toBeHidden();
+    await expect(page.getByRole("dialog")).toBeHidden();
+    await expect(page.locator(".results-pane")).toBeVisible();
+    if (width < 768) {
+      await page
+        .getByRole("button", { name: "Threads pane", exact: true })
+        .click();
+      await expect(reader).toBeVisible();
+    }
     expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
     expect(await editor.inputValue()).toBe(retained.source);
     frames.push(
@@ -351,6 +355,10 @@ for (const width of [900, 390])
           anchorOffset,
       ),
     ).toBeLessThanOrEqual(1);
+    if (width < 768)
+      await page
+        .getByRole("button", { name: "Threads pane", exact: true })
+        .click();
     const before = ledger.length;
     const other = page.getByRole("link", {
       name: "Complete listening title 1 音樂",

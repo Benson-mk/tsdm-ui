@@ -241,11 +241,31 @@ for (const [language, boardsLabel, threadsLabel, settings] of [
           await page.keyboard.press("Escape");
           await expect(boards).toBeFocused();
         }
-        expect(
-          await page
-            .locator(".workspace")
-            .evaluate((node) => node.scrollWidth <= node.clientWidth),
-        ).toBe(true);
+        const fits = await page
+          .locator(".workspace")
+          .evaluate((node) => node.scrollWidth <= node.clientWidth);
+        if (!fits)
+          await info.attach("overflow-geometry.json", {
+            body: JSON.stringify({
+              width,
+              size,
+              theme,
+              nodes: await page
+                .locator(
+                  ".workspace > header, .workspace > header > *, .header-navigation > *, .workspace-body > *",
+                )
+                .evaluateAll((nodes) =>
+                  nodes.map((n) => ({
+                    tag: n.tagName,
+                    text: n.textContent?.slice(0, 80),
+                    bounds: n.getBoundingClientRect().toJSON(),
+                    scrollWidth: n.scrollWidth,
+                  })),
+                ),
+            }),
+            contentType: "application/json",
+          });
+        expect(fits, `${language} ${size}% at ${width}px`).toBe(true);
       }
       await info.attach(`${theme}-${size}.png`, {
         body: await page.screenshot(),
