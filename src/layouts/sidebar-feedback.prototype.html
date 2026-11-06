@@ -113,9 +113,8 @@
         },
       ];
       root.innerHTML = `<style>${workspaceStyles}</style><style>
-        :host { display:block; height:100%; --hover-surface:var(--soft); --safe-top:env(safe-area-inset-top,0px); --safe-right:env(safe-area-inset-right,0px); --safe-bottom:env(safe-area-inset-bottom,0px); --safe-left:env(safe-area-inset-left,0px); --text-scale:1; }
-        .prototype-shell { height:100vh; height:100dvh; display:grid; grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; }
-        .preview-banner { padding:calc(8px + var(--safe-top)) max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); background:var(--soft); border-bottom:1px solid var(--separator); font-size:13px; line-height:1.5; }
+        :host { display:block; height:100%; --hover-surface:var(--soft); --safe-top:env(safe-area-inset-top,0px); --safe-right:env(safe-area-inset-right,0px); --safe-bottom:env(safe-area-max-inset-bottom,env(safe-area-inset-bottom,0px)); --safe-left:env(safe-area-inset-left,0px); --text-scale:1; }
+        .prototype-shell { position:fixed; top:var(--viewport-top,0px); left:0; right:0; height:100vh; height:var(--viewport-height,100dvh); display:grid; grid-template-rows:minmax(0,1fr); overflow:hidden; background:var(--surface); }
         .workspace { min-height:0; height:100%; display:grid; grid-template-rows:auto minmax(0,1fr); }
         .workspace > header { display:flex; min-height:56px; padding:8px max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); gap:12px; flex-wrap:nowrap; }
         .brand { display:flex; align-items:center; justify-content:center; gap:8px; font-size:24px; min-width:44px; min-height:44px; }
@@ -289,11 +288,52 @@
           .sidebar-scroll,.preview-body .navigation-account { padding-right:max(12px,var(--safe-right)); }
           .preview-state { font-size:11px; }
         }
+
+        /* Edge-to-edge surfaces; gutters/insets belong to their content. */
+        .workspace > header { min-height:calc(60px + var(--safe-top)); padding:calc(8px + var(--safe-top)) max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); background:var(--surface); }
+        .preview-body .navigation-account { padding-bottom:calc(12px + var(--safe-bottom)); }
+        .preview-results { --list-left:0px; --list-right:0px; padding:24px max(24px,var(--list-right)) calc(24px + var(--safe-bottom)) max(24px,var(--list-left)); }
+        .preview-reader { --reader-gutter:24px; --reader-left:0px; --reader-right:var(--safe-right); padding:0 0 var(--safe-bottom); background:var(--surface); overflow:auto; }
+        #reader-empty { padding:24px max(var(--reader-gutter),var(--reader-right)) 24px max(var(--reader-gutter),var(--reader-left)); }
+        #reader-content { min-height:calc(var(--reader-reserve,160px) + 64px); }
+        #reader-content:has(.reply-composer:not([hidden])) { min-height:calc(var(--reader-reserve,160px) + 200px); }
+        .reader-tools { padding:16px max(var(--reader-gutter),var(--reader-right)) 12px max(var(--reader-gutter),var(--reader-left)); }
+        .reader-main > .fresh-status { padding:0 max(var(--reader-gutter),var(--reader-right)) 0 max(var(--reader-gutter),var(--reader-left)); }
+        .reader-scroll { padding:0; margin:0; }
+        .preview-reader .sample-post { padding:16px max(var(--reader-gutter),var(--reader-right)) 16px max(var(--reader-gutter),var(--reader-left)); border-radius:0; box-shadow:none; margin:0; border-top:1px solid var(--separator); }
+        .thread-end { padding:16px max(var(--reader-gutter),var(--reader-right)) 16px max(var(--reader-gutter),var(--reader-left)); }
+        .reply-resume { padding:10px max(var(--reader-gutter),var(--safe-right)) 10px max(var(--reader-gutter),var(--reader-left)); }
+        .reply-composer { margin:0; padding:12px max(var(--reader-gutter),var(--safe-right)) 8px max(var(--reader-gutter),var(--reader-left)); background:var(--surface); }
+        .reader-more-options { max-height:var(--reader-menu-height,240px); overflow:auto; }
+        .preview-tools { padding:12px 0; margin:0; background:var(--surface); border:0; }
+        .preview-tools select { max-width:100%; min-height:44px; font:inherit; }
+        .preview-tools label { flex-wrap:wrap; }
+        .mvp-settings { margin:16px 0; }
+        .mvp-settings > summary { cursor:pointer; min-height:44px; padding:10px 0; }
+        @media(min-width:1440px) {
+          #reader-content:has(.reply-composer.expanded:not([hidden])) { gap:0; }
+          #reader-content:has(.reply-composer.expanded:not([hidden])) .reader-main { --reader-right:0px; }
+          #reader-content .reply-composer.expanded:not([hidden]) { padding:16px max(24px,var(--safe-right)) 12px 24px; }
+        }
+        @media(min-width:768px) and (max-width:959px) {
+          .preview-results { --list-left:var(--safe-left); }
+          :host([data-mobile-view="boards"]) .preview-results { --list-left:0px; --list-right:var(--safe-right); }
+        }
+        @media(max-width:767px) {
+          .workspace > header { padding-left:max(12px,var(--safe-left)); padding-right:max(12px,var(--safe-right)); }
+          .preview-reader { --reader-left:var(--safe-left); }
+          .preview-results { --list-left:var(--safe-left); --list-right:var(--safe-right); }
+          .sidebar-scroll,.preview-body .navigation-account { padding-right:max(12px,var(--safe-right)); }
+        }
+        @media(max-width:559px) {
+          .preview-reader { --reader-gutter:16px; }
+          .preview-results { padding-left:max(16px,var(--list-left)); padding-right:max(16px,var(--list-right)); }
+        }
       </style>
       <div class="prototype-shell">
-        <div class="preview-banner"><strong>Sidebar MVP · revised A</strong> — synthetic continuous reader. Stage sample arrivals, then check for updates. No forum requests.</div>
+
         <div class="workspace">
-          <header><a class="brand" href="#" data-stub="Home" aria-label="TSDM home" title="TSDM home">${brandMark}<span>TSDM</span></a><span class="workspace-caption">Forum / IM</span><div class="pane-controls" role="group" aria-label="Workspace controls"><button data-pane="boards" aria-label="Boards pane" title="Boards pane">${icon("boards")}<span class="pane-control-label">Boards</span></button><button class="threads-control" data-pane="results" aria-label="Threads pane" title="Threads pane">${icon("threads")}<span class="pane-control-label">Threads pane</span></button><button data-stub="Continue in native forum" aria-label="Continue in native forum" title="Continue in native forum">${icon("external")}<span class="pane-control-label">Native forum</span></button></div></header>
+          <header><a class="brand" href="#" data-stub="Home" aria-label="TSDM home" title="TSDM home">${brandMark}<span>TSDM</span></a><span class="workspace-caption">Forum / IM · MVP</span><div class="pane-controls" role="group" aria-label="Workspace controls"><button data-pane="boards" aria-label="Boards pane" title="Boards pane">${icon("boards")}<span class="pane-control-label">Boards</span></button><button class="threads-control" data-pane="results" aria-label="Threads pane" title="Threads pane">${icon("threads")}<span class="pane-control-label">Threads pane</span></button><button data-stub="Continue in native forum" aria-label="Continue in native forum" title="Continue in native forum">${icon("external")}<span class="pane-control-label">Native forum</span></button></div></header>
           <main class="preview-body">
             <aside class="boards-region" aria-label="Preview sidebar">
               <div class="sidebar-scroll" tabindex="0" aria-label="Scrollable navigation">
@@ -345,8 +385,8 @@
             ${["boards", "threads", "writing"].map((pane) => `<div class="column-grip" tabindex="0" data-resize="${pane}" role="separator" aria-orientation="vertical" aria-label="Resize ${pane} column" title="Drag to resize ${pane}; Left/Right to adjust, Home to reset" hidden></div>`).join("")}
           </main>
         </div>
-        <div class="preview-tools" aria-label="Preview controls"><strong>Fresh-content simulation</strong><button id="stage-arrivals">Stage sample arrivals</button><button id="advance-check">Advance 2 min</button><label><input type="checkbox" id="large"/>125% text</label><p class="preview-state" role="status"></p></div>
-        <dialog aria-labelledby="dialog-title"><h2 id="dialog-title">Settings</h2><p>Preview only. No preferences are saved.</p><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3><p>Drag a column edge directly. Focus a divider and use Left/Right to adjust, or Home to reset it. Widths stay in this preview until reload.</p><button id="reset-columns">Reset column widths</button></section><section aria-labelledby="updates-heading"><h3 id="updates-heading">Updates</h3><label><input id="automatic-updates" type="checkbox"/> Check visible open thread and board every 2 minutes</label><p>Checks pause when this tab or pane is hidden, or a dialog is open. New content waits for you to show it.</p></section><section aria-labelledby="about-heading"><h3 id="about-heading">About this workspace</h3><p>TSDM — a workspace for boards, threads and private conversations.</p></section><button id="close-dialog">Close</button></dialog>
+
+        <dialog aria-labelledby="dialog-title"><h2 id="dialog-title">Settings</h2><p>Preview only. No preferences are saved.</p><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3><p>Drag a column edge directly. Focus a divider and use Left/Right to adjust, or Home to reset it. Widths stay in this preview until reload.</p><button id="reset-columns">Reset column widths</button></section><section aria-labelledby="updates-heading"><h3 id="updates-heading">Updates</h3><label><input id="automatic-updates" type="checkbox"/> Check visible open thread and board every 2 minutes</label><p>Checks pause when this tab or pane is hidden, or a dialog is open. New content waits for you to show it.</p></section><section aria-labelledby="about-heading"><h3 id="about-heading">About this workspace</h3><p>TSDM — a workspace for boards, threads and private conversations.</p></section><details class="mvp-settings"><summary>MVP controls</summary><div class="preview-tools" aria-label="Preview controls"><p>Approval MVP · synthetic data only. No forum requests. Changes reset on reload.</p><strong>Fresh-content simulation</strong><button id="stage-arrivals">Stage sample arrivals</button><button id="advance-check">Advance 2 min</button><label><input type="checkbox" id="large"/>125% text</label><label>Safe-area simulation<select id="safe-preview"><option value="device">Device insets</option><option value="portrait">Portrait · top24 / bottom24</option><option value="landscape">Landscape · sides44 / bottom24</option></select></label><p class="preview-state" role="status"></p></div></details><button id="close-dialog">Close</button></dialog>
         <dialog id="page-dialog" aria-labelledby="page-title"><h2 id="page-title">Jump to page</h2><form id="page-form"><label for="page-slider">Choose page <output id="page-choice">1</output> of 92</label><input id="page-slider" aria-label="Page slider" type="range" min="1" max="92" step="1" value="1"/><label for="page-number">Page number</label><input id="page-number" type="number" min="1" max="92" step="1" required value="1"/><div class="reply-footer"><button type="button" id="page-cancel">Cancel</button><button type="submit">Go to page</button></div></form></dialog>
         <dialog id="copy-dialog" aria-labelledby="copy-title"><h2 id="copy-title">Copy preview URL</h2><p>Clipboard access was unavailable. Copy this preview link manually.</p><input id="copy-value" aria-label="Preview URL" readonly/><button id="copy-close">Close</button></dialog>
         <dialog id="reply-dialog" aria-labelledby="review-title"><h2 id="review-title">Review reply</h2><p id="review-target"></p><div id="review-copy"></div><p>Preview only. No reply will be sent.</p><button id="review-close">Back to writing</button></dialog>
@@ -560,7 +600,12 @@
             const boundary = pane === "writing" ? target.left : target.right;
             grip.style.left = `${boundary - bodyBox.left}px`;
             grip.style.top = `${target.top - bodyBox.top}px`;
-            grip.style.height = `${target.height}px`;
+            const bottomReserve =
+              parseFloat(
+                getComputedStyle(root.querySelector(".preview-reader"))
+                  .paddingBottom,
+              ) || 0;
+            grip.style.height = `${Math.max(0, Math.min(target.bottom, bodyBox.bottom - bottomReserve) - target.top)}px`;
           }
         }
         syncReading();
@@ -615,7 +660,41 @@
         Object.assign(preferredWidths, defaultWidths);
         sizeColumns();
       });
-      window.addEventListener("resize", sizeColumns);
+      function fitViewport() {
+        const viewport = window.visualViewport;
+        const unzoomed = !viewport || Math.abs(viewport.scale - 1) < 0.01;
+        host.style.setProperty(
+          "--viewport-height",
+          `${unzoomed && viewport ? viewport.height : innerHeight}px`,
+        );
+        host.style.setProperty(
+          "--viewport-top",
+          `${unzoomed && viewport ? viewport.offsetTop : 0}px`,
+        );
+        sizeColumns();
+      }
+      window.addEventListener("resize", fitViewport);
+      window.visualViewport?.addEventListener("resize", fitViewport);
+      window.visualViewport?.addEventListener("scroll", fitViewport);
+      root
+        .querySelector("#safe-preview")
+        .addEventListener("change", (event) => {
+          const preset = {
+            portrait: [24, 0, 24, 0],
+            landscape: [0, 44, 24, 44],
+          }[event.target.value];
+          for (const [i, edge] of [
+            "top",
+            "right",
+            "bottom",
+            "left",
+          ].entries()) {
+            if (preset)
+              host.style.setProperty(`--safe-${edge}`, `${preset[i]}px`);
+            else host.style.removeProperty(`--safe-${edge}`);
+          }
+          sizeColumns();
+        });
       const showView = (view) => {
         mobileView = view;
         host.dataset.mobileView = view;
@@ -733,6 +812,7 @@
         showBoard(selectedThread.boardIndex);
       });
       const more = root.querySelector(".reader-more");
+      more.addEventListener("toggle", syncReaderHeader);
       more.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
           more.open = false;
@@ -753,6 +833,15 @@
         host.style.setProperty(
           "--reader-reserve",
           `${header.offsetHeight + root.querySelector(".reader-main > .fresh-status").offsetHeight + 104}px`,
+        );
+        const bottomInset =
+          parseFloat(
+            getComputedStyle(root.querySelector(".preview-reader"))
+              .paddingBottom,
+          ) || 0;
+        header.style.setProperty(
+          "--reader-menu-height",
+          `${Math.max(44, root.querySelector(".prototype-shell").getBoundingClientRect().bottom - bottomInset - root.querySelector(".reader-tool-group").getBoundingClientRect().bottom - 8)}px`,
         );
       }
       function syncReading() {
@@ -781,8 +870,7 @@
         if (!target) return;
         scroll.scrollTop +=
           target.getBoundingClientRect().top -
-          scroll.getBoundingClientRect().top -
-          6;
+          scroll.getBoundingClientRect().top;
         syncReading();
       }
       function pageMarkup(samplePage) {
@@ -933,8 +1021,7 @@
         const scroll = root.querySelector(".reader-scroll");
         scroll.scrollTop +=
           target.getBoundingClientRect().top -
-          scroll.getBoundingClientRect().top -
-          6;
+          scroll.getBoundingClientRect().top;
         updateFreshUI();
         syncReading();
       });
@@ -946,6 +1033,7 @@
         root.querySelector('[data-thread="4"]').focus();
       });
       root.querySelector("#stage-arrivals").addEventListener("click", () => {
+        dialog.close();
         if (selectedThread) currentThreadUpdates().available = 2;
         if (selectedBoard !== null) currentBoardUpdates().available = 1;
         root.querySelector(".preview-state").textContent =
@@ -963,6 +1051,7 @@
             : "Automatic checks disabled";
         });
       root.querySelector("#advance-check").addEventListener("click", () => {
+        dialog.close();
         automaticTick();
         simulatedTime += 120_000;
         automaticTick();
@@ -1174,6 +1263,7 @@
         reverse = url.searchParams.get("reverse") === "true";
         renderPage();
       }
+      fitViewport();
     </script>
   </body>
 </html>
