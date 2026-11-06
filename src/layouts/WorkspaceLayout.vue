@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import type { ViewPosition } from "../workspace/navigation";
-import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
+import {
+  computed,
+  ref,
+  onMounted,
+  onUnmounted,
+  watch,
+  nextTick,
+  type DeepReadonly,
+} from "vue";
 import {
   DialogRoot,
   DialogPortal,
@@ -24,7 +32,8 @@ import { editorText } from "../components/editor-strings";
 import ContentView from "../components/ContentView";
 import SettingsDialog from "../components/SettingsDialog.vue";
 import type { Workspace } from "../workspace";
-import { describeDestination } from "../forum-client";
+import { describeDestination, type Directory } from "../forum-client";
+import { sourceGroupKey, groupCategory, boardCategory } from "./board-groups";
 import { nativeDestination } from "../hosts/browser";
 import { strings, insert, description } from "./strings";
 import type { Section } from "../workspace/navigation";
@@ -742,14 +751,74 @@ const boardChoices = computed(() =>
     ? state.value.result.directory.groups.flatMap((group) => group.boards)
     : (boardContext.value?.boards ?? []),
 );
+const observedDirectory = ref<DeepReadonly<Directory> | null>(null);
+let directoryAccount: string | null = null;
+watch(
+  [() => state.value.result, () => props.workspace.accountObservation.value],
+  ([result, observation]) => {
+    const resultAccount = result
+      ? result.account.kind === "member"
+        ? `member:${result.account.id}`
+        : result.account.kind
+      : null;
+    const account = observation ?? resultAccount;
+    if (directoryAccount !== account) {
+      observedDirectory.value = null;
+      directoryAccount = account;
+    }
+    // A failed read may retain public content with its old account metadata.
+    // Only matching evidence can populate the navigation catalogue again.
+    if (result?.kind === "directory" && resultAccount === account)
+      observedDirectory.value = result.directory;
+  },
+  { immediate: true },
+);
+function categoryFor(id: string | null | undefined) {
+  return boardCategory(observedDirectory.value, id);
+}
+const listCategory = computed(() => categoryFor(boardContext.value?.id));
+const readerCategory = computed(() =>
+  categoryFor(
+    reading.value?.thread.parent
+      ? boardIdFrom(reading.value.thread.parent.url)
+      : null,
+  ),
+);
+const navigationGroups = computed(
+  () =>
+    observedDirectory.value?.groups.map((group) => ({
+      ...group,
+      key: sourceGroupKey(observedDirectory.value!, group),
+    })) ?? [],
+);
+const collapsedGroups = ref(new Set<string>());
+function toggleGroup(key: string) {
+  const change = () => {
+    const next = new Set(collapsedGroups.value);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    collapsedGroups.value = next;
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
+const knownBoardIds = computed(
+  () =>
+    new Set(
+      navigationGroups.value.flatMap((group) =>
+        group.boards.map((board) => board.id),
+      ),
+    ),
+);
 const boardFilter = ref("");
 const boardFilterInput = ref<HTMLInputElement | null>(null);
 const filteredBoardGroups = computed(() => {
   if (state.value.result?.kind !== "directory") return [];
+  const directory = state.value.result.directory;
   const query = boardFilter.value.trim().toLocaleLowerCase();
-  return state.value.result.directory.groups
+  return directory.groups
     .map((group) => ({
       ...group,
+      key: sourceGroupKey(directory, group),
       boards: group.boards.filter((board) =>
         [group.title, board.label, board.description].some((value) =>
           value.toLocaleLowerCase().includes(query),
@@ -1771,20 +1840,84 @@ function boardIdFrom(url: string) {
               class="boards-navigation pane"
             >
               <h2>{{ text.browseBoards }}</h2>
-              <a href="https://www.tsdm39.com/forum.php">{{ text.allBoards }}</a
-              ><a v-if="boardContext" :href="boardContext.url">{{
-                boardContext.title
-              }}</a
-              ><a
-                v-else-if="reading?.thread.parent"
-                :href="reading.thread.parent.url"
-                >{{ reading.thread.parent.label }}</a
-              ><a
-                v-for="board in boardChoices"
-                :key="board.url"
-                :href="board.url"
-                >{{ board.label }}</a
+              <a href="https://www.tsdm39.com/forum.php">{{
+                text.allBoards
+              }}</a>
+              <section
+                v-for="group in navigationGroups"
+                :key="group.key"
+                class="board-disclosure"
+                :data-category="groupCategory(group).role"
               >
+                <button
+                  :aria-label="group.title"
+                  :aria-expanded="!collapsedGroups.has(group.key)"
+                  @click="toggleGroup(group.key)"
+                >
+                  <WorkspaceIcon name="disclosure" />
+                  <span
+                    class="category-label"
+                    :data-category="groupCategory(group).role"
+                    >{{ group.title }}</span
+                  ><span class="group-count" aria-hidden="true">{{
+                    group.boards.length
+                  }}</span>
+                </button>
+                <div
+                  v-show="!collapsedGroups.has(group.key)"
+                  class="board-group-links"
+                >
+                  <a
+                    v-for="board in group.boards"
+                    :key="board.url"
+                    :href="board.url"
+                    :aria-current="
+                      boardContext?.id === board.id ? 'page' : undefined
+                    "
+                    ><span
+                      class="category-dot"
+                      :data-category="categoryFor(board.id).role"
+                      aria-hidden="true"
+                    />{{ board.label }}</a
+                  >
+                </div>
+              </section>
+              <a
+                v-if="boardContext && !knownBoardIds.has(boardContext.id)"
+                :href="boardContext.url"
+                ><span
+                  class="category-dot"
+                  data-category="neutral"
+                  aria-hidden="true"
+                />{{ boardContext.title }}</a
+              >
+              <a
+                v-else-if="
+                  !boardContext &&
+                  reading?.thread.parent &&
+                  !knownBoardIds.has(
+                    boardIdFrom(reading.thread.parent.url) ?? '',
+                  )
+                "
+                :href="reading.thread.parent.url"
+                ><span
+                  class="category-dot"
+                  data-category="neutral"
+                  aria-hidden="true"
+                />{{ reading.thread.parent.label }}</a
+              >
+              <template
+                v-if="
+                  !navigationGroups.length && state.result?.kind !== 'directory'
+                "
+              >
+                <a
+                  v-for="board in boardChoices"
+                  :key="board.url"
+                  :href="board.url"
+                  >{{ board.label }}</a
+                >
+              </template>
             </nav>
             <nav
               v-if="sectionInfo"
@@ -2029,10 +2162,16 @@ function boardIdFrom(url: string) {
         <p v-if="!filteredBoardGroups.length">{{ text.noBoardMatches }}</p>
         <section
           v-for="group in filteredBoardGroups"
-          :key="group.title"
+          :key="group.key"
           class="board-group"
         >
-          <h2>{{ group.title }}</h2>
+          <h2>
+            <span
+              class="category-label"
+              :data-category="groupCategory(group).role"
+              >{{ group.title }}</span
+            >
+          </h2>
           <div class="board-grid">
             <a
               v-for="board in group.boards"
@@ -2040,6 +2179,7 @@ function boardIdFrom(url: string) {
               :href="board.url"
               :aria-label="board.label"
               class="board-card"
+              :data-category="categoryFor(board.id).role"
               ><strong>{{ board.label }}</strong
               ><span>{{ board.description }}</span
               ><small>{{ board.stats }}</small></a
@@ -2065,6 +2205,12 @@ function boardIdFrom(url: string) {
         :aria-label="text.threadResults"
       >
         <h1>{{ boardContext.title }}</h1>
+        <span
+          v-if="listCategory.label"
+          class="category-label"
+          :data-category="listCategory.role"
+          >{{ listCategory.label }}</span
+        >
         <section v-if="boardContext.boards.length">
           <h2>{{ text.subordinateBoards }}</h2>
           <div class="board-grid">
@@ -2074,6 +2220,7 @@ function boardIdFrom(url: string) {
               :href="board.url"
               :aria-label="board.label"
               class="board-card"
+              :data-category="categoryFor(board.id).role"
               ><strong>{{ board.label }}</strong
               ><span v-if="board.description">{{ board.description }}</span
               ><small v-if="board.stats">{{ board.stats }}</small></a
@@ -2240,9 +2387,19 @@ function boardIdFrom(url: string) {
           </section>
           <div class="conversation-tool-row">
             <div ref="threadContextTools" class="thread-context-tools" />
-            <a v-if="reading.thread.parent" :href="reading.thread.parent.url">{{
-              reading.thread.parent.label
-            }}</a>
+            <span
+              v-if="readerCategory.label"
+              class="category-label"
+              :data-category="readerCategory.role"
+              >{{ readerCategory.label }}</span
+            >
+            <a
+              v-if="reading.thread.parent"
+              :href="reading.thread.parent.url"
+              class="board-context-link"
+              :data-category="readerCategory.role"
+              >{{ reading.thread.parent.label }}</a
+            >
             <button
               v-if="reading?.thread.parent && writing.context"
               @click="

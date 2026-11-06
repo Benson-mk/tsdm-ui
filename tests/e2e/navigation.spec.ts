@@ -115,7 +115,7 @@ test("J2.boards-returned-context: navigate populated groups, subboards, categori
     page.getByRole("navigation", { name: "Boards navigation" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Listening and creating", { exact: true }),
+    page.getByRole("heading", { name: "Listening and creating", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("link", { name: "Music discussion", exact: true })
@@ -177,7 +177,7 @@ test("J2.sidebar-short-window: populated board navigation stays vertical and its
   const links = navigation.getByRole("link");
   await expect(links).toHaveCount(37);
   const initial = await navigation.evaluate((element) => {
-    const owner = element.closest(".boards-region") ?? element;
+    const owner = element.closest(".navigation-body") ?? element;
     const pane = owner.getBoundingClientRect();
     return {
       left: pane.left,
@@ -222,14 +222,14 @@ test("J2.sidebar-short-window: populated board navigation stays vertical and its
     )
     .toBe(true);
   await links.first().focus();
-  for (let index = 0; index < 36; index++) await page.keyboard.press("Tab");
+  for (let index = 0; index < 37; index++) await page.keyboard.press("Tab");
   const lastChoice = navigation.getByRole("link", {
     name: "Extended listening and recording discussion",
     exact: true,
   });
   await expect(lastChoice).toBeFocused();
   const focused = await lastChoice.evaluate((element) => {
-    const pane = element.closest(".boards-region") ?? element.closest("nav")!;
+    const pane = element.closest(".navigation-body") ?? element.closest("nav")!;
     const bounds = pane.getBoundingClientRect();
     const rect = element.getBoundingClientRect();
     return {
@@ -1170,7 +1170,7 @@ test("J2.directory-pages: returned group pages remain navigable and are not repl
     .getByRole("link", { name: "2", exact: true })
     .click();
   await expect(
-    page.getByText("Second returned group", { exact: true }),
+    page.getByRole("heading", { name: "Second returned group", exact: true }),
   ).toBeVisible();
   expect(requests).toHaveLength(2);
   expect(requests[1]).toContain("gid=2");
@@ -1528,6 +1528,10 @@ for (const appearance of [
     const requests = await open(page, directoryURL, (url) =>
       url.searchParams.get("mod") === "forumdisplay"
         ? board()
+            .replace(
+              '</table><div class="pg">',
+              `${Array.from({ length: 12 }, (_, i) => threadRow(500 + i, `Additional returned thread ${i}`)).join("")}</table><div class="pg">`,
+            )
             .replace("Live recordings", longName)
             .replaceAll(
               "Listening notes",

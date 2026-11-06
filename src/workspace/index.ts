@@ -69,6 +69,9 @@ export function createWorkspace(
   downloads?: DownloadHost,
 ) {
   const preferences = createPreferences(preferenceHost);
+  // Latest accepted account observation, distinct from retained public results.
+  // Null means no fresh observation yet (e.g. restored page-session state).
+  const accountObservation = shallowRef<string | null>(null);
   const drafts = shallowRef<{
     loading: boolean;
     result: DraftListResult | null;
@@ -746,6 +749,7 @@ export function createWorkspace(
   function observeAccount(account: Account) {
     let invalidated = false;
     const observed = accountKey(account);
+    accountObservation.value = observed ?? "unknown";
     for (const entry of Object.values(record.entries))
       if (
         entry.drafts &&
@@ -1650,6 +1654,7 @@ export function createWorkspace(
       void persist();
     },
     state: readonly(state),
+    accountObservation: readonly(accountObservation),
     download: readonly(download),
     prepareDownload,
     saveDownload,

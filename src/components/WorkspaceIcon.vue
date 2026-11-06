@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const paths = {
+  disclosure: "M6 9l6 6 6-6",
   boards: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
   threads: "M8 5h13 M8 12h13 M8 19h13 M3 5h.01 M3 12h.01 M3 19h.01",
   messages: "M3 5h18v14H3z M3 5l9 7 9-7",

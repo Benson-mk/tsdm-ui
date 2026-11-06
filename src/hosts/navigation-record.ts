@@ -399,7 +399,11 @@ function result(value: unknown): boolean {
       list(
         d.groups,
         (group) =>
-          object(group) && string(group.title) && list(group.boards, boardLink),
+          object(group) &&
+          string(group.title) &&
+          (group.sourceId === undefined || string(group.sourceId)) &&
+          (group.sourceURL === undefined || destination(group.sourceURL)) &&
+          list(group.boards, boardLink),
       )
     );
   }

@@ -9,6 +9,7 @@
   --boundary: #666;
   --muted: #666;
   --support: #a6c6e1;
+  --category-pink: #dda49f;
   --inverse: #6d5175;
   color-scheme: light;
   font-family:
@@ -653,12 +654,14 @@ select {
 
 :host([data-theme="alias"]) {
   --secondary-accent: #c2b8da;
+  --category-pink: #c2b8da;
   --inverse: #616379;
 }
 :host([data-theme="mono"]) {
   --accent: #e9e9e9;
   --secondary-accent: #e4e4e4;
   --support: #b8b8b8;
+  --category-pink: #e3e3e3;
   --inverse: #666;
 }
 :host([data-theme="dark"]) {
@@ -1876,15 +1879,7 @@ select {
 .thread-row .subject:hover {
   text-decoration: underline;
 }
-.boards-navigation a:not(:first-of-type)::before {
-  content: "";
-  flex: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-right: 10px;
-  background: var(--support);
-}
+
 .context-kind {
   display: inline-flex;
   align-items: center;
@@ -2236,4 +2231,72 @@ button:disabled {
   height: 44px;
   padding: 8px;
   justify-content: center;
+}
+
+/* Source groups remain independently reachable in docked and drawer navigation. */
+.board-disclosure {
+  width: 100%;
+}
+.board-disclosure > button {
+  width: 100%;
+  text-align: start;
+  gap: 8px;
+  justify-content: space-between;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.board-disclosure > button[aria-expanded="false"] .workspace-icon {
+  transform: rotate(-90deg);
+}
+.group-count {
+  margin-inline-start: auto;
+  flex: none;
+  font-size: 0.8em;
+}
+.board-group-links {
+  display: grid;
+  gap: 4px;
+}
+
+[data-category] {
+  --category-fill: var(--soft);
+  --category-ink: var(--ink);
+}
+[data-category="community"] {
+  --category-fill: var(--accent);
+  --category-ink: #000;
+}
+[data-category="anime"] {
+  --category-fill: var(--category-pink);
+  --category-ink: #000;
+}
+[data-category="creative"] {
+  --category-fill: var(--secondary-accent);
+  --category-ink: #000;
+}
+[data-category="music"] {
+  --category-fill: var(--support);
+  --category-ink: #000;
+}
+.board-card[data-category],
+.category-label,
+.board-context-link {
+  background: var(--category-fill);
+  color: var(--category-ink);
+}
+.category-label,
+.board-context-link {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+.category-dot {
+  display: inline-block;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--category-fill);
+  margin-inline-end: 8px;
 }

@@ -46,6 +46,23 @@ export function link(
   const url = safeURL(attr(node, "href"), base);
   return url && label(node) ? { url: cleanURL(url), label: label(node) } : null;
 }
+function groupProvenance(
+  node: Element,
+  heading: Element | undefined,
+  base: string,
+) {
+  const headingLink =
+    heading && link(descendants(heading, (n) => n.tagName === "a")[0], base);
+  const route = headingLink && routeFor(headingLink.url);
+  return {
+    ...(attr(node, "id") ? { sourceId: attr(node, "id") } : {}),
+    ...(route &&
+    ["directory", "favorites"].includes(route.kind) &&
+    route.url.origin === new URL(base).origin
+      ? { sourceURL: route.url.href }
+      : {}),
+  };
+}
 function links(
   doc: Node,
   base: string,
@@ -237,12 +254,12 @@ export function decodeBoard(
       const heading = parent
         ? descendants(parent, (p) => hasClass(p, "bm_h"))[0]
         : undefined;
+      const title =
+        heading &&
+        (descendants(heading, (p) => p.tagName === "h2")[0] ?? heading);
       return {
-        title:
-          label(
-            heading &&
-              (descendants(heading, (p) => p.tagName === "h2")[0] ?? heading),
-          ) || "Boards",
+        ...groupProvenance(n, title, url),
+        title: label(title) || "Boards",
         boards: boards(n, url),
       };
     });

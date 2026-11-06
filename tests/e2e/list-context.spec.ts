@@ -158,7 +158,7 @@ test("J67.drafts: explicit forum draft pages retain reading and recover their ow
   }
 });
 
-test("J67.direct-entry: saved list offers an honest reading placeholder without inventing a conversation", async ({
+test("J67.direct-entry: saved list fills browsing without inventing a conversation", async ({
   page,
 }, info) => {
   const state = await fixture(
@@ -169,7 +169,8 @@ test("J67.direct-entry: saved list offers an honest reading placeholder without 
     await expect(
       page.getByRole("link", { name: "Saved conversation 42", exact: true }),
     ).toBeVisible();
-    await expect(page.locator(".reader-placeholder")).toBeVisible();
+    await expect(page.locator(".reader-placeholder")).toBeHidden();
+    await expect(page.locator(".workspace-body")).toHaveClass(/browse-only/);
     await expect(page.locator(".reading-pane")).toHaveCount(0);
     expect(
       state.requests.filter(
@@ -295,7 +296,7 @@ test("J67.draft-account: a fresh changed account invalidates private draft histo
   }
 });
 
-test("J67.draft-drawer: per-page history and retained source survive the 768px list docking boundary without reads", async ({
+test("J67.draft-drawer: per-page history and retained source survive the 768px browsing boundary without reads", async ({
   page,
 }, info) => {
   const state = await fixture(page);
@@ -319,10 +320,19 @@ test("J67.draft-drawer: per-page history and retained source survive the 768px l
     expect(offset).toBeGreaterThan(100);
     const before = state.requests.length;
     await page.setViewportSize({ width: 767, height: 900 });
-    await page
-      .getByRole("button", { name: "Threads pane", exact: true })
-      .click();
-    await expect(page.locator(".pane-drawer")).toBeVisible();
+    await expect(page.locator(".workspace-body")).toHaveAttribute(
+      "data-threads-collapsed",
+      "true",
+    );
+    const threads = page.getByRole("button", {
+      name: "Threads pane",
+      exact: true,
+    });
+    if ((await threads.getAttribute("aria-expanded")) === "false")
+      await threads.click();
+    await expect(page.locator(".pane-drawer")).toBeHidden();
+    await expect(page.locator("#thread-list-pane")).toBeVisible();
+    await expect(page.locator(".reading-pane")).toBeHidden();
     await expect
       .poll(() =>
         page.locator("#thread-list-pane").evaluate((node) => node.scrollTop),
@@ -601,9 +611,16 @@ test("F79.retained-lists-and-draft: search saved notices and paged drafts retain
       page.getByRole("link", { name: "Search conversation 42", exact: true }),
     ).toHaveAttribute("href", /tid=42/);
     await page.setViewportSize({ width: 767, height: 900 });
-    await page
-      .getByRole("button", { name: "Threads pane", exact: true })
-      .click();
+    await expect(page.locator(".workspace-body")).toHaveAttribute(
+      "data-threads-collapsed",
+      "true",
+    );
+    const threads = page.getByRole("button", {
+      name: "Threads pane",
+      exact: true,
+    });
+    if ((await threads.getAttribute("aria-expanded")) === "false")
+      await threads.click();
     await expect(page.getByLabel("Keywords", { exact: true })).toHaveValue(
       "retained edited criteria",
     );

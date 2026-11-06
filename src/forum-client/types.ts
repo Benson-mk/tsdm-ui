@@ -196,8 +196,15 @@ export interface BoardLink extends ForumLink {
   description: string;
   stats: string;
 }
+export interface DirectoryGroup {
+  title: string;
+  boards: BoardLink[];
+  /** Optional native provenance added in 0.20.0; absent in legacy models. */
+  sourceId?: string;
+  sourceURL?: string;
+}
 export interface Directory {
-  groups: { title: string; boards: BoardLink[] }[];
+  groups: DirectoryGroup[];
   url: string;
   pages: Pagination;
 }

@@ -104,3 +104,9 @@ const privateReviewContract: (submission:Frontier.PrivateSubmission)=>Promise<Fr
 const privateSendContract: (review:Frontier.PrivateReview, attempt:Frontier.PrivateAttempt, retain:(pending:Frontier.PrivateAttempt)=>Promise<boolean>)=>Promise<Frontier.PrivateAttempt> = frontierClient.sendPrivateMessage;
 const privateCheckContract: (attempt:Frontier.PrivateAttempt)=>Promise<Frontier.PrivateAttempt> = frontierClient.checkPrivateMessage;
 void [privatePrepareContract,privateReviewContract,privateSendContract,privateCheckContract];
+
+const legacyDirectoryGroup: Frontier.Directory["groups"][number] = { title: "Legacy", boards: [] };
+const sourcedDirectoryGroup: Frontier.Directory["groups"][number] = { title: "Source", boards: [], sourceId: "category_11", sourceURL: "https://fixture.example/forum.php?gid=11" };
+const optionalSourceId: string | undefined = legacyDirectoryGroup.sourceId;
+const optionalSourceURL: string | undefined = sourcedDirectoryGroup.sourceURL;
+void [optionalSourceId, optionalSourceURL];
