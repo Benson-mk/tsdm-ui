@@ -1,4 +1,8 @@
-import { revealNavigation } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, chromium, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -62,9 +66,9 @@ test("J5.appearance-rail-labels: enlarged destination words remain complete with
   const requests = await open(page);
   let columns: string | undefined;
   for (const size of [100, 150]) {
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#text-size").fill(String(size));
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     const geometry = await page
       .locator(".main-destinations")
       .evaluate((rail) => {
@@ -216,9 +220,7 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
       let paneWidths: number[] | null = null;
       for (const size of [100, 90, 70, 150]) {
         const locale = ["en", "zh-CN", "zh-TW"][index++ % 3]!;
-        await page
-          .getByRole("button", { name: /^(Settings|设置|設定)$/, exact: true })
-          .click();
+        await openSettings(page);
         await page.locator(`input[name="theme"][value="${theme}"]`).check();
         await page.locator("#text-size").fill(String(size));
         await page.locator("#interface-language").selectOption(locale);
@@ -235,7 +237,7 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
           .soft(dialogMetrics.scrollWidth, `${width}/${size}/${locale} dialog`)
           .toBeLessThanOrEqual(dialogMetrics.width + 1);
         expect.soft(dialogMetrics.padding).toBe("32px");
-        await page.keyboard.press("Escape");
+        await closeSettingsToWorkspace(page);
         const sample = await page
           .locator("#tsdm-workspace")
           .evaluate((host) => {
@@ -335,7 +337,7 @@ test("J5.appearance-locales: translated controls retain forum text, content iden
 }) => {
   const requests = await open(page);
   const article = await page.locator("#pid101").elementHandle();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   for (const [locale, settings, language, textSize, close] of [
     ["zh-CN", "设置", "界面语言", "文字大小", "关闭"],
     ["zh-TW", "設定", "介面語言", "文字大小", "關閉"],
@@ -363,10 +365,10 @@ test("J5.appearance-locales: translated controls retain forum text, content iden
     );
   }
   await page.locator("#interface-language").selectOption("zh-CN");
-  await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("button", { name: "关于此工作区", exact: true }),
+    page.getByRole("heading", { name: "关于此工作区", exact: true }),
   ).toBeVisible();
+  await closeSettingsToWorkspace(page);
   await expect(
     page.getByRole("button", { name: "刷新主题", exact: true }),
   ).toBeVisible();
@@ -392,7 +394,7 @@ test("J5.appearance-blocked-storage: browser-disabled local storage retains live
   const page = await context.newPage();
   try {
     const requests = await open(page);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page
       .getByRole("slider", { name: "Text size", exact: true })
       .fill("150");
@@ -446,7 +448,7 @@ test("J5.appearance-reading-measure: Compact retains the 48em content bound insi
 }) => {
   await page.setViewportSize({ width: 2560, height: 1100 });
   const requests = await open(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   for (const size of [70, 90, 100, 150]) {
     await page.locator("#text-size").fill(String(size));
     const measure = await page
@@ -465,7 +467,7 @@ test("J5.appearance-quote-surface: quote panels use the accepted neutral or past
   page,
 }) => {
   await open(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   for (const theme of ["Light", "Alias", "Mono", "Dark"]) {
     await page.getByRole("radio", { name: theme, exact: true }).check();
     const style = await page
@@ -501,7 +503,7 @@ test("J5.appearance-browser-font: a real larger Chromium default composes with t
         () => getComputedStyle(document.documentElement).fontSize,
       ),
     ).toBe("20px");
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#text-size").fill("150");
     expect(
       await page
@@ -526,9 +528,9 @@ test("J5.appearance-localized-reader-and-failure: application descriptions trans
   page,
 }) => {
   await open(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").selectOption("zh-TW");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   await expect(
     page.getByRole("region", { name: "可捲動的程式碼", exact: true }).first(),
   ).toBeVisible();
@@ -660,7 +662,7 @@ for (const raw of [
       page,
       `localStorage.setItem(${JSON.stringify(preferencesKey)}, ${JSON.stringify(raw)});`,
     );
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await expect(
       page.getByRole("slider", { name: "Text size", exact: true }),
     ).toHaveValue("100");
@@ -679,7 +681,7 @@ test("J5.appearance-persistence-quota: real storage refusal retains session pref
     page,
     `let n=0; for (const size of [1048576,1024,1]) { try { while(n<20000) localStorage.setItem('quota-'+n++,'x'.repeat(size)); } catch {} }`,
   );
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   const slider = page.getByRole("slider", { name: "Text size", exact: true });
   await slider.focus();
   await page.keyboard.press("Home");
@@ -704,7 +706,7 @@ test("J5.appearance-pointer: held pointer previews and persists across 90/100 wi
   page,
 }, info) => {
   const requests = await open(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   const slider = page.getByRole("slider", { name: "Text size", exact: true });
   const box = await slider.boundingBox();
   expect(box).not.toBeNull();
@@ -734,7 +736,7 @@ test("J5.appearance-roles: nested roles scale exactly once and compose with a la
   page,
 }, info) => {
   await open(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   const slider = page.getByRole("slider", { name: "Text size", exact: true });
   const roles: [string, number][] = [
     [".brand", 24],
@@ -876,7 +878,7 @@ test("J5.appearance-context: reflow retains mounted content, disclosures, visibl
     state: history.state as unknown,
     url: location.href,
   }));
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   const slider = page.getByRole("slider", { name: "Text size", exact: true });
   for (const size of [70, 90, 100, 150]) {
     await slider.fill(String(size));
@@ -901,7 +903,7 @@ test("J5.appearance-context: reflow retains mounted content, disclosures, visibl
       })),
     ).toEqual(before);
   }
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   await expect(
     page.getByRole("button", { name: "Settings", exact: true }),
   ).toBeFocused();
@@ -918,15 +920,15 @@ test("J5.appearance-new-anchor: scrolling after an appearance change establishes
   const requests = await open(page);
   const first = page.locator("#pid106 .post-content > p").nth(2);
   await first.evaluate((node) => node.scrollIntoView({ block: "start" }));
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("slider", { name: "Text size", exact: true }).fill("70");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   const next = page.locator("#pid108 .post-content > p").nth(1);
   await next.evaluate((node) => node.scrollIntoView({ block: "start" }));
   const offset = await next.evaluate(
     (node) => node.getBoundingClientRect().top,
   );
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   const slider = page.getByRole("slider", { name: "Text size", exact: true });
   for (const size of [90, 100, 150, 70]) {
     await slider.fill(String(size));
@@ -939,7 +941,7 @@ test("J5.appearance-new-anchor: scrolling after an appearance change establishes
       )
       .toBeLessThanOrEqual(1);
   }
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   expect(requests).toHaveLength(1);
   await info.attach("new-reading-block-after-scroll.png", {
     body: await page.screenshot(),
@@ -951,7 +953,7 @@ test("J5.appearance-palettes-spacing: four palettes share exact Compact metrics 
   page,
 }, info) => {
   const requests = await open(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
   const slider = page.getByRole("slider", { name: "Text size", exact: true });
   for (const theme of ["Light", "Alias", "Mono", "Dark"]) {

@@ -1,7 +1,11 @@
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
-import { revealNavigation } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const conversation = (peer = "9", page?: string) =>
@@ -703,9 +707,9 @@ test("J76.private-locales: private recipient, read effects and manual controls r
       "All known messages loaded",
     ],
   ]) {
-    await page.getByRole("button", { name: /^(Settings|设置|設定)$/ }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(language!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(
       page.getByRole("region", { name: title!, exact: true }),
     ).toBeVisible();

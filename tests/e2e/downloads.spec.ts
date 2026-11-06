@@ -1,4 +1,8 @@
-import { revealNavigation } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -886,13 +890,13 @@ for (const [
     await expect(
       page.getByText("File ready to save", { exact: true }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#text-size").fill(paid ? "150" : "70");
     await page
       .getByRole("radio", { name: paid ? "Dark" : "Mono", exact: true })
       .check();
     await page.locator("#interface-language").selectOption(language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     if (paid) await page.setViewportSize({ width: 375, height: 900 });
     await expect(
       page.getByRole("button", {
@@ -945,15 +949,8 @@ for (const [
       body: await page.screenshot(),
       contentType: "image/png",
     });
-    if (paid) {
-      await revealNavigation(page);
-      await page
-        .getByRole("combobox", { name: "主要導覽", exact: true })
-        .selectOption("saved");
-    } else
-      await page
-        .getByRole("button", { name: sectionLabel, exact: true })
-        .click();
+    if (paid) await revealNavigation(page);
+    await page.getByRole("button", { name: sectionLabel, exact: true }).click();
     await page.goBack();
     await expect(
       page.getByRole("heading", {
@@ -982,9 +979,9 @@ for (const [language, downloadLabel, forbidden, message] of [
         body: Buffer.from("<p>permission refused</p>"),
       },
     });
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await page
       .getByRole("button", {
         name: `${downloadLabel} ${filename}`,

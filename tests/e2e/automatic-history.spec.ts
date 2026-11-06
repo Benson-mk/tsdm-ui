@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -178,14 +179,14 @@ test("IM69.modal-pause: a boundary event beneath Settings does not fetch or queu
   page,
 }) => {
   const requests = await open(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.locator(".reading-pane").evaluate((node) => {
     node.scrollTop = node.scrollHeight;
   });
   await page.waitForTimeout(250);
   expect(requests).toHaveLength(1);
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await closeSettingsToWorkspace(page, "button");
   await page.waitForTimeout(250);
   expect(requests).toHaveLength(1);
 });
@@ -407,12 +408,12 @@ test("IM69.pane-reflow: presentation restoration beside an unloaded boundary doe
   page,
 }) => {
   const requests = await open(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator(".reading-pane").evaluate((node) => {
     node.scrollTop = node.scrollHeight;
   });
   await page.waitForTimeout(100);
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await closeSettingsToWorkspace(page, "button");
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await page.waitForTimeout(250);
   expect(requests).toHaveLength(1);

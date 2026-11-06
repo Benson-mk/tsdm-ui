@@ -1,4 +1,8 @@
-import { revealNavigation } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -1278,9 +1282,9 @@ test("J5.appearance-pinned-locales: generated row labels translate while returne
     ["zh-TW", "置頂"],
     ["en", "Pinned"],
   ]) {
-    await page.getByRole("button", { name: /^(Settings|设置|設定)$/ }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(locale!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(page.getByText(label!, { exact: true })).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Board guide", exact: true }),

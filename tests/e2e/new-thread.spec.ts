@@ -1,3 +1,4 @@
+import { openSettings } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
 import { writingPresentationRoundTrip } from "./combined-authoring";
 import { test, expect, type Page } from "@playwright/test";
@@ -1667,7 +1668,7 @@ for (const [
   }, info) => {
     const state = await fixture(page);
     state.outcome = "forged";
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(language);
     await page.getByRole("button", { name: closeLabel, exact: true }).click();
     await page.getByLabel(sourceLabel, { exact: true }).fill(source);

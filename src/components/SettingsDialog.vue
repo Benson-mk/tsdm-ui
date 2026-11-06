@@ -14,13 +14,24 @@ import WorkspaceIcon from "./WorkspaceIcon.vue";
 import type { Workspace } from "../workspace";
 import { strings } from "../layouts/strings";
 const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
+const emit = defineEmits<{
+  "open-change": [open: boolean];
+  "close-auto-focus": [event: Event];
+}>();
 const preferences = props.workspace.preferences;
 const state = preferences.state;
 const open = ref(false);
 const confirmPreferenceReset = ref(false);
+let outsidePress = false;
+function overlayClick(event: MouseEvent) {
+  const dismiss = outsidePress && event.button === 0;
+  outsidePress = false;
+  if (dismiss) changeOpen(false);
+}
 function changeOpen(value: boolean) {
   const change = () => {
     open.value = value;
+    emit("open-change", value);
   };
   if (!props.workspace.writing.deferViewChange(change)) change();
 }
@@ -39,24 +50,31 @@ function input(event: Event) {
 function escape(event: KeyboardEvent) {
   if (event.defaultPrevented) return;
   event.stopPropagation();
-  open.value = false;
+  changeOpen(false);
 }
 </script>
 <template>
   <DialogRoot :open="open" @update:open="changeOpen">
     <DialogTrigger
-      class="header-action"
+      class="navigation-settings"
       :aria-label="text.settings"
       :title="text.settings"
-      ><WorkspaceIcon name="settings" /><span class="header-action-label">{{
-        text.settings
-      }}</span></DialogTrigger
-    >
+      ><WorkspaceIcon name="settings"
+    /></DialogTrigger>
     <DialogPortal :to="portal">
-      <DialogOverlay class="dialog-overlay" />
+      <DialogOverlay
+        class="dialog-overlay"
+        @pointerdown="outsidePress = $event.isPrimary && $event.button === 0"
+        @pointercancel="outsidePress = false"
+        @click="overlayClick"
+      />
       <DialogContent
         class="dialog-content settings-dialog"
         @keydown.esc="escape"
+        @pointer-down-outside.prevent
+        @interact-outside.prevent
+        @pointerdown="outsidePress = false"
+        @close-auto-focus="emit('close-auto-focus', $event)"
       >
         <DialogTitle>{{ text.settings }}</DialogTitle>
         <DialogDescription>{{ text.settingsDescription }}</DialogDescription>
@@ -146,6 +164,11 @@ function escape(event: KeyboardEvent) {
         >
           {{ text.storageUnavailable }}
         </p>
+        <section class="settings-about" aria-labelledby="settings-about-title">
+          <h3 id="settings-about-title">{{ text.about }}</h3>
+          <p>{{ text.aboutDescription }}</p>
+          <p>{{ text.nativeHelp }}</p>
+        </section>
         <DialogClose>{{ text.close }}</DialogClose>
       </DialogContent>
     </DialogPortal>

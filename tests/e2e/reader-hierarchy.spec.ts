@@ -1,6 +1,10 @@
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { revealNavigation } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -423,7 +427,7 @@ test("IM65.rich-type: semantic headings code and author roles follow DESIGN and 
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const requests = await open(page, false, false, false, true);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   const roles: [string, number, string, number][] = [
     ["#pid101 .post-author", 14, "540", 1.45],
     ["#pid101 .post-content h2", 26, "540", 1.35],
@@ -464,7 +468,7 @@ test("IM65.rich-type: semantic headings code and author roles follow DESIGN and 
       expect.soft(metrics.tracking, selector).toBe("normal");
     }
   }
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   expect(requests).toHaveLength(1);
   await info.attach("semantic-type.json", {
     body: JSON.stringify(measurements),

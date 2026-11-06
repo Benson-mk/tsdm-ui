@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -165,7 +166,7 @@ test("IM74.viewport-pan: reduced and panned scale-one viewport sizes the real sh
     "scroll",
   );
   await expect.poll(async () => (await geometry()).host.y).toBe(140);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
   const bounds = await dialog.boundingBox();
   expect(bounds!.y).toBeGreaterThanOrEqual(156);
@@ -182,7 +183,7 @@ test("IM74.viewport-pan: reduced and panned scale-one viewport sizes the real sh
   ).toBe(true);
   await expect(source).not.toBeFocused();
   await changeViewport(page, { height: 480, offsetTop: 140, scale: 1 });
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   const drawer = page.getByRole("dialog", {
     name: "Boards navigation",
@@ -395,7 +396,7 @@ for (const mode of ["missing", "invalid-scale"] as const) {
     await expect
       .poll(async () => (await shell.boundingBox())!.height)
       .toBe(375);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
     const close = dialog.getByRole("button", { name: "Close", exact: true });
     await close.scrollIntoViewIfNeeded();

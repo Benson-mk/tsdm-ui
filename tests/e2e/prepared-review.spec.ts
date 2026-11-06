@@ -1,6 +1,10 @@
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { revealNavigation } from "./navigation-ui";
 import { writingPresentationRoundTrip } from "./combined-authoring";
 const origin = "https://www.tsdm39.com";
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
@@ -426,9 +430,9 @@ for (const input of ["pointer", "keyboard"] as const)
     await page
       .getByLabel("Complete source", { exact: true })
       .fill("Complete ordinary writing 音樂");
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.getByLabel("Text size", { exact: true }).fill("150");
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     const review = page.getByRole("button", {
       name: "Review publication",
       exact: true,
@@ -523,9 +527,9 @@ test("UX62.disclosed-validation: enlarged drawer navigation retains a usable wri
   await page.getByLabel("Title", { exact: true }).fill(title);
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill(" \n ");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByLabel("Text size", { exact: true }).fill("150");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   const review = page.getByRole("button", {
     name: "Review publication",
     exact: true,
@@ -634,11 +638,11 @@ for (const [entry, width, height, textSize, theme, language] of [
     const before = await retained(page),
       requestCount = f.requests.length;
     await writingPresentationRoundTrip(page, info);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.getByLabel("Text size", { exact: true }).fill(String(textSize));
     await page.locator(`input[name="theme"][value="${theme}"]`).check();
     await page.locator("#interface-language").selectOption(language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     const geometries = [];
     for (const viewport of [
       { width: 390, height: 844 },
@@ -665,11 +669,9 @@ for (const [entry, width, height, textSize, theme, language] of [
         node.selectionEnd,
       ]),
     ).toEqual([3, 11]);
-    await page
-      .getByRole("button", { name: /^(Settings|设置|設定)$/, exact: true })
-      .click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption("en");
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     expect(f.requests).toHaveLength(requestCount);
     await page
       .getByText("Advanced authoring tools", { exact: true })
@@ -1543,7 +1545,7 @@ test("UX60.language-composition: language updates field errors without source/hi
   await expect(titleInput).toBeFocused();
   const before = await retained(page),
     requests = f.requests.length;
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").focus();
   await page.locator("#interface-language").selectOption("zh-CN");
   await expect(

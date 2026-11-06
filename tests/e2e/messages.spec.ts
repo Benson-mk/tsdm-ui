@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { readableLines } from "./readable-lines";
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -545,9 +546,9 @@ test("J75.messages-locales: translate private-list controls while retaining nati
     ["zh-TW", "私訊", "重新整理私訊"],
     ["en", "Messages", "Refresh messages"],
   ]) {
-    await page.getByRole("button", { name: /^(Settings|设置|設定)$/ }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(locale!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(
       page.getByRole("heading", { name: title!, exact: true, level: 1 }),
     ).toBeVisible();

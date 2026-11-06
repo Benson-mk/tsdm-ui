@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
@@ -47,7 +48,7 @@ for (const raw of [
       description: browser.version(),
     });
     const requests = await open(page, raw);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page
       .getByRole("slider", { name: "Text size", exact: true })
       .fill("90");
@@ -211,13 +212,13 @@ test("J1.replacement-compatible: earlier executable preferences, writing and pen
     .fill("Retained candidate writing");
   const source = "[unknown]完整來源[/unknown] [attach]321[/attach]";
   await page.getByLabel("Complete source", { exact: true }).fill(source);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("slider", { name: "Text size", exact: true }).fill("90");
   await page.getByRole("radio", { name: "Dark", exact: true }).check();
   await page
     .getByLabel("Interface language", { exact: true })
     .selectOption("zh-TW");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   await page.getByRole("button", { name: "檢查發佈", exact: true }).click();
   await page.getByRole("button", { name: "發佈主題", exact: true }).click();
   await expect
@@ -371,7 +372,7 @@ test("J1.replacement-reset-refused: actual full origin storage preserves retaine
   const quota =
     "let filled='';for(let size=65536;size>=1;size=Math.floor(size/2)){const block='x'.repeat(size);try{while(true){localStorage.setItem('native-capacity',filled+block);filled+=block;}}catch{}}";
   const requests = await open(page, "{}", quota);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page
     .getByRole("button", {
       name: "Reset incompatible preferences",

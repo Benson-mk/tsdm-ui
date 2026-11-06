@@ -23,7 +23,8 @@
   box-sizing: border-box;
 }
 .workspace,
-.dialog-content {
+.dialog-content,
+.pane-drawer {
   word-break: normal;
 }
 .workspace {
@@ -2187,4 +2188,52 @@ button:disabled {
     width: 24px;
     height: 24px;
   }
+}
+
+/* Navigation scrolls above its account and single Settings action. */
+:host .workspace-body > .boards-region,
+:host .pane-drawer-content > .boards-region {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.navigation-body.pane {
+  min-height: 0;
+  flex: 1 1 0;
+  overflow: auto;
+  padding: 12px;
+  padding-left: max(12px, var(--safe-left));
+}
+.navigation-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 12px;
+  padding-left: max(12px, var(--safe-left));
+  padding-bottom: calc(12px + var(--safe-bottom));
+  border-top: 1px solid var(--separator);
+  background: var(--surface);
+}
+.pane-drawer .navigation-footer {
+  padding-bottom: 12px;
+}
+.navigation-footer .navigation-account {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.navigation-settings {
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  justify-content: center;
 }

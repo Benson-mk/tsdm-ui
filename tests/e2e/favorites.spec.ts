@@ -1,4 +1,4 @@
-import { revealNavigation } from "./navigation-ui";
+import { openSettings, revealNavigation } from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -556,7 +556,7 @@ test("J9.favorite-language: Simplified Chinese review and confirmation follow th
   page,
 }, info) => {
   const server = await mutationFixture(page, "thread");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").selectOption("zh-CN");
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await page.getByRole("button", { name: "收藏主题", exact: true }).click();

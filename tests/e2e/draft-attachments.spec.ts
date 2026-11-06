@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { publishSavedDraft } from "./draft-review-controls";
 import { combinedSource, richRoundTrip } from "./combined-authoring";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
@@ -1156,9 +1157,9 @@ for (const language of ["zh-CN", "zh-TW"] as const)
         page.getByText(/attachment associations unconfirmed/).first(),
       ).toBeVisible();
       const effects = state.commands.length;
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page.locator("#interface-language").selectOption(language);
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
       const expected =
         outcome === "draft"
           ? language === "zh-CN"

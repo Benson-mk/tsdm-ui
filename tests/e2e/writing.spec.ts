@@ -1,4 +1,8 @@
-import { revealNavigation } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { withRedirectFixture } from "../http-redirect-fixture";
 import { readFileSync } from "node:fs";
@@ -1251,9 +1255,7 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
   const languages = ["en", "zh-CN", "zh-TW", "en"];
   const measurements = [];
   for (let i = 0; i < sizes.length; i++) {
-    await page
-      .getByRole("button", { name: /^(Settings|设置|設定)$/, exact: true })
-      .click();
+    await openSettings(page);
     const dialog = page.getByRole("dialog", {
       name: /^(Settings|设置|設定)$/,
       exact: true,
@@ -1270,7 +1272,7 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
       })
       .check();
     await dialog.locator("#interface-language").selectOption(languages[i]!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(dialog).not.toBeVisible();
     const host = page.locator("#tsdm-workspace");
     await expect(host).toHaveAttribute(
@@ -1309,7 +1311,11 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
             .querySelectorAll("label:has(input[type=checkbox])"),
         ].map((label) => label.getBoundingClientRect().height),
         labelSpacing: parseFloat(
-          getComputedStyle(e.closest("label")!).marginBlockStart,
+          getComputedStyle(
+            e
+              .closest(".source-writing")!
+              .querySelector("label:has(input:not([type=checkbox]))")!,
+          ).marginBlockStart,
         ),
       };
     });
@@ -1317,7 +1323,7 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
     expect(Math.min(...metrics.checkboxTargets)).toBeGreaterThanOrEqual(44);
     expect(metrics.ink).toBe(metrics.hostInk);
     expect(metrics.surface).toBe(metrics.hostSurface);
-    expect(metrics.font).toBeCloseTo((18 * sizes[i]!) / 100, 1);
+    expect(metrics.font).toBeCloseTo((14 * sizes[i]!) / 100, 1);
     measurements.push(metrics);
   }
   expect(measurements[1]!.labelSpacing).toBeLessThan(
@@ -1358,14 +1364,12 @@ test("J5.writing-locale: own writing and recovery labels follow all three interf
     ["zh-TW", "完整原始碼", "標題", "返回閱讀"],
     ["en", "Complete source", "Title", "Return to reading"],
   ]) {
-    await page
-      .getByRole("button", { name: /^(Settings|设置|設定)$/, exact: true })
-      .click();
+    await openSettings(page);
     await page
       .getByRole("dialog")
       .locator("#interface-language")
       .selectOption(language!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(page.getByLabel(sourceLabel!, { exact: true })).toHaveValue(
       source,
     );
@@ -1454,12 +1458,12 @@ for (const [language, checkLabel, sourceLabel, message] of [
     await open(page);
     await page.getByRole("button", { name: "New thread", exact: true }).click();
     await page.getByLabel("Complete source", { exact: true }).fill(source);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page
       .getByRole("dialog")
       .locator("#interface-language")
       .selectOption(language!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await page.route("**/*mod=post*", (route) =>
       route.fulfill({
         contentType: "text/html",

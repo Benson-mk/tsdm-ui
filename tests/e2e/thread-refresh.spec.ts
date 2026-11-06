@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { readableLines } from "./readable-lines";
@@ -249,12 +250,12 @@ test("IM71.intermediate-bottom: a refreshed intermediate page does not follow or
   const requests = await open(page, (number) => ({
     body: changed ? arrival(number) : fixture(number),
   }));
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator(".reading-pane").evaluate((pane) => {
     pane.scrollTop = pane.scrollHeight - pane.clientHeight - 30;
   });
   await page.waitForTimeout(100);
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await closeSettingsToWorkspace(page, "button");
   const visibleBefore = await readableLines(page);
   changed = true;
   await page
@@ -355,10 +356,10 @@ test("IM71.auto-policy: opt-in checks wait120seconds, pause for visible modal an
   await expect(toggle).not.toBeChecked();
   await toggle.check();
   expect(requests).toHaveLength(1);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.waitForTimeout(121_000);
   expect(requests).toHaveLength(1);
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await closeSettingsToWorkspace(page, "button");
   await expect(
     page.getByText("Checks enabled · every 2 minutes", { exact: true }),
   ).toBeVisible();
@@ -1008,9 +1009,9 @@ async function auditAppearance(
   size: number,
   height = 700,
 ) {
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("dialog").getByRole("slider").fill(String(size));
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await closeSettingsToWorkspace(page, "button");
   await page.setViewportSize({ width, height });
   await readableLines(page);
   await page.locator(".conversation-region").evaluate((n) => {

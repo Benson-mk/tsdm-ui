@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { applyFormatting, revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -363,7 +364,7 @@ test("J5.editor-lifecycle: source, selection and history survive view replacemen
     .first()
     .evaluate((el) => getComputedStyle(el).fontSize);
   expect(at100).toBe("19px");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByLabel("Text size", { exact: true }).fill("90");
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect(
@@ -700,9 +701,9 @@ for (const locale of editorLocales) {
       page,
     }, info) => {
       const server = await fixture(page);
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page.locator("#interface-language").selectOption(locale.language);
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
       const source = page.getByLabel(locale.source, { exact: true });
       const retained = "[unknown]原文[/unknown] words";
       await source.fill(retained);
@@ -737,9 +738,9 @@ for (const locale of editorLocales) {
     page,
   }, info) => {
     const server = await fixture(page);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(locale.language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     const source = page.getByLabel(locale.source, { exact: true });
     await source.fill("retained");
     await page
@@ -789,9 +790,9 @@ test("J5.editor-diagnostic-language-change: an existing refusal follows language
     .fill("[unknown]原文[/unknown] unchanged");
   await applyFormatting(page, "emoticon", "invalid");
   for (const locale of [editorLocales[1], editorLocales[2], editorLocales[0]]) {
-    await page.getByRole("button", { name: /^(Settings|设置|設定)$/ }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(locale.language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(
       page.getByText(locale.emoticon, { exact: true }),
     ).toBeVisible();
@@ -884,7 +885,7 @@ for (const profile of toolProfiles58)
         width: profile.width,
         height: profile.height,
       });
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page
         .getByLabel("Text size", { exact: true })
         .fill(String(profile.size));
@@ -892,7 +893,7 @@ for (const profile of toolProfiles58)
         .locator(`input[name="theme"][value="${profile.theme}"]`)
         .check();
       await page.locator("#interface-language").selectOption(profile.language);
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
       const source = page.getByLabel(profile.source, { exact: true });
       const original = "[unknown=x]保留[/unknown] words [attach]99[/attach]";
       await source.fill(original);
@@ -990,6 +991,12 @@ for (const profile of toolProfiles58)
         width: profile.width,
         height: profile.height,
       });
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
       const geometry = await page.locator(".post-editor").evaluate((el) => ({
         width: el.clientWidth,
         scroll: el.scrollWidth,

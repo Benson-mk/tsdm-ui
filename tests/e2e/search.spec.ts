@@ -1,4 +1,8 @@
-import { revealNavigation } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -1571,11 +1575,11 @@ for (const [
     await openSearch(page);
     await page.getByLabel("Keywords", { exact: true }).fill("autumn");
     await page.getByLabel("Author", { exact: true }).fill("Composer Nine");
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#text-size").fill(String(size));
     await page.getByRole("radio", { name: theme, exact: true }).check();
     await page.locator("#interface-language").selectOption(language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     const search = page.getByRole("region", { name: overview, exact: true });
     await expect(search).toBeVisible();
     await expect(search.getByLabel("Keywords", { exact: true })).toHaveValue(
@@ -1643,19 +1647,24 @@ for (const [
     expect(geometry.fieldColor).toBe(
       theme === "Mono" ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)",
     );
-    await page.getByRole("button", { name: settings, exact: true }).click();
+    await openSettings(page);
+    await expect(
+      page.getByRole("dialog", { name: settings, exact: true }),
+    ).toBeVisible();
     await page.locator("#text-size").fill("100");
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(search.getByLabel("Keywords", { exact: true })).toHaveValue(
       "winter",
     );
-    await revealNavigation(page);
-    await page.getByRole("button", { name: about, exact: true }).click();
+    await openSettings(page);
+    await expect(
+      page.getByRole("heading", { name: about, exact: true }),
+    ).toBeVisible();
     await expect(page.getByRole("dialog")).toContainText(
       process.env.RELEASE_TAG?.slice(1) ??
         JSON.parse(readFileSync("package.json", "utf8")).version,
     );
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await page.reload();
     await expect(search.getByLabel("Keywords", { exact: true })).toHaveValue(
       "winter",
@@ -1739,9 +1748,9 @@ for (const scenario of [
     );
     await openSearch(page);
     await page.getByLabel("Keywords", { exact: true }).fill("autumn");
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption("zh-CN");
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await page
       .getByRole("region", { name: "搜索总览", exact: true })
       .getByRole("button", { name: "搜索", exact: true })
@@ -1899,9 +1908,9 @@ test("J3.search-integrated-legacy-label: missing provenance preserves stored fie
   const requests = await open(page);
   await openSearch(page);
   await page.getByLabel("Keywords", { exact: true }).fill("autumn");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").selectOption("zh-TW");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   await page.evaluate(() => {
     const record = JSON.parse(
       sessionStorage.getItem("tsdm.workspace.recovery")!,
@@ -1948,9 +1957,9 @@ test("J3.search-integrated-restriction: a newly disallowed option names the gene
   await openSearch(page);
   await page.getByLabel("Keywords", { exact: true }).fill("autumn");
   await page.getByLabel("Order", { exact: true }).selectOption("views");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").selectOption("zh-TW");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   changed = true;
   await page
     .getByRole("region", { name: "搜尋總覽", exact: true })

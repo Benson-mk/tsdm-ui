@@ -1,4 +1,8 @@
-import { revealNavigation } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -148,12 +152,10 @@ for (const [language, label, clear] of [
     expect(geometry.scroll).toBeLessThanOrEqual(geometry.width);
     expect(geometry.input).toBeGreaterThan(100);
     // Preference changes use the actual Settings controls and preserve the query.
-    const settings =
-      language === "en" ? "Settings" : language === "zh-CN" ? "设置" : "設定";
     for (const theme of ["light", "alias", "mono", "dark"]) {
-      await page.getByRole("button", { name: settings, exact: true }).click();
+      await openSettings(page);
       await page.locator(`input[type=radio][value="${theme}"]`).check();
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
       await expect(input).toHaveValue("音樂");
       const card = page.locator(".overview .board-card").first();
       await card.focus();
@@ -201,7 +203,6 @@ test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back
   expect(requests).toHaveLength(2);
   expect(requests[1]).toContain("authorid=9");
   expect(requests[1]).toContain("page=2");
-  await revealNavigation(page);
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(top).toContainText("Page 1");
   await expect(second).toBeInViewport();
@@ -220,7 +221,6 @@ test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back
   await bottom.click();
   await expect(top).toContainText("Page 2");
   expect(requests).toHaveLength(3);
-  await revealNavigation(page);
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(top).toContainText("Page 1");
   await expect

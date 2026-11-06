@@ -3,13 +3,11 @@ import type { ViewPosition } from "../workspace/navigation";
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import {
   DialogRoot,
-  DialogTrigger,
   DialogPortal,
   DialogOverlay,
   DialogContent,
   DialogTitle,
   DialogDescription,
-  DialogClose,
 } from "reka-ui";
 import WorkspaceIcon from "../components/WorkspaceIcon.vue";
 import WorkspaceBrand from "../components/WorkspaceBrand.vue";
@@ -126,6 +124,29 @@ function changeDrawer(next: DrawerPane | null) {
     rememberPositions();
   });
 }
+// Settings temporarily replaces the Boards modal rather than stacking traps.
+let focusSettingsOnDrawerOpen = false;
+function settingsOpenChanged(open: boolean) {
+  if (!open) return;
+  if (drawer.value === "boards") {
+    rememberPaneScroll();
+    drawer.value = null;
+  }
+}
+function settingsFocusReturn(event: Event) {
+  event.preventDefault();
+  if (boardsDocked.value) boardsCollapsed.value = false;
+  else {
+    focusSettingsOnDrawerOpen = true;
+    drawer.value = "boards";
+  }
+  void nextTick().then(() => {
+    restorePaneScroll();
+    workspaceHost()
+      .shadowRoot?.querySelector<HTMLElement>(".navigation-settings")
+      ?.focus({ preventScroll: true });
+  });
+}
 let outsidePress = false;
 function outsideDrawer(event: MouseEvent) {
   const bounds = drawerContent.value?.parentElement?.getBoundingClientRect();
@@ -153,7 +174,12 @@ function drawerClick(event: MouseEvent) {
 function focusDrawer(event: Event) {
   event.preventDefault();
   restorePaneScroll();
-  drawerClose.value?.focus({ preventScroll: true });
+  if (focusSettingsOnDrawerOpen) {
+    focusSettingsOnDrawerOpen = false;
+    workspaceHost()
+      .shadowRoot?.querySelector<HTMLElement>(".navigation-settings")
+      ?.focus({ preventScroll: true });
+  } else drawerClose.value?.focus({ preventScroll: true });
 }
 function closeDrawer() {
   const change = () => changeDrawer(null);
@@ -765,13 +791,6 @@ function chooseNoticeCategory(event: Event) {
   if (target instanceof HTMLSelectElement && target.value)
     void props.workspace.loadNotices(target.value);
 }
-const aboutOpen = ref(false);
-function changeAboutOpen(value: boolean) {
-  const change = () => {
-    aboutOpen.value = value;
-  };
-  if (!props.workspace.writing.deferViewChange(change)) change();
-}
 const inspectRecovery = ref(false),
   confirmReset = ref(false);
 const missingTarget = computed(() => {
@@ -782,11 +801,6 @@ const missingTarget = computed(() => {
     !result.thread.posts.some((p) => p.id === result.thread.target)
   );
 });
-function closeAboutOnEscape(event: KeyboardEvent) {
-  if (event.defaultPrevented) return;
-  event.stopPropagation();
-  aboutOpen.value = false;
-}
 function navigate(event: MouseEvent) {
   if (event.defaultPrevented) return;
   const link = event
@@ -1378,32 +1392,6 @@ function boardIdFrom(url: string) {
           }}</span></a
         >
       </div>
-      <SettingsDialog :workspace="workspace" :portal="portal" />
-      <div id="navigation-preferences" class="navigation-preferences">
-        <DialogRoot :open="aboutOpen" @update:open="changeAboutOpen"
-          ><DialogTrigger
-            class="header-action"
-            :aria-label="text.about"
-            :title="text.about"
-            ><WorkspaceIcon name="about" /><span class="header-action-label">{{
-              text.about
-            }}</span></DialogTrigger
-          ><DialogPortal :to="portal"
-            ><DialogOverlay class="dialog-overlay" /><DialogContent
-              class="dialog-content"
-              @keydown.esc="closeAboutOnEscape"
-              ><DialogTitle>{{ text.about }}</DialogTitle
-              ><DialogDescription>{{
-                text.aboutDescription
-              }}</DialogDescription>
-              <p>
-                {{ text.nativeHelp }}
-              </p>
-              <DialogClose>{{ text.close }}</DialogClose></DialogContent
-            ></DialogPortal
-          ></DialogRoot
-        >
-      </div>
     </header>
     <Teleport :to="contextTools ?? portal" :disabled="!contextTools">
       <div id="navigation-tools" class="workspace-tools">
@@ -1762,79 +1750,91 @@ function boardIdFrom(url: string) {
           id="boards-pane"
           class="boards-region pane"
         >
-          <p class="navigation-caption">{{ text.mainDestinations }}</p>
-          <nav :aria-label="text.mainDestinations" class="main-destinations">
-            <button
-              v-for="section in sections"
-              :key="section"
-              :aria-current="state.section === section ? 'page' : undefined"
-              @click="selectSection(section)"
-            >
-              <WorkspaceIcon :name="section" /><span
-                class="destination-label"
-                >{{ text[section] }}</span
+          <div class="navigation-body pane">
+            <p class="navigation-caption">{{ text.mainDestinations }}</p>
+            <nav :aria-label="text.mainDestinations" class="main-destinations">
+              <button
+                v-for="section in sections"
+                :key="section"
+                :aria-current="state.section === section ? 'page' : undefined"
+                @click="selectSection(section)"
               >
-            </button>
-          </nav>
-          <nav
-            v-if="state.section === 'boards'"
-            :aria-label="text.boardsNavigation"
-            class="boards-navigation pane"
-          >
-            <h2>{{ text.browseBoards }}</h2>
-            <a href="https://www.tsdm39.com/forum.php">{{ text.allBoards }}</a
-            ><a v-if="boardContext" :href="boardContext.url">{{
-              boardContext.title
-            }}</a
-            ><a
-              v-else-if="reading?.thread.parent"
-              :href="reading.thread.parent.url"
-              >{{ reading.thread.parent.label }}</a
-            ><a
-              v-for="board in boardChoices"
-              :key="board.url"
-              :href="board.url"
-              >{{ board.label }}</a
+                <WorkspaceIcon :name="section" /><span
+                  class="destination-label"
+                  >{{ text[section] }}</span
+                >
+              </button>
+            </nav>
+            <nav
+              v-if="state.section === 'boards'"
+              :aria-label="text.boardsNavigation"
+              class="boards-navigation pane"
             >
-          </nav>
-          <nav
-            v-if="sectionInfo"
-            class="boards-navigation pane"
-            :aria-label="text.sectionNavigation"
-          >
-            <h2>{{ sectionInfo.title }}</h2>
-            <p v-for="label in sectionInfo.secondary" :key="label">
-              {{ label }}
+              <h2>{{ text.browseBoards }}</h2>
+              <a href="https://www.tsdm39.com/forum.php">{{ text.allBoards }}</a
+              ><a v-if="boardContext" :href="boardContext.url">{{
+                boardContext.title
+              }}</a
+              ><a
+                v-else-if="reading?.thread.parent"
+                :href="reading.thread.parent.url"
+                >{{ reading.thread.parent.label }}</a
+              ><a
+                v-for="board in boardChoices"
+                :key="board.url"
+                :href="board.url"
+                >{{ board.label }}</a
+              >
+            </nav>
+            <nav
+              v-if="sectionInfo"
+              class="boards-navigation pane"
+              :aria-label="text.sectionNavigation"
+            >
+              <h2>{{ sectionInfo.title }}</h2>
+              <p v-for="label in sectionInfo.secondary" :key="label">
+                {{ label }}
+              </p>
+            </nav>
+            <nav
+              v-if="state.section === 'search'"
+              class="boards-navigation pane"
+              :aria-label="text.searchNavigation"
+            >
+              <h2>{{ text.search }}</h2>
+              <a href="https://www.tsdm39.com/search.php?mod=forum&adv=yes">{{
+                text.newSearch
+              }}</a>
+              <p>{{ text.deliberateSearch }}</p>
+            </nav>
+            <nav
+              v-if="state.section === 'notices'"
+              class="boards-navigation pane notices-navigation"
+              :aria-label="text.noticeCategories"
+            >
+              <h2>{{ text.notices }}</h2>
+              <a
+                v-for="category in noticeContext?.categories ?? []"
+                :key="category.url"
+                :href="category.url"
+                :aria-current="category.current ? 'page' : undefined"
+                >{{ category.label }}</a
+              >
+              <p v-if="!noticeContext">{{ text.noticesHeading }}</p>
+            </nav>
+            <div ref="boardContextTools" class="board-context-tools" />
+          </div>
+          <footer class="navigation-footer">
+            <p class="navigation-account" :title="accountLabel">
+              {{ accountLabel }}
             </p>
-          </nav>
-          <nav
-            v-if="state.section === 'search'"
-            class="boards-navigation pane"
-            :aria-label="text.searchNavigation"
-          >
-            <h2>{{ text.search }}</h2>
-            <a href="https://www.tsdm39.com/search.php?mod=forum&adv=yes">{{
-              text.newSearch
-            }}</a>
-            <p>{{ text.deliberateSearch }}</p>
-          </nav>
-          <nav
-            v-if="state.section === 'notices'"
-            class="boards-navigation pane notices-navigation"
-            :aria-label="text.noticeCategories"
-          >
-            <h2>{{ text.notices }}</h2>
-            <a
-              v-for="category in noticeContext?.categories ?? []"
-              :key="category.url"
-              :href="category.url"
-              :aria-current="category.current ? 'page' : undefined"
-              >{{ category.label }}</a
-            >
-            <p v-if="!noticeContext">{{ text.noticesHeading }}</p>
-          </nav>
-          <div ref="boardContextTools" class="board-context-tools" />
-          <p class="navigation-account">{{ accountLabel }}</p>
+            <SettingsDialog
+              :workspace="workspace"
+              :portal="portal"
+              @open-change="settingsOpenChanged"
+              @close-auto-focus="settingsFocusReturn"
+            />
+          </footer>
         </div>
       </Teleport>
       <section

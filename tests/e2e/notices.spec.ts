@@ -1,4 +1,8 @@
-import { revealNavigation } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -1077,10 +1081,10 @@ for (const width of [390, 1000]) {
         .click();
     else await overview(page);
     if (width < 768) await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption("zh-TW");
     await page.getByLabel("文字大小", { exact: true }).fill("90");
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     if (width < 768)
       await page.getByRole("button", { name: "主題面板", exact: true }).click();
     await page.getByRole("button", { name: "載入通知", exact: true }).click();

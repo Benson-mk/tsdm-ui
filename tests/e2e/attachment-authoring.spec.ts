@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -788,7 +789,7 @@ test("J8.locale: attachment selection and status follow the interface language",
 }, info) => {
   const state = await fixture(page);
   await select(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").selectOption("zh-CN");
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(page.getByLabel("选择附件", { exact: true })).toBeVisible();
@@ -1509,9 +1510,9 @@ for (const { transition, language } of [
     expect(state.saves).toEqual([]);
     expect(state.removals).toEqual([]);
     if (language !== "en") {
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page.locator("#interface-language").selectOption(language);
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
       await expect(
         page.getByText(
           transition === "read-failure"
@@ -1595,9 +1596,9 @@ for (const language of ["zh-CN", "zh-TW"] as const) {
             exact: true,
           })
           .click();
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page.locator("#interface-language").selectOption(language);
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
       const expected = {
         "publication-blocker": simple
           ? "请完成上传或明确移除待处理的选择后再提交。"
@@ -1666,9 +1667,9 @@ for (const language of ["zh-CN", "zh-TW"] as const)
         { exact: true },
       ),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(
       page.getByText(
         language === "zh-CN"
@@ -2040,9 +2041,9 @@ for (const language of ["en", "zh-CN", "zh-TW"] as const)
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue(before);
     if (language !== "en") {
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page.locator("#interface-language").selectOption(language);
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
     }
     await expect(
       page.getByText(

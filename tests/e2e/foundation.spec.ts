@@ -1,3 +1,4 @@
+import { openSettings, revealNavigation } from "./navigation-ui";
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -86,9 +87,9 @@ test("J1.reka-shadow-dialog: keyboard focus remains in the application and retur
   page,
 }, info) => {
   await openThread(page);
-  const trigger = page.getByRole("button", { name: "About this workspace" });
-  await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "About this workspace" });
+  const trigger = page.getByRole("button", { name: "Settings" });
+  await openSettings(page);
+  const dialog = page.getByRole("dialog", { name: "Settings" });
   await expect(dialog).toBeVisible();
   const releaseVersion =
     process.env.RELEASE_TAG?.slice(1) ??
@@ -346,9 +347,9 @@ test("J1.reka-isolated-world: Escape closes the dialog in a userscript execution
     expression: readFileSync("dist/tsdm-ui.user.js", "utf8"),
     contextId: world.executionContextId,
   });
-  const trigger = page.getByRole("button", { name: "About this workspace" });
-  await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "About this workspace" });
+  const trigger = page.getByRole("button", { name: "Settings" });
+  await openSettings(page);
+  const dialog = page.getByRole("dialog", { name: "Settings" });
   await expect(dialog).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
@@ -494,12 +495,12 @@ test("J1.native-escape-handler: a forum body cancellation does not trap the appl
   await page.addScriptTag({
     content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
-  const trigger = page.getByRole("button", { name: "About this workspace" });
-  await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "About this workspace" });
+  const trigger = page.getByRole("button", { name: "Settings" });
+  await openSettings(page);
+  const dialog = page.getByRole("dialog", { name: "Settings" });
   await expect(dialog).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Close", exact: true }),
+    page.getByRole("slider", { name: "Text size", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
@@ -526,9 +527,10 @@ test("J1.native-word-break: native universal styles do not split application con
   await page.addScriptTag({
     content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
-  const trigger = page.getByRole("button", { name: "About this workspace" });
+  const trigger = page.getByRole("button", { name: "Settings" });
+  await revealNavigation(page);
   await expect(trigger).toHaveCSS("word-break", "normal");
-  await trigger.click();
+  await openSettings(page);
   await expect(page.getByRole("dialog")).toBeVisible();
   await expect(
     page.getByText(
@@ -571,11 +573,9 @@ test("J1.emitted-startup-measurement: populated current artifact enters and open
   ).toBeVisible();
   const readyMs = performance.now() - started;
   const dialogStarted = performance.now();
-  await page
-    .getByRole("button", { name: "About this workspace", exact: true })
-    .click();
+  await openSettings(page);
   await expect(
-    page.getByRole("dialog", { name: "About this workspace", exact: true }),
+    page.getByRole("dialog", { name: "Settings", exact: true }),
   ).toBeVisible();
   expect(requests.filter((url) => url.includes("tsdmapp=json"))).toHaveLength(
     1,

@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { publishSavedDraft } from "./draft-review-controls";
 import {
   combinedSource,
@@ -1204,19 +1205,19 @@ test("J6.J7.funded-draft-later-settings: delayed target adoption retains unappli
   expect(state.packet?.get("hb_password")).toBe("");
   expect(state.packet?.has("hb_cond")).toBe(false);
   await page.setViewportSize({ width: 375, height: 900 });
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByLabel("Text size", { exact: true }).fill("150");
   await page.locator("#interface-language").selectOption("zh-TW");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   const geometry = await page.locator("#tsdm-workspace").evaluate((host) => ({
     width: host.clientWidth,
     scroll: host.scrollWidth,
   }));
   expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1);
-  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").selectOption("en");
   await page.getByLabel("Text size", { exact: true }).fill("100");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.reload();
   await expect(retained).not.toContainText("Later unsent secret");

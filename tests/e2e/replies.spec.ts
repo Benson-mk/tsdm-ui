@@ -1,3 +1,4 @@
+import { openSettings } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -828,7 +829,7 @@ for (const [
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(language);
     await page.getByRole("button", { name: closeLabel, exact: true }).click();
     await page.getByLabel(sourceLabel, { exact: true }).fill(source);
@@ -1239,7 +1240,7 @@ for (const locale of [
         await page
           .getByRole("button", { name: "Reply to thread", exact: true })
           .click();
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page.locator("#interface-language").selectOption(locale.language);
       await page
         .getByRole("button", { name: locale.close, exact: true })

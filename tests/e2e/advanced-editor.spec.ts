@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { applyFormatting, revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -819,7 +820,7 @@ test("J5.advanced-appearance-composition: long nested content survives Compact b
   expect(at100).toBe("19px");
   const geometry = [];
   for (const size of [90, 100, 120]) {
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.getByLabel("Text size", { exact: true }).fill(String(size));
     await page.getByRole("button", { name: "Close", exact: true }).click();
     await expect(body.locator("td span").first()).toHaveCSS(
@@ -1084,17 +1085,10 @@ test("J5.advanced-language-change: existing hidden boundaries and table refusals
       content: "Complete source",
     },
   ];
-  let settings = "Settings";
   for (const locale of locales) {
-    await page.getByRole("button", { name: settings, exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(locale.language);
-    await page.keyboard.press("Escape");
-    settings =
-      locale.language === "en"
-        ? "Settings"
-        : locale.language === "zh-CN"
-          ? "设置"
-          : "設定";
+    await closeSettingsToWorkspace(page);
     await expect(
       page.getByRole("group", { name: locale.spoiler, exact: true }),
     ).toBeVisible();
@@ -1316,7 +1310,7 @@ for (const scenario of [
     };
     expect(await caret(), "ordinary keyboard setup").toEqual(expectedCaret);
     const observations = [];
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     for (const locale of [
       { language: "zh-TW", spoiler: "折疊內容", hide: "回覆可見隱藏內容" },
       {
@@ -1343,7 +1337,7 @@ for (const scenario of [
         .soft(current, `active native caret after ${locale.language}`)
         .toEqual(expectedCaret);
     }
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     expect(await sourceValue(page)).toBe(scenario.source);
     const mapped = await page
       .getByLabel("Complete source", { exact: true })

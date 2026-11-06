@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 
 export const combinedSource =
@@ -85,13 +86,13 @@ export async function richRoundTrip(page: Page, source: string) {
     node.selectionDirection,
   ]);
   for (const size of [90, 100, 150]) {
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     const range = page.getByLabel("Text size", { exact: true });
     await range.focus();
     await range.press("Home");
     for (let value = 70; value < size; value += 10)
       await range.press("ArrowRight");
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(editor).toHaveValue(source);
     expect(
       await editor.evaluate((node: HTMLTextAreaElement) => [
@@ -106,9 +107,9 @@ export async function richRoundTrip(page: Page, source: string) {
     );
   }
   await page.setViewportSize({ width: 375, height: 900 });
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").selectOption("zh-TW");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   await expect(page.locator("#tsdm-workspace")).toHaveAttribute(
     "lang",
     "zh-TW",
@@ -118,10 +119,10 @@ export async function richRoundTrip(page: Page, source: string) {
     scroll: host.scrollWidth,
   }));
   expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1);
-  await page.getByRole("button", { name: "設定", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").selectOption("en");
   await page.getByLabel("Text size", { exact: true }).fill("100");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
