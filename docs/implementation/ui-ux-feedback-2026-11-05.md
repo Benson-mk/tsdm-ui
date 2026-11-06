@@ -376,3 +376,31 @@ Evidence: `evidence/runs/fresh-content-2026-11-06/`. The accelerated path checks
 Verification corrections: the first arrival notice combined a status sentence and Show button, wrapping the board strip and shifting existing rows. Showing only the actionable notice keeps it44px; the first board thread stayed184.5px below the list top before/after detection. The advisor also identified a reverse-prepend ordering defect: revealing the newest-end marker after anchor restoration could shift the post. The marker visibility now updates before compensation. Jump90 in reverse, then scroll upward to prepend92: IDs276–265 are unique and post273 stays at6.046875px. These corrections retain the existing trade-offs rather than adding a new policy. Copy/reopen of board0/thread4/page1/ascending succeeded. Console warnings/errors were empty.
 
 Final gpt-6.1-sol xhigh advisor review used validate-gpt-code-review and found no remaining significant concern or distinct trade-off beyond the six recorded above. It inspected source, screenshots, observations and replay instructions and independently passed syntax/whitespace checks; it did not rerun browser journeys. All scoped MVP acceptance criteria are verified. Owner design approval and production implementation remain pending.
+
+## Icon actions and supplied brand MVP — 2026-11-06
+
+Feedback: use icons for the newest-end check and Resume reply; replace the header brand with the supplied Downloads/tsdm_client.svg using our palette. Inspecting the supplied SVG found eight static path/polygon shapes and four blue fills; no scripts or linked assets. DESIGN.md and src/styles.css provide inverse purple, lavender, blue and pale green tokens.
+
+Plan before implementation: reuse the existing refresh glyph and add a compose glyph for Resume; keep44px targets, accessible action names/tooltips and the visible retained reply destination. Replace the full header brand with a44px version of the supplied mark, preserving its geometry and mapping its four blue tones to inverse/secondary-accent/support/accent. Store a minimal prototype SVG beside the MVP and import it inline so palette variables inherit. Remove exporter metadata and the unused placeholder brand glyph. Keep the user's original download untouched. All choices are reversible; advisor review follows verification.
+
+Failure cases: icon-only buttons lose accessible names, targets shrink, refresh/resume stops working, reply destination/text is lost, global20px SVG styling shrinks the logo, pale fills disappear at header size, SVG introduces external content, or the narrow header overflows. Verify browser interactions and screenshots; no post-implementation unit tests.
+
+Owner clarification during implementation: keep the TSDM word beside the supplied mark. Retain the24px wordmark and use the recolored SVG in place of the old star symbol.
+
+Actual trade-offs:
+
+- Icon-only refresh and resume reduce label clutter but make the actions less explicit visually; accessible names, native tooltips, keyboard operation and the retained reply destination provide context. The existing initial Reply label stays unchanged because the feedback targeted Resume.
+- The supplied geometry retains its four-tone segmentation in our inverse-purple/lavender/blue/pale-green palette. Pale green is subtler against white than the original saturated blue; the retained black TSDM word supplies clear brand identification.
+- A44px mark preserves more of the supplied detail than the previous24px star, at the cost of additional header width. The wordmark and pane controls fit together at the checked375px width.
+- A small inline SVG asset inherits existing palette variables and avoids a separate image request; it adds a prototype-specific asset. The downloaded original is unchanged, and unnecessary exporter metadata/DTD/IDs are omitted from the copy.
+
+Acceptance:
+
+- [x] Replace newest-end refresh text with the refresh icon while retaining its accessible name,44px target and working check.
+- [x] Replace Resume reply text with a compose icon, retaining destination description, keyboard activation and writing content.
+- [x] Replace the placeholder symbol with the supplied SVG geometry recolored through our four palette tokens, keeping the TSDM word.
+- [x] Verify desktop/narrow presentation and retain repeatable browser evidence, passing formatting/syntax/whitespace checks.
+
+Browser checks at994×874 and375×874: refresh is44×44px, resume is56px high, header contains the new44px SVG plus TSDM without document overflow. Staging then clicking the refresh icon detected two new posts. Enter on Resume restored “保留图标测试回复” and the original target; minimizing retained both. Enter also activated refresh in the narrow view. Computed fills match#6d5175/#a29bba/#a6c6e1/#ebf5e8. Desktop/narrow screenshots were inspected and console warnings/errors were empty. Evidence: `evidence/runs/icon-brand-2026-11-06/`. This qualifies the local MVP; touch/device, full zoom and theme variants were not independently exercised. No production changes, ticket publication or new unit tests.
+
+Final gpt-6.1-sol xhigh advisor review used validate-gpt-code-review and found no significant issue or distinct additional trade-off. It independently verified all eight SVG shapes/viewBox, palette mapping, retained TSDM text, accessibility attributes, syntax and whitespace, and inspected browser observations/screenshots without rerunning the journeys. Every scoped acceptance criterion is verified; visual approval and production integration remain pending.
