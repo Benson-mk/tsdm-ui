@@ -260,6 +260,7 @@ test("UI85.page: Page exposes only supported returned targets and keeps page and
     exact: true,
   });
   await expect(dialog).toBeVisible();
+  await dialog.getByText("Supported navigation", { exact: true }).click();
   await expect(
     dialog.getByRole("link", { name: "2", exact: true }),
   ).toHaveAttribute(

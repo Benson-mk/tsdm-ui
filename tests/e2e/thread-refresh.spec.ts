@@ -1,4 +1,4 @@
-import { openThreadPages } from "./navigation-ui";
+import { openThreadPages, loadThreadRange } from "./navigation-ui";
 import { clickThreadTool } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
@@ -135,7 +135,7 @@ test("IM71.refresh-range: manual refresh retains earlier pages, counts only new 
     }),
     route(3),
   );
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   await page.locator("#pid106").evaluate((post) => {
     const pane = post.closest(".reading-pane")!;
@@ -299,9 +299,13 @@ test("IM71.failure-recovery: failed refresh retains content and requires deliber
     page.getByText("Checking for new replies…", { exact: true }),
   ).toBeVisible();
   await clickThreadTool(page, "Refresh thread");
-  await page
-    .getByRole("button", { name: "Load earlier", exact: true })
-    .click({ force: true });
+  await expect(
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load earlier",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  await page.keyboard.press("Escape");
   expect(requests).toHaveLength(2);
   release?.();
   await expect(
@@ -404,7 +408,7 @@ test("IM71.removed-post: refreshed page replaces its membership while earlier lo
     }),
     route(3),
   );
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   changed = true;
   await clickThreadTool(page, "Refresh thread");
@@ -673,7 +677,10 @@ test("IM71.returned-later: refreshed latest page can reveal a real next boundary
   changed = true;
   await clickThreadTool(page, "Refresh thread");
   await expect(
-    page.getByRole("button", { name: "Load later", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Jump to latest", exact: true }),
@@ -687,6 +694,7 @@ test("IM71.returned-later: refreshed latest page can reveal a real next boundary
     exact: true,
   });
   await expect(toggle).toBeChecked();
+  await page.keyboard.press("Escape");
   await toggle.click();
   await expect(toggle).toHaveCount(0);
   await expect(page.getByText("Manual refresh", { exact: true })).toBeVisible();
@@ -724,7 +732,7 @@ test("IM71.cached-range: explicit page navigation and Back preserve arrival memb
     }),
     route(3),
   );
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   await page
     .getByRole("checkbox", {
@@ -828,7 +836,7 @@ test("IM71.overlap-source: a post retained only by an earlier page keeps that ac
     },
     route(3),
   );
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   changed = true;
   await clickThreadTool(page, "Refresh thread");
@@ -898,8 +906,12 @@ test("IM71.new-later-page: a refresh exposing unloaded later content does not fo
   await clickThreadTool(page, "Refresh thread");
   await expect(page.locator("#pid108")).toHaveCount(1);
   await expect(
-    page.getByRole("button", { name: "Load later", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeVisible();
+  await page.keyboard.press("Escape");
   const visibleAfter = await readableLines(page);
   await test.info().attach("intermediate-lines.json", {
     body: JSON.stringify({ before: visibleBefore, after: visibleAfter }),
@@ -1274,7 +1286,10 @@ test("F79.public-actions-intermediate: content-bottom positioning never qualifie
     0,
   );
   await expect(
-    page.getByRole("button", { name: "Load later", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeVisible();
 });
 test("F79.public-first-timestamp: first successful refresh preserves the real visible public line", async ({
@@ -1337,9 +1352,9 @@ test("F79.public-context-review: populated board through loaded range and addres
     .evaluate((n) => n.scrollTop);
   expect(offset).toBeGreaterThan(0);
   await row.click();
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
   const ids = await page
     .locator(".reading-pane article")

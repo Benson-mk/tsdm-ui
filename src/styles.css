@@ -2334,10 +2334,11 @@ button:disabled {
 }
 .copy-url-status {
   display: block;
+  min-block-size: 1lh;
   font-size: calc(0.75rem * var(--text-scale, 1));
 }
 .copy-url-status:empty {
-  display: none;
+  visibility: hidden;
 }
 .conversation-heading[data-compact="true"] .thread-heading h1 {
   font-size: calc(16px * var(--text-scale, 1));
@@ -2393,6 +2394,34 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+.reader-page-dialog form,
+.reader-page-dialog form label {
+  display: grid;
+  gap: 8px;
+}
+.reader-page-dialog input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  font: inherit;
+  accent-color: var(--ink);
+}
+.reader-page-dialog input[type="number"] {
+  padding: 8px 12px;
+  border: 1px solid var(--boundary);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.page-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.page-picker-actions button[type="submit"] {
+  background: var(--ink);
+  color: var(--surface);
 }
 .reader-page-dialog nav a {
   min-width: 44px;

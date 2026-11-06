@@ -179,7 +179,7 @@ for (const [language, label, clear] of [
   });
 }
 
-test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back context", async ({
+test("UX.thread-pages: Page navigation preserves returned URLs and Back context at both reading edges", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -191,9 +191,9 @@ test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back
   await expect(second).toHaveAttribute("href", nextURL);
   await expect(
     page
-      .getByRole("navigation", { name: "Pages", exact: true })
-      .getByRole("link", { name: "2", exact: true }),
-  ).toHaveAttribute("href", nextURL);
+      .locator(".reading-pane")
+      .getByRole("navigation", { name: "Pages", exact: true }),
+  ).toHaveCount(0);
   await second.click();
   await expect(
     page.getByRole("button", { name: "Page 2", exact: true }),
@@ -216,11 +216,14 @@ test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back
     body: await page.screenshot(),
     contentType: "image/png",
   });
-  const bottom = page
-    .getByRole("navigation", { name: "Pages", exact: true })
-    .getByRole("link", { name: "2", exact: true });
-  await bottom.scrollIntoViewIfNeeded();
   const reading = page.locator(".reading-pane");
+  await reading.evaluate((node) => {
+    node.scrollTop = node.scrollHeight;
+  });
+  const bottom = (await openThreadPages(page)).getByRole("link", {
+    name: "2",
+    exact: true,
+  });
   const offset = await reading.evaluate((node) => node.scrollTop);
   expect(offset).toBeGreaterThan(500);
   await bottom.click();

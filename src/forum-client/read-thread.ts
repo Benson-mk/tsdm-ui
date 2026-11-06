@@ -21,6 +21,7 @@ import type {
   HostResponse,
   ReadResult,
   ThreadHistory,
+  Thread,
 } from "./types.js";
 const positive = (value: string | null): value is string =>
   value !== null && /^[1-9]\d*$/.test(value);
@@ -51,10 +52,74 @@ function readable(nodes: readonly ContentNode[]): boolean {
         readable(node.children),
   );
 }
+/** Decode the observed native numeric input as inert data, never executable code. */
+function pageJump(doc: Node, base: string): Thread["pageJump"] {
+  const source = threadURL(base);
+  if (!source) return;
+  const roots = descendants(
+    doc,
+    (node) => hasClass(node, "pg") && outsidePosts(node),
+  );
+  let agreed: Thread["pageJump"];
+  for (const root of roots) {
+    const inputs = descendants(
+      root,
+      (node) => node.tagName === "input" && attr(node, "name") === "custompage",
+    );
+    const current = label(
+      descendants(root, (node) => node.tagName === "strong")[0],
+    );
+    if (
+      inputs.length !== 1 ||
+      !positive(current) ||
+      current !== (source.searchParams.get("page") ?? "1") ||
+      attr(inputs[0]!, "value") !== current
+    )
+      return;
+    const input = inputs[0]!;
+    const handler = attr(input, "onkeydown").match(
+      /^if\s*\(event\.keyCode\s*==\s*13\)\s*\{\s*window\.location\s*=\s*'([^'\\]+)'\s*\+\s*this\.value\s*;;\s*doane\(event\);\s*\}$/,
+    );
+    if (!handler || !/[?&]page=$/.test(handler[1]!)) return;
+    const candidate = safeURL(`${handler[1]}1`, base);
+    const url = candidate && threadURL(candidate);
+    if (
+      !url ||
+      url.origin !== source.origin ||
+      url.searchParams.getAll("page").length !== 1 ||
+      ["tid", "authorid", "ordertype"].some(
+        (key) =>
+          (url.searchParams.get(key) ?? (key === "ordertype" ? "0" : "")) !==
+          (source.searchParams.get(key) ?? (key === "ordertype" ? "0" : "")),
+      ) ||
+      [...url.searchParams.keys()].some((key) =>
+        /formhash|password|token|credential/i.test(key),
+      )
+    )
+      return;
+    const parent = "parentNode" in input ? input.parentNode : null;
+    const totals =
+      parent && descendants(parent, (node) => node.tagName === "span");
+    if (!totals || totals.length !== 1) return;
+    const title = attr(totals[0]!, "title").match(/^共\s*([1-9]\d*)\s*页$/);
+    const visible = label(totals[0]).match(/^\/\s*([1-9]\d*)\s*页$/);
+    if (!title || !visible || title[1] !== visible[1]) return;
+    const total = Number(title[1]);
+    if (!Number.isSafeInteger(total) || total < Number(current)) return;
+    const next = { url: cleanURL(url.href), total };
+    if (agreed && (agreed.url !== next.url || agreed.total !== next.total))
+      return;
+    agreed = next;
+  }
+  return agreed;
+}
 /** Native .pg controls, never link text or a guessed posts-per-page value. */
 function threadHistory(doc: Node, base: string): ThreadHistory | undefined {
   const url = threadURL(base);
-  if (!url || ![null, "0", "1"].includes(url.searchParams.get("ordertype")))
+  if (
+    !url ||
+    ![null, "0", "1", "2"].includes(url.searchParams.get("ordertype"))
+  )
     return;
   const root = descendants(
     doc,
@@ -496,6 +561,7 @@ export function decodeThread(
     );
   const pages = pagination(doc, response.url);
   const history = threadHistory(doc, response.url);
+  const jump = pageJump(doc, response.url);
   let target =
     /^#pid([1-9]\d*)$/.exec(requested.hash)?.[1] ??
     requested.searchParams.get("viewpid");
@@ -543,6 +609,7 @@ export function decodeThread(
       posts: posts.filter((post) => post !== null),
       pages,
       ...(history ? { history } : {}),
+      ...(jump ? { pageJump: jump } : {}),
       filters: [
         ...new Map(
           descendants(

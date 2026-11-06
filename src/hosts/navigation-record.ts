@@ -32,6 +32,36 @@ const destination = (value: unknown) =>
   url(value, true) && describeDestination(value) !== null;
 const link = (value: unknown) =>
   object(value) && string(value.label) && url(value.url);
+function pageJump(value: unknown, sourceValue: unknown, current: unknown) {
+  if (value === undefined) return true;
+  if (
+    !object(value) ||
+    !destination(value.url) ||
+    !url(sourceValue, true) ||
+    !finite(value.total) ||
+    !Number.isSafeInteger(value.total) ||
+    value.total < 1 ||
+    !string(current) ||
+    !/^[1-9]\d*$/.test(current) ||
+    Number(current) > value.total
+  )
+    return false;
+  const target = new URL(String(value.url)),
+    source = new URL(sourceValue);
+  return (
+    describeDestination(String(value.url))?.kind === "thread" &&
+    target.searchParams.get("page") === "1" &&
+    target.searchParams.getAll("page").length === 1 &&
+    ["tid", "authorid", "ordertype"].every(
+      (key) =>
+        (target.searchParams.get(key) ?? (key === "ordertype" ? "0" : "")) ===
+        (source.searchParams.get(key) ?? (key === "ordertype" ? "0" : "")),
+    ) &&
+    ![...target.searchParams.keys()].some((key) =>
+      /formhash|password|token|credential/i.test(key),
+    )
+  );
+}
 const pages = (value: unknown) =>
   object(value) && string(value.current) && list(value.links, link);
 const boardLink = (value: unknown) =>
@@ -332,6 +362,7 @@ function result(value: unknown): boolean {
       destination(t.url) &&
       list(t.posts, post) &&
       pages(t.pages) &&
+      pageJump(t.pageJump, t.url, object(t.pages) ? t.pages.current : null) &&
       (t.history === undefined ||
         (object(t.history) &&
           (t.history.earlier === null || link(t.history.earlier)) &&

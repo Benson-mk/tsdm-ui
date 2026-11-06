@@ -1,5 +1,5 @@
 import { readableLines, expectPreservedReadingLine } from "./readable-lines";
-import { openThreadPages } from "./navigation-ui";
+import { openThreadPages, loadThreadRange } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -130,9 +130,9 @@ test("IM70.local-ranges: ordinary return and Back retain loaded ranges while exp
           : "Continuous rich history",
       ),
   }));
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
   await page.locator("#pid104").evaluate((post) => {
     const pane = post.closest(".reading-pane")!;
@@ -190,7 +190,7 @@ test("IM70.reload-marker: reload reconstructs only the returned containing page 
   page,
 }) => {
   const requests = await open(page);
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   await page.locator("#pid106").evaluate((post) => {
     const pane = post.closest(".reading-pane")!;
@@ -227,7 +227,7 @@ test("IM70.direct-priority: ordinary direct arrival restores a compatible marker
   page,
 }) => {
   const requests = await open(page);
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator("#pid106")).toBeAttached();
   await page.locator("#pid106").evaluate((post) => {
     const pane = post.closest(".reading-pane")!;
@@ -278,7 +278,7 @@ for (const mode of ["missing", "account", "unavailable"] as const) {
               ),
       };
     });
-    await page.getByRole("button", { name: "Load later", exact: true }).click();
+    await loadThreadRange(page, "later");
     await expect(page.locator("#pid106")).toBeAttached();
     await page.locator("#pid106").evaluate((post) => {
       const pane = post.closest(".reading-pane")!;
@@ -336,9 +336,9 @@ test("IM70.pending-return: leaving pending history does not retain an unusable l
         ),
     };
   });
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(
-    page.getByRole("button", { name: "Loading history…", exact: true }),
+    page.getByText("Loading history…", { exact: true }),
   ).toBeVisible();
   await page
     .locator("#pid103")
@@ -353,7 +353,10 @@ test("IM70.pending-return: leaving pending history does not retain an unusable l
     .getByRole("link", { name: "Other thread", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Load later", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeEnabled();
   expect(requests).toHaveLength(3);
 });
@@ -380,7 +383,7 @@ test("IM70.account-cache: a confirmed new account never revives the former range
         .replace("Reader Seven", "Reader Eight");
     return { body };
   });
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   changed = true;
   await page
@@ -420,7 +423,7 @@ test("IM70.writing-recovery: compatible source and destination survive marker re
     .click();
   const source = "Retain exact unsent source 中文 [quote]attribution[/quote]";
   await page.getByLabel("Complete source", { exact: true }).fill(source);
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator("#pid106")).toBeAttached();
   await page.locator("#pid106").evaluate((post) => {
     const pane = post.closest(".reading-pane")!;
@@ -487,7 +490,7 @@ test("IM70.reloaded-back: returning to a remembered adjacent page after reloadin
         ),
     };
   });
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator("#pid106")).toBeAttached();
   await page.locator("#pid106").evaluate((post) => {
     const pane = post.closest(".reading-pane")!;
@@ -579,9 +582,7 @@ test("IM70.retention-measurement: complete rich ranges remain local without seri
   await cdp.send("Performance.enable");
   const heapBefore = await cdp.send("Performance.getMetrics");
   for (let n = 3; n <= 6; n++) {
-    await page
-      .getByRole("button", { name: "Load later", exact: true })
-      .click({ force: true });
+    await loadThreadRange(page, "later");
     await expect(page.locator(".reading-pane article")).toHaveCount(
       (n - 1) * 40,
     );
@@ -615,7 +616,7 @@ for (const width of [390, 900]) {
   }, info) => {
     await page.setViewportSize({ width, height: 900 });
     const requests = await open(page);
-    await page.getByRole("button", { name: "Load later", exact: true }).click();
+    await loadThreadRange(page, "later");
     await expect(page.locator("#pid106")).toBeAttached();
     await page.locator("#pid106").evaluate((post) => {
       const pane = post.closest(".reading-pane")!;
@@ -802,7 +803,7 @@ for (const target of ["page", "permalink"]) {
         `<div class="pcb"><a href="${route(1)}#pid102">Exact older post</a>`,
       ),
     }));
-    await page.getByRole("button", { name: "Load later", exact: true }).click();
+    await loadThreadRange(page, "later");
     await expect(page.locator(".reading-pane article")).toHaveCount(5);
     await page.locator("#pid106").evaluate((post) => {
       const pane = post.closest(".reading-pane")!;
@@ -833,7 +834,7 @@ for (const target of ["page", "permalink"]) {
       ).toBeAttached();
     await page.goBack();
     await expect(page.locator(".reading-pane article")).toHaveCount(5);
-    await expect(page.getByText("Page 2", { exact: true })).toBeVisible();
+    await expect(page.getByText("Page 3", { exact: true })).toBeVisible();
     const restored = await page
       .locator("#pid106")
       .evaluate((post) => post.getBoundingClientRect().top);
@@ -871,7 +872,7 @@ test("IM70.ordinary-alias-growth: loading through an ordinary return updates the
         ),
     };
   });
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   await page
     .locator("#pid104")
@@ -885,9 +886,7 @@ test("IM70.ordinary-alias-growth: loading through an ordinary return updates the
     .getByRole("link", { name: "Other thread", exact: true })
     .click();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  await page
-    .getByRole("button", { name: "Load earlier", exact: true })
-    .click({ force: true });
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
   await page.goBack();
   await expect(

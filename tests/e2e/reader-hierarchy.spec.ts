@@ -415,9 +415,9 @@ test("UX55.filter-provenance: pagination carrying author context stays paginatio
   await page.keyboard.press("Escape");
   await expect(
     page
-      .getByRole("navigation", { name: "Pages", exact: true })
-      .getByRole("link", { name: "4", exact: true }),
-  ).toHaveAttribute("href", `${threadURL}&page=4&authorid=9`);
+      .locator(".reading-pane")
+      .getByRole("navigation", { name: "Pages", exact: true }),
+  ).toHaveCount(0);
 });
 
 test("IM65.rich-type: semantic headings code and author roles follow DESIGN and scale once with Text size", async ({

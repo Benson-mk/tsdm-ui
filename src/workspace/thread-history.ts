@@ -472,6 +472,19 @@ export function createThreadHistory(
     for (const page of membership.values())
       for (const id of page.ids) postPages.set(id, page.url);
     for (const post of incoming) postPages.set(post.id, result.thread.url);
+    const refreshedThread = {
+      ...prior.thread,
+      title: result.thread.title,
+      posts,
+    };
+    // Bounds are observations, not permanent properties of a loaded range.
+    // A shrinking thread that no longer contains its entry page fails closed.
+    if (
+      result.thread.pageJump &&
+      result.thread.pageJump.total >= Number(prior.thread.pages.current)
+    )
+      refreshedThread.pageJump = result.thread.pageJump;
+    else delete refreshedThread.pageJump;
     state.value = {
       ...state.value,
       checking: false,
@@ -479,7 +492,7 @@ export function createThreadHistory(
       retryMinutes: 0,
       result: {
         ...prior,
-        thread: { ...prior.thread, title: result.thread.title, posts },
+        thread: refreshedThread,
       },
       later,
       latest: result.thread.history?.latest?.url ?? state.value.latest,

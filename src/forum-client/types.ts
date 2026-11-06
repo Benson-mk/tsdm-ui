@@ -252,6 +252,8 @@ export interface ThreadHistory {
 }
 export interface Thread {
   history?: ThreadHistory;
+  /** Optional native numeric jump capability, added in 0.21.0. Never infer it from visible links. */
+  pageJump?: { url: string; total: number };
   id: string;
   title: string;
   url: string;

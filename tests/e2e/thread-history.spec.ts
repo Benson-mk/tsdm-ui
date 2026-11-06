@@ -1,4 +1,8 @@
-import { openThreadPages } from "./navigation-ui";
+import {
+  confirmThreadPage,
+  openThreadPages,
+  loadThreadRange,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -118,16 +122,12 @@ test("IM68.manual-range: prepend and append complete returned pages without dupl
   const before = await anchor(page);
   expect(before.scroll).toBeGreaterThan(100);
   const historyLength = await page.evaluate(() => history.length);
-  await page
-    .getByRole("button", { name: "Load earlier", exact: true })
-    .click({ force: true });
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
     0.5,
   );
-  await page
-    .getByRole("button", { name: "Load later", exact: true })
-    .click({ force: true });
+  await loadThreadRange(page, "later");
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
   expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
     0.5,
@@ -176,7 +176,7 @@ test("IM68.account-change: changed-account page clears the former account range 
         }
       : null,
   );
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator(".reading-pane article")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Reload", exact: true }),
@@ -195,7 +195,7 @@ test("IM68.retry: permission failure keeps readable posts and only a deliberate 
         }
       : null,
   );
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(
     page.getByRole("button", { name: "Retry later", exact: true }),
   ).toBeVisible();
@@ -254,19 +254,21 @@ test("IM68.stale-navigation: a delayed adjacent page cannot replace an explicit 
     }
     return null;
   });
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await incoming;
   await expect(
-    page.getByRole("button", { name: "Loading history…", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("button", { name: "Load earlier", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load earlier",
+      exact: true,
+    }),
   ).toBeDisabled();
-  await (
-    await openThreadPages(page)
-  )
-    .getByRole("link", { name: "1", exact: true })
-    .click();
+  await confirmThreadPage(page, 1);
   await expect(page.locator("#pid101")).toBeVisible();
   release?.();
   await expect(page.locator("#pid107")).toHaveCount(0);
@@ -347,7 +349,7 @@ test("IM68.late-media: prepended history and a late intrinsic image preserve the
       post.getBoundingClientRect().top - pane.getBoundingClientRect().top + 37;
   });
   const before = await anchor(page);
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
     0.5,
@@ -375,7 +377,10 @@ test("IM68.latest: the explicit native last link opens its returned page and exa
     ),
   }));
   await expect(
-    page.getByRole("link", { name: "Jump to latest", exact: true }),
+    (await openThreadPages(page)).getByRole("link", {
+      name: "Jump to latest",
+      exact: true,
+    }),
   ).toHaveAttribute("href", `${route(3)}#lastpost`);
   await page.getByRole("link", { name: "Jump to latest", exact: true }).click();
   await expect(page.locator("#pid107")).toHaveAttribute(
@@ -417,7 +422,7 @@ test("IM68.preparation-priority: a delayed history result never interrupts delib
         fixture(number),
     };
   });
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await incoming;
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
@@ -434,7 +439,10 @@ test("IM68.preparation-priority: a delayed history result never interrupts delib
     .click();
   await expect(page.locator(".reading-pane article")).toHaveCount(3);
   await expect(
-    page.getByRole("button", { name: "Load later", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeEnabled();
   expect(requests).toHaveLength(3);
   expect(requests.every((value) => value.startsWith("GET "))).toBe(true);
@@ -457,7 +465,7 @@ for (const kind of ["empty", "repeated"] as const) {
           }
         : null,
     );
-    await page.getByRole("button", { name: "Load later", exact: true }).click();
+    await loadThreadRange(page, "later");
     await expect(
       page.getByRole("button", { name: "Retry later", exact: true }),
     ).toBeVisible();
@@ -484,7 +492,7 @@ test("IM68.reader-moves-during-load: preserve the reader's current anchor when a
     }
     return null;
   });
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await incoming;
   await page.locator("#pid104").evaluate((post) => {
     const pane = post.closest(".reading-pane")!;
@@ -503,7 +511,7 @@ test("IM68.loaded-permalink: selecting a post in the current loaded page updates
   page,
 }) => {
   const requests = await open(page);
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   await page
     .locator("#pid104")
@@ -540,9 +548,7 @@ test("IM68.filtered-return: a response resolving into another filter never mixes
           exact: true,
         }),
       ).toBeVisible();
-      await page
-        .getByRole("button", { name: "Load later", exact: true })
-        .click();
+      await loadThreadRange(page, "later");
       await expect(
         page.getByRole("button", { name: "Retry later", exact: true }),
       ).toBeVisible();
@@ -595,12 +601,7 @@ for (const [direction, pageNumber, postId] of [
             : fixture(number),
       };
     });
-    await page
-      .getByRole("button", {
-        name: direction === "earlier" ? "Load earlier" : "Load later",
-        exact: true,
-      })
-      .click();
+    await loadThreadRange(page, direction);
     await page
       .locator(`#pid${postId}`)
       .getByRole("button", { name: "Download range-notes.txt", exact: true })
@@ -657,7 +658,7 @@ test("IM68.compact-writing-anchor: manual history keeps the visible post and sol
       post.getBoundingClientRect().top - pane.getBoundingClientRect().top + 37;
   });
   const before = await anchor(page);
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
     0.5,
@@ -666,7 +667,29 @@ test("IM68.compact-writing-anchor: manual history keeps the visible post and sol
     "Retained composition [quote]complete[/quote]",
   );
   expect(await original?.evaluate((node) => node.isConnected)).toBe(true);
-  expect(requests).toHaveLength(3);
+  await editor.evaluate((node) => {
+    if (!(node instanceof HTMLTextAreaElement))
+      throw new Error("Missing source textarea");
+    node.setSelectionRange(9, 20, "backward");
+  });
+  await confirmThreadPage(page, 3);
+  await expect(page.locator(".reading-pane article")).toHaveCount(3);
+  await expect(editor).toHaveValue(
+    "Retained composition [quote]complete[/quote]",
+  );
+  expect(await original?.evaluate((node) => node.isConnected)).toBe(true);
+  expect(
+    await editor.evaluate((node) => {
+      if (!(node instanceof HTMLTextAreaElement))
+        throw new Error("Missing source textarea");
+      return {
+        start: node.selectionStart,
+        end: node.selectionEnd,
+        direction: node.selectionDirection,
+      };
+    }),
+  ).toEqual({ start: 9, end: 20, direction: "backward" });
+  expect(requests).toHaveLength(4);
   expect(requests.every((value) => value.startsWith("GET "))).toBe(true);
 });
 
@@ -688,7 +711,7 @@ test("IM68.board-browse-range: three-region board browsing and history return re
       body: `${member}<div class="bm bmw fl"><div class="bm_h"><h2>Community</h2></div><table><tr><td><h2><a href="${boardURL}">Other board</a></h2><p>Browse other threads</p></td></tr></table></div>`,
     };
   });
-  await page.getByRole("button", { name: "Load later", exact: true }).click();
+  await loadThreadRange(page, "later");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   await page.locator("#pid104").evaluate((post) => {
     const pane = post.closest(".reading-pane")!;
@@ -714,7 +737,7 @@ test("IM68.board-browse-range: three-region board browsing and history return re
   expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
     0.5,
   );
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
   expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
     0.5,
@@ -765,7 +788,7 @@ test("IM68.short-writing-anchor: manual history keeps the visible post and sole 
       post.getBoundingClientRect().top - pane.getBoundingClientRect().top - 70;
   });
   const before = await anchor(page);
-  await page.getByRole("button", { name: "Load earlier", exact: true }).click();
+  await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   // Bounded observation interval: detect a late browser-layout drift after insertion.
   await page.waitForTimeout(1000);

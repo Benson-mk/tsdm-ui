@@ -510,6 +510,7 @@ function saveReadingPosition() {
   );
 }
 function rememberPositions() {
+  scheduleReadingPage();
   if (
     window.innerWidth !== viewportWidth ||
     window.innerHeight !== viewportHeight
@@ -1022,6 +1023,52 @@ function suppressAutomaticHistory() {
 const readerHeading = ref<HTMLElement | null>(null);
 const compactTitle = ref(false);
 const titleSpace = ref(0);
+const readingPage = ref<{
+  page: string;
+  url: string;
+  terminal: boolean;
+} | null>(null);
+let pagePositionFrame: number | null = null;
+function scheduleReadingPage() {
+  if (pagePositionFrame !== null) return;
+  pagePositionFrame = requestAnimationFrame(() => {
+    pagePositionFrame = null;
+    const pane =
+      workspaceHost().shadowRoot?.querySelector<HTMLElement>(".reading-pane");
+    if (!pane?.getClientRects().length || !reading.value) return;
+    const bounds = pane.getBoundingClientRect();
+    const outer = pane.closest(".conversation-region")!.getBoundingClientRect();
+    const top = Math.max(bounds.top, outer.top, 0);
+    const bottom = Math.min(bounds.bottom, outer.bottom, window.innerHeight);
+    const post = [...pane.querySelectorAll<HTMLElement>("article[id]")].find(
+      (node) => {
+        const rect = node.getBoundingClientRect();
+        return rect.bottom > top + 1 && rect.top < bottom - 1;
+      },
+    );
+    const url =
+      post &&
+      props.workspace.threadHistory.sourceFor(post.id.replace(/^pid/, ""));
+    if (!url) return;
+    const page = new URL(url).searchParams.get("page") ?? "1";
+    readingPage.value = {
+      page,
+      url,
+      terminal:
+        history.value.later.status === "end" &&
+        pane.scrollTop >= latestReadingScroll(pane) - 1,
+    };
+  });
+}
+watch(
+  () => [
+    reading.value?.thread.posts,
+    conversationVisible.value,
+    history.value.later.status,
+  ],
+  scheduleReadingPage,
+  { flush: "post" },
+);
 let titlePosition: {
   pane: HTMLElement;
   anchor: HTMLElement | null;
@@ -1029,6 +1076,7 @@ let titlePosition: {
   endDistance: number;
 } | null = null;
 function readingScroll(event: Event) {
+  scheduleReadingPage();
   const pane = event.currentTarget;
   if (pane instanceof HTMLElement) {
     if (
@@ -1080,6 +1128,7 @@ watch(
   () => reading.value?.thread.id,
   () => {
     compactTitle.value = false;
+    readingPage.value = null;
     titleSpace.value = 0;
     titlePosition = null;
   },
@@ -1142,6 +1191,7 @@ function approachHistory(
   });
 }
 onUnmounted(() => {
+  if (pagePositionFrame !== null) cancelAnimationFrame(pagePositionFrame);
   if (historyFrame !== null) cancelAnimationFrame(historyFrame);
   if (restorationFrame !== null) cancelAnimationFrame(restorationFrame);
 });
@@ -2659,6 +2709,7 @@ function boardIdFrom(url: string) {
               :workspace="workspace"
               :portal="portal"
               :thread="reading.thread"
+              :position="readingPage"
               :filters="threadFilters"
               @refresh="
                 state.result?.kind === 'thread'
@@ -2757,8 +2808,16 @@ function boardIdFrom(url: string) {
               v-for="direction in ['earlier', 'later'] as const"
               :key="direction"
             >
+              <span
+                v-if="history[direction].status === 'loading'"
+                role="status"
+                >{{ text.historyLoading }}</span
+              >
               <button
-                v-if="history[direction].url"
+                v-if="
+                  history[direction].url &&
+                  history[direction].status === 'failed'
+                "
                 :disabled="
                   history.checking ||
                   history.earlier.status === 'loading' ||
@@ -2767,18 +2826,10 @@ function boardIdFrom(url: string) {
                 @click="workspace.threadHistory.load(direction)"
               >
                 {{
-                  history[direction].status === "loading"
-                    ? text.historyLoading
-                    : direction === "earlier"
-                      ? history[direction].status === "failed"
-                        ? text.retryEarlier
-                        : text.loadEarlier
-                      : history[direction].status === "failed"
-                        ? text.retryLater
-                        : text.loadLater
+                  direction === "earlier" ? text.retryEarlier : text.retryLater
                 }}
               </button>
-              <span v-else>{{
+              <span v-else-if="!history[direction].url">{{
                 history[direction].status === "end"
                   ? direction === "earlier"
                     ? text.historyBeginning
@@ -2788,9 +2839,6 @@ function boardIdFrom(url: string) {
                     : text.historyLaterUnknown
               }}</span>
             </template>
-            <a v-if="history.latest" :href="history.latest">{{
-              text.jumpLatest
-            }}</a>
             <p
               v-for="direction in ['earlier', 'later'] as const"
               v-show="history[direction].failure"
@@ -2941,14 +2989,6 @@ function boardIdFrom(url: string) {
               </li>
             </ul>
           </article>
-          <nav :aria-label="text.pages">
-            <a
-              v-for="link in reading.thread.pages.links"
-              :key="link.url"
-              :href="link.url"
-              >{{ link.label }}</a
-            >
-          </nav>
         </section>
         <Teleport
           :to="browsingWritingStatus ?? portal"

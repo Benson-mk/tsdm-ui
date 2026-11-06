@@ -25,6 +25,7 @@ const props = defineProps<{
   workspace: Workspace;
   portal: HTMLElement;
   thread: DeepReadonly<Extract<ReadResult, { kind: "thread" }>["thread"]>;
+  position: { page: string; url: string; terminal: boolean } | null;
   filters: readonly { url: string; label: string; authorId: string | null }[];
 }>();
 const emit = defineEmits<{ refresh: [] }>();
@@ -40,16 +41,81 @@ const copied = ref(false),
 const fallbackField = ref<HTMLInputElement | null>(null);
 const moreTrigger = ref<InstanceType<typeof DropdownMenuTrigger> | null>(null);
 let outsidePress = false;
-const canonicalURL = computed(() => {
+const pendingPage = ref("");
+const currentPage = computed(
+  () => props.position?.page ?? props.thread.pages.current,
+);
+const currentURL = computed(() => props.position?.url ?? props.thread.url);
+const history = props.workspace.threadHistory.state;
+const jump = computed(() => props.thread.pageJump);
+const pageTargets = computed(() => {
   const source = new URL(props.thread.url);
+  const targets = new Map<number, string>();
+  for (const link of [
+    { url: props.thread.url },
+    { url: currentURL.value },
+    ...props.thread.pages.links,
+  ]) {
+    const url = new URL(link.url);
+    const page = Number(url.searchParams.get("page") ?? "1");
+    if (
+      url.origin === source.origin &&
+      url.pathname === "/forum.php" &&
+      url.searchParams.get("mod") === "viewthread" &&
+      Number.isSafeInteger(page) &&
+      page > 0 &&
+      ["tid", "authorid", "ordertype"].every(
+        (key) =>
+          (url.searchParams.get(key) ?? (key === "ordertype" ? "0" : "")) ===
+          (source.searchParams.get(key) ?? (key === "ordertype" ? "0" : "")),
+      )
+    )
+      targets.set(page, link.url);
+  }
+  return targets;
+});
+const offeredPages = computed(() =>
+  [...pageTargets.value.keys()].sort((a, b) => a - b),
+);
+const pendingTarget = computed(() => {
+  if (!/^[1-9]\d*$/.test(pendingPage.value)) return undefined;
+  const number = Number(pendingPage.value);
+  if (
+    !Number.isSafeInteger(number) ||
+    (jump.value && number > jump.value.total)
+  )
+    return undefined;
+  const offered = pageTargets.value.get(number);
+  if (offered) return offered;
+  if (jump.value) {
+    const url = new URL(jump.value.url);
+    url.searchParams.set("page", String(number));
+    return url.href;
+  }
+  return undefined;
+});
+watch(pageOpen, (open) => {
+  if (open) pendingPage.value = currentPage.value;
+});
+function confirmPage() {
+  if (pendingTarget.value && !props.workspace.state.value.loading)
+    navigate(pendingTarget.value);
+}
+function loadRange(direction: "earlier" | "later") {
+  pageOpen.value = false;
+  void props.workspace.threadHistory.load(direction);
+}
+const canonicalURL = computed(() => {
+  const source = new URL(currentURL.value);
   const url = new URL("/forum.php", source.origin);
   url.searchParams.set("mod", "viewthread");
   url.searchParams.set("tid", props.thread.id);
-  if (/^[1-9]\d*$/.test(props.thread.pages.current))
-    url.searchParams.set("page", props.thread.pages.current);
+  if (/^[1-9]\d*$/.test(currentPage.value))
+    url.searchParams.set("page", currentPage.value);
   const order = source.searchParams.get("ordertype"),
     author = source.searchParams.get("authorid");
-  if (order === "0" || order === "1") url.searchParams.set("ordertype", order);
+  if (order === "0" || order === "1" || order === "2")
+    url.searchParams.set("ordertype", order);
   if (author && /^[1-9]\d*$/.test(author))
     url.searchParams.set("authorid", author);
   return url.href;
@@ -103,8 +169,14 @@ function overlayClick() {
         text.newestFirst
       }}</span>
       <DialogRoot v-model:open="pageOpen">
-        <DialogTrigger class="reader-page-trigger"
-          >{{ text.page }} {{ thread.pages.current }}</DialogTrigger
+        <DialogTrigger
+          class="reader-page-trigger"
+          :aria-label="
+            position?.terminal
+              ? `${text.page} ${currentPage} · ${text.threadTerminal}`
+              : undefined
+          "
+          >{{ text.page }} {{ currentPage }}</DialogTrigger
         >
         <DialogPortal :to="portal">
           <DialogOverlay
@@ -124,16 +196,79 @@ function overlayClick() {
           >
             <DialogTitle>{{ text.threadPages }}</DialogTitle>
             <DialogDescription>{{ text.supportedPages }}</DialogDescription>
-            <p>{{ text.page }} {{ thread.pages.current }}</p>
-            <nav :aria-label="text.threadPages">
-              <a
-                v-for="link in thread.pages.links"
-                :key="link.url"
-                :href="link.url"
-                @click.prevent="navigate(link.url)"
-                >{{ link.label }}</a
+            <p>{{ text.page }} {{ currentPage }}</p>
+            <form @submit.prevent="confirmPage">
+              <label
+                >{{ text.page }}
+                <input
+                  v-model="pendingPage"
+                  type="range"
+                  :min="jump ? 1 : (offeredPages[0] ?? 1)"
+                  :max="jump?.total ?? offeredPages.at(-1) ?? 1"
+                  step="1"
+                  :disabled="jump ? jump.total < 2 : offeredPages.length < 2"
+                />
+              </label>
+              <label
+                >{{ text.pageNumber }}
+                <input
+                  v-model="pendingPage"
+                  type="number"
+                  min="1"
+                  :max="jump?.total"
+                  step="1"
+                />
+              </label>
+              <p v-if="jump">
+                {{ text.pageTotal.replace("{value}", String(jump.total)) }}
+              </p>
+              <p v-else>{{ text.pageTargetsOnly }}</p>
+              <p v-if="!pendingTarget" role="status">
+                {{ text.unsupportedPage }}
+              </p>
+              <div class="page-picker-actions">
+                <DialogClose type="button">{{ text.pageCancel }}</DialogClose>
+                <button
+                  type="submit"
+                  :disabled="!pendingTarget || workspace.state.value.loading"
+                >
+                  {{ text.pageGo }}
+                </button>
+              </div>
+            </form>
+            <details>
+              <summary>{{ text.supportedNavigation }}</summary>
+              <button
+                v-for="direction in ['earlier', 'later'] as const"
+                v-show="history[direction].url"
+                :key="direction"
+                :disabled="
+                  history.checking ||
+                  history.earlier.status === 'loading' ||
+                  history.later.status === 'loading'
+                "
+                @click="loadRange(direction)"
               >
-            </nav>
+                {{
+                  direction === "earlier" ? text.loadEarlier : text.loadLater
+                }}
+              </button>
+              <a
+                v-if="history.latest"
+                :href="history.latest"
+                @click.prevent="navigate(history.latest)"
+                >{{ text.jumpLatest }}</a
+              >
+              <nav :aria-label="text.threadPages">
+                <a
+                  v-for="link in thread.pages.links"
+                  :key="link.url"
+                  :href="link.url"
+                  @click.prevent="navigate(link.url)"
+                  >{{ link.label }}</a
+                >
+              </nav>
+            </details>
             <p v-if="!thread.pages.links.length">{{ text.noPageTargets }}</p>
             <DialogClose>{{ text.close }}</DialogClose>
           </DialogContent>
@@ -197,7 +332,13 @@ function overlayClick() {
       </DropdownMenuRoot>
     </div>
     <span class="copy-url-status" role="status">{{
-      copied ? text.urlCopied : copying ? text.copyingURL : ""
+      copied
+        ? text.urlCopied
+        : copying
+          ? text.copyingURL
+          : position?.terminal
+            ? text.threadTerminal
+            : ""
     }}</span>
   </div>
   <DialogRoot v-model:open="fallbackOpen">

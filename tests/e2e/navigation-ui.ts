@@ -120,5 +120,31 @@ export async function openThreadPages(page: Page) {
   if (!(await dialog.isVisible()))
     await page.getByRole("button", { name: /^Page \S+/ }).click();
   await expect(dialog).toBeVisible();
+  const details = dialog.locator("details");
+  if ((await details.count()) && !((await details.getAttribute("open")) === ""))
+    await details.getByText("Supported navigation", { exact: true }).click();
   return dialog;
+}
+
+export async function loadThreadRange(
+  page: Page,
+  direction: "earlier" | "later",
+) {
+  const dialog = await openThreadPages(page);
+  await dialog
+    .getByRole("button", {
+      name: direction === "earlier" ? "Load earlier" : "Load later",
+      exact: true,
+    })
+    .click();
+  await expect(dialog).toBeHidden();
+}
+
+export async function confirmThreadPage(page: Page, number: number) {
+  const dialog = await openThreadPages(page);
+  await dialog
+    .getByRole("spinbutton", { name: "Page number", exact: true })
+    .fill(String(number));
+  await dialog.getByRole("button", { name: "Go", exact: true }).click();
+  await expect(dialog).toBeHidden();
 }

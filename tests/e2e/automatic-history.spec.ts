@@ -1,4 +1,4 @@
-import { openThreadPages } from "./navigation-ui";
+import { confirmThreadPage, openThreadPages } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -130,7 +130,7 @@ test("IM69.boundaries: entering the 160px edges loads each adjacent page once an
     node.scrollTop = 160;
   });
   await expect(
-    page.getByRole("button", { name: "Loading history…", exact: true }),
+    page.getByText("Loading history…", { exact: true }),
   ).toBeVisible();
   await pane.evaluate((node) => {
     node.scrollTop = 159;
@@ -142,8 +142,12 @@ test("IM69.boundaries: entering the 160px edges loads each adjacent page once an
     page.getByText("Beginning of thread", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Load later", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeVisible();
+  await page.keyboard.press("Escape");
   await pane.evaluate((node) => {
     node.scrollTop = node.scrollHeight - node.clientHeight - 160;
   });
@@ -277,16 +281,18 @@ test("IM69.stale-navigation: a delayed adjacent page cannot replace an explicit 
   });
   await incoming;
   await expect(
-    page.getByRole("button", { name: "Loading history…", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("button", { name: "Load earlier", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load earlier",
+      exact: true,
+    }),
   ).toBeDisabled();
-  await (
-    await openThreadPages(page)
-  )
-    .getByRole("link", { name: "1", exact: true })
-    .click();
+  await confirmThreadPage(page, 1);
   await expect(page.locator("#pid101")).toBeVisible();
   release?.();
   await expect(page.locator("#pid107")).toHaveCount(0);
@@ -344,7 +350,10 @@ test("IM69.preparation-priority: a delayed history result never interrupts delib
     .click();
   await expect(page.locator(".reading-pane article")).toHaveCount(3);
   await expect(
-    page.getByRole("button", { name: "Load later", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeEnabled();
   expect(requests).toHaveLength(3);
   expect(requests.every((value) => value.startsWith("GET "))).toBe(true);
