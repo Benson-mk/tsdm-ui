@@ -1,5 +1,19 @@
 import type { Preferences } from "../workspace/preferences";
 const english = {
+  moreThreadOptions: "More thread options",
+  threadOptions: "Thread options",
+  pageAndOptions: "Page and thread options",
+  newestFirst: "Newest first",
+  backInHistory: "Back in history",
+  copyURL: "Copy URL",
+  urlCopied: "URL copied",
+  copyingURL: "Copying URL…",
+  copyFailed: "Clipboard access failed. Select and copy this URL.",
+  threadURL: "Thread URL",
+  threadPages: "Thread pages",
+  supportedPages: "Choose a page returned by the forum.",
+  noPageTargets: "No additional page targets were returned.",
+
   editPost: "Edit post {value}",
   reviewEdit: "Review edit",
   saveEditedPost: "Save edited post",
@@ -419,6 +433,20 @@ const english = {
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
+  moreThreadOptions: "更多主题选项",
+  threadOptions: "主题选项",
+  pageAndOptions: "分页和主题选项",
+  newestFirst: "最新优先",
+  backInHistory: "返回历史记录",
+  copyURL: "复制网址",
+  urlCopied: "网址已复制",
+  copyingURL: "正在复制网址…",
+  copyFailed: "无法访问剪贴板。请选择并复制此网址。",
+  threadURL: "主题网址",
+  threadPages: "主题分页",
+  supportedPages: "选择论坛返回的页面。",
+  noPageTargets: "论坛未返回其他页面目标。",
+
   editPost: "编辑帖子 {value}",
   reviewEdit: "检查编辑",
   saveEditedPost: "保存编辑",
@@ -815,6 +843,20 @@ const simplified: Strings = {
     "无法读取浏览器页面会话存储。当前内容仍可使用；刷新恢复不可用。",
 };
 const traditional: Strings = {
+  moreThreadOptions: "更多主題選項",
+  threadOptions: "主題選項",
+  pageAndOptions: "分頁與主題選項",
+  newestFirst: "最新優先",
+  backInHistory: "返回歷史記錄",
+  copyURL: "複製網址",
+  urlCopied: "網址已複製",
+  copyingURL: "正在複製網址…",
+  copyFailed: "無法存取剪貼簿。請選取並複製此網址。",
+  threadURL: "主題網址",
+  threadPages: "主題分頁",
+  supportedPages: "選擇論壇傳回的頁面。",
+  noPageTargets: "論壇未傳回其他頁面目標。",
+
   editPost: "編輯貼文 {value}",
   reviewEdit: "檢查編輯",
   saveEditedPost: "儲存編輯",

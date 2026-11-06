@@ -1064,7 +1064,7 @@ test("IM72.contextual-chrome: the global bar is followed by panes and writing st
   await expect(
     page
       .locator(".conversation-region")
-      .getByRole("button", { name: "Refresh thread", exact: true }),
+      .getByRole("button", { name: "More thread options", exact: true }),
   ).toBeVisible();
   await enter(page, "reply");
   await page

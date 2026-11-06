@@ -311,7 +311,7 @@ test("UI84.continuity: category follows its own board and retained reader, while
     fills.light[1],
   );
   await list.getByRole("link", { name: "Thread 201", exact: true }).click();
-  const breadcrumb = page.locator(".conversation-tool-row .category-label");
+  const breadcrumb = page.locator(".reader-breadcrumb .category-label");
   await expect(breadcrumb).toHaveText("Anime");
   await page.locator(`.boards-navigation a[href="${boardURL(301)}"]`).click();
   await expect(list.locator(".category-label")).toHaveText("Creative");
@@ -361,11 +361,11 @@ test("UI84.direct: direct board and reader entry stay neutral without discovered
     0,
   );
   await page.getByRole("link", { name: "Thread 201", exact: true }).click();
+  await expect(page.locator(".reader-breadcrumb .category-label")).toHaveCount(
+    0,
+  );
   await expect(
-    page.locator(".conversation-tool-row .category-label"),
-  ).toHaveCount(0);
-  await expect(
-    page.locator(".conversation-tool-row .board-context-link"),
+    page.locator(".reader-breadcrumb .board-context-link"),
   ).toHaveAttribute("data-category", "neutral");
 });
 

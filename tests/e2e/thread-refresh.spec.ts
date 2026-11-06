@@ -1,7 +1,9 @@
+import { openThreadPages } from "./navigation-ui";
+import { clickThreadTool } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { readableLines } from "./readable-lines";
+import { readableLines, expectPreservedReadingLine } from "./readable-lines";
 
 const origin = "https://www.tsdm39.com";
 const base = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -140,14 +142,9 @@ test("IM71.refresh-range: manual refresh retains earlier pages, counts only new 
     pane.scrollTop +=
       post.getBoundingClientRect().top - pane.getBoundingClientRect().top + 37;
   });
-  const before = await page
-    .locator("#pid106")
-    .evaluate((post) => post.getBoundingClientRect().top);
   changed = true;
   const visibleBefore = await readableLines(page);
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.locator(".reading-pane article")).toHaveCount(6);
   await expect(page.locator("#pid106")).toContainText("Edited same post 106.");
   await test.info().attach("refresh-absolute-control-lines.json", {
@@ -157,17 +154,16 @@ test("IM71.refresh-range: manual refresh retains earlier pages, counts only new 
     }),
     contentType: "application/json",
   });
-  expect(
-    await page
-      .locator("#pid106")
-      .evaluate((post) => post.getBoundingClientRect().top),
-  ).toBeCloseTo(before, 0);
+  expectPreservedReadingLine(
+    visibleBefore,
+    await readableLines(page),
+    (text) =>
+      text?.replace("Edited same post 106.", "Complete post 106.") ?? null,
+  );
   await expect(
     page.getByRole("button", { name: "New replies (1)", exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByRole("button", { name: "New replies (1)", exact: true }),
   ).toBeVisible();
@@ -206,9 +202,7 @@ for (const distance of [64, 65]) {
     }, distance);
     changed = true;
     const visibleBefore = await readableLines(page);
-    await page
-      .getByRole("button", { name: "Refresh thread", exact: true })
-      .click();
+    await clickThreadTool(page, "Refresh thread");
     await expect(page.locator("#pid108")).toHaveCount(1);
     const remaining = await page
       .locator(".reading-pane")
@@ -230,13 +224,7 @@ for (const distance of [64, 65]) {
     } else {
       expect(remaining).toBeGreaterThan(100);
       const visibleAfter = await readableLines(page);
-      expect(visibleAfter.first?.paragraph).toBe(
-        visibleBefore.first!.paragraph,
-      );
-      expect(visibleAfter.first?.line).toBe(visibleBefore.first!.line);
-      expect(
-        Math.abs(visibleAfter.first!.offset - visibleBefore.first!.offset),
-      ).toBeLessThanOrEqual(1);
+      expectPreservedReadingLine(visibleBefore, visibleAfter);
       await expect(
         page.getByRole("button", { name: "New replies (1)", exact: true }),
       ).toBeVisible();
@@ -258,9 +246,7 @@ test("IM71.intermediate-bottom: a refreshed intermediate page does not follow or
   await closeSettingsToWorkspace(page, "button");
   const visibleBefore = await readableLines(page);
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.locator("#pid108")).toHaveCount(1);
   const visibleAfter = await readableLines(page);
   await test.info().attach("intermediate-lines.json", {
@@ -308,15 +294,11 @@ test("IM71.failure-recovery: failed refresh retains content and requires deliber
     })
     .check();
   fail = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByText("Checking for new replies…", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await page
     .getByRole("button", { name: "Load earlier", exact: true })
     .click({ force: true });
@@ -326,16 +308,12 @@ test("IM71.failure-recovery: failed refresh retains content and requires deliber
     page.getByText(/Check failed. Retry available in 2 minutes/),
   ).toBeVisible();
   await expect(page.locator(".reading-pane article")).toHaveCount(3);
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await page.waitForTimeout(100);
   expect(requests).toHaveLength(2);
   await page.waitForTimeout(121_000);
   expect(requests).toHaveLength(2);
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect.poll(() => requests.length).toBe(3);
   release?.();
   await expect(
@@ -390,9 +368,7 @@ test("IM71.current-position: a reader moving away during a delayed refresh keeps
     pane.scrollTop = pane.scrollHeight;
   });
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect.poll(() => !!release).toBe(true);
   await page.locator("#pid106").evaluate((post) => {
     const pane = post.closest(".reading-pane")!;
@@ -431,9 +407,7 @@ test("IM71.removed-post: refreshed page replaces its membership while earlier lo
   await page.getByRole("button", { name: "Load earlier", exact: true }).click();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.locator("#pid107")).toHaveCount(0);
   await expect(page.locator("#pid103")).toHaveCount(1);
   await expect(page.locator("#pid104")).toHaveCount(1);
@@ -477,9 +451,7 @@ for (const move of [false, true]) {
       pane.scrollTop = pane.scrollHeight;
     });
     changed = true;
-    await page
-      .getByRole("button", { name: "Refresh thread", exact: true })
-      .click();
+    await clickThreadTool(page, "Refresh thread");
     await expect(page.locator("#pid108")).toHaveCount(1);
     if (move)
       await page.locator(".reading-pane").evaluate((pane) => {
@@ -525,11 +497,10 @@ test("IM71.stale-navigation: delayed refresh cannot replace explicit page select
     route(3),
   );
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
-  await page
-    .getByRole("navigation", { name: "Thread pages (top)", exact: true })
+  await clickThreadTool(page, "Refresh thread");
+  await (
+    await openThreadPages(page)
+  )
     .getByRole("link", { name: "1", exact: true })
     .click();
   await expect(page.locator("#pid101")).toBeVisible();
@@ -555,9 +526,7 @@ test("IM71.account-change: changed-account refresh clears the previous account r
     route(3),
   );
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.locator(".reading-pane article")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Reload", exact: true }),
@@ -589,9 +558,7 @@ test("IM71.preparation-priority: deliberate reply preparation discards delayed r
     route(3),
   );
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
@@ -639,9 +606,7 @@ test("IM71.search-priority: delayed refresh completion cannot replace a delibera
     route(3),
   );
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await incoming;
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await page
@@ -673,14 +638,10 @@ test("IM71.seen-once: temporarily absent stable IDs do not become new arrivals w
     route(3),
   );
   removed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.locator("#pid107")).toHaveCount(0);
   removed = false;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.locator("#pid107")).toHaveCount(1);
   await expect(page.getByRole("button", { name: /New replies/ })).toHaveCount(
     0,
@@ -710,9 +671,7 @@ test("IM71.returned-later: refreshed latest page can reveal a real next boundary
     })
     .check();
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByRole("button", { name: "Load later", exact: true }),
   ).toBeVisible();
@@ -774,18 +733,17 @@ test("IM71.cached-range: explicit page navigation and Back preserve arrival memb
     })
     .check();
   phase = 1;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByRole("button", { name: "New replies (1)", exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("navigation", { name: "Thread pages (top)", exact: true })
+  await (
+    await openThreadPages(page)
+  )
     .getByRole("link", { name: "1", exact: true })
     .click();
   await expect(page.locator("#pid101")).toHaveCount(1);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(page.locator("#pid108")).toHaveCount(1);
   await expect(page.locator("#pid107")).toHaveCount(0);
   await expect(page.locator("#pid103")).toHaveCount(1);
@@ -796,9 +754,7 @@ test("IM71.cached-range: explicit page navigation and Back preserve arrival memb
     }),
   ).not.toBeChecked();
   phase = 2;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.locator("#pid107")).toHaveCount(1);
   await expect(
     page.getByRole("button", { name: "New replies (1)", exact: true }),
@@ -824,25 +780,22 @@ test("IM71.cached-cooldown: Back restores a failed range without bypassing the d
     route(3),
   );
   fail = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByText(/Check failed. Retry available in 2 minutes/),
   ).toBeVisible();
-  await page
-    .getByRole("navigation", { name: "Thread pages (top)", exact: true })
+  await (
+    await openThreadPages(page)
+  )
     .getByRole("link", { name: "1", exact: true })
     .click();
   await expect(page.locator("#pid101")).toHaveCount(1);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(page.locator("#pid107")).toHaveCount(1);
   await expect(
     page.getByText(/Check failed. Retry available in 2 minutes/),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await page.waitForTimeout(100);
   expect(requests).toHaveLength(3);
 });
@@ -878,9 +831,7 @@ test("IM71.overlap-source: a post retained only by an earlier page keeps that ac
   await page.getByRole("button", { name: "Load earlier", exact: true }).click();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.locator("#pid105")).toHaveCount(1);
   await page
     .locator("#pid105")
@@ -912,9 +863,7 @@ test("IM71.top-anchor: a top reader stays at the existing first post and receive
     .locator("#pid105")
     .evaluate((post) => post.getBoundingClientRect().top);
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByRole("button", { name: "New replies (1)", exact: true }),
   ).toBeVisible();
@@ -946,9 +895,7 @@ test("IM71.new-later-page: a refresh exposing unloaded later content does not fo
   });
   const visibleBefore = await readableLines(page);
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.locator("#pid108")).toHaveCount(1);
   await expect(
     page.getByRole("button", { name: "Load later", exact: true }),
@@ -981,17 +928,13 @@ test("IM71.last-success: a local successful-check time stays visible through a l
     route(3),
   );
   await expect(page.getByText(/^Last successful check:/)).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   const checked = page.getByText(/^Last successful check:/);
   await expect(checked).toBeVisible();
   const last = await checked.textContent();
   expect(last).toMatch(/\d{1,2}:\d{2}:\d{2}/);
   fail = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByText(/Check failed. Retry available in 2 minutes/),
   ).toBeVisible();
@@ -1076,6 +1019,18 @@ for (const [width, size, returnHeight] of [
       expect(
         Math.abs(after.articleTop! - before.articleTop!),
       ).toBeLessThanOrEqual(1);
+    if (returnHeight === 500) {
+      // A later deliberate resize must still restore its own current line;
+      // only resize work superseded by history restoration is cancelled.
+      await page.setViewportSize({ width: width!, height: 600 });
+      const resized = await readableLines(page);
+      await info.attach("public-return-later-resize.json", {
+        body: JSON.stringify({ before: after, after: resized }),
+        contentType: "application/json",
+      });
+      expectPreservedReadingLine(after, resized);
+      expect(requests).toHaveLength(reads);
+    }
   });
 }
 for (const height of [700, 500]) {
@@ -1091,10 +1046,7 @@ for (const height of [700, 500]) {
     const before = await readableLines(page);
     expect(before.visibleHeight).toBeGreaterThan(50);
     arrived = true;
-    // Isolate the update's restoration from click-induced scrolling to its heading.
-    await page
-      .getByRole("button", { name: "Refresh thread", exact: true })
-      .dispatchEvent("click");
+    await clickThreadTool(page, "Refresh thread");
     await expect(page.locator("#pid203")).toHaveCount(1);
     const after = await readableLines(page);
     await info.attach("public-follow-lines.json", {
@@ -1161,9 +1113,7 @@ for (const height of [700, 500])
       await atContentEnd(page, distance);
       const before = await readableLines(page);
       arrivals = 1;
-      await page
-        .getByRole("button", { name: "Refresh thread", exact: true })
-        .dispatchEvent("click");
+      await clickThreadTool(page, "Refresh thread");
       await expect(page.locator("#pid203")).toHaveCount(1);
       const after = await readableLines(page);
       await info.attach("public-actions-lines.json", {
@@ -1180,9 +1130,7 @@ for (const height of [700, 500])
           page.getByRole("button", { name: "New replies (1)", exact: true }),
         ).toHaveCount(0);
         arrivals = 2;
-        await page
-          .getByRole("button", { name: "Refresh thread", exact: true })
-          .dispatchEvent("click");
+        await clickThreadTool(page, "Refresh thread");
         await expect(page.locator("#pid204")).toHaveCount(1);
         const repeated = await readableLines(page);
         await info.attach("public-actions-repeated.json", {
@@ -1263,9 +1211,7 @@ for (const move of [false, true]) {
     await auditAppearance(page, 390, 150, 500);
     await atContentEnd(page, 0);
     arrivals = 1;
-    await page
-      .getByRole("button", { name: "Refresh thread", exact: true })
-      .dispatchEvent("click");
+    await clickThreadTool(page, "Refresh thread");
     await expect(page.locator("#pid203")).toHaveCount(1);
     await requested;
     if (move)
@@ -1316,20 +1262,14 @@ test("F79.public-actions-intermediate: content-bottom positioning never qualifie
   await atContentEnd(page, 0);
   const before = await readableLines(page);
   arrivals = 1;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .dispatchEvent("click");
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.locator("#pid203")).toHaveCount(1);
   const after = await readableLines(page);
   await info.attach("intermediate-content-lines.json", {
     body: JSON.stringify({ before, after, requests }),
     contentType: "application/json",
   });
-  expect(after.first?.paragraph).toBe(before.first?.paragraph);
-  expect(after.first?.line).toBe(before.first?.line);
-  expect(
-    Math.abs(after.first!.offset - before.first!.offset),
-  ).toBeLessThanOrEqual(1);
+  expectPreservedReadingLine(before, after);
   await expect(page.getByRole("button", { name: /^New replies/ })).toHaveCount(
     0,
   );
@@ -1346,9 +1286,7 @@ test("F79.public-first-timestamp: first successful refresh preserves the real vi
     n.scrollTop = 650;
   });
   const before = await readableLines(page);
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.getByText(/Last successful check/)).toBeVisible();
   const after = await readableLines(page);
   await info.attach("public-timestamp-lines.json", {

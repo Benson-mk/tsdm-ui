@@ -1,3 +1,5 @@
+import { openThreadPages } from "./navigation-ui";
+import { clickThreadTool } from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -104,7 +106,7 @@ test("UX.directory: filter locally, clear accessibly, retain on Back and reset o
     page.getByRole("heading", { name: "Music discussion", exact: true }),
   ).toBeVisible();
   await revealNavigation(page);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(input).toHaveValue("composers");
   await expect(cards).toHaveCount(1);
   expect(requests).toHaveLength(2);
@@ -182,10 +184,7 @@ test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back
 }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const requests = await open(page, threadURL);
-  const top = page.getByRole("navigation", {
-    name: "Thread pages (top)",
-    exact: true,
-  });
+  const top = await openThreadPages(page);
   await expect(top).toBeVisible();
   const second = top.getByRole("link", { name: "2", exact: true });
   await expect(second).toBeInViewport();
@@ -196,16 +195,22 @@ test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back
       .getByRole("link", { name: "2", exact: true }),
   ).toHaveAttribute("href", nextURL);
   await second.click();
-  await expect(top).toContainText("Page 2");
+  await expect(
+    page.getByRole("button", { name: "Page 2", exact: true }),
+  ).toBeVisible();
   await expect(page.locator("#pid100")).toContainText(
     "Page 2 reading block 1.",
   );
   expect(requests).toHaveLength(2);
   expect(requests[1]).toContain("authorid=9");
   expect(requests[1]).toContain("page=2");
-  await page.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(top).toContainText("Page 1");
+  await clickThreadTool(page, "Back");
+  await expect(
+    page.getByRole("button", { name: "Page 1", exact: true }),
+  ).toBeVisible();
+  await openThreadPages(page);
   await expect(second).toBeInViewport();
+  await page.keyboard.press("Escape");
   expect(requests).toHaveLength(2);
   await info.attach("top-thread-pages.png", {
     body: await page.screenshot(),
@@ -219,10 +224,14 @@ test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back
   const offset = await reading.evaluate((node) => node.scrollTop);
   expect(offset).toBeGreaterThan(500);
   await bottom.click();
-  await expect(top).toContainText("Page 2");
+  await expect(
+    page.getByRole("button", { name: "Page 2", exact: true }),
+  ).toBeVisible();
   expect(requests).toHaveLength(3);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(top).toContainText("Page 1");
+  await clickThreadTool(page, "Back");
+  await expect(
+    page.getByRole("button", { name: "Page 1", exact: true }),
+  ).toBeVisible();
   await expect
     .poll(() => reading.evaluate((node) => node.scrollTop))
     .toBeCloseTo(offset, 0);
@@ -240,8 +249,6 @@ test("UX.thread-pages: top and bottom navigation preserve returned URLs and Back
 test("UX.single-page: no redundant top thread pager", async ({ page }) => {
   const requests = await open(page, threadURL, false);
   await expect(page.getByRole("article")).toHaveCount(8);
-  await expect(
-    page.getByRole("navigation", { name: "Thread pages (top)", exact: true }),
-  ).toHaveCount(0);
+  await expect((await openThreadPages(page)).getByRole("link")).toHaveCount(0);
   expect(requests).toHaveLength(1);
 });

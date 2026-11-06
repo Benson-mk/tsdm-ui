@@ -1,6 +1,7 @@
+import { readableLines, expectPreservedReadingLine } from "./readable-lines";
+import { openThreadPages } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { readableLines } from "./readable-lines";
 
 const origin = "https://www.tsdm39.com";
 const base = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -175,8 +176,9 @@ test("IM70.local-ranges: ordinary return and Back retain loaded ranges while exp
   await page.goForward();
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
   expect(requests).toHaveLength(4);
-  await page
-    .getByRole("navigation", { name: "Thread pages (top)", exact: true })
+  await (
+    await openThreadPages(page)
+  )
     .getByRole("link", { name: "1", exact: true })
     .click({ force: true });
   await expect(page.locator(".reading-pane article")).toHaveCount(3);
@@ -625,6 +627,7 @@ for (const width of [390, 900]) {
     const before = await page
       .locator("#pid106")
       .evaluate((post) => post.getBoundingClientRect().top);
+    const linesBefore = await readableLines(page);
     await expect
       .poll(() =>
         page.evaluate(() => sessionStorage.getItem("tsdm.workspace.recovery")),
@@ -634,13 +637,23 @@ for (const width of [390, 900]) {
       await page
         .getByRole("button", { name: `${pane} pane`, exact: true })
         .click();
-      const drawer = page.getByRole("dialog", {
-        name: pane === "Boards" ? "Boards navigation" : "Thread results",
-        exact: true,
-      });
-      await expect(drawer).toBeVisible();
-      await drawer.getByRole("button", { name: "Close", exact: true }).click();
-      await expect(drawer).toBeHidden();
+      if (pane === "Boards") {
+        const drawer = page.getByRole("dialog", {
+          name: "Boards navigation",
+          exact: true,
+        });
+        await expect(drawer).toBeVisible();
+        await drawer
+          .getByRole("button", { name: "Close", exact: true })
+          .click();
+        await expect(drawer).toBeHidden();
+      } else {
+        await expect(page.locator(".reading-pane")).toBeHidden();
+        await page
+          .getByRole("button", { name: "Threads pane", exact: true })
+          .click();
+        await expect(page.locator(".reading-pane")).toBeVisible();
+      }
       expect(
         await page
           .locator("#pid106")
@@ -657,7 +670,12 @@ for (const width of [390, 900]) {
       body: JSON.stringify({ width, before, restored, requests }),
       contentType: "application/json",
     });
-    expect(restored).toBeCloseTo(before, 0);
+    const linesAfter = await readableLines(page);
+    await info.attach("reload-lines.json", {
+      body: JSON.stringify({ before: linesBefore, after: linesAfter }),
+      contentType: "application/json",
+    });
+    expectPreservedReadingLine(linesBefore, linesAfter);
     expect(requests).toHaveLength(3);
   });
 }
@@ -697,13 +715,18 @@ test("IM70.automatic-cached-range: an automatically loaded page survives ordinar
     pane.scrollTop +=
       post.getBoundingClientRect().top - pane.getBoundingClientRect().top + 37;
   });
-  const before = await page
-    .locator("#pid106")
-    .evaluate((post) => post.getBoundingClientRect().top);
   await page
     .locator("#pid106")
     .getByRole("link", { name: "Other thread", exact: true })
-    .click({ force: true });
+    .scrollIntoViewIfNeeded();
+  const before = await page
+    .locator("#pid106")
+    .evaluate((post) => post.getBoundingClientRect().top);
+  const linesBefore = await readableLines(page, ".reading-pane", true);
+  await page
+    .locator("#pid106")
+    .getByRole("link", { name: "Other thread", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Second rich thread", exact: true }),
   ).toBeVisible();
@@ -733,7 +756,12 @@ test("IM70.automatic-cached-range: an automatically loaded page survives ordinar
     body: JSON.stringify({ before, restored, requests }),
     contentType: "application/json",
   });
-  expect(restored).toBeCloseTo(before, 0);
+  const linesAfter = await readableLines(page, ".reading-pane", true);
+  await info.attach("reload-lines.json", {
+    body: JSON.stringify({ before: linesBefore, after: linesAfter }),
+    contentType: "application/json",
+  });
+  expectPreservedReadingLine(linesBefore, linesAfter);
   expect(requests).toHaveLength(4);
 });
 
@@ -741,8 +769,9 @@ test("IM70.explicit-page-back: browser history restores its explicit page instea
   page,
 }) => {
   const requests = await open(page);
-  await page
-    .getByRole("navigation", { name: "Thread pages (top)", exact: true })
+  await (
+    await openThreadPages(page)
+  )
     .getByRole("link", { name: "1", exact: true })
     .click({ force: true });
   await expect(page.locator("#pid101")).toBeAttached();
@@ -786,8 +815,9 @@ for (const target of ["page", "permalink"]) {
       .locator("#pid106")
       .evaluate((post) => post.getBoundingClientRect().top);
     if (target === "page")
-      await page
-        .getByRole("navigation", { name: "Thread pages (top)", exact: true })
+      await (
+        await openThreadPages(page)
+      )
         .getByRole("link", { name: "1", exact: true })
         .click({ force: true });
     else

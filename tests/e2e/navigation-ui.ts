@@ -60,3 +60,65 @@ export async function closeSettingsToWorkspace(
     await expect(page.locator(".pane-drawer")).toBeHidden();
   }
 }
+
+// #85 places public-thread secondary actions behind More; board actions retain
+// their own current-result surface. This helper performs only real UI steps.
+export async function openThreadMore(page: Page) {
+  const menu = page.getByRole("menu", {
+    name: /^(More thread options|Thread options)$/,
+    exact: true,
+  });
+  if (!(await menu.isVisible())) {
+    if (await page.locator(".pane-drawer").isVisible()) {
+      await page.keyboard.press("Escape");
+      await expect(page.locator(".pane-drawer")).toBeHidden();
+    }
+    const trigger = page.getByRole("button", {
+      name: "More thread options",
+      exact: true,
+    });
+    if (!(await trigger.isVisible()))
+      await page
+        .getByRole("button", { name: "Threads pane", exact: true })
+        .click();
+    await trigger.click();
+  }
+  await expect(menu).toBeVisible();
+  return menu;
+}
+export async function clickThreadTool(
+  page: Page,
+  name: "Back" | "Refresh thread" | "Save thread",
+) {
+  const old = page.getByRole("button", { name, exact: true });
+  // A restored thread may replace the former sidebar Back on the next render.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  if (
+    !(await page.locator(".reader-tool-group").count()) &&
+    (await old.isVisible())
+  )
+    return old.click();
+  const menu = await openThreadMore(page);
+  await menu
+    .getByRole("menuitem", {
+      name: name === "Back" ? "Back in history" : name,
+      exact: true,
+    })
+    .click();
+}
+
+export async function openThreadPages(page: Page) {
+  const dialog = page.getByRole("dialog", {
+    name: "Thread pages",
+    exact: true,
+  });
+  if (!(await dialog.isVisible()))
+    await page.getByRole("button", { name: /^Page \S+/ }).click();
+  await expect(dialog).toBeVisible();
+  return dialog;
+}

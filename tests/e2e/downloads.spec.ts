@@ -1,3 +1,4 @@
+import { clickThreadTool } from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -435,9 +436,7 @@ test("J8.download-stale-inflight: refresh to changed account invalidates a pendi
     .click();
   await expect.poll(() => requests.includes(attachmentURL)).toBe(true);
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByText("Signed in as Reader Eight", { exact: true }),
   ).toBeVisible();
@@ -621,15 +620,13 @@ test("J8.download-passive-return-cancels: Back while access is being checked can
     .getByRole("button", { name: `Download ${filename}`, exact: true })
     .click();
   await expect.poll(() => requests.length).toBe(3);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(page.getByText(/Restored snapshot/)).toBeVisible();
   release();
   await expect(page.getByRole("region", { name: "File download" })).toHaveCount(
     0,
   );
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect
     .poll(
       () =>
@@ -828,7 +825,7 @@ for (const [width, section] of [
     ).toEqual([]);
     expect(downloads).toEqual([]);
     if (width === 375) await revealNavigation(page);
-    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await clickThreadTool(page, "Back");
     await expect(
       page.getByRole("heading", {
         name: "Attachment listening notes",

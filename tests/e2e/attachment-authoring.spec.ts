@@ -1,3 +1,4 @@
+import { clickThreadTool } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
@@ -1057,12 +1058,11 @@ for (const context of ["edit", "new-thread"] as const) {
       await (phase === "prepare" ? review : send).click();
       await expect.poll(() => state.listWaiting).toBe(true);
       state.member = "8";
-      await page
-        .getByRole("button", {
-          name: context === "edit" ? "Refresh thread" : "Refresh",
-          exact: true,
-        })
-        .click();
+      if (context === "edit") await clickThreadTool(page, "Refresh thread");
+      else
+        await page
+          .getByRole("button", { name: "Refresh", exact: true })
+          .click();
       await expect(
         page.getByText("Signed in as Writer 8", { exact: true }),
       ).toBeVisible();
@@ -1114,9 +1114,7 @@ for (const phase of ["before-delete", "after-delete"] as const) {
     await expect.poll(() => state.listWaiting).toBe(true);
     expect(state.removals).toEqual(phase === "before-delete" ? [] : ["88"]);
     state.member = "8";
-    await page
-      .getByRole("button", { name: "Refresh thread", exact: true })
-      .click();
+    await clickThreadTool(page, "Refresh thread");
     await expect(
       page.getByText("Signed in as Writer 8", { exact: true }),
     ).toBeVisible();

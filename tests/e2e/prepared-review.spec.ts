@@ -1,3 +1,4 @@
+import { clickThreadTool } from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -372,15 +373,17 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
   const beforeBack = f.requests.length;
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(results.locator(".thread-row")).toHaveCount(30);
   await expect(results.getByText("Page 2", { exact: true })).toBeVisible();
   expect(await results.evaluate((node) => node.scrollTop)).toBe(boardOffset);
   expect(f.requests).toHaveLength(beforeBack);
-  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();
+  // A board-only history snapshot has no conversation until writing is shown.
+  // Threads is an in-place primary pane since #82, not an Escape modal.
+  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
   await expect(review).toBeVisible();
   expect(await retained(page)).toEqual(corrected);
   await page

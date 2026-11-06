@@ -1,3 +1,4 @@
+import { clickThreadTool } from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -864,9 +865,7 @@ for (const scenario of [
     expect(requests).toHaveLength(2);
     refreshing = true;
     await revealNavigation(page);
-    await page
-      .getByRole("button", { name: "Refresh thread", exact: true })
-      .click();
+    await clickThreadTool(page, "Refresh thread");
     await expect(
       page.getByText(scenario.message, { exact: true }),
     ).toBeVisible();
@@ -1041,7 +1040,7 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(reading).toBeVisible();
   await expect(results).not.toBeVisible();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(results).toBeVisible();
   await expect(reading).not.toBeVisible();
   await expect(selected).toHaveAttribute("aria-current", "true");
@@ -1459,7 +1458,7 @@ for (const representation of ["html", "json"] as const) {
     expect(requests.map(clean)).toEqual([boardURL, categoryURL, secondURL]);
     const before = requests.length;
     await revealNavigation(page);
-    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await clickThreadTool(page, "Back");
     await expect(page.getByText("Page 1", { exact: true })).toBeVisible();
     await expect(choice).toHaveAttribute("href", categoryURL);
     expect(requests).toHaveLength(before);

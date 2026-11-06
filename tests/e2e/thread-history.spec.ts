@@ -1,3 +1,4 @@
+import { openThreadPages } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -121,12 +122,16 @@ test("IM68.manual-range: prepend and append complete returned pages without dupl
     .getByRole("button", { name: "Load earlier", exact: true })
     .click({ force: true });
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
   await page
     .getByRole("button", { name: "Load later", exact: true })
     .click({ force: true });
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
   expect(
     await page
       .locator(".reading-pane article")
@@ -227,9 +232,7 @@ test("IM68.inconsistent-pager: missing next control with later numeric pages nev
     page.getByText("Latest known content", { exact: true }),
   ).toHaveCount(0);
   await expect(
-    page
-      .getByRole("navigation", { name: "Thread pages (top)", exact: true })
-      .getByRole("link", { name: "3", exact: true }),
+    (await openThreadPages(page)).getByRole("link", { name: "3", exact: true }),
   ).toBeVisible();
 });
 
@@ -259,8 +262,9 @@ test("IM68.stale-navigation: a delayed adjacent page cannot replace an explicit 
   await expect(
     page.getByRole("button", { name: "Load earlier", exact: true }),
   ).toBeDisabled();
-  await page
-    .getByRole("navigation", { name: "Thread pages (top)", exact: true })
+  await (
+    await openThreadPages(page)
+  )
     .getByRole("link", { name: "1", exact: true })
     .click();
   await expect(page.locator("#pid101")).toBeVisible();
@@ -345,7 +349,9 @@ test("IM68.late-media: prepended history and a late intrinsic image preserve the
   const before = await anchor(page);
   await page.getByRole("button", { name: "Load earlier", exact: true }).click();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
   release?.();
   await expect
     .poll(() =>
@@ -354,7 +360,9 @@ test("IM68.late-media: prepended history and a late intrinsic image preserve the
         .evaluate((image) => (image as HTMLImageElement).naturalHeight),
     )
     .toBe(600);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
 });
 
 test("IM68.latest: the explicit native last link opens its returned page and exact last post", async ({
@@ -486,7 +494,9 @@ test("IM68.reader-moves-during-load: preserve the reader's current anchor when a
   const before = await anchor(page);
   release?.();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
 });
 
 test("IM68.loaded-permalink: selecting a post in the current loaded page updates its exact target without discarding the range", async ({
@@ -649,7 +659,9 @@ test("IM68.compact-writing-anchor: manual history keeps the visible post and sol
   const before = await anchor(page);
   await page.getByRole("button", { name: "Load earlier", exact: true }).click();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
   await expect(editor).toHaveValue(
     "Retained composition [quote]complete[/quote]",
   );
@@ -686,7 +698,9 @@ test("IM68.board-browse-range: three-region board browsing and history return re
   const before = await anchor(page);
   await page.getByRole("link", { name: "All boards", exact: true }).click();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
   await page
     .getByRole("region", { name: "Boards overview", exact: true })
     .getByRole("link", { name: "Other board", exact: true })
@@ -697,15 +711,21 @@ test("IM68.board-browse-range: three-region board browsing and history return re
       .getByRole("link", { name: "Other thread", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
   await page.getByRole("button", { name: "Load earlier", exact: true }).click();
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
   await page.goBack();
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
   await page.goForward();
   await expect(page.locator(".reading-pane article")).toHaveCount(7);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
   expect(
     requests
       .filter(
@@ -749,7 +769,9 @@ test("IM68.short-writing-anchor: manual history keeps the visible post and sole 
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   // Bounded observation interval: detect a late browser-layout drift after insertion.
   await page.waitForTimeout(1000);
-  expect((await anchor(page)).top).toBeCloseTo(before.top, 0);
+  expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
+    0.5,
+  );
   await expect(editor).toHaveValue(
     "Retained composition [quote]complete[/quote]",
   );

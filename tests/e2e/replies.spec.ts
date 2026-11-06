@@ -1,3 +1,4 @@
+import { clickThreadTool } from "./navigation-ui";
 import { openSettings } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
@@ -1355,9 +1356,7 @@ for (const attempted of [false, true]) {
         "<p>Existing opening source</p>",
         '<p>Existing opening source</p><ignore_js_op><img id="aimg_88" aid="88" file="forum.php?mod=attachment&amp;aid=image-token&amp;noupdate=yes" zoomfile="forum.php?mod=attachment&amp;aid=image-token&amp;noupdate=yes&amp;nothumb=yes" alt="Recovery image"><div id="aimg_88_menu"><p><strong>fixture.png</strong></p><a href="forum.php?mod=attachment&amp;aid=image-token&amp;nothumb=yes">Download attachment</a></div></ignore_js_op>',
       );
-    await page
-      .getByRole("button", { name: "Refresh thread", exact: true })
-      .click();
+    await clickThreadTool(page, "Refresh thread");
     await expect(
       page.getByRole("img", { name: "Recovery image", exact: true }),
     ).toHaveAttribute("src", /noupdate=yes/);

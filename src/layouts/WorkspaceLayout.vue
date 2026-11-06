@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "reka-ui";
+import ThreadTools from "../components/ThreadTools.vue";
 import WorkspaceIcon from "../components/WorkspaceIcon.vue";
 import WorkspaceBrand from "../components/WorkspaceBrand.vue";
 import SearchView from "../components/SearchView.vue";
@@ -88,12 +89,7 @@ const drawer = ref<DrawerPane | null>(null);
 const drawerContent = ref<HTMLElement | null>(null);
 const drawerClose = ref<HTMLButtonElement | null>(null);
 const boardContextTools = ref<HTMLElement | null>(null);
-const threadContextTools = ref<HTMLElement | null>(null);
-const contextTools = computed(() =>
-  state.value.result?.kind === "thread"
-    ? threadContextTools.value
-    : boardContextTools.value,
-);
+const contextTools = computed(() => boardContextTools.value);
 const boardsTrigger = ref<HTMLButtonElement | null>(null);
 const threadsTrigger = ref<HTMLButtonElement | null>(null);
 const paneScroll = new Map<HTMLElement, number>();
@@ -395,6 +391,7 @@ function chooseSection(event: Event) {
     selectSection(event.target.value as Section);
 }
 type PanePosition = {
+  range?: Range | undefined;
   pane: HTMLElement;
   anchor: HTMLElement;
   offset: number;
@@ -405,10 +402,58 @@ type RestoredAnchor = PanePosition & {
   scrollTop: number;
 };
 let appearanceAnchors: RestoredAnchor[] = [];
+let readingRestoreRevision = 0;
 let viewportWidth = window.innerWidth;
 let viewportHeight = window.innerHeight;
 const workspaceHost = () =>
   (props.portal.getRootNode() as ShadowRoot).host as HTMLElement;
+function visibleReadingRange(pane: HTMLElement): Range | undefined {
+  const bounds = pane.getBoundingClientRect();
+  for (const content of pane.querySelectorAll(".post-content")) {
+    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      if (!node.textContent?.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      if (
+        ![...range.getClientRects()].some(
+          (rect) =>
+            rect.width > 0 &&
+            rect.top >= bounds.top &&
+            rect.bottom <= bounds.bottom,
+        )
+      )
+        continue;
+      // Find a character on the first complete visible line without scanning
+      // every character of a long native post on each scroll event.
+      let low = 0,
+        high = node.textContent.length - 1;
+      while (low < high) {
+        const middle = Math.floor((low + high) / 2);
+        range.setStart(node, middle);
+        range.setEnd(node, middle + 1);
+        if (range.getBoundingClientRect().top < bounds.top) low = middle + 1;
+        else high = middle;
+      }
+      for (let offset = low; offset < node.textContent.length; offset++) {
+        range.setStart(node, offset);
+        range.setEnd(node, offset + 1);
+        const rect = range.getBoundingClientRect();
+        if (
+          rect.width > 0 &&
+          rect.height > 0 &&
+          rect.top >= bounds.top &&
+          rect.bottom <= bounds.bottom
+        )
+          return range;
+        // Collapsed native whitespace has zero area. It is not an anchor;
+        // keep looking on this line rather than discarding the text node.
+        if (rect.height > 0 && rect.top >= bounds.bottom) break;
+      }
+    }
+  }
+}
 function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
   return [
     ...(workspaceHost().shadowRoot?.querySelectorAll<HTMLElement>(".pane") ??
@@ -425,8 +470,14 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
     const visible = (node: HTMLElement) =>
       node.getBoundingClientRect().bottom > bounds.top + 1 &&
       node.getBoundingClientRect().top < bounds.bottom;
+    const range = previous
+      ? previous.range
+      : pane.classList.contains("reading-pane")
+        ? visibleReadingRange(pane)
+        : undefined;
     const anchor =
       previous?.anchor ??
+      range?.startContainer.parentElement ??
       [
         ...pane.querySelectorAll<HTMLElement>(
           ".post-content p, .post-content pre, .post-content .table-overflow, .post-content summary, .thread-row, .board-card, .board-group > h2, .thread-heading",
@@ -441,7 +492,9 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
           {
             pane,
             anchor,
-            offset: previous?.offset ?? anchor.getBoundingClientRect().top,
+            range,
+            offset:
+              previous?.offset ?? (range ?? anchor).getBoundingClientRect().top,
             paneTop: previous?.paneTop ?? bounds.top,
           },
         ]
@@ -473,12 +526,27 @@ function rememberPositions() {
 }
 function restorePositions(positions: PanePosition[], relativeToPane = false) {
   suppressAutomaticHistory();
-  for (const { pane, anchor, offset, paneTop } of positions)
-    if (anchor.isConnected && pane.getClientRects().length)
-      pane.scrollTop +=
-        anchor.getBoundingClientRect().top -
-        offset -
-        (relativeToPane ? pane.getBoundingClientRect().top - paneTop : 0);
+  for (const { pane, anchor, range, offset, paneTop } of positions) {
+    if (!anchor.isConnected || !pane.getClientRects().length) continue;
+    const bounds = pane.getBoundingClientRect();
+    const anchorRect = (
+      range?.startContainer.isConnected ? range : anchor
+    ).getBoundingClientRect();
+    const anchorTop = anchorRect.top;
+    let target = offset + (relativeToPane ? bounds.top - paneTop : 0);
+    if (
+      relativeToPane &&
+      titleSpace.value > 0 &&
+      pane.classList.contains("reading-pane")
+    ) {
+      // Compact-heading compensation can leave the retained first line below
+      // a newly shortened pane. Preserve its offset while it fits; otherwise
+      // move only far enough to expose that complete line in the new viewport.
+      if (range?.startContainer.isConnected)
+        target = Math.min(target, bounds.bottom - anchorRect.height);
+    }
+    pane.scrollTop += anchorTop - target;
+  }
 }
 function resize() {
   const viewport = window.visualViewport;
@@ -513,6 +581,7 @@ function resize() {
   host.style.height = "var(--view-height)";
   host.style.bottom = "auto";
   const positions = viewportPositions;
+  const revision = readingRestoreRevision;
   appearanceAnchors = [];
   rememberPaneScroll();
   paneWidth.value = window.innerWidth;
@@ -522,10 +591,13 @@ function resize() {
   )
     changeDrawer(null);
   void nextTick().then(() => {
-    restorePositions(
-      positions.filter(({ pane }) => pane.classList.contains("reading-pane")),
-      true,
-    );
+    // A later history restoration owns the reader; stale resize work must not
+    // replace its position with the newly mounted reader's pre-restore line.
+    if (revision === readingRestoreRevision)
+      restorePositions(
+        positions.filter(({ pane }) => pane.classList.contains("reading-pane")),
+        true,
+      );
     restorePaneScroll();
     // Resize may clip the still-focused source without a new focus event.
     // Scroll its existing node; focusing it again would disturb composition.
@@ -947,7 +1019,81 @@ function suppressAutomaticHistory() {
     });
   });
 }
-function approachHistory(event: Event) {
+const readerHeading = ref<HTMLElement | null>(null);
+const compactTitle = ref(false);
+const titleSpace = ref(0);
+let titlePosition: {
+  pane: HTMLElement;
+  anchor: HTMLElement | null;
+  scroll: number;
+  endDistance: number;
+} | null = null;
+function readingScroll(event: Event) {
+  const pane = event.currentTarget;
+  if (pane instanceof HTMLElement) {
+    if (
+      titlePosition &&
+      (titlePosition.pane !== pane || titlePosition.scroll !== pane.scrollTop)
+    )
+      titlePosition = null;
+    const compact = compactTitle.value
+      ? pane.scrollTop >= 8
+      : pane.scrollTop > 32;
+    if (compact !== compactTitle.value && readerHeading.value) {
+      const before = readerHeading.value.getBoundingClientRect().height;
+      const scroll = pane.scrollTop;
+      titlePosition = compact
+        ? {
+            pane,
+            scroll,
+            anchor:
+              [...pane.querySelectorAll<HTMLElement>("article[id]")].find(
+                (post) =>
+                  post.getBoundingClientRect().bottom >
+                  pane.getBoundingClientRect().top,
+              ) ?? null,
+            endDistance: latestReadingScroll(pane) - scroll,
+          }
+        : null;
+      // Qualify only the original user scroll against its original edges.
+      // Reflow events must neither swallow that intent nor create a new load.
+      approachHistory(event, {
+        top: pane.scrollTop,
+        bottom: pane.scrollHeight - pane.clientHeight - pane.scrollTop,
+      });
+      const heading = readerHeading.value;
+      // Measure the target title once, then update heading and compensation in
+      // the same Vue render. A deferred scrollTop write could overwrite a newer
+      // user scroll or history restoration while those two renders settle.
+      heading.dataset.compact = String(compact);
+      const after = heading.getBoundingClientRect().height;
+      heading.dataset.compact = String(compactTitle.value);
+      pane.scrollTop = scroll;
+      titleSpace.value = compact ? Math.max(0, before - after) : 0;
+      compactTitle.value = compact;
+      return;
+    }
+  }
+  approachHistory(event);
+}
+watch(
+  () => reading.value?.thread.id,
+  () => {
+    compactTitle.value = false;
+    titleSpace.value = 0;
+    titlePosition = null;
+  },
+);
+watch(
+  () => reading.value?.thread.posts,
+  () => {
+    titlePosition = null;
+  },
+);
+function approachHistory(
+  event: Event,
+  edges?: { top: number; bottom: number },
+) {
   const pane = event.currentTarget;
   if (
     !(pane instanceof HTMLElement) ||
@@ -982,10 +1128,14 @@ function approachHistory(event: Event) {
         void props.workspace.privateHistory.load("later", true);
       return;
     }
-    if (pane.scrollTop <= 160 && history.value.earlier.status === "unloaded")
+    if (
+      (edges?.top ?? pane.scrollTop) <= 160 &&
+      history.value.earlier.status === "unloaded"
+    )
       void props.workspace.threadHistory.load("earlier", true);
     else if (
-      pane.scrollHeight - pane.clientHeight - pane.scrollTop <= 160 &&
+      (edges?.bottom ??
+        pane.scrollHeight - pane.clientHeight - pane.scrollTop) <= 160 &&
       history.value.later.status === "unloaded"
     )
       void props.workspace.threadHistory.load("later", true);
@@ -1092,6 +1242,29 @@ onMounted(() => {
         ? '[data-scroll-pane="reading"]'
         : "#thread-list-pane",
     );
+  // Live history can reflow post metadata when the reader width changes. Keep
+  // its actual visible character alongside the existing persisted post anchor.
+  // Exact identity checks make changed/missing content use the established fallback.
+  const readingCharacters = new WeakMap<
+    ViewPosition,
+    {
+      thread: string;
+      post: string;
+      node: number;
+      text: string;
+      character: number;
+      top: number;
+      paneTop: number;
+      width: number;
+    }
+  >();
+  const textNodes = (post: Element) => {
+    const walker = document.createTreeWalker(post, NodeFilter.SHOW_TEXT);
+    const nodes: Node[] = [];
+    let node: Node | null;
+    while ((node = walker.nextNode())) nodes.push(node);
+    return nodes;
+  };
   const loadingRebasedPositions = new WeakSet<ViewPosition>();
   let rebasedLoadingReader = false;
   const capturePane = (container: HTMLElement | null | undefined) => {
@@ -1100,11 +1273,21 @@ onMounted(() => {
       container?.querySelectorAll<HTMLElement>(
         "article[id], [data-thread-id], [data-draft-id]",
       ) ?? [];
-    const anchor = [...blocks].find(
-      (node) =>
-        node.getBoundingClientRect().bottom >
-        (container?.getBoundingClientRect().top ?? 0),
-    );
+    const retainedTitleAnchor =
+      titlePosition &&
+      container &&
+      titlePosition.pane === container &&
+      titlePosition.scroll === container.scrollTop &&
+      titlePosition.anchor?.isConnected
+        ? titlePosition.anchor
+        : null;
+    const anchor =
+      retainedTitleAnchor ??
+      [...blocks].find(
+        (node) =>
+          node.getBoundingClientRect().bottom >
+          (container?.getBoundingClientRect().top ?? 0),
+      );
     const position = {
       anchor: anchor?.id ?? null,
       offset: anchor?.getBoundingClientRect().top ?? 0,
@@ -1124,12 +1307,49 @@ onMounted(() => {
           ".results-pane, .messages-pane",
         )?.scrollTop ?? 0,
     };
+    if (container === reader && reader && reading.value) {
+      const range = visibleReadingRange(reader);
+      const post = range?.startContainer.parentElement?.closest("article[id]");
+      if (range && post && range.startContainer.textContent)
+        readingCharacters.set(position, {
+          thread: reading.value.thread.id,
+          post: post.id,
+          node: textNodes(post).indexOf(range.startContainer),
+          text: range.startContainer.textContent,
+          character: range.startOffset,
+          top: range.getBoundingClientRect().top,
+          paneTop: reader.getBoundingClientRect().top,
+          width: reader.getBoundingClientRect().width,
+        });
+    }
     if (state.value.loading && rebasedLoadingReader)
       loadingRebasedPositions.add(position);
     else if (!state.value.loading) rebasedLoadingReader = false;
     return position;
   };
   const restoreReadingViewport = (position: ViewPosition | null) => {
+    // A cached/reloaded reader is restored before its first scroll event. Settle
+    // its title now so the viewport calculation sees the final heading height,
+    // rather than rebasing for an expanded title that immediately compacts.
+    const heading = readerHeading.value;
+    const restoredScroll = position?.readingScrollTop;
+    if (heading && restoredScroll !== undefined) {
+      const compact = compactTitle.value
+        ? restoredScroll >= 8
+        : restoredScroll > 32;
+      if (compact !== compactTitle.value) {
+        const before = heading.getBoundingClientRect().height;
+        heading.dataset.compact = String(compact);
+        titleSpace.value = compact
+          ? Math.max(0, before - heading.getBoundingClientRect().height)
+          : 0;
+        compactTitle.value = compact;
+        const spacer = root.shadowRoot?.querySelector<HTMLElement>(
+          ".thread-heading-spacer",
+        );
+        if (spacer) spacer.style.height = `${titleSpace.value}px`;
+      }
+    }
     // History can settle before the queued browser resize event. Update the
     // existing viewport owner before the old host height clamps outer scrolling.
     if (
@@ -1173,6 +1393,46 @@ onMounted(() => {
         const clippedTop = Math.max(visibleTop, current.top);
         const clippedBottom = Math.min(visibleBottom, current.bottom);
         const previousTop = Math.max(0, position.readingPaneTop);
+        const character = readingCharacters.get(position);
+        if (
+          character &&
+          character.thread === reading.value?.thread.id &&
+          character.width !== current.width
+        ) {
+          const post = root.shadowRoot?.getElementById(character.post);
+          const node =
+            post && reader.contains(post)
+              ? textNodes(post)[character.node]
+              : undefined;
+          if (
+            node?.textContent === character.text &&
+            character.character < character.text.length
+          ) {
+            const range = document.createRange();
+            range.setStart(node, character.character);
+            range.setEnd(node, character.character + 1);
+            const textRect = range.getBoundingClientRect();
+            if (textRect.width > 0 && textRect.height > 0) {
+              const fits =
+                character.top >= clippedTop &&
+                character.top + textRect.height <= clippedBottom;
+              const target = fits
+                ? character.top
+                : Math.max(
+                    clippedTop,
+                    Math.min(
+                      clippedBottom - textRect.height,
+                      clippedTop + character.top - character.paneTop,
+                    ),
+                  );
+              return (
+                target -
+                position.offset -
+                (textRect.top - anchor.getBoundingClientRect().top)
+              );
+            }
+          }
+        }
         const content = reader.querySelectorAll(".post-content");
         let first: DOMRect | undefined;
         for (const block of content) {
@@ -1218,7 +1478,13 @@ onMounted(() => {
     nearLatest() {
       const reader =
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
-      return !!reader && latestReadingScroll(reader) - reader.scrollTop <= 64;
+      return (
+        !!reader &&
+        (titlePosition?.pane === reader &&
+        titlePosition.scroll === reader.scrollTop
+          ? titlePosition.endDistance
+          : latestReadingScroll(reader) - reader.scrollTop) <= 64
+      );
     },
     followLatest() {
       suppressAutomaticHistory();
@@ -1227,6 +1493,7 @@ onMounted(() => {
       stopReadingImageRestore?.();
       if (reader) {
         restoreReadingViewport(capturePane(reader));
+        readingRestoreRevision++;
         reader.scrollTop = latestReadingScroll(reader);
         const last = reader.querySelector<HTMLElement>("article:last-of-type");
         if (last) followPendingReadingImages(reader, last, null, true);
@@ -1242,6 +1509,7 @@ onMounted(() => {
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
       if (!container) return;
       const offset = position.offset + restoreReadingViewport(position);
+      readingRestoreRevision++;
       container.scrollTop = position.scrollTop;
       const node = position.anchor
         ? root.shadowRoot?.getElementById(position.anchor)
@@ -1256,6 +1524,7 @@ onMounted(() => {
       stopReadingImageRestore?.();
 
       const viewportShift = restoreReadingViewport(position);
+      readingRestoreRevision++;
       const container = pane();
       if (container) container.scrollTop = position?.scrollTop ?? 0;
       const reader =
@@ -1463,13 +1732,14 @@ function boardIdFrom(url: string) {
       </div>
     </header>
     <Teleport :to="contextTools ?? portal" :disabled="!contextTools">
-      <div id="navigation-tools" class="workspace-tools">
+      <div
+        v-if="state.result?.kind !== 'thread'"
+        id="navigation-tools"
+        class="workspace-tools"
+      >
         <nav :aria-label="text.actions">
           <a
-            v-if="
-              state.result?.kind !== 'directory' &&
-              state.result?.kind !== 'thread'
-            "
+            v-if="state.result?.kind !== 'directory'"
             class="narrow-overview-link"
             href="https://www.tsdm39.com/forum.php"
             >{{ text.allBoards }}</a
@@ -1480,7 +1750,7 @@ function boardIdFrom(url: string) {
             href="https://www.tsdm39.com/search.php?mod=forum&adv=yes"
             >{{ text.newSearch }}</a
           >
-          <button v-if="state.canBack" @click="workspace.back()">
+          <button v-if="state.canBack && !reading" @click="workspace.back()">
             {{ text.back }}</button
           ><button
             v-if="
@@ -1497,25 +1767,13 @@ function boardIdFrom(url: string) {
             }}
           </button>
           <button
-            v-if="
-              state.result?.kind === 'thread' || state.result?.kind === 'board'
-            "
+            v-if="state.result?.kind === 'board'"
             :disabled="favorite.busy"
             @click="
-              workspace.prepareFavorite(
-                'add',
-                state.result.kind === 'board' ? 'forum' : 'thread',
-                state.result.kind === 'board'
-                  ? state.result.board.id
-                  : state.result.thread.id,
-              )
+              workspace.prepareFavorite('add', 'forum', state.result.board.id)
             "
           >
-            {{
-              favoriteLabel(
-                state.result.kind === "board" ? "Save board" : "Save thread",
-              )
-            }}
+            {{ favoriteLabel("Save board") }}
           </button>
         </nav>
       </div>
@@ -2197,7 +2455,10 @@ function boardIdFrom(url: string) {
       </section>
       <section
         v-if="boardContext"
-        v-show="resultsVisible"
+        v-show="
+          resultsVisible &&
+          (state.section === 'boards' || state.result?.kind === 'board')
+        "
         id="thread-list-pane"
         class="results-pane pane"
         :class="{ 'secondary-results': state.result?.kind === 'thread' }"
@@ -2368,78 +2629,60 @@ function boardIdFrom(url: string) {
             )
           "
         />
-        <div v-if="reading" class="conversation-heading">
-          <section class="thread-heading">
-            <div class="context-kind">
-              {{ text.thread }} {{ reading.thread.id
-              }}<template v-if="reading.thread.parent">
-                ·
-                {{ reading.thread.parent.label }}</template
-              >
-            </div>
-            <h1>{{ reading.thread.title }}</h1>
-            <p
-              v-if="!reading.thread.pages.links.length"
-              class="thread-metadata"
-            >
-              {{ text.page }} {{ reading.thread.pages.current }}
-            </p>
-          </section>
-          <div class="conversation-tool-row">
-            <div ref="threadContextTools" class="thread-context-tools" />
-            <span
-              v-if="readerCategory.label"
-              class="category-label"
-              :data-category="readerCategory.role"
-              >{{ readerCategory.label }}</span
-            >
-            <a
-              v-if="reading.thread.parent"
-              :href="reading.thread.parent.url"
-              class="board-context-link"
-              :data-category="readerCategory.role"
-              >{{ reading.thread.parent.label }}</a
-            >
-            <button
-              v-if="reading?.thread.parent && writing.context"
-              @click="
-                workspace.writing.prepareReply(
-                  boardIdFrom(reading.thread.parent.url),
-                  {
-                    threadId: reading.thread.id,
-                    postId: null,
-                    author: '',
-                    authorId: null,
-                  },
-                )
+        <div
+          v-if="reading"
+          ref="readerHeading"
+          class="conversation-heading"
+          :data-compact="compactTitle"
+        >
+          <div class="reader-heading-row">
+            <section class="thread-heading">
+              <div class="context-kind reader-breadcrumb">
+                {{ text.thread }} {{ reading.thread.id }}
+                <span
+                  v-if="readerCategory.label"
+                  class="category-label"
+                  :data-category="readerCategory.role"
+                  >{{ readerCategory.label }}</span
+                >
+                <a
+                  v-if="reading.thread.parent"
+                  :href="reading.thread.parent.url"
+                  class="board-context-link"
+                  :data-category="readerCategory.role"
+                  >{{ reading.thread.parent.label }}</a
+                >
+              </div>
+              <h1 :title="reading.thread.title">{{ reading.thread.title }}</h1>
+            </section>
+            <ThreadTools
+              :workspace="workspace"
+              :portal="portal"
+              :thread="reading.thread"
+              :filters="threadFilters"
+              @refresh="
+                state.result?.kind === 'thread'
+                  ? workspace.refresh()
+                  : workspace.threadHistory.refresh()
               "
-            >
-              {{ text.replyToThread }}
-            </button>
+            />
           </div>
-          <nav
-            v-if="reading.thread.pages.links.length"
-            class="thread-top-pages"
-            :aria-label="text.threadPagesTop"
+          <button
+            v-if="reading.thread.parent && writing.context"
+            @click="
+              workspace.writing.prepareReply(
+                boardIdFrom(reading.thread.parent.url),
+                {
+                  threadId: reading.thread.id,
+                  postId: null,
+                  author: '',
+                  authorId: null,
+                },
+              )
+            "
           >
-            <span>{{ text.page }} {{ reading.thread.pages.current }}</span>
-            <a
-              v-for="link in reading.thread.pages.links"
-              :key="link.url"
-              :href="link.url"
-              >{{ link.label }}</a
-            >
-          </nav>
-          <nav :aria-label="text.threadFilters">
-            <a
-              v-for="filter in threadFilters.filter(
-                (filter) => !filter.authorId,
-              )"
-              :key="filter.url"
-              :href="filter.url"
-              >{{ filter.label }}</a
-            >
-          </nav>
+            {{ text.replyToThread }}
+          </button>
           <p v-if="missingTarget" role="alert">
             {{ insert(text.missingPost, reading.thread.target ?? "") }}
           </p>
@@ -2571,8 +2814,13 @@ function boardIdFrom(url: string) {
           class="reading-pane pane"
           data-scroll-pane="reading"
           :aria-label="text.threadReading"
-          @scroll.passive="approachHistory"
+          @scroll.passive="readingScroll"
         >
+          <div
+            class="thread-heading-spacer"
+            aria-hidden="true"
+            :style="{ height: titleSpace + 'px' }"
+          />
           <article
             v-for="post in reading.thread.posts"
             :id="`pid${post.id}`"

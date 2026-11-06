@@ -1,3 +1,4 @@
+import { clickThreadTool } from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -688,7 +689,7 @@ test("J5.redirect-writing: actual document redirect and app remount retain sourc
         page.getByRole("article", { name: "Post 105", exact: true }),
       ).toHaveAttribute("data-targeted", "true");
       expect(redirects).toEqual(["fetch", "document"]);
-      await page.getByRole("button", { name: "Back", exact: true }).click();
+      await clickThreadTool(page, "Back");
       await expect(
         page.getByLabel("Complete source", { exact: true }),
       ).toHaveValue(source);
@@ -1407,7 +1408,7 @@ test("J5.legacy-section-recovery: upgrading a navigation-only record preserves p
     page.getByRole("heading", { name: "Saved", exact: true, level: 1 }),
   ).toBeVisible();
   expect(requests).toHaveLength(1);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(
     page.getByRole("link", { name: "Autumn thread", exact: true }),
   ).toBeVisible();
@@ -1956,8 +1957,8 @@ test("J5.schema1-search-writing: prewriting Search results and edited criteria m
   ).toContainText("Keywords: autumn");
   expect(posts).toBe(1);
   expect(requests).toHaveLength(reads);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
+  await clickThreadTool(page, "Back");
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   const migrated = await page.evaluate(() =>

@@ -1,3 +1,5 @@
+import { openThreadMore, openThreadPages } from "./navigation-ui";
+import { clickThreadTool } from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -310,7 +312,7 @@ test("UX55.author-filter: known URL identity names the correct author and restor
   returned.searchParams.delete("tsdmapp");
   expect(returned.href).toBe(filterURL);
   await revealNavigation(page);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(action).toHaveAttribute("href", filterURL);
   expect(requests).toHaveLength(2);
   expect(requests.every((request) => request.startsWith("GET "))).toBe(true);
@@ -320,12 +322,9 @@ test("UX55.unknown-filter: absent or conflicting identity stays generic instead 
   page,
 }) => {
   const requests = await open(page, true);
-  const filters = page.getByRole("navigation", {
-    name: "Thread filters",
-    exact: true,
-  });
+  const filters = await openThreadMore(page);
   await expect(
-    filters.getByRole("link", {
+    filters.getByRole("menuitem", {
       name: "Author filter: Only this author",
       exact: true,
     }),
@@ -333,7 +332,7 @@ test("UX55.unknown-filter: absent or conflicting identity stays generic instead 
   await expect(filters.locator(`a[href="${unknownURL}"]`)).toBeVisible();
   await expect(page.locator("article .author-filter")).toHaveCount(0);
   await expect(
-    filters.getByRole("link", { name: "Reverse order", exact: true }),
+    filters.getByRole("menuitem", { name: "Reverse order", exact: true }),
   ).toHaveAttribute("href", `${threadURL}&ordertype=1`);
   expect(requests).toHaveLength(1);
 });
@@ -384,12 +383,9 @@ test("UX55.foreign-profile: a foreign uid parameter never establishes a forum-au
   page,
 }) => {
   await open(page, false, false, true);
-  const filters = page.getByRole("navigation", {
-    name: "Thread filters",
-    exact: true,
-  });
+  const filters = await openThreadMore(page);
   await expect(
-    filters.getByRole("link", {
+    filters.getByRole("menuitem", {
       name: "Author filter: Only this author",
       exact: true,
     }),
@@ -413,13 +409,15 @@ test("UX55.filter-provenance: pagination carrying author context stays paginatio
       exact: true,
     }),
   ).toHaveAttribute("href", `${threadURL}&authorid=9&ordertype=1`);
-  for (const name of ["Thread pages (top)", "Pages"]) {
-    await expect(
-      page
-        .getByRole("navigation", { name, exact: true })
-        .getByRole("link", { name: "4", exact: true }),
-    ).toHaveAttribute("href", `${threadURL}&page=4&authorid=9`);
-  }
+  await expect(
+    (await openThreadPages(page)).getByRole("link", { name: "4", exact: true }),
+  ).toHaveAttribute("href", `${threadURL}&page=4&authorid=9`);
+  await page.keyboard.press("Escape");
+  await expect(
+    page
+      .getByRole("navigation", { name: "Pages", exact: true })
+      .getByRole("link", { name: "4", exact: true }),
+  ).toHaveAttribute("href", `${threadURL}&page=4&authorid=9`);
 });
 
 test("IM65.rich-type: semantic headings code and author roles follow DESIGN and scale once with Text size", async ({

@@ -1,3 +1,4 @@
+import { clickThreadTool } from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -2004,9 +2005,7 @@ test("J3.search-integrated-reader-refresh: Refresh thread rereads the selected r
     page.getByText("Complete autumn opening.", { exact: true }),
   ).toBeVisible();
   const before = requests.length;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect.poll(() => requests.length).toBe(before + 1);
   await expect(page.getByText("Loading…", { exact: true })).toHaveCount(0);
   await expect(

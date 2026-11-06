@@ -1,3 +1,4 @@
+import { clickThreadTool } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -82,7 +83,7 @@ test("UX53.result-context: direct arrival has useful list navigation while popul
     `${origin}/forum.php?mod=forumdisplay&fid=5&filter=typeid&typeid=3&page=3`,
   );
   const count = requests.length;
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(results.locator(".thread-row")).toHaveCount(30);
   await info.attach("result-context-return-geometry.json", {
     body: JSON.stringify({

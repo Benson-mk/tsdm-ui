@@ -1,3 +1,4 @@
+import { clickThreadTool } from "./navigation-ui";
 import { openSettings, revealNavigation } from "./navigation-ui";
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -268,7 +269,7 @@ test("J11.stale-account: late old response cannot replace a current account resu
     content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
   await expect.poll(() => reads).toBe(1);
-  await page.getByRole("button", { name: "Refresh thread" }).click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByRole("heading", { name: "Current guest result" }),
   ).toBeVisible();
@@ -460,7 +461,7 @@ test("J1.anchor-during-read: a late read cannot reset a newly selected recovery 
     await pending;
     await route.fulfill({ contentType: "text/html", body: populated });
   });
-  await page.getByRole("button", { name: "Refresh thread" }).click();
+  await clickThreadTool(page, "Refresh thread");
   await expect.poll(() => refreshStarted).toBe(true);
   await page.getByRole("link", { name: "Post 102", exact: true }).click();
   await expect(
