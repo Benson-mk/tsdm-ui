@@ -30,6 +30,11 @@
       // Throwaway approval MVP: selected A footer with About inside Settings.
       // Synthetic data only. Not imported by the production entry point.
       import workspaceStyles from "../styles.css?inline";
+      import { EditorView } from "prosemirror-view";
+      import { baseKeymap } from "prosemirror-commands";
+      import { keydownHandler } from "prosemirror-keymap";
+      import { createEditorSession } from "../editor/session.ts";
+      import { editorNode, editorMark } from "../components/editor-dom.ts";
       const host = document.querySelector("#preview");
       const root = host.attachShadow({ mode: "open" });
       const paths = {
@@ -49,6 +54,7 @@
         refresh: '<path d="M20 7a9 9 0 1 0 1 8M20 3v5h-5"/>',
         more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
         expand: '<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',
+        compact: '<path d="M3 8h5V3M21 8h-5V3M8 21v-5H3M16 21v-5h5"/>',
         minimize: '<path d="M5 12h14"/>',
         brand: '<path d="M12 2v20M2 12h20M5 5l14 14M5 19 19 5"/>',
       };
@@ -201,9 +207,26 @@
         .reply-composer { flex:none; max-height:55%; overflow:auto; border-top:1px solid var(--separator); padding-top:10px; margin-top:8px; font-size:14px; }
         .reply-toolbar strong { flex:1; min-width:100px; font-size:14px; }
         .reply-toolbar button { padding:10px; }
-        .reply-composer textarea { box-sizing:border-box; display:block; width:100%; height:92px; min-height:92px; resize:vertical; border:1px solid var(--boundary); border-radius:8px; padding:10px; font:inherit; margin-top:8px; }
+        .rich-editor .ProseMirror { box-sizing:border-box; display:block; width:100%; height:92px; min-height:92px; resize:vertical; border:1px solid var(--boundary); border-radius:8px; padding:10px; font:inherit; margin-top:8px; }
         .reply-composer.expanded { max-height:80%; }
-        .reply-composer.expanded textarea { height:220px; }
+        .reply-composer.expanded .ProseMirror { height:220px; }
+        .rich-editor { min-height:0; padding:5px; margin:0 -5px; }
+        .rich-editor .ProseMirror { overflow:auto; resize:none; white-space:pre-wrap; }
+        .rich-editor .ProseMirror p { margin:0 0 8px; font:inherit; }
+        .rich-editor .ProseMirror blockquote { margin:8px 0; padding-left:12px; border-left:3px solid var(--boundary); }
+        .rich-tools { display:none; gap:4px; flex-wrap:wrap; margin-top:8px; }
+        .reply-composer.expanded .rich-tools { display:flex; }
+        .rich-tools button { min-height:44px; min-width:44px; padding:6px 10px; }
+        .rich-tools button[aria-pressed="true"] { background:var(--soft); box-shadow:inset 0 0 0 1px var(--ink); }
+        .reply-resume { flex:none; display:flex; align-items:center; gap:12px; width:100%; min-height:56px; padding:10px 12px; border-top:1px solid var(--separator); border-radius:0; text-align:left; }
+        .reply-resume span { font-size:12px; overflow-wrap:anywhere; }
+        #copy-value { width:100%; min-height:44px; }
+        @media(min-width:1440px) {
+          #reader-content:has(.reply-composer.expanded:not([hidden])) { display:grid; grid-template-columns:minmax(0,1fr) minmax(360px,420px); gap:24px; }
+          #reader-content .reply-composer.expanded:not([hidden]) { display:flex; flex-direction:column; min-width:0; max-height:none; margin:0; padding:0 6px 0 20px; border-top:0; border-left:1px solid var(--separator); }
+          .reply-composer.expanded .rich-editor { flex:1; display:flex; min-height:140px; }
+          .reply-composer.expanded .ProseMirror { flex:1; height:auto; min-height:140px; }
+        }
         .reply-composer details { margin:8px 0; }
         .reply-composer details p { font-size:13px; line-height:1.5; margin:8px 0; }
         .reply-footer { justify-content:space-between; padding:8px 0; }
@@ -263,17 +286,36 @@
             <section class="preview-reader"><div id="reader-empty"><p>Choose a thread to read.</p></div><div id="reader-content" hidden>
               <div class="reader-scroll">
                 <a href="#" id="reader-board"></a>
-                <div class="reader-title-row"><h1 id="reader-title" lang="zh-Hans" tabindex="-1"></h1><div class="reader-actions"><button id="reply-open">Reply</button><details class="reader-more"><summary aria-label="More thread options" title="More thread options">${icon("more")}</summary><div class="reader-more-options"><button data-stub="Back in history">Back in history</button><button data-stub="Refresh current thread">Refresh thread</button><button data-stub="Save thread">Save thread</button><button id="reverse-order" aria-pressed="false">Reverse order</button></div></details></div></div>
+                <div class="reader-title-row"><h1 id="reader-title" lang="zh-Hans" tabindex="-1"></h1><div class="reader-actions"><button id="reply-open">Reply</button><details class="reader-more"><summary aria-label="More thread options" title="More thread options">${icon("more")}</summary><div class="reader-more-options"><button data-stub="Back in history">Back in history</button><button data-stub="Refresh current thread">Refresh thread</button><button data-stub="Save thread">Save thread</button><button id="copy-url">Copy URL</button><button id="reverse-order" aria-pressed="false">Reverse order</button></div></details></div></div>
                 <nav class="reader-pagination" aria-label="Thread pages"><button id="page-prev" aria-label="Previous page">Previous</button><button id="page-open" aria-haspopup="dialog">Page 1 / 92</button><button id="page-next" aria-label="Next page">Next</button><span id="order-state" hidden>Newest first</span></nav>
                 <div id="sample-posts"></div>
               </div>
-              <section class="reply-composer" aria-label="Compact reply" hidden><div class="reply-toolbar"><strong>Reply · demo-member</strong><button id="reply-expand" aria-label="Expand reply" title="Expand reply" aria-expanded="false">${icon("expand")}</button><button id="reply-hide" aria-label="Minimize reply" title="Minimize reply">${icon("minimize")}</button></div><span id="reply-target"></span><p id="reply-mismatch" role="status" hidden>Reply is still addressed to the earlier thread.</p><textarea id="reply-text" aria-label="Reply text" placeholder="Write your reply…"></textarea><details><summary>Details</summary><p>This ordinary reply addresses the named thread. A post-specific reply would also show its author and post.</p><p>Text stays in this preview until reload. Nothing is saved to the forum. Review remains a separate step before any real publication.</p></details><div class="reply-footer"><small>Unsaved preview text</small><button id="reply-review" disabled>Review reply</button></div></section>
+              <section class="reply-composer" aria-label="Compact reply" hidden><div class="reply-toolbar"><strong>Reply · demo-member</strong><button id="reply-expand" aria-label="Expand reply" title="Expand reply" aria-expanded="false">${icon("expand")}</button><button id="reply-hide" aria-label="Minimize reply" title="Minimize reply">${icon("minimize")}</button></div><span id="reply-target"></span><p id="reply-mismatch" role="status" hidden>Reply is still addressed to the earlier thread.</p><div class="rich-tools" role="group" aria-label="Rich text formatting">${[
+                ["b", "Bold", "<b>B</b>"],
+                ["i", "Italic", "<i>I</i>"],
+                ["u", "Underline", "<u>U</u>"],
+                ["ul", "Bullet list", "Bullets"],
+                ["ol", "Numbered list", "Numbered"],
+                ["quote", "Quote", "Quote"],
+                ["code", "Code block", "Code"],
+                ["undo", "Undo", "Undo"],
+                ["redo", "Redo", "Redo"],
+              ]
+                .map(
+                  ([tool, label, content]) =>
+                    `<button data-format="${tool}" aria-label="${label}" title="${label}">${content}</button>`,
+                )
+                .join(
+                  "",
+                )}</div><div id="reply-editor" class="rich-editor"></div><p id="editor-message" role="status" hidden></p><details><summary>Details</summary><p>This ordinary reply addresses the named thread. A post-specific reply would also show its author and post.</p><p>Text stays in this preview until reload. Nothing is saved to the forum. Review remains a separate step before any real publication.</p></details><div class="reply-footer"><small>Unsaved preview text</small><button id="reply-review" disabled>Review reply</button></div></section>
+              <button id="reply-resume" class="reply-resume" hidden><strong>Resume reply</strong><span id="resume-target"></span></button>
             </div></section>
           </main>
         </div>
         <div class="preview-tools" aria-label="Preview controls"><strong>Reader &amp; compact reply MVP</strong><label><input type="checkbox" id="large"/>125% text</label><p class="preview-state" role="status"></p></div>
         <dialog aria-labelledby="dialog-title"><h2 id="dialog-title">Settings</h2><p>Preview only. No preferences are saved.</p><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3><p>Your existing appearance controls belong here.</p></section><section aria-labelledby="about-heading"><h3 id="about-heading">About this workspace</h3><p>TSDM — a workspace for boards, threads and private conversations.</p></section><button id="close-dialog">Close</button></dialog>
         <dialog id="page-dialog" aria-labelledby="page-title"><h2 id="page-title">Jump to page</h2><form id="page-form"><label for="page-slider">Choose page <output id="page-choice">1</output> of 92</label><input id="page-slider" aria-label="Page slider" type="range" min="1" max="92" step="1" value="1"/><label for="page-number">Page number</label><input id="page-number" type="number" min="1" max="92" step="1" required value="1"/><div class="reply-footer"><button type="button" id="page-cancel">Cancel</button><button type="submit">Go to page</button></div></form></dialog>
+        <dialog id="copy-dialog" aria-labelledby="copy-title"><h2 id="copy-title">Copy preview URL</h2><p>Clipboard access was unavailable. Copy this preview link manually.</p><input id="copy-value" aria-label="Preview URL" readonly/><button id="copy-close">Close</button></dialog>
         <dialog id="reply-dialog" aria-labelledby="review-title"><h2 id="review-title">Review reply</h2><p id="review-target"></p><div id="review-copy"></div><p>Preview only. No reply will be sent.</p><button id="review-close">Back to writing</button></dialog>
       </div>`;
       host.dataset.variant = "A";
@@ -467,29 +509,113 @@
         pageDialog.close();
       });
       const composer = root.querySelector(".reply-composer");
-      const replyText = root.querySelector("#reply-text");
+      const session = createEditorSession();
+      const view = new EditorView(root.querySelector("#reply-editor"), {
+        state: session.pmState,
+        nodeViews: Object.fromEntries(
+          Object.keys(session.pmState.schema.nodes)
+            .filter((name) => !["text", "doc"].includes(name))
+            .map((name) => [name, (node) => editorNode(node)]),
+        ),
+        markViews: { format: editorMark, literal: editorMark },
+        attributes: {
+          role: "textbox",
+          "aria-label": "Reply text",
+          "aria-multiline": "true",
+        },
+        dispatchTransaction: (transaction) => session.dispatch(transaction),
+        handleKeyDown: (editor, event) => {
+          if (
+            (event.metaKey || event.ctrlKey) &&
+            event.key.toLowerCase() === "z"
+          ) {
+            event.shiftKey ? session.redo() : session.undo();
+            return true;
+          }
+          return keydownHandler(baseKeymap)(editor, event);
+        },
+        handlePaste: (_editor, event) => {
+          event.preventDefault();
+          session.command("paste", {
+            text: event.clipboardData?.getData("text/plain") ?? "",
+          });
+          return true;
+        },
+      });
+      const formatActive = (tag) => {
+        const { doc, selection, storedMarks } = session.pmState;
+        const hasFormat = (marks) =>
+          marks.some(
+            (mark) =>
+              mark.type.name === "format" &&
+              mark.attrs.frames.some((frame) => frame.tag === tag),
+          );
+        if (selection.empty)
+          return hasFormat(storedMarks ?? selection.$from.marks());
+        const selected = [];
+        doc.nodesBetween(selection.from, selection.to, (node) => {
+          if (node.isInline) selected.push(hasFormat(node.marks));
+        });
+        return selected.length > 0 && selected.every(Boolean);
+      };
+      const syncEditor = (snapshot) => {
+        view.updateState(session.pmState);
+        root.querySelector("#reply-review").disabled =
+          !session.pmState.doc.textContent.trim();
+        root.querySelector('[data-format="undo"]').disabled = !snapshot.canUndo;
+        root.querySelector('[data-format="redo"]').disabled = !snapshot.canRedo;
+        for (const tag of ["b", "i", "u"])
+          root
+            .querySelector(`[data-format="${tag}"]`)
+            .setAttribute("aria-pressed", String(formatActive(tag)));
+        root.querySelector("#editor-message").textContent = snapshot.message;
+        root.querySelector("#editor-message").hidden = !snapshot.message;
+      };
+      session.subscribe(syncEditor);
+      syncEditor(session.state);
+      root.querySelectorAll("[data-format]").forEach((button) => {
+        button.addEventListener("mousedown", (event) => event.preventDefault());
+        button.addEventListener("click", () => {
+          if (view.composing) return;
+          const tool = button.dataset.format;
+          if (["undo", "redo"].includes(tool)) session[tool]();
+          else if (["ul", "ol"].includes(tool))
+            session.command("list", { ordered: tool === "ol" });
+          else if (["quote", "code"].includes(tool)) session.command(tool);
+          else
+            session.command("format", {
+              tag: tool,
+              remove: formatActive(tool),
+            });
+          view.focus();
+        });
+      });
       const updateReply = () => {
-        root.querySelector("#reply-open").hidden = !composer.hidden;
-        root.querySelector("#reply-open").textContent = replyTarget
-          ? "Resume reply"
-          : "Reply";
+        root.querySelector("#reply-open").hidden = !!replyTarget;
+        root.querySelector("#reply-resume").hidden =
+          !replyTarget || !composer.hidden;
+        root.querySelector("#resume-target").textContent = replyTarget
+          ? `${replyTarget.board} · ${replyTarget.title}`
+          : "";
         root.querySelector("#reply-mismatch").hidden =
           !replyTarget ||
           (replyTarget.id === selectedThread.id &&
             replyTarget.boardIndex === selectedThread.boardIndex);
       };
-      root.querySelector("#reply-open").addEventListener("click", () => {
+      const openReply = () => {
         if (!replyTarget) replyTarget = { ...selectedThread };
         root.querySelector("#reply-target").textContent =
           `To ${replyTarget.board} · ${replyTarget.title}`;
         composer.hidden = false;
         updateReply();
-        replyText.focus();
-      });
+        view.focus();
+      };
+      root.querySelector("#reply-open").addEventListener("click", openReply);
+      root.querySelector("#reply-resume").addEventListener("click", openReply);
       root.querySelector("#reply-hide").addEventListener("click", () => {
         composer.hidden = true;
         updateReply();
-        root.querySelector("#reply-open").focus();
+        root.querySelector("#reply-resume").focus();
       });
       root.querySelector("#reply-expand").addEventListener("click", (event) => {
         const expanded = composer.classList.toggle("expanded");
@@ -499,20 +625,45 @@
           expanded ? "Compact reply" : "Expand reply",
         );
         event.currentTarget.title = expanded ? "Compact reply" : "Expand reply";
-      });
-      replyText.addEventListener("input", () => {
-        root.querySelector("#reply-review").disabled = !replyText.value.trim();
+        event.currentTarget.innerHTML = icon(expanded ? "compact" : "expand");
       });
       const replyDialog = root.querySelector("#reply-dialog");
       root.querySelector("#reply-review").addEventListener("click", () => {
         root.querySelector("#review-target").textContent =
           `demo-member → ${replyTarget.board} · ${replyTarget.title}`;
-        root.querySelector("#review-copy").textContent = replyText.value;
+        const preview = view.dom.cloneNode(true);
+        preview.contentEditable = "false";
+        preview.removeAttribute("role");
+        preview.removeAttribute("aria-label");
+        root.querySelector("#review-copy").replaceChildren(preview);
         replyDialog.showModal();
       });
       root
         .querySelector("#review-close")
         .addEventListener("click", () => replyDialog.close());
+      const copyDialog = root.querySelector("#copy-dialog");
+      root.querySelector("#copy-url").addEventListener("click", async () => {
+        const link = new URL(location.pathname, location.origin);
+        link.search = new URLSearchParams({
+          variant: "A",
+          board: String(selectedThread.boardIndex),
+          thread: String(selectedThread.id),
+          page: String(page),
+          reverse: String(reverse),
+        }).toString();
+        try {
+          await navigator.clipboard.writeText(link.href);
+          root.querySelector(".preview-state").textContent =
+            "Preview URL copied. Production would use the public forum thread URL.";
+        } catch {
+          root.querySelector("#copy-value").value = link.href;
+          copyDialog.showModal();
+          root.querySelector("#copy-value").select();
+        }
+      });
+      root
+        .querySelector("#copy-close")
+        .addEventListener("click", () => copyDialog.close());
       const filter = root.querySelector("#filter");
       const filterCards = () => {
         const cards = [...root.querySelectorAll(".board-card")];
@@ -530,6 +681,27 @@
       filter.addEventListener("input", filterCards);
       filterCards();
       showView("results");
+      const initialBoard = Number(url.searchParams.get("board"));
+      const initialThread = sampleThreads.find(
+        (thread) => String(thread.id) === url.searchParams.get("thread"),
+      );
+      if (
+        url.searchParams.has("board") &&
+        Number.isInteger(initialBoard) &&
+        initialBoard >= 0 &&
+        initialBoard < boards.length &&
+        initialThread
+      ) {
+        showBoard(initialBoard);
+        root.querySelector(`[data-thread="${initialThread.id}"]`).click();
+        const initialPage = Number(url.searchParams.get("page"));
+        page =
+          Number.isInteger(initialPage) && initialPage >= 1 && initialPage <= 92
+            ? initialPage
+            : 1;
+        reverse = url.searchParams.get("reverse") === "true";
+        renderPage();
+      }
     </script>
   </body>
 </html>
