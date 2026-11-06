@@ -113,7 +113,7 @@
         },
       ];
       root.innerHTML = `<style>${workspaceStyles}</style><style>
-        :host { display:block; height:100%; --hover-surface:var(--soft); --safe-top:env(safe-area-inset-top,0px); --safe-right:env(safe-area-inset-right,0px); --safe-bottom:env(safe-area-max-inset-bottom,env(safe-area-inset-bottom,0px)); --safe-left:env(safe-area-inset-left,0px); --text-scale:1; --floating-shadow:0 4px 16px rgba(0,0,0,0.06); --modal-shadow:0 16px 48px rgba(0,0,0,0.24); }
+        :host { display:block; height:100%; accent-color:var(--ink); --hover-surface:var(--soft); --safe-top:env(safe-area-inset-top,0px); --safe-right:env(safe-area-inset-right,0px); --safe-bottom:env(safe-area-max-inset-bottom,env(safe-area-inset-bottom,0px)); --safe-left:env(safe-area-inset-left,0px); --text-scale:1; --section-base:var(--accent); --section-pink:#dda49f; --section-alt:var(--secondary-accent); --section-cool:var(--support); --floating-shadow:0 4px 16px rgba(0,0,0,0.06); --modal-shadow:0 16px 48px rgba(0,0,0,0.24); }
         .prototype-shell { position:fixed; top:var(--viewport-top,0px); left:0; right:0; height:100vh; height:var(--viewport-height,100dvh); display:grid; grid-template-rows:minmax(0,1fr); overflow:hidden; background:var(--surface); }
         .workspace { min-height:0; height:100%; display:grid; grid-template-rows:auto minmax(0,1fr); }
         .workspace > header { display:flex; min-height:56px; padding:8px max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); gap:12px; flex-wrap:nowrap; }
@@ -134,10 +134,11 @@
         .boards-navigation { padding:24px 0 12px; border:0; gap:4px; }
         .boards-navigation a { line-height:1.5; min-height:44px; font-size:calc(16px * var(--text-scale)); }
         .boards-navigation a::before { background:var(--support); }
-        :host([data-colors="groups"]) .boards-navigation a[data-group="0"]::before { background:var(--accent); }
-        :host([data-colors="groups"]) .boards-navigation a[data-group="1"]::before { background:#dda49f; }
-        :host([data-colors="groups"]) .boards-navigation a[data-group="2"]::before { background:var(--secondary-accent); }
-        :host([data-colors="groups"]) .boards-navigation a[data-group="3"]::before { background:var(--support); }
+        [data-group="0"] { --group-surface:var(--section-base); }
+        [data-group="1"] { --group-surface:var(--section-pink); }
+        [data-group="2"] { --group-surface:var(--section-alt); }
+        [data-group="3"] { --group-surface:var(--section-cool); }
+        .category-label { display:inline-flex; align-items:center; padding:4px 8px; border-radius:8px; background:var(--group-surface,var(--soft)); color:var(--ink); font-size:12px; line-height:1.4; }
         .preview-body .navigation-account { flex:none; border:0; position:relative; z-index:1; box-shadow:0 -4px 16px rgba(0,0,0,0.06); margin:0; padding:12px 12px 12px max(12px,var(--safe-left)); display:flex; align-items:center; gap:4px; background:var(--surface); color:var(--ink); }
         .identity { flex:1; min-width:0; overflow-wrap:anywhere; font-size:calc(14px * var(--text-scale)); line-height:1.45; }
         .identity small { display:block; font-size:calc(12px * var(--text-scale)); color:var(--muted); }
@@ -149,15 +150,17 @@
         .preview-results h2 { font-size:calc(21px * var(--text-scale)); margin:24px 0 16px; }
         .preview-results > p { font-size:calc(18px * var(--text-scale)); }
         .board-grid { display:grid; grid-template-columns:minmax(0,1fr); }
-        .board-card { padding:20px; border:0; border-radius:24px; background:var(--surface); box-shadow:var(--floating-shadow); font-size:calc(16px * var(--text-scale)); }
+        .board-card { padding:20px; border:0; border-radius:24px; background:var(--group-surface,var(--surface)); color:var(--ink); box-shadow:var(--floating-shadow); font-size:calc(16px * var(--text-scale)); }
         .board-card strong { font-weight:600; font-size:calc(18px * var(--text-scale)); }
+        .board-card span,.board-card .card-category { color:var(--ink); }
+        .board-card .card-category { font-size:12px; line-height:1.4; font-weight:600; }
         .preview-reader { padding:24px max(24px,var(--safe-right)) 24px 24px; overflow:auto; font-size:calc(18px * var(--text-scale)); }
         .preview-reader p { margin:0; }
         button:hover:not(:disabled), a:hover { background:var(--hover-surface); text-decoration:none; }
         .main-destinations [aria-current="page"] { background:var(--ink); color:var(--surface); }
         .main-destinations [aria-current="page"]:hover { background:var(--ink); text-decoration:underline; }
-        .board-card:hover { background:var(--hover-surface); }
-        .board-card:hover > strong { text-decoration:none; }
+        .board-card:hover { background:var(--group-surface,var(--hover-surface)); }
+        .board-card:hover > strong { text-decoration:underline; }
         button:disabled { color:var(--ink); background:var(--soft); cursor:default; }
         :focus-visible { outline:3px solid var(--ink); outline-offset:2px; box-shadow:0 0 0 2px var(--surface); }
         .preview-tools { padding:8px max(12px,var(--safe-right)) calc(8px + var(--safe-bottom)) max(12px,var(--safe-left)); background:var(--soft); border-top:1px solid var(--separator); display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; font-size:12px; z-index:1; }
@@ -173,7 +176,7 @@
         .board-disclosure summary:hover { background:var(--soft); }
         .group-count { margin-left:auto; color:var(--muted); }
         .board-group-links { display:grid; gap:4px; }
-        .boards-navigation .board-group-links a::before { content:""; flex:none; width:10px; height:10px; border-radius:50%; margin-right:10px; background:var(--support); }
+        .boards-navigation .board-group-links a::before { content:""; flex:none; width:10px; height:10px; border-radius:50%; margin-right:10px; background:var(--group-surface,var(--support)); }
         .results-heading { display:flex; gap:8px; align-items:center; }
         .results-heading h1 { flex:1; min-width:0; }
         .context-action { font-size:calc(14px * var(--text-scale)); gap:8px; }
@@ -191,7 +194,7 @@
         .reader-main { container:reader / inline-size; display:flex; flex-direction:column; min-height:0; min-width:0; flex:1; }
         .reader-tools { display:flex; flex-wrap:wrap; align-items:flex-start; gap:8px; flex:none; padding:0 0 12px; background:var(--surface); position:relative; z-index:3; }
         .reader-heading { flex:1; min-width:180px; }
-        .reader-heading #reader-board { display:block; width:fit-content; font-size:12px; margin-bottom:6px; }
+        .reader-heading #reader-board { display:block; width:fit-content; max-width:100%; font-size:12px; margin-bottom:6px; padding:4px 10px; border-radius:8px; background:var(--group-surface,var(--surface)); color:var(--ink); }
         .reader-heading #reader-title { margin:0; font-size:calc(26px * var(--text-scale)); line-height:1.35; overflow-wrap:anywhere; }
         .reader-tools.compact { align-items:center; flex-wrap:nowrap; }
         .reader-tools.compact .reader-heading { min-width:0; }
@@ -243,7 +246,7 @@
         .rich-editor { min-height:0; padding:5px; margin:0 -5px; }
         .rich-editor .ProseMirror { overflow:auto; resize:none; white-space:pre-wrap; }
         .rich-editor .ProseMirror p { margin:0 0 8px; font:inherit; }
-        .rich-editor .ProseMirror blockquote { margin:8px 0; padding-left:12px; border-left:3px solid var(--boundary); }
+        .rich-editor .ProseMirror blockquote,#review-copy .ProseMirror blockquote { margin:8px 0; padding:12px 16px; border-left:3px solid var(--ink); background:var(--section-base); color:var(--ink); }
         .rich-tools { display:none; gap:4px; flex-wrap:wrap; margin-top:8px; }
         .reply-composer.expanded .rich-tools { display:flex; }
         .rich-tools button { min-height:44px; min-width:44px; padding:6px 10px; }
@@ -251,6 +254,7 @@
         .reply-resume { flex:none; display:flex; align-items:center; gap:12px; width:100%; min-height:56px; padding:10px 12px; border:0; border-radius:0; text-align:left; position:relative; z-index:1; background:var(--surface); box-shadow:0 -4px 16px rgba(0,0,0,0.06); }
         .reply-resume span { font-size:12px; overflow-wrap:anywhere; }
         #copy-value { width:100%; min-height:44px; }
+        #page-number,#copy-value,#safe-preview { border:1px solid var(--boundary); border-radius:8px; padding:8px; background:var(--surface); color:var(--ink); font:inherit; }
         @media(min-width:1440px) {
           #reader-content:has(.reply-composer.expanded:not([hidden])) { display:grid; grid-template-columns:minmax(0,1fr) var(--writing-width,420px); gap:24px; }
           #reader-content .reply-composer.expanded:not([hidden]) { display:flex; flex-direction:column; min-width:0; max-height:none; margin:0; padding:0 6px 0 20px; border:0; box-shadow:-4px 0 16px rgba(0,0,0,0.06); }
@@ -263,7 +267,7 @@
         .reply-footer small { color:var(--muted); }
         #reply-review { background:var(--ink); color:var(--surface); }
         #reply-review:disabled { background:var(--soft); color:var(--muted); }
-        #reply-target { display:block; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+        #reply-target { display:block; padding:6px 10px; border-radius:8px; background:var(--group-surface,var(--surface)); color:var(--ink); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
         #reply-mismatch { font-size:13px; margin-top:8px; }
         #page-dialog label { display:block; margin:12px 0; }
         #page-slider { width:100%; min-height:44px; accent-color:var(--ink); }
@@ -340,16 +344,16 @@
               <div class="sidebar-scroll" tabindex="0" aria-label="Scrollable navigation">
                 <p class="navigation-caption">Main destinations</p>
                 <nav aria-label="Main destinations" class="main-destinations">${sections.map((section, i) => `<button ${i === 0 ? 'aria-current="page"' : ""} data-stub="${section}">${icon(section.toLowerCase())}<span>${section}</span></button>`).join("")}</nav>
-                <nav class="boards-navigation" aria-label="Browse boards"><h2>Browse boards</h2><a href="#" data-all-boards>All boards</a>${groups.map((groupName, group) => `<details class="board-disclosure" open><summary aria-label="${groupName} boards"><span>${groupName}</span><span class="group-count">${boards.filter((b) => b[2] === group).length}</span></summary><div class="board-group-links">${boards.map(([name, , g], index) => (g === group ? `<a href="#" lang="zh-Hans" data-group="${group}" data-board="${index}">${name}</a>` : "")).join("")}</div></details>`).join("")}</nav>
+                <nav class="boards-navigation" aria-label="Browse boards"><h2>Browse boards</h2><a href="#" data-all-boards>All boards</a>${groups.map((groupName, group) => `<details class="board-disclosure" data-group="${group}" open><summary aria-label="${groupName} boards"><span class="category-label">${groupName}</span><span class="group-count">${boards.filter((b) => b[2] === group).length}</span></summary><div class="board-group-links">${boards.map(([name, , g], index) => (g === group ? `<a href="#" lang="zh-Hans" data-group="${group}" data-board="${index}">${name}</a>` : "")).join("")}</div></details>`).join("")}</nav>
                 <p class="group-key">Sample groups: green · Community; rose · Anime; lavender · Creative; blue · Music. Color supplements the board name.</p>
               </div>
               <footer class="navigation-account"><div class="identity"><small>Signed in as</small><strong>demo-member</strong></div><div class="account-actions"><button aria-label="Settings" title="Settings" data-dialog="Settings">${icon("settings")}<span class="action-text">Settings</span></button></div></footer>
             </aside>
-            <section class="preview-results"><div class="results-heading"><h1 id="results-title" tabindex="-1">Boards</h1><button class="context-action" id="board-check" aria-label="Refresh current list" title="Refresh current list">${icon("refresh")}</button></div><button class="context-action" data-all-boards id="list-back" hidden>All boards</button><div id="directory-results"><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
+            <section class="preview-results"><span id="results-category" class="category-label" hidden></span><div class="results-heading"><h1 id="results-title" tabindex="-1">Boards</h1><button class="context-action" id="board-check" aria-label="Refresh current list" title="Refresh current list">${icon("refresh")}</button></div><button class="context-action" data-all-boards id="list-back" hidden>All boards</button><div id="directory-results"><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
               .slice(0, 5)
               .map(
-                ([name, description], index) =>
-                  `<a href="#" class="board-card" lang="zh-Hans" data-board="${index}"><strong>${name}</strong><span>${description}</span></a>`,
+                ([name, description, group], index) =>
+                  `<a href="#" class="board-card" lang="zh-Hans" data-board="${index}" data-group="${group}"><small class="card-category">${groups[group]}</small><strong>${name}</strong><span>${description}</span></a>`,
               )
               .join(
                 "",
@@ -753,6 +757,16 @@
       );
       const showBoard = (index) => {
         selectedBoard = index;
+        const category = root.querySelector("#results-category");
+        category.hidden = index === null;
+        if (index === null) {
+          category.textContent = "";
+          delete category.dataset.group;
+        } else {
+          const group = boards[index][2];
+          category.dataset.group = String(group);
+          category.textContent = groups[group];
+        }
         renderThreadList();
         root.querySelector("#results-title").textContent =
           index === null ? "Boards" : boards[index][0];
@@ -798,8 +812,10 @@
           root.querySelector("#reader-title").textContent =
             selectedThread.title;
           root.querySelector("#reader-title").title = selectedThread.title;
-          root.querySelector("#reader-board").textContent =
-            selectedThread.board;
+          const readerBoard = root.querySelector("#reader-board");
+          const group = boards[selectedThread.boardIndex][2];
+          readerBoard.dataset.group = String(group);
+          readerBoard.textContent = `${groups[group]} · ${selectedThread.board}`;
           root.querySelector("#reader-empty").hidden = true;
           root.querySelector("#reader-content").hidden = false;
           page = 1;
@@ -1163,6 +1179,9 @@
         if (!replyTarget) replyTarget = { ...selectedThread };
         root.querySelector("#reply-target").textContent =
           `To ${replyTarget.board} · ${replyTarget.title}`;
+        root.querySelector("#reply-target").dataset.group = String(
+          boards[replyTarget.boardIndex][2],
+        );
         composer.hidden = false;
         updateReply();
         view.focus();
