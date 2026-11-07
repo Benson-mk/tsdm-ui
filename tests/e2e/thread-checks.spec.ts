@@ -555,10 +555,9 @@ test("UI89.unqualified: unknown native boundaries and absent numeric capability 
     }),
   ).toBeDisabled();
   await expect(
-    page.getByText(
-      "Open a thread with a supported newest boundary to enable checks.",
-      { exact: true },
-    ),
+    page.getByText("Open a supported thread or board to enable checks.", {
+      exact: true,
+    }),
   ).toBeVisible();
   await closeSettingsToWorkspace(page);
   await expect(

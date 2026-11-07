@@ -171,17 +171,17 @@ function escape(event: KeyboardEvent) {
           <label>
             <input
               type="checkbox"
-              :checked="workspace.threadHistory.state.value.automatic"
-              :disabled="!workspace.threadHistory.canCheck()"
+              :checked="workspace.automaticChecks.value"
+              :disabled="!workspace.canCheck()"
               @change="
-                workspace.threadHistory.setAutomatic(
+                workspace.setAutomaticChecks(
                   ($event.target as HTMLInputElement).checked,
                 )
               "
             />
             {{ text.automaticChecks }}
           </label>
-          <p v-if="!workspace.threadHistory.canCheck()">
+          <p v-if="!workspace.canCheck()">
             {{ text.checkingUnavailable }}
           </p>
         </section>

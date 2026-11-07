@@ -648,6 +648,14 @@ for (const [entry, width, height, textSize, theme, language] of [
       { width: 1440, height: 900 },
     ]) {
       await page.setViewportSize(viewport);
+      // The resize event and Vue docking settle on browser frames, after the
+      // browser viewport command itself has completed.
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
       const geometry = await page.locator(".workspace").evaluate((node) => ({
         width: node.clientWidth,
         scroll: node.scrollWidth,

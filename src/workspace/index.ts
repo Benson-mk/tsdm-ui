@@ -1,3 +1,4 @@
+import { createBoardChecks } from "./board-checks";
 import { createPrivateHistory, privateContext } from "./private-history";
 import { createThreadHistory, threadContext } from "./thread-history";
 import type { DownloadHost, PreparedFile } from "../hosts/download";
@@ -396,7 +397,73 @@ export function createWorkspace(
     Object.hasOwn(record.entries, key) ? record.entries[key] : undefined;
   let view: ViewAdapter | null = null;
   let knownAccount: string | null = null;
+  function visibleBoard() {
+    if (!["boards", "saved"].includes(state.value.section)) return null;
+    const result =
+      state.value.result?.kind === "board"
+        ? state.value.result
+        : state.value.result?.kind !== "directory" &&
+            state.value.origin?.kind === "board"
+          ? state.value.origin
+          : null;
+    return result;
+  }
+  const automaticChecks = shallowRef(false);
+  const boardChecks = createBoardChecks(client, {
+    busy: () =>
+      state.value.loading ||
+      writing.state.value.composing ||
+      writing.state.value.preparing ||
+      writing.state.value.publishing ||
+      writing.state.value.findingMention ||
+      drafts.value.loading ||
+      favorite.value.busy ||
+      download.value?.status === "checking",
+    owned: () =>
+      threadHistory.busy() ||
+      privateHistory.state.value.checking ||
+      threadHistory.state.value.earlier.status === "loading" ||
+      threadHistory.state.value.later.status === "loading",
+    observe: (account) => {
+      observeAccount(account);
+      writing.observe(account);
+    },
+    reveal: (result, apply) => {
+      const prior = visibleBoard();
+      const show = () => {
+        if (!prior || visibleBoard() !== prior) return;
+        const readingPosition = view?.captureReading();
+        apply();
+        for (const entry of Object.values(record.entries)) {
+          if (entry.result === prior) {
+            entry.result = result;
+            entry.destination = result.board.url;
+            if (entry.position)
+              entry.position = { ...entry.position, resultsScrollTop: 0 };
+          }
+        }
+        state.value = {
+          ...state.value,
+          result: state.value.result === prior ? result : state.value.result,
+          origin: state.value.origin === prior ? result : state.value.origin,
+          destination:
+            state.value.result === prior
+              ? result.board.url
+              : state.value.destination,
+        };
+        void nextTick().then(() => {
+          if (readingPosition) view?.restoreReading(readingPosition);
+        });
+        void persist();
+      };
+      if (!writing.deferViewChange(show)) show();
+    },
+  });
+  watch(visibleBoard, (result) => boardChecks.activate(result), {
+    flush: "sync",
+  });
   const threadHistory = createThreadHistory(client, {
+    owned: () => boardChecks.busy(),
     openNewest: async (url) => {
       await openThread(url);
     },
@@ -442,6 +509,7 @@ export function createWorkspace(
       writing.state.value.composing ||
       (!!writing.state.value.privateReview &&
         !writing.state.value.privateReviewConsumed) ||
+      boardChecks.busy() ||
       threadHistory.state.value.checking ||
       threadHistory.state.value.earlier.status === "loading" ||
       threadHistory.state.value.later.status === "loading" ||
@@ -462,6 +530,19 @@ export function createWorkspace(
     },
   });
   watch(
+    () => threadHistory.state.value.result?.thread.url,
+    () => {
+      // Explicit reader navigation historically restores checks off. A board
+      // beside the same retained reader does not change this source identity.
+      setAutomaticChecks(false);
+    },
+  );
+  function setAutomaticChecks(enabled: boolean) {
+    automaticChecks.value = enabled;
+    threadHistory.setAutomatic(enabled);
+    boardChecks.setAutomatic(enabled);
+  }
+  watch(
     () => [
       writing.state.value.preparing,
       writing.state.value.publishing,
@@ -479,6 +560,7 @@ export function createWorkspace(
         favorite.value.busy ||
         download.value?.status === "checking"
       ) {
+        boardChecks.cancelPending();
         threadHistory.cancelPending();
         privateHistory.cancelPending();
       }
@@ -750,6 +832,7 @@ export function createWorkspace(
     return entry;
   }
   function observeAccount(account: Account) {
+    boardChecks.observeAccount(account);
     let invalidated = false;
     const observed = accountKey(account);
     accountObservation.value = observed ?? "unknown";
@@ -1608,6 +1691,10 @@ export function createWorkspace(
       void persist();
     },
     threadHistory,
+    boardChecks,
+    automaticChecks: readonly(automaticChecks),
+    setAutomaticChecks,
+    canCheck: () => threadHistory.canCheck() || boardChecks.canCheck(),
     privateHistory,
     drafts: readonly(drafts),
     loadDrafts,

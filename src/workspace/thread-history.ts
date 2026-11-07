@@ -49,6 +49,7 @@ export function createThreadHistory(
   client: ForumClient,
   options: {
     busy(): boolean;
+    owned(): boolean;
     active(): boolean;
     capture(): ViewPosition | null;
     restore(position: ViewPosition | null): Promise<void>;
@@ -310,6 +311,7 @@ export function createThreadHistory(
       !prior ||
       !edge.url ||
       pending ||
+      options.owned() ||
       options.busy() ||
       (automatic && edge.status !== "unloaded") ||
       !["unloaded", "failed"].includes(edge.status)
@@ -442,6 +444,7 @@ export function createThreadHistory(
       !prior ||
       !target ||
       pending ||
+      options.owned() ||
       options.busy() ||
       Date.now() < retryAfter
     )
@@ -545,6 +548,7 @@ export function createThreadHistory(
       nextCheck = now + cadence;
       return;
     }
+    if (options.owned()) return;
     if (now >= nextCheck) {
       nextCheck = now + cadence;
       void checkNewest(true);
@@ -553,7 +557,14 @@ export function createThreadHistory(
   async function refresh(automatic = false) {
     const prior = state.value.result;
     const url = state.value.newestURL;
-    if (!prior || !url || pending || options.busy() || Date.now() < retryAfter)
+    if (
+      !prior ||
+      !url ||
+      pending ||
+      options.owned() ||
+      options.busy() ||
+      Date.now() < retryAfter
+    )
       return;
     pending = true;
     const current = epoch;
@@ -701,6 +712,7 @@ export function createThreadHistory(
   }
   return {
     state: readonly(state),
+    busy: () => pending,
     activate,
     cancelPending,
     load,

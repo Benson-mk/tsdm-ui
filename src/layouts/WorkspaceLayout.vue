@@ -42,6 +42,7 @@ import type { Section } from "../workspace/navigation";
 const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
 const state = props.workspace.state;
 const history = props.workspace.threadHistory.state;
+const boardChecks = props.workspace.boardChecks.state;
 const privateHistory = props.workspace.privateHistory.state;
 const writing = props.workspace.writing.state;
 const privateRecipientId = computed(
@@ -1144,14 +1145,22 @@ function navigate(event: MouseEvent) {
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
 function tickThreadRefresh() {
   const root = workspaceHost().shadowRoot;
-  const visible =
+  const available =
     !document.hidden &&
-    !!root?.querySelector(".reading-pane")?.getClientRects().length &&
     ![
       ...(root?.querySelectorAll('[role="dialog"], [role="alertdialog"]') ??
         []),
     ].some((dialog) => dialog.getClientRects().length > 0);
+  const visible =
+    available &&
+    !!root?.querySelector(".reading-pane")?.getClientRects().length;
   props.workspace.threadHistory.tick(visible);
+  props.workspace.boardChecks.tick(
+    available &&
+      !!root
+        ?.querySelector(".results-pane[data-scroll-pane=results]")
+        ?.getClientRects().length,
+  );
   props.workspace.privateHistory.tick(visible);
 }
 onMounted(() => {
@@ -2764,7 +2773,83 @@ function boardIdFrom(url: string) {
         data-scroll-pane="results"
         :aria-label="text.threadResults"
       >
-        <h1>{{ boardContext.title }}</h1>
+        <div class="board-heading">
+          <h1>{{ boardContext.title }}</h1>
+          <button
+            class="icon-button"
+            :aria-label="text.checkNewThreads"
+            :title="text.checkNewThreads"
+            :disabled="
+              boardChecks.checking ||
+              boardChecks.retryMinutes > 0 ||
+              !workspace.boardChecks.canCheck()
+            "
+            @click="workspace.boardChecks.check()"
+          >
+            <WorkspaceIcon name="refresh" />
+          </button>
+        </div>
+        <div class="board-check-status" aria-live="polite">
+          <span>{{
+            boardChecks.checking
+              ? text.boardChecking
+              : boardChecks.failure
+                ? text.boardCheckFailed
+                : !workspace.boardChecks.canCheck()
+                  ? text.boardCheckUnavailable
+                  : boardChecks.baseline
+                    ? text.boardBaseline
+                    : boardChecks.automatic && boardChecks.paused
+                      ? text.refreshPaused
+                      : boardChecks.checkedAt
+                        ? text.boardChecked
+                        : text.boardCheckHelp
+          }}</span>
+          <div class="board-check-actions">
+            <button
+              v-if="boardChecks.arrivals.length"
+              @click="workspace.boardChecks.reveal()"
+            >
+              {{
+                insert(
+                  boardContext.pages.current !== "1"
+                    ? text.showNewThreadsFirst
+                    : boardChecks.arrivals.length === 1
+                      ? text.showNewThread
+                      : text.showNewThreads,
+                  String(boardChecks.arrivals.length),
+                )
+              }}
+            </button>
+            <details
+              class="board-check-details"
+              :style="{
+                visibility: boardChecks.failure ? 'visible' : 'hidden',
+              }"
+            >
+              <summary
+                :aria-label="text.checkDetails"
+                :title="text.checkDetails"
+              >
+                <WorkspaceIcon name="about" />
+              </summary>
+              <div class="board-check-explanation">
+                <p>
+                  {{
+                    boardChecks.failure && "message" in boardChecks.failure
+                      ? boardChecks.failure.message
+                      : text.boardCheckFailed
+                  }}
+                </p>
+                <p v-if="boardChecks.retryMinutes">
+                  {{
+                    insert(text.boardRetry, String(boardChecks.retryMinutes))
+                  }}
+                </p>
+              </div>
+            </details>
+          </div>
+        </div>
         <span
           v-if="listCategory.label"
           class="category-label"
