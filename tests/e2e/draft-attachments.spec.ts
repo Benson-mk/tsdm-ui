@@ -1,3 +1,4 @@
+import { writingDetailAction } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { publishSavedDraft } from "./draft-review-controls";
 import { combinedSource, richRoundTrip } from "./combined-authoring";
@@ -707,12 +708,9 @@ for (const stage of ["selected", "uploaded", "pending-save"] as const)
         page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
       ).toBeVisible();
       state.files.delete("88");
-      await page
-        .getByRole("button", {
-          name: "Check current account and form",
-          exact: true,
-        })
-        .click();
+      await (
+        await writingDetailAction(page, "Check current account and form")
+      ).click();
       await save(page);
       await expect(
         page.getByText(/current attachment references changed/),

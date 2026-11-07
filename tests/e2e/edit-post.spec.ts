@@ -1,3 +1,4 @@
+import { writingDetailAction, writingTool } from "./editor-controls";
 import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -227,17 +228,11 @@ test("J5.edit-conflict: retain local revision and show latest source/options/ref
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(
-    page.getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    }),
+    await writingDetailAction(page, "Check current account and form"),
   ).toBeEnabled();
   await expect(
     page.getByLabel("Latest server source", { exact: true }),
@@ -953,15 +948,13 @@ test("J5.editor-shared-edit: ordinary visual formatting preserves owned unknown 
     field.setSelectionRange(field.value.length - 9, field.value.length);
     field.dispatchEvent(new Event("select", { bubbles: true }));
   });
-  await page.getByRole("button", { name: "Bold", exact: true }).click();
+  await (await writingTool(page, "Bold")).click();
   await expect(
     page
       .getByRole("textbox", { name: "Visual post content", exact: true })
       .getByText("formatted", { exact: true }),
   ).toHaveCSS("font-weight", "700");
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Source editor")).click();
   const expected = original + " [b]formatted[/b]";
   await expect(complete).toHaveValue(expected);
   await review(page);

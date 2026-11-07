@@ -1,3 +1,4 @@
+import { writingDetailAction } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { publishSavedDraft } from "./draft-review-controls";
 import {
@@ -1644,26 +1645,17 @@ for (const kind of ["direct", "funded"] as const)
     }
     await expect.poll(() => state.commands.length).toBe(1);
     await expect(
-      page.getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      }),
+      await writingDetailAction(page, "Check current account and form"),
     ).toBeVisible();
     const before = await recovered(page);
     state.member = "8";
-    await page
-      .getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Check current account and form")
+    ).click();
     await expect(page.getByText(/Sending paused/)).toBeVisible();
-    await page
-      .getByRole("button", {
-        name: "Prepare text copy for current account",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Prepare text copy for current account")
+    ).click();
     await page
       .getByRole("button", { name: "Replace with text copy", exact: true })
       .click();
@@ -1905,12 +1897,9 @@ for (const kind of ["direct", "funded"] as const) {
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue("[unknown]Draft source[/unknown]");
     const readCount = state.reads.length;
-    await page
-      .getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Check current account and form")
+    ).click();
     await expect.poll(() => state.reads.length).toBeGreaterThan(readCount);
     expect(state.commands).toHaveLength(1);
     await evidence(page, info, state);

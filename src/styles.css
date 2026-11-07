@@ -1969,13 +1969,94 @@ select {
   margin-bottom: 8px;
 }
 .composer-entry button {
-  min-height: 64px;
-  width: 100%;
-  border: 1px solid var(--boundary);
-  border-radius: 8px;
-  color: var(--muted);
+  min-height: 44px;
   font-size: calc(1rem * var(--text-scale, 1));
   text-align: left;
+}
+.writing-presentation-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.source-writing .writing-destination {
+  margin-block: 4px;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+}
+.writing-details > summary {
+  min-height: 44px;
+  cursor: pointer;
+}
+.bottom-resume {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  max-height: calc(var(--view-height, 100dvh) * 0.3);
+  overflow: auto;
+  padding: 4px max(16px, var(--safe-right)) calc(4px + var(--safe-bottom))
+    max(16px, var(--safe-left));
+  background: var(--surface);
+  box-shadow: 0 -4px 16px rgb(0 0 0 / 6%);
+}
+.bottom-resume > button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.bottom-resume .writing-destination {
+  margin-block: 0;
+  min-width: 0;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+}
+.resume-destination {
+  min-width: 0;
+}
+@media (max-width: 559px) {
+  .bottom-resume {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .resume-destination {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}
+.resume-destination > p,
+.writing-mismatch {
+  margin-block: 4px;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+}
+.workspace-body > .conversation-region.writing-wide {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) 420px;
+  grid-template-rows: auto minmax(96px, 1fr) auto auto;
+}
+.writing-wide > .conversation-heading {
+  grid-column: 1;
+  grid-row: 1;
+}
+.writing-wide > .reading-pane,
+.writing-wide > .reader-placeholder {
+  grid-column: 1;
+  grid-row: 2;
+}
+.writing-wide > .conversation-status {
+  grid-column: 1;
+  grid-row: 3;
+}
+.writing-wide > .composer-entry {
+  grid-column: 1;
+  grid-row: 4;
+}
+.writing-wide > .source-writing {
+  grid-column: 2;
+  grid-row: 1 / 5;
+  height: 100%;
+  max-height: none;
+  border-top: 0;
+  box-shadow: -4px 0 16px rgb(0 0 0 / 6%);
 }
 .source-writing:not(.writing-expanded) {
   height: calc(280px + var(--safe-bottom));

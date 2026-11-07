@@ -1,3 +1,4 @@
+import { revealWritingTools } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 
@@ -29,7 +30,7 @@ export async function writingPresentationRoundTrip(
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
   const retained = page.locator(".retained-writing");
-  await expect(retained).toBeVisible();
+  await expect(page.locator(".bottom-resume")).toBeVisible();
   if (
     before.attempts?.some((a: { status: string }) =>
       ["pending", "uncertain", "moderation"].includes(a.status),
@@ -64,6 +65,7 @@ export async function richRoundTrip(page: Page, source: string) {
   await writingPresentationRoundTrip(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await expect(editor).toHaveValue(source);
+  await revealWritingTools(page);
   await page
     .getByRole("button", { name: "Visual editor", exact: true })
     .click();

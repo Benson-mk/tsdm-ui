@@ -1,3 +1,5 @@
+import { readableLines, expectPreservedReadingLine } from "./readable-lines";
+import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { revealNavigation } from "./navigation-ui";
@@ -24,7 +26,12 @@ function fixtureState() {
     } | null,
   };
 }
-async function open(page: Page, openingOwned = false, reviewForm = false) {
+async function open(
+  page: Page,
+  openingOwned = false,
+  reviewForm = false,
+  longBody = false,
+) {
   const state = fixtureState();
   state.openingOwned = openingOwned;
   states.set(page, state);
@@ -55,7 +62,9 @@ async function open(page: Page, openingOwned = false, reviewForm = false) {
     if (state.gate && action === state.gate.action && post === state.gate.post)
       await state.gate.promise;
     let body = account + board;
-    if (url.searchParams.get("mod") === "post") {
+    if (!url.searchParams.get("mod"))
+      body += `<div class="bm"><div class="bm_h"><h2><a href="forum.php?gid=14">Music</a></h2></div><div id="category_14"><table><tr><td><h2><a href="${boardURL}">Music discussion</a></h2></td></tr></table></div></div>`;
+    else if (url.searchParams.get("mod") === "post") {
       const edit = action === "edit",
         replyEdit = url.searchParams.get("pid") === "202";
       body += state.refused
@@ -64,7 +73,7 @@ async function open(page: Page, openingOwned = false, reviewForm = false) {
     } else if (url.searchParams.get("mod") === "forumdisplay")
       body += `<div id="ct"><h1><a href="${boardURL}">Music discussion</a></h1></div><table id="threadlisttableid"><tbody id="normalthread_42"><tr><th><a class="xst" href="${threadURL}">Existing thread</a></th></tr></tbody></table>`;
     else
-      body += `<div id="postlist"><h1 id="thread_subject">Existing thread</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=${state.openingOwned ? "7" : "8"}">${state.openingOwned ? "Writer Seven" : "Other author"}</a></div><a id="postnum101"><em>1</em>#</a><div class="pcb"><p>Original opening body</p></div></div><div id="post_202"><div class="authi"><a href="home.php?mod=space&uid=7">Writer Seven</a></div><a id="postnum202"><em>2</em>#</a><div class="pcb"><p>Owned reply</p></div></div></div>`;
+      body += `<div id="postlist"><h1 id="thread_subject">Existing thread</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=${state.openingOwned ? "7" : "8"}">${state.openingOwned ? "Writer Seven" : "Other author"}</a></div><a id="postnum101"><em>1</em>#</a><div class="pcb">${longBody ? Array.from({ length: 80 }, (_, i) => `<p>Reading paragraph ${i} with a stable complete line.</p>`).join("") : ""}<p>Original opening body <a href="forum.php?mod=viewthread&tid=43">Another thread</a></p></div></div><div id="post_202"><div class="authi"><a href="home.php?mod=space&uid=7">Writer Seven</a></div><a id="postnum202"><em>2</em>#</a><div class="pcb"><p>Owned reply</p></div></div></div>`;
     return route.fulfill({
       contentType: "application/json; charset=utf-8",
       body: JSON.stringify({ document: body }),
@@ -145,6 +154,68 @@ test.afterEach(async ({ page }, info) => {
 });
 
 // These whole-application expectations precede presentation feature code.
+test("UI87.compact: concise destination and input lead to Review while expansion reveals every existing editor tool", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1000, height: 900 });
+  const server = await open(page, false, true);
+  await enter(page, "addressed");
+  const writer = page.getByRole("region", {
+    name: "Writing context",
+    exact: true,
+  });
+  await expect(writer.getByRole("heading")).toHaveCount(0);
+
+  await expect(
+    writer.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Writer Seven");
+  await expect(
+    writer.getByRole("link", {
+      name: "Addressed to Other author · Post 101",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    writer.getByRole("button", { name: "Bold", exact: true }),
+  ).toBeHidden();
+  await expect(
+    writer.getByRole("button", { name: "Undo", exact: true }),
+  ).toBeHidden();
+  await expect(
+    writer.getByText("Advanced authoring tools", { exact: true }),
+  ).toBeHidden();
+  await expect(writer.getByText("Details", { exact: true })).toBeVisible();
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill("Concise reply 中文");
+  await expect(
+    writer.getByRole("group", { name: "Review destination", exact: true }),
+  ).toHaveCount(0);
+  const handle = await source.elementHandle();
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
+    .click();
+  for (const name of ["Bold", "Undo", "Redo", "Visual editor", "Source editor"])
+    await expect(
+      writer.getByRole("button", { name, exact: true }),
+    ).toBeVisible();
+  await writer.getByText("Advanced authoring tools", { exact: true }).click();
+  await expect(
+    writer.getByRole("button", { name: "Insert table", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Compact writing", exact: true })
+    .click();
+  expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
+  await expect(source).toHaveValue("Concise reply 中文");
+  expect(server.requests.every((request) => request.method === "GET")).toBe(
+    true,
+  );
+  await info.attach("concise-writer.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
 const profiles = [
   {
     width: 390,
@@ -243,10 +314,15 @@ for (const profile of profiles)
       await expect(source).toBeFocused();
       await source.fill(retained);
       const selection = { start: 3, end: 4 };
-      if (mode === "visual")
+      if (mode === "visual") {
+        await revealWritingTools(page);
         await page
           .getByRole("button", { name: profile.visualMode, exact: true })
           .click();
+        await page
+          .getByRole("button", { name: profile.compact, exact: true })
+          .click();
+      }
       const editor =
         mode === "source"
           ? source
@@ -330,9 +406,8 @@ for (const profile of profiles)
         .getByRole("button", { name: profile.reading, exact: true })
         .click();
       await expect(editor).toBeHidden();
-      await page.locator(".retained-writing summary").click();
       await expect(
-        page.locator(".retained-writing").getByRole("group", {
+        page.locator(".bottom-resume").getByRole("group", {
           name: /Writing destination|写作目标|寫作目標/,
           exact: true,
         }),
@@ -354,6 +429,7 @@ for (const profile of profiles)
       await expect
         .poll(async () => (await stored(page)).source)
         .not.toBe(retained);
+      await revealWritingTools(page);
       await page
         .getByRole("button", { name: profile.undo, exact: true })
         .click();
@@ -364,6 +440,7 @@ for (const profile of profiles)
       await expect
         .poll(async () => (await stored(page)).source)
         .not.toBe(retained);
+      await revealWritingTools(page);
       await page
         .getByRole("button", { name: profile.undo, exact: true })
         .click();
@@ -409,6 +486,7 @@ for (const entry of ["new-thread", "edit-opening", "edit-reply"] as const)
     expect(before.attachmentFields[0].name).toBe("attachnew[77][description]");
     if (entry === "edit-reply")
       await expect(page.getByLabel("Title", { exact: true })).toHaveCount(0);
+    await revealWritingDetails(page);
     await expect(
       page.getByRole("button", {
         name: "Check current account and form",
@@ -471,11 +549,11 @@ test("UX57.retained-warning: compact reading entry discloses destination while a
     exact: true,
   });
   await expect(retained.getByRole("alert")).toContainText("321");
-  await retained.locator("summary").click();
   await expect(
-    retained.getByRole("group", { name: "Writing destination", exact: true }),
+    page
+      .locator(".bottom-resume")
+      .getByRole("group", { name: "Writing destination", exact: true }),
   ).toContainText("Writer Seven");
-  await retained.locator("summary").click();
   await expect(retained.getByRole("alert")).toBeVisible();
 });
 
@@ -492,10 +570,16 @@ for (const mode of ["source", "visual"] as const)
           .click();
       const source = page.getByLabel("Complete source", { exact: true });
       await source.fill("Base ");
-      if (mode === "visual")
+      if (mode === "visual") {
+        await revealWritingTools(page);
         await page
           .getByRole("button", { name: "Visual editor", exact: true })
           .click();
+        if (action === "expand")
+          await page
+            .getByRole("button", { name: "Compact writing", exact: true })
+            .click();
+      }
       const editor =
         mode === "source"
           ? source
@@ -602,10 +686,12 @@ for (const mode of ["source", "visual"] as const)
             exact: true,
           }),
         ).toBeVisible();
-      if (mode === "visual")
+      if (mode === "visual") {
+        await revealWritingTools(page);
         await page
           .getByRole("button", { name: "Source editor", exact: true })
           .click();
+      }
       const finalSource = await source.inputValue();
       await info.attach("browser-composition-pointer-order.json", {
         body: JSON.stringify(
@@ -639,16 +725,19 @@ for (const mode of ["source", "visual"] as const)
               writing.classList.contains("writing-expanded"),
             ),
         )
-        .toBe(action !== "compact");
+        .toBe(mode === "visual" || action !== "compact");
       expect(finalSource).toBe("Base nei ho");
       expect((await stored(page)).source).toBe("Base nei ho");
       await source.press("Meta+ArrowDown");
       await source.press("!");
       await expect(source).toHaveValue("Base nei ho!");
+      await revealWritingTools(page);
       await page.getByRole("button", { name: "Undo", exact: true }).click();
       await expect(source).toHaveValue("Base nei ho");
+      await revealWritingTools(page);
       await page.getByRole("button", { name: "Redo", exact: true }).click();
       await expect(source).toHaveValue("Base nei ho!");
+      await revealWritingTools(page);
       await page.getByRole("button", { name: "Undo", exact: true }).click();
       await expect(source).toHaveValue("Base nei ho");
       await expect(source).toBeFocused();
@@ -791,11 +880,17 @@ for (const size of [
       body: await page.screenshot(),
       contentType: "image/png",
     });
-    expect(expanded.writer.top).toBeGreaterThanOrEqual(
-      expanded.reader.bottom - 1,
-    );
+    if (size.width < 1440)
+      expect(expanded.writer.top).toBeGreaterThanOrEqual(
+        expanded.reader.bottom - 1,
+      );
+    else expect(expanded.writer.top).toBeLessThan(expanded.reader.bottom);
     expect(expanded.reader.height).toBeGreaterThanOrEqual(96);
-    expect(expanded.writer.height).toBeLessThanOrEqual(size.height * 0.46 + 1);
+    if (size.width < 1440)
+      expect(expanded.writer.height).toBeLessThanOrEqual(
+        size.height * 0.46 + 1,
+      );
+    else expect(expanded.writer.height).toBeGreaterThan(size.height * 0.46);
     expect(expanded.fieldMinimum).toBe(size.width < 560 ? 100 : 140);
     expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
     expect(await stored(page)).toEqual(before);
@@ -831,6 +926,7 @@ for (const entry of ["reply", "addressed", "new-thread", "edit-reply"] as const)
     await source.dispatchEvent("keydown", { key: "Enter", ctrlKey: true });
     expect(server.requests).toHaveLength(before);
     await source.dispatchEvent("compositionend", { data: "測" });
+    await revealWritingTools(page);
     await expect(
       page.getByRole("button", { name: "Undo", exact: true }),
     ).toBeEnabled();
@@ -883,6 +979,7 @@ test("IM72.addressed-return: blank addressed source names the exact post and gua
   );
   const before = await stored(page),
     requests = server.requests.length;
+  await revealWritingDetails(page);
   await writing
     .getByRole("button", { name: "Start an ordinary reply", exact: true })
     .click();
@@ -912,6 +1009,7 @@ test("IM72.visual-ime-shortcut: browser composition stays input and settled visu
   const server = await open(page, false, true);
   await enter(page, "reply");
   await page.getByLabel("Complete source", { exact: true }).fill("Base ");
+  await revealWritingTools(page);
   await page
     .getByRole("button", { name: "Visual editor", exact: true })
     .click();
@@ -935,6 +1033,7 @@ test("IM72.visual-ime-shortcut: browser composition stays input and settled visu
   });
   expect(server.requests).toHaveLength(before);
   await cdp.send("Input.insertText", { text: "你好" });
+  await revealWritingTools(page);
   await expect(
     page.getByRole("button", { name: "Undo", exact: true }),
   ).toBeEnabled();
@@ -1076,7 +1175,7 @@ test("IM72.contextual-chrome: the global bar is followed by panes and writing st
     .click();
   await expect(
     page
-      .locator(".conversation-region")
+      .locator(".bottom-resume")
       .getByRole("button", { name: "Return to writing", exact: true }),
   ).toBeVisible();
   await page
@@ -1113,4 +1212,343 @@ test("IM72.visible-history: opening and expanding a docked reply leaves actual p
     contentType: "application/json",
   });
   expect(geometry.visiblePostHeight).toBeGreaterThanOrEqual(96);
+});
+
+test("UI87.bottom-resume: minimizing releases the writer and fixes original destination at the bottom with footer-only Reply", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const server = await open(page);
+  await enter(page, "addressed");
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill("Original addressed writing");
+  const handle = await source.elementHandle();
+  await expect(
+    page
+      .locator(".conversation-heading")
+      .getByRole("button", { name: "Reply to thread", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
+    .click();
+  const before = await page.locator(".reading-pane").boundingBox();
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  const resume = page.getByRole("button", {
+    name: "Return to writing",
+    exact: true,
+  });
+  const destination = page.getByRole("group", {
+    name: "Writing destination",
+    exact: true,
+  });
+  await expect(destination).toContainText("Thread 42");
+  await expect(
+    destination.getByRole("link", {
+      name: "Addressed to Other author · Post 101",
+      exact: true,
+    }),
+  ).toBeVisible();
+  const geometry = await resume.evaluate((button) => {
+    const bar = button.parentElement!;
+    const r = bar.getBoundingClientRect();
+    return {
+      top: r.top,
+      bottom: r.bottom,
+      icon: !!button.querySelector("svg"),
+      viewport: innerHeight,
+    };
+  });
+  expect(geometry.bottom).toBe(geometry.viewport);
+  expect(geometry.icon).toBe(true);
+  const after = await page.locator(".reading-pane").boundingBox();
+  expect(after!.height * after!.width).toBeGreaterThan(
+    before!.height * before!.width,
+  );
+  await resume.click();
+  expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
+  await expect(source).toHaveValue("Original addressed writing");
+  expect((await stored(page)).replyTarget.postId).toBe("101");
+  expect(server.requests.every((request) => request.method === "GET")).toBe(
+    true,
+  );
+  await info.attach("bottom-resume.json", {
+    body: JSON.stringify({ geometry, before, after }),
+    contentType: "application/json",
+  });
+});
+
+for (const width of [1439, 1440, 1706])
+  test(`UI87.wide-${width}: expanded writing uses a protected reader and preferred 420px aside only when qualified`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const server = await open(page);
+    await enter(page, "reply");
+    const source = page.getByLabel("Complete source", { exact: true });
+    await source.fill("Selected original source");
+    await source.evaluate((node: HTMLTextAreaElement) =>
+      node.setSelectionRange(9, 17),
+    );
+    await source.dispatchEvent("select");
+    const handle = await source.elementHandle();
+    await page
+      .getByRole("button", { name: "Expand writing", exact: true })
+      .click();
+    const geometry = async () =>
+      page.locator(".source-writing").evaluate((writer) => {
+        const root = writer.getRootNode() as ShadowRoot;
+        const rect = (node: Element) => {
+          const r = node.getBoundingClientRect();
+          return {
+            left: r.left,
+            right: r.right,
+            top: r.top,
+            bottom: r.bottom,
+            width: r.width,
+            height: r.height,
+          };
+        };
+        return {
+          writer: rect(writer),
+          reader: rect(root.querySelector(".reading-pane")!),
+        };
+      });
+    const wide = await geometry();
+    if (width >= 1440) {
+      expect(wide.writer.left).toBeGreaterThanOrEqual(wide.reader.right - 1);
+      expect(wide.writer.width).toBe(420);
+      expect(wide.reader.width).toBeGreaterThanOrEqual(320);
+      expect(wide.writer.height).toBeGreaterThan(500);
+    } else
+      expect(wide.writer.top).toBeGreaterThanOrEqual(wide.reader.bottom - 1);
+    await page.setViewportSize({ width: 1000, height: 900 });
+    await expect
+      .poll(async () => {
+        const g = await geometry();
+        return g.writer.top >= g.reader.bottom - 1;
+      })
+      .toBe(true);
+    const narrow = await geometry();
+    expect(narrow.writer.top).toBeGreaterThanOrEqual(narrow.reader.bottom - 1);
+    expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
+    expect(
+      await source.evaluate((node: HTMLTextAreaElement) => [
+        node.selectionStart,
+        node.selectionEnd,
+      ]),
+    ).toEqual([9, 17]);
+    await source.press("!");
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(source).toHaveValue("Selected original source");
+    expect(server.requests.every((request) => request.method === "GET")).toBe(
+      true,
+    );
+    await info.attach("wide-layout.json", {
+      body: JSON.stringify({ wide, narrow }),
+      contentType: "application/json",
+    });
+  });
+
+test("UI87.mismatch-review: bottom resume and review retain the original addressed target after permitted browsing", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const server = await open(page, false, true);
+  await enter(page, "addressed");
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill("Original target answer");
+  const handle = await source.elementHandle();
+  await page.getByRole("link", { name: "Another thread", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Keep writing and read thread", exact: true })
+    .click();
+  await expect(page.locator(".bottom-resume")).toContainText("Thread 42");
+  await expect(
+    page
+      .locator(".bottom-resume")
+      .getByText(
+        "Writing still targets the original destination shown here, not the current reader.",
+        { exact: true },
+      ),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
+  await expect(source).toHaveValue("Original target answer");
+  await source.press("Control+Enter");
+  const review = page.getByRole("region", {
+    name: "Prepared publication review",
+    exact: true,
+  });
+  await expect(review).toBeVisible();
+  await expect(review).toContainText("Thread 42");
+  await expect(review).toContainText("Other author · Post 101");
+  expect(server.requests.every((request) => request.method === "GET")).toBe(
+    true,
+  );
+  await info.attach("original-target-review.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UI87.reading-anchor: expansion into and out of the aside preserves a genuinely visible reader line", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const server = await open(page, false, true, true);
+  await enter(page, "reply");
+  const pane = page.locator(".reading-pane");
+  await pane.evaluate((node) => (node.scrollTop = 650));
+  const before = await readableLines(page);
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
+    .click();
+  const wide = await readableLines(page);
+  await info.attach("aside-reader-anchor.json", {
+    body: JSON.stringify({ before, wide }),
+    contentType: "application/json",
+  });
+  expectPreservedReadingLine(before, wide);
+  await page
+    .getByRole("button", { name: "Compact writing", exact: true })
+    .click();
+  const after = await readableLines(page);
+  expectPreservedReadingLine(wide, after);
+  expect(server.requests.every((request) => request.method === "GET")).toBe(
+    true,
+  );
+});
+
+test("UI87.target-color: writing destination keeps the source-qualified board role across compact wide and bottom resume", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page);
+  await page.locator(".brand").click();
+  await page
+    .locator(".board-card")
+    .filter({ hasText: "Music discussion" })
+    .click();
+  await page
+    .locator(".results-pane")
+    .getByRole("link", { name: "Existing thread", exact: true })
+    .click();
+  await enter(page, "reply");
+  const boardLabel = page.locator(
+    ".source-writing .writing-destination .category-label",
+  );
+  await expect(boardLabel).toContainText("Music discussion");
+  expect(
+    await boardLabel.evaluate((node) => getComputedStyle(node).backgroundColor),
+  ).toBe("rgb(166, 198, 225)");
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
+    .click();
+  expect(
+    await boardLabel.evaluate((node) => getComputedStyle(node).backgroundColor),
+  ).toBe("rgb(166, 198, 225)");
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  const retained = page.locator(".bottom-resume .category-label");
+  expect(
+    await retained.evaluate((node) => getComputedStyle(node).backgroundColor),
+  ).toBe("rgb(166, 198, 225)");
+  await info.attach("retained-target-role.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UI87.short-restored: focused writing retains at least96px of actually visible history after a restored mismatch", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 375, height: 420 });
+  await open(page, false, true, true);
+  await enter(page, "reply");
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill("Retained short reply");
+  await page.getByRole("link", { name: "Another thread", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Keep writing and read thread", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await page.reload();
+  await expect(source).toHaveValue("Retained short reply");
+  await source.focus();
+  const lines = await readableLines(page);
+  await info.attach("restored-short-reader.json", {
+    body: JSON.stringify(lines),
+    contentType: "application/json",
+  });
+  await info.attach("restored-short-reader.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  expect(lines.visibleHeight).toBeGreaterThanOrEqual(96);
+  const review = page.getByRole("button", {
+    name: "Review publication",
+    exact: true,
+  });
+  await review.focus();
+  const after = await readableLines(page);
+  expect(after.visibleHeight).toBeGreaterThanOrEqual(96);
+});
+
+test("UI87.short-resume: overflowed original author destination and mismatch can all be scrolled into the bottom bar", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 375, height: 420 });
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "tsdm.workspace.preferences",
+      JSON.stringify({
+        schema: 1,
+        textSize: 150,
+        language: "en",
+        theme: "light",
+      }),
+    ),
+  );
+  await open(page, false, true, true);
+  await enter(page, "addressed");
+  await page
+    .getByLabel("Complete source", { exact: true })
+    .fill("Original addressed source");
+  await page.getByRole("link", { name: "Another thread", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Keep writing and read thread", exact: true })
+    .click();
+  const bar = page.locator(".bottom-resume");
+  const geometry = async () =>
+    bar.evaluate((node) => {
+      const rect = (e: Element) => {
+        const r = e.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom };
+      };
+      return {
+        bar: rect(node),
+        author: rect(node.querySelector(".writing-destination p")!),
+        mismatch: rect(node.querySelector(".resume-destination > p")!),
+        scrollTop: node.scrollTop,
+        scrollHeight: node.scrollHeight,
+        clientHeight: node.clientHeight,
+      };
+    });
+  await bar.evaluate((node) => (node.scrollTop = 0));
+  const top = await geometry();
+  expect(top.author.top).toBeGreaterThanOrEqual(top.bar.top);
+  await bar.evaluate((node) => (node.scrollTop = node.scrollHeight));
+  const bottom = await geometry();
+  expect(bottom.mismatch.bottom).toBeLessThanOrEqual(bottom.bar.bottom);
+  await info.attach("short-resume-reachability.json", {
+    body: JSON.stringify({ top, bottom }),
+    contentType: "application/json",
+  });
 });

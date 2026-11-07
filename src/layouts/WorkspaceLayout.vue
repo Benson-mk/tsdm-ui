@@ -700,6 +700,39 @@ watch(download, async (value) => {
       ?.scrollIntoView({ block: "nearest" });
 });
 const writingExpanded = ref(false);
+const conversationRegion = ref<HTMLElement | null>(null);
+const conversationWidth = ref(0);
+const writingWide = computed(
+  () =>
+    writing.value.visible &&
+    writingExpanded.value &&
+    paneWidth.value >= 1440 &&
+    conversationWidth.value >= 740,
+);
+const writingElsewhere = computed(() => {
+  const context = writing.value.context;
+  if (!context) return false;
+  if (context.action === "private-message")
+    return (
+      !!reading.value ||
+      (!!state.value.privateReading &&
+        state.value.privateReading.conversation.peerId !== context.recipient.id)
+    );
+  const target = context.replyTarget?.threadId ?? context.editTarget?.threadId;
+  return (
+    !!state.value.privateReading ||
+    (!!reading.value && target !== reading.value.thread.id)
+  );
+});
+let conversationObserver: ResizeObserver | undefined;
+onMounted(() => {
+  conversationObserver = new ResizeObserver(() => {
+    conversationWidth.value = conversationRegion.value?.clientWidth ?? 0;
+  });
+  if (conversationRegion.value)
+    conversationObserver.observe(conversationRegion.value);
+});
+onUnmounted(() => conversationObserver?.disconnect());
 watch(
   () => writing.value.context?.id,
   () => {
@@ -825,6 +858,15 @@ const boardChoices = computed(() =>
     : (boardContext.value?.boards ?? []),
 );
 const observedDirectory = ref<DeepReadonly<Directory> | null>(null);
+const writingCategory = computed(
+  () =>
+    boardCategory(
+      observedDirectory.value,
+      writing.value.context?.action === "private-message"
+        ? null
+        : writing.value.context?.board.id,
+    ).role,
+);
 let directoryAccount: string | null = null;
 watch(
   [() => state.value.result, () => props.workspace.accountObservation.value],
@@ -2619,7 +2661,9 @@ function boardIdFrom(url: string) {
       </section>
       <div
         v-show="conversationVisible"
+        ref="conversationRegion"
         class="conversation-region"
+        :class="{ 'writing-wide': writingWide }"
         :data-writing-visible="!!writing.context && writing.visible"
       >
         <section
@@ -2718,22 +2762,6 @@ function boardIdFrom(url: string) {
               "
             />
           </div>
-          <button
-            v-if="reading.thread.parent && writing.context"
-            @click="
-              workspace.writing.prepareReply(
-                boardIdFrom(reading.thread.parent.url),
-                {
-                  threadId: reading.thread.id,
-                  postId: null,
-                  author: '',
-                  authorId: null,
-                },
-              )
-            "
-          >
-            {{ text.replyToThread }}
-          </button>
           <p v-if="missingTarget" role="alert">
             {{ insert(text.missingPost, reading.thread.target ?? "") }}
           </p>
@@ -2997,7 +3025,6 @@ function boardIdFrom(url: string) {
           <div class="conversation-status">
             <div
               v-if="
-                (writing.context && !writing.visible) ||
                 writing.preparing ||
                 writing.message ||
                 writing.privateReplacement ||
@@ -3007,12 +3034,6 @@ function boardIdFrom(url: string) {
               "
               class="writing-actions"
             >
-              <button
-                v-if="writing.context && !writing.visible"
-                @click="workspace.writing.show()"
-              >
-                {{ text.returnWriting }}
-              </button>
               <p v-if="writing.preparing" role="status">
                 {{ text.preparingForm }}
               </p>
@@ -3101,14 +3122,6 @@ function boardIdFrom(url: string) {
               class="retained-writing"
               :aria-label="text.retainedWriting"
             >
-              <details>
-                <summary>{{ text.retainedWriting }}</summary>
-                <WritingDestination
-                  :writing="writing.context"
-                  :language="workspace.preferences.state.value.language"
-                  compact
-                />
-              </details>
               <p v-if="!writing.accountVerified" role="alert">
                 {{
                   insert(
@@ -3163,10 +3176,9 @@ function boardIdFrom(url: string) {
           </div>
         </Teleport>
         <div
-          v-if="reading?.thread.parent && !writing.context"
+          v-if="reading?.thread.parent && !writing.visible"
           class="composer-entry"
         >
-          <span class="composer-caption">{{ text.replyToThread }}</span>
           <button
             v-if="reading?.thread.parent"
             @click="
@@ -3216,10 +3228,27 @@ function boardIdFrom(url: string) {
           :key="writing.context.id"
           :workspace="workspace"
           :expanded="writingExpanded"
+          :elsewhere="writingElsewhere"
+          :category="writingCategory"
           @resize="resizeWriting"
         />
       </div>
     </main>
     <div ref="browsingWritingStatus" class="browsing-writing-status" />
+    <div v-if="writing.context && !writing.visible" class="bottom-resume">
+      <button @click="workspace.writing.show()">
+        <WorkspaceIcon name="compose" />
+        {{ text.returnWriting }}
+      </button>
+      <div class="resume-destination">
+        <WritingDestination
+          :writing="writing.context"
+          :language="workspace.preferences.state.value.language"
+          :category="writingCategory"
+          compact
+        />
+        <p v-if="writingElsewhere" role="status">{{ text.writingElsewhere }}</p>
+      </div>
+    </div>
   </div>
 </template>

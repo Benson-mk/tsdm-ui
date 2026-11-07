@@ -1,3 +1,5 @@
+import { revealWritingTools } from "./editor-controls";
+import { writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
 import {
   openSettings,
@@ -264,15 +266,13 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
     node.setSelectionRange(0, 10);
     node.dispatchEvent(new Event("select", { bubbles: true }));
   });
-  await page.getByRole("button", { name: "Italic", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Italic")).click();
+  await (await writingTool(page, "Source editor")).click();
   const formatted = `[i]Integrated[/i] text\n${replyBody}`;
   await expect(source).toHaveValue(formatted);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   await expect(source).toHaveValue(unformatted);
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await (await writingTool(page, "Redo")).click();
   await expect(source).toHaveValue(formatted);
   const before = await retained(page);
   const selection = await source.evaluate((node: HTMLTextAreaElement) => [
@@ -386,9 +386,7 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
   await page.getByRole("button", { name: "Threads pane", exact: true }).click();
   await expect(review).toBeVisible();
   expect(await retained(page)).toEqual(corrected);
-  await page
-    .getByRole("button", { name: "Expand writing", exact: true })
-    .click();
+  await revealWritingTools(page);
   await capture(page, info);
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
@@ -611,28 +609,25 @@ for (const [entry, width, height, textSize, theme, language] of [
       await page.getByLabel("Title", { exact: true }).fill(title);
       await page.getByLabel("Category", { exact: true }).selectOption("3");
     }
+    await revealWritingTools(page);
     await page.getByLabel("Signature", { exact: true }).uncheck();
     const original =
       entry === "new-thread" ? body.replace(" [attach]77[/attach]", "") : body;
     await source.fill(original);
     await source.press("ControlOrMeta+End");
     await source.press("!");
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await (await writingTool(page, "Undo")).click();
     await expect(source).toHaveValue(original);
-    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await (await writingTool(page, "Redo")).click();
     const finalSource = original + "!";
     await expect(source).toHaveValue(finalSource);
-    await page
-      .getByRole("button", { name: "Visual editor", exact: true })
-      .click();
+    await (await writingTool(page, "Visual editor")).click();
     await expect(
       page
         .getByRole("textbox", { name: "Visual post content", exact: true })
         .locator("table"),
     ).toHaveCount(1);
-    await page
-      .getByRole("button", { name: "Source editor", exact: true })
-      .click();
+    await (await writingTool(page, "Source editor")).click();
     await expect(source).toHaveValue(finalSource);
     await source.evaluate((node: HTMLTextAreaElement) => {
       node.setSelectionRange(3, 11);
@@ -776,6 +771,7 @@ test("UX59.frozen-new-thread: review exact content settings references and inert
   await page.getByLabel("Title", { exact: true }).fill(title);
   await page.getByLabel("Complete source", { exact: true }).fill(body);
   await page.getByLabel("Category", { exact: true }).selectOption("3");
+  await revealWritingTools(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await page
     .getByRole("button", { name: "Review publication", exact: true })
@@ -859,6 +855,7 @@ for (const entry of [
     await page.getByLabel("Complete source", { exact: true }).fill(body);
     if (entry === "edit-opening")
       await page.getByLabel("Title", { exact: true }).fill(title);
+    await revealWritingTools(page);
     await page.getByLabel("Signature", { exact: true }).uncheck();
     await page
       .getByRole("button", {
@@ -964,9 +961,9 @@ test("UX59.cancel-preservation: inspect source keyboard disclosure cancel and re
   await expect(source).toBeFocused();
   expect((await retained(page)).source).toBe(body + "!");
   expect((await retained(page)).revision).toBe(before.revision);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   await expect(source).toHaveValue(body);
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await (await writingTool(page, "Redo")).click();
   await expect(source).toHaveValue(body + "!");
   await page
     .getByRole("button", { name: "Review publication", exact: true })
@@ -1007,8 +1004,10 @@ for (const change of ["source", "title", "category", "option"] as const) {
       await page.getByLabel("Title", { exact: true }).fill(title + " later");
     if (change === "category")
       await page.getByLabel("Category", { exact: true }).selectOption("3");
-    if (change === "option")
+    if (change === "option") {
+      await revealWritingTools(page);
       await page.getByLabel("Signature", { exact: true }).uncheck();
+    }
     await expect(review).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Publish thread", exact: true }),
@@ -1336,9 +1335,7 @@ for (const entry of [
         await page.getByLabel("Title", { exact: true }).fill("Retained title");
       await page.getByLabel("Complete source", { exact: true }).fill("  \n ");
       if (mode === "visual")
-        await page
-          .getByRole("button", { name: "Visual editor", exact: true })
-          .click();
+        await (await writingTool(page, "Visual editor")).click();
       const before = await retained(page),
         requests = f.requests.length;
       await page
@@ -1686,9 +1683,7 @@ for (const mode of ["source", "visual"] as const)
     await page.getByLabel("Title", { exact: true }).fill("Retained title 完整");
     await page.getByLabel("Complete source", { exact: true }).fill(" \n ");
     if (mode === "visual")
-      await page
-        .getByRole("button", { name: "Visual editor", exact: true })
-        .click();
+      await (await writingTool(page, "Visual editor")).click();
     const before = await retained(page),
       requests = f.requests.length;
     await page

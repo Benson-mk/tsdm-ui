@@ -1,3 +1,4 @@
+import { revealWritingDetails, writingDetailAction } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
 import {
   openSettings,
@@ -281,12 +282,9 @@ for (const member of ["guest", "8"])
         .getByText(/Writing as Writer 7/),
     ).toBeVisible();
     current = "8";
-    await page
-      .getByRole("button", {
-        name: "Prepare text copy for current account",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Prepare text copy for current account")
+    ).click();
     await expect(
       page.getByText(
         /Replace writing from Writer 7 with a text copy for Writer 8/,
@@ -298,12 +296,9 @@ for (const member of ["guest", "8"])
     await expect(page.getByLabel("Thread price", { exact: true })).toHaveValue(
       "99",
     );
-    await page
-      .getByRole("button", {
-        name: "Prepare text copy for current account",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Prepare text copy for current account")
+    ).click();
     await page
       .getByRole("button", { name: "Replace with text copy", exact: true })
       .click();
@@ -617,12 +612,9 @@ test("J11.preparation-account: a newly observed account invalidates retained old
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   member = "8";
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(page.getByText(/Sending paused/)).toBeVisible();
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
@@ -740,12 +732,9 @@ test("J11.stale-preparation: an older form cannot replace a newer observed accou
       body: form("5", "7"),
     });
   });
-  await page
-    .getByRole("button", {
-      name: "Prepare text copy for current account",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Prepare text copy for current account")
+  ).click();
   await expect.poll(() => waiting).toBe(true);
   await page.route("**/*mod=forumdisplay*", (route) =>
     route.fulfill({
@@ -925,12 +914,9 @@ test("J11.failed-replacement-account: an account-changing denied preparation pau
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   await page.goto(`${origin}/forum.php?mod=forumdisplay&fid=6`);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(page.getByText(/Sending paused/)).toHaveCount(0);
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   denied = true;
@@ -963,6 +949,10 @@ test("J5.short-window-focus: opening writing with keyboard places its focused so
   await expect(editor).toBeFocused();
   await expect(editor).toBeInViewport();
   await editor.press("Tab");
+  const details = page.locator(".writing-details > summary");
+  await expect(details).toBeFocused();
+  await details.press("Enter");
+  await details.press("Tab");
   await expect(
     page.getByRole("button", {
       name: "Check current account and form",
@@ -1007,12 +997,9 @@ for (const failure of [
               : JSON.stringify({ document: account() }),
       });
     });
-    await page
-      .getByRole("button", {
-        name: "Prepare text copy for current account",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Prepare text copy for current account")
+    ).click();
     await expect(
       page.getByText(
         failure === "network"
@@ -1471,7 +1458,7 @@ for (const [language, checkLabel, sourceLabel, message] of [
         body: `${account()}<div id="messagetext">权限不足</div>`,
       }),
     );
-    await page.getByRole("button", { name: checkLabel!, exact: true }).click();
+    await (await writingDetailAction(page, checkLabel!)).click();
     await expect(page.getByText(message!, { exact: true })).toBeVisible();
     await expect(page.getByLabel(sourceLabel!, { exact: true })).toHaveValue(
       source,
@@ -2054,15 +2041,14 @@ for (const member of ["guest", "8"])
             body: form("5", member),
           });
         });
-        await page
-          .getByRole("button", {
-            name:
-              action === "copy"
-                ? "Prepare text copy for current account"
-                : "Check current account and form",
-            exact: true,
-          })
-          .click();
+        await (
+          await writingDetailAction(
+            page,
+            action === "copy"
+              ? "Prepare text copy for current account"
+              : "Check current account and form",
+          )
+        ).click();
         await expect.poll(() => waiting).toBe(true);
         if (cancel) {
           await page
@@ -2168,6 +2154,7 @@ test("UX61.local-recovery: plain local status and closed revision details retain
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   await page.getByLabel("Category", { exact: true }).selectOption("3");
   await page.getByLabel("Signature", { exact: true }).uncheck();
+  await revealWritingDetails(page);
   await expect(
     page.getByText(
       "Changes here are local. Sending or saving a forum draft is a separate action.",

@@ -41,7 +41,34 @@ const parameters = [
   "quote",
   "spoiler",
 ];
+export async function revealWritingTools(page: Page) {
+  await page
+    .getByRole("button", {
+      name: /^(Expand writing|Compact writing|展开写作|紧凑写作|展開寫作|精簡寫作)$/,
+      exact: true,
+    })
+    .waitFor({ state: "visible" });
+  const expand = page.getByRole("button", {
+    name: /^(Expand writing|展开写作|展開寫作)$/,
+    exact: true,
+  });
+  if (await expand.isVisible()) await expand.click();
+}
+export async function revealWritingDetails(page: Page) {
+  const details = page.locator(".writing-details");
+  if ((await details.getAttribute("open")) === null)
+    await details.locator(":scope > summary").click();
+}
+export async function writingTool(page: Page, name: string) {
+  await revealWritingTools(page);
+  return page.getByRole("button", { name, exact: true });
+}
+export async function writingDetailAction(page: Page, name: string) {
+  await revealWritingDetails(page);
+  return page.getByRole("button", { name, exact: true });
+}
 export async function revealAdvanced(page: Page) {
+  await revealWritingTools(page);
   const details = page.locator(".advanced-authoring");
   if ((await details.getAttribute("open")) === null)
     await details.locator(":scope > summary").click();
@@ -53,6 +80,7 @@ export async function applyFormatting(
   value = "",
   language: Preferences["language"] = "en",
 ) {
+  await revealWritingTools(page);
   const label = editorText(labels[command] ?? command, language);
   if (!common.includes(command)) await revealAdvanced(page);
   await page.getByRole("button", { name: label, exact: true }).click();

@@ -1,3 +1,4 @@
+import { writingDetailAction, writingTool } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { applyFormatting, revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
@@ -142,21 +143,15 @@ async function fixture(
 }
 
 async function sourceValue(page: Page) {
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Source editor")).click();
   return page.getByLabel("Complete source", { exact: true }).inputValue();
 }
 async function visual(page: Page, value?: string) {
   if (value !== undefined) {
-    await page
-      .getByRole("button", { name: "Source editor", exact: true })
-      .click();
+    await (await writingTool(page, "Source editor")).click();
     await page.getByLabel("Complete source", { exact: true }).fill(value);
   }
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   return page.getByRole("textbox", {
     name: "Visual post content",
     exact: true,
@@ -204,7 +199,7 @@ test("J5.advanced-table: visual row column merge split and keyboard operations p
   const merged =
     "[B]Before[/B][table][tr][td=2,1]A\nB[/td][/tr][tr][td]C[/td][td]D[/td][/tr][/table][unknown=x]after[/unknown] [attach]99[/attach]";
   expect(await sourceValue(page)).toBe(merged);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   expect(
     await page.getByLabel("Complete source", { exact: true }).inputValue(),
   ).toBe(
@@ -212,7 +207,7 @@ test("J5.advanced-table: visual row column merge split and keyboard operations p
       original +
       "[unknown=x]after[/unknown] [attach]99[/attach]",
   );
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await (await writingTool(page, "Redo")).click();
   body = await visual(page);
   await body.locator("td").first().click();
   await operation(page, "Split cell");
@@ -252,6 +247,9 @@ test("J5.advanced-table: visual row column merge split and keyboard operations p
   ).toHaveLength(1);
   await page
     .getByRole("link", { name: "Open confirmed thread", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Keep writing and read thread", exact: true })
     .click();
   await expect(page.locator(".post-content table td")).toHaveCount(4);
   await expect(page.locator(".post-content")).toContainText("Before");
@@ -334,9 +332,9 @@ for (const example of [
     expect.soft(splitRows).toEqual(example.splitRows);
     const splitSource = await sourceValue(page);
     expect.soft(splitSource).toBe(example.split);
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await (await writingTool(page, "Undo")).click();
     expect.soft(await sourceValue(page)).toBe(example.merged);
-    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await (await writingTool(page, "Redo")).click();
     expect.soft(await sourceValue(page)).toBe(example.split);
     expect(server.posts).toHaveLength(0);
     await info.attach("whole-table-grid.json", {
@@ -387,7 +385,7 @@ test("J5.advanced-covered-empty-row: valid rowspan source remains editable throu
     await expect(body.locator("td")).toHaveCount(
       original.includes("td=2,2") ? 4 : 2,
     );
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await (await writingTool(page, "Undo")).click();
     const restored = await sourceValue(page);
     expect(restored).toBe(original);
     observed.push({ original, restored });
@@ -423,16 +421,16 @@ test("J5.advanced-hidden: nested spoilers and reply-to-view blocks retain source
   await expect(body.locator('[data-editor-section="spoiler"]')).toBeVisible();
   const expected = "[spoiler=Reveal][hide]Secret[/hide][/spoiler]";
   expect(await sourceValue(page)).toBe(expected);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "[spoiler=Reveal]Secret[/spoiler]",
   );
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await (await writingTool(page, "Redo")).click();
   body = await visual(page);
   await body.locator("p").first().click();
   await applyFormatting(page, "unwrap");
   expect(await sourceValue(page)).toBe("[spoiler=Reveal]Secret[/spoiler]");
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   await page.getByLabel("Title", { exact: true }).fill("Hidden content");
   server.threadChange = (body) =>
     body.replace(
@@ -449,6 +447,9 @@ test("J5.advanced-hidden: nested spoilers and reply-to-view blocks retain source
   expect(server.posts[0]?.get("message")).toBe(expected);
   await page
     .getByRole("link", { name: "Open confirmed thread", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Keep writing and read thread", exact: true })
     .click();
   await expect(page.locator(".post-content")).toContainText("Reveal");
   await info.attach("hidden-source.json", {
@@ -539,12 +540,9 @@ for (const scenario of [
     const source =
       "Authored mention representation regression. Plain @text stays plain.";
     await page.getByLabel("Complete source", { exact: true }).fill(source);
-    await page
-      .getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Check current account and form")
+    ).click();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue(source);
@@ -700,11 +698,11 @@ test("J5.advanced-mention: resolved visual insertion preserves formatted caret a
     .click();
   const expected = "[b]A@\u2063Other author\u2063 B[/b] literal @Other author";
   expect(await sourceValue(page)).toBe(expected);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "[b]AB[/b] literal @Other author",
   );
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await (await writingTool(page, "Redo")).click();
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
@@ -730,6 +728,9 @@ test("J5.advanced-mention: resolved visual insertion preserves formatted caret a
   expect(server.posts[0]?.has("reppid")).toBe(false);
   await page
     .getByRole("link", { name: "Open confirmed thread", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Keep writing and read thread", exact: true })
     .click();
   await expect(
     page
@@ -786,7 +787,7 @@ test("J5.advanced-table-inventory: row before column after column selection and 
   await expect(body.locator(".selectedCell")).toHaveCount(4);
   await operation(page, "Delete table");
   await expect(body.locator("table")).toHaveCount(0);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   expect(await sourceValue(page)).toBe(beforeDelete);
   await info.attach("table-inventory.json", {
     body: Buffer.from(
@@ -848,9 +849,7 @@ test("J5.advanced-appearance-composition: long nested content survives Compact b
   await expect(
     page.getByRole("button", { name: "Insert table", exact: true }),
   ).toBeDisabled();
-  await expect(
-    page.getByRole("button", { name: "Bold", exact: true }),
-  ).toBeDisabled();
+  await expect(await writingTool(page, "Bold")).toBeDisabled();
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
@@ -986,7 +985,7 @@ test("J5.advanced-rectangle: pointer rectangular merge retains vertical spans an
   await body.locator('td[rowspan="2"]').click();
   await operation(page, "Split cell");
   await expect(body.locator("td")).toHaveCount(9);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   expect(await sourceValue(page)).toBe(expected);
   server.threadChange = (body) =>
     body.replace(
@@ -1004,6 +1003,9 @@ test("J5.advanced-rectangle: pointer rectangular merge retains vertical spans an
   expect(server.posts[0]?.get("message")).toBe(expected);
   await page
     .getByRole("link", { name: "Open confirmed thread", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Keep writing and read thread", exact: true })
     .click();
   await expect(
     page.locator('.post-content td[colspan="2"][rowspan="2"]'),
@@ -1169,9 +1171,9 @@ for (const list of [
       "Second",
     );
     expect(await sourceValue(page)).toBe(list.nested);
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await (await writingTool(page, "Undo")).click();
     expect(await sourceValue(page)).toBe(list.original);
-    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await (await writingTool(page, "Redo")).click();
     expect(await sourceValue(page)).toBe(list.nested);
     body = await visual(page);
     await body
@@ -1182,9 +1184,9 @@ for (const list of [
     await expect(body.locator(`${list.tag} ${list.tag}`)).toHaveCount(0);
     await expect(body.locator("li")).toHaveCount(3);
     expect(await sourceValue(page)).toBe(list.original);
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await (await writingTool(page, "Undo")).click();
     expect(await sourceValue(page)).toBe(list.nested);
-    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await (await writingTool(page, "Redo")).click();
     expect(await sourceValue(page)).toBe(list.original);
     body = await visual(page);
     await body
@@ -1218,6 +1220,12 @@ for (const list of [
     ).toHaveLength(1);
     await page
       .getByRole("link", { name: "Open confirmed thread", exact: true })
+      .click();
+    await page
+      .getByRole("button", {
+        name: "Keep writing and read thread",
+        exact: true,
+      })
       .click();
     await expect(
       page.locator(`.post-content ${list.tag} ${list.tag} li`),
@@ -1361,11 +1369,11 @@ for (const scenario of [
         "ordinary content mutation after language changes",
       )
       .toBe(edited);
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await (await writingTool(page, "Undo")).click();
     expect
       .soft(await sourceValue(page), "undo restores exact original source")
       .toBe(scenario.source);
-    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await (await writingTool(page, "Redo")).click();
     expect
       .soft(await sourceValue(page), "redo restores exact edited source")
       .toBe(edited);

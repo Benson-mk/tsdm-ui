@@ -73,6 +73,9 @@ const english = {
   draftIn: "Forum draft in {value}",
   draftIdentity:
     "Editing forum draft {value} locally. Only an explicit save updates its forum content; browser recovery is separate.",
+  writingDetails: "Details",
+  writingElsewhere:
+    "Writing still targets the original destination shown here, not the current reader.",
   ordinaryReply: "Start an ordinary reply",
   savedDraftReview:
     "Publish saved forum draft {value}. This makes the saved content public; final approval rechecks its account and saved revision.",
@@ -514,6 +517,8 @@ const simplified: Strings = {
   draftIn: "{value} 中的论坛草稿",
   draftIdentity:
     "正在本地编辑论坛草稿 {value}。只有明确保存才会更新论坛内容；浏览器恢复是独立的。",
+  writingDetails: "详情",
+  writingElsewhere: "写作仍指向此处显示的原目标，与当前阅读内容不同。",
   ordinaryReply: "开始普通回复",
   savedDraftReview:
     "发布已保存的论坛草稿 {value}。已保存内容将公开；最终确认会重新检查账号和保存版本。",
@@ -932,6 +937,8 @@ const traditional: Strings = {
   draftIn: "{value} 中的論壇草稿",
   draftIdentity:
     "正在本機編輯論壇草稿 {value}。只有明確儲存才會更新論壇內容；瀏覽器恢復是獨立的。",
+  writingDetails: "詳情",
+  writingElsewhere: "寫作仍指向此處顯示的原目標，與目前閱讀內容不同。",
   ordinaryReply: "開始一般回覆",
   savedDraftReview:
     "發佈已儲存的論壇草稿 {value}。已儲存內容將公開；最終確認會重新檢查帳號和儲存版本。",

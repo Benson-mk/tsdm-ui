@@ -1,5 +1,8 @@
 <script setup lang="ts">
 const paths = {
+  compose: "M4 20l4-1 12-12-3-3L5 16z M14 7l3 3",
+  expand: "M8 3H3v5 M3 3l7 7 M16 21h5v-5 M21 21l-7-7",
+  compact: "M3 8h5V3 M8 8L2 2 M21 16h-5v5 M16 16l6 6",
   more: "M5 12h.01 M12 12h.01 M19 12h.01",
   disclosure: "M6 9l6 6 6-6",
   boards: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",

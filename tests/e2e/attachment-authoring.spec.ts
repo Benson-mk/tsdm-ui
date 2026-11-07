@@ -1,3 +1,4 @@
+import { writingDetailAction, writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
@@ -892,9 +893,7 @@ test("J8.repair-selection-cells: attachment insertion preserves selected row str
   await expect(
     page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   const body = page.getByRole("textbox", {
     name: "Visual post content",
     exact: true,
@@ -912,9 +911,7 @@ test("J8.repair-selection-cells: attachment insertion preserves selected row str
     .getByRole("button", { name: "Insert note.txt", exact: true })
     .click();
   await expect(body.locator("td")).toHaveCount(4);
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Source editor")).click();
   const expected =
     "[table][tr][td][/td][td][attach]88[/attach][/td][/tr][tr][td]C[/td][td]D[/td][/tr][/table]";
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
@@ -941,13 +938,9 @@ test("J8.repair-selection-composition: attachment insertion waits for compositio
     .click();
   await expect(source).toHaveValue("Existing source");
   await source.dispatchEvent("compositionend", { data: "中" });
-  await expect(
-    page.getByRole("button", { name: "Undo", exact: true }),
-  ).toBeDisabled();
+  await expect(await writingTool(page, "Undo")).toBeDisabled();
   await expect
-    .poll(async () =>
-      page.getByRole("button", { name: "Bold", exact: true }).isEnabled(),
-    )
+    .poll(async () => (await writingTool(page, "Bold")).isEnabled())
     .toBe(true);
   await page
     .getByRole("button", { name: "Insert note.txt", exact: true })
@@ -1068,10 +1061,7 @@ for (const context of ["edit", "new-thread"] as const) {
       ).toBeVisible();
       release();
       await expect(
-        page.getByRole("button", {
-          name: "Check current account and form",
-          exact: true,
-        }),
+        await writingDetailAction(page, "Check current account and form"),
       ).toBeEnabled();
       // This button is disabled for the entire pending prepare/send operation.
       // After it re-enables, any forbidden request has already been recorded.
@@ -1282,19 +1272,13 @@ test("J11.integrated-ordinary-upload-copy: current-account copy retains only tex
     .getByLabel("Complete source", { exact: true })
     .inputValue();
   state.member = "8";
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(page.getByText(/Sending paused/)).toBeVisible();
-  await page
-    .getByRole("button", {
-      name: "Prepare text copy for current account",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Prepare text copy for current account")
+  ).click();
   await page
     .getByRole("button", { name: "Replace with text copy", exact: true })
     .click();
@@ -1443,18 +1427,12 @@ for (const { transition, language } of [
         .fill("Replacement composition");
     } else if (transition === "account-copy") {
       state.member = "8";
-      await page
-        .getByRole("button", {
-          name: "Check current account and form",
-          exact: true,
-        })
-        .click();
-      await page
-        .getByRole("button", {
-          name: "Prepare text copy for current account",
-          exact: true,
-        })
-        .click();
+      await (
+        await writingDetailAction(page, "Check current account and form")
+      ).click();
+      await (
+        await writingDetailAction(page, "Prepare text copy for current account")
+      ).click();
       await page
         .getByRole("button", { name: "Replace with text copy", exact: true })
         .click();
@@ -1844,9 +1822,7 @@ for (const mode of ["source", "visual", "recovered", "generic-mime"] as const)
     ).toBeVisible();
     if (mode === "recovered") await page.reload();
     if (mode === "visual") {
-      await page
-        .getByRole("button", { name: "Visual editor", exact: true })
-        .click();
+      await (await writingTool(page, "Visual editor")).click();
       await page
         .getByRole("textbox", { name: "Visual post content", exact: true })
         .click();
@@ -1860,9 +1836,7 @@ for (const mode of ["source", "visual", "recovered", "generic-mime"] as const)
       .getByRole("button", { name: "Insert picture.bin", exact: true })
       .click();
     if (mode === "visual")
-      await page
-        .getByRole("button", { name: "Source editor", exact: true })
-        .click();
+      await (await writingTool(page, "Source editor")).click();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue("Prefix [b]kept[/b] tail[attachimg]88[/attachimg]");
@@ -1952,10 +1926,7 @@ for (const phase of ["review", "send"] as const)
       })
       .click();
     await expect(
-      page.getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      }),
+      await writingDetailAction(page, "Check current account and form"),
     ).toBeEnabled();
     expect(state.saves).toEqual([]);
     await expect(

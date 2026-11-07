@@ -1,3 +1,4 @@
+import { writingDetailAction, writingTool } from "./editor-controls";
 import { openSettings } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
 import { writingPresentationRoundTrip } from "./combined-authoring";
@@ -1070,10 +1071,7 @@ test("J11.pending-copy: account text-copy cannot replace the sole context during
     .click();
   await expect.poll(() => state.posts.length).toBe(1);
   await expect(
-    page.getByRole("button", {
-      name: "Prepare text copy for current account",
-      exact: true,
-    }),
+    await writingDetailAction(page, "Prepare text copy for current account"),
   ).toBeDisabled();
   release();
 });
@@ -1093,12 +1091,9 @@ test("J11.uncertain-copy: deliberate text copy retains the old account-bound unk
         .attempts[0],
   );
   state.member = "8";
-  await page
-    .getByRole("button", {
-      name: "Prepare text copy for current account",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Prepare text copy for current account")
+  ).click();
   await page
     .getByRole("button", { name: "Replace with text copy", exact: true })
     .click();
@@ -2243,7 +2238,7 @@ test("UX60.order-history: empty fields focus title then body and deliberate corr
       exact: true,
     })
     .click();
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   await expect(editor).toHaveValue("");
   const requests = f.requests.length;
   await page
@@ -2254,7 +2249,7 @@ test("UX60.order-history: empty fields focus title then body and deliberate corr
   await expect(
     page.getByRole("button", { name: "Publish thread", exact: true }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await (await writingTool(page, "Redo")).click();
   await expect(editor).toHaveValue(source);
   await expect(titleInput).toHaveValue("Retained correction");
   await expect(

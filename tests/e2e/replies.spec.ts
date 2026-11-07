@@ -1,3 +1,5 @@
+import { revealWritingTools, revealWritingDetails } from "./editor-controls";
+import { writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
 import { openSettings } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
@@ -125,6 +127,7 @@ test("J4.reply-current: preserve complete source/current options and open indepe
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await revealWritingTools(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await page
     .getByRole("button", { name: "Review publication", exact: true })
@@ -265,9 +268,10 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   expect(state.posts[0]!.get("message")).toBe(
     "Literal @Other author stays literal. @\u2063Other author\u2063 ",
   );
+  await revealWritingDetails(page);
   await expect(
     page
-      .getByRole("group", { name: "Writing destination", exact: true })
+      .locator(".writing-details")
       .getByText(/notification delivery is unverified/),
   ).toBeVisible();
   await info.attach("mentions.png", {
@@ -1293,15 +1297,13 @@ for (const addressed of [false, true])
       field.setSelectionRange(field.value.length - 9, field.value.length);
       field.dispatchEvent(new Event("select", { bubbles: true }));
     });
-    await page.getByRole("button", { name: "Bold", exact: true }).click();
+    await (await writingTool(page, "Bold")).click();
     await expect(
       page
         .getByRole("textbox", { name: "Visual post content", exact: true })
         .getByText("formatted", { exact: true }),
     ).toHaveCSS("font-weight", "700");
-    await page
-      .getByRole("button", { name: "Source editor", exact: true })
-      .click();
+    await (await writingTool(page, "Source editor")).click();
     const expected = source + " [b]formatted[/b]";
     await expect(complete).toHaveValue(expected);
     await page

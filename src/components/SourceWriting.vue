@@ -5,6 +5,7 @@ import { computed, ref, watch, nextTick, type DeepReadonly } from "vue";
 import { attachmentText, attachmentFieldLabel } from "./attachment-text";
 import PrivateWritingContent from "./PrivateWritingContent.vue";
 import PostEditor from "./PostEditor.vue";
+import WorkspaceIcon from "./WorkspaceIcon.vue";
 import WritingDestination from "./WritingDestination.vue";
 import PreparedPublication from "./PreparedPublication.vue";
 import { reviewText } from "./review-text";
@@ -12,9 +13,16 @@ import { validationText } from "./validation-text";
 import type { Workspace } from "../workspace";
 import { strings, insert, description } from "../layouts/strings";
 import type { WritingOption } from "../forum-client";
-const props = defineProps<{ workspace: Workspace; expanded: boolean }>();
+import type { CategoryRole } from "../layouts/board-groups";
+const props = defineProps<{
+  workspace: Workspace;
+  expanded: boolean;
+  elsewhere?: boolean;
+  category?: CategoryRole;
+}>();
 const emit = defineEmits<{ resize: [expanded: boolean] }>();
 const editor = ref<InstanceType<typeof PostEditor> | null>(null);
+const detailsOpen = ref(false);
 watch(
   () => props.expanded,
   () => editor.value?.focus(true),
@@ -280,12 +288,16 @@ function updateOption(option: WritingOption, event: Event) {
               : text.newThread
       }}</strong>
       <button :aria-expanded="expanded" @click="emit('resize', !expanded)">
+        <WorkspaceIcon :name="expanded ? 'compact' : 'expand'" />
         {{ expanded ? text.compactWriting : text.expandWriting }}
       </button>
       <button @click="workspace.writing.hide()">
         {{ text.returnReading }}
       </button>
     </div>
+    <p v-if="elsewhere" class="writing-mismatch" role="status">
+      {{ text.writingElsewhere }}
+    </p>
     <div
       v-if="ownerState.context?.action === 'private-message'"
       class="writing-content"
@@ -294,7 +306,7 @@ function updateOption(option: WritingOption, event: Event) {
     </div>
     <div v-if="state.context" class="writing-content">
       <PrivateAttemptHistory :workspace="workspace" />
-      <h1>
+      <h1 v-if="expanded">
         {{
           state.context.action === "edit-post"
             ? insert(text.editPost, state.context.editTarget?.postId ?? "")
@@ -312,8 +324,9 @@ function updateOption(option: WritingOption, event: Event) {
       <WritingDestination
         :writing="state.context"
         :language="workspace.preferences.state.value.language"
+        :category="category ?? 'neutral'"
+        compact
       />
-      <p v-if="!state.context.draft">{{ text.localWriting }}</p>
       <section class="writing-recovery" :aria-label="text.writingRecovery">
         <p :role="state.recoveryAvailable === false ? 'alert' : 'status'">
           {{ recoverySummary }}
@@ -414,39 +427,53 @@ function updateOption(option: WritingOption, event: Event) {
           )
         }}
       </p>
-      <button
-        v-if="state.context.replyTarget?.postId"
-        @click="
-          workspace.writing.prepare(state.context.board.id, false, {
-            threadId: state.context.replyTarget.threadId,
-            postId: null,
-            author: '',
-            authorId: null,
-          })
-        "
-      >
-        {{ text.ordinaryReply }}
-      </button>
       <PostEditor
         ref="editor"
         :key="state.context.id"
         :workspace="workspace"
         :expanded="expanded"
       />
-      <div class="writing-actions">
+      <details
+        class="writing-details"
+        @toggle="detailsOpen = ($event.target as HTMLDetailsElement).open"
+      >
+        <summary>{{ text.writingDetails }}</summary>
+        <p v-if="!state.context.draft">{{ text.localWriting }}</p>
+        <p v-if="state.context.replyTarget?.postId">
+          {{ text.addressedExplanation }}
+        </p>
+        <p v-else-if="state.context.replyTarget">
+          {{ text.replyDeliveryUnknown }}
+        </p>
+        <p>{{ text.writingShortcut }}</p>
+        <div class="writing-actions">
+          <button
+            :disabled="state.preparing || state.publishing"
+            @click="workspace.writing.check()"
+          >
+            {{ text.checkWriting }}
+          </button>
+          <button
+            :disabled="state.preparing || state.publishing"
+            @click="workspace.writing.check(true)"
+          >
+            {{ text.prepareTextCopy }}
+          </button>
+        </div>
         <button
-          :disabled="state.preparing || state.publishing"
-          @click="workspace.writing.check()"
+          v-if="state.context.replyTarget?.postId"
+          @click="
+            workspace.writing.prepare(state.context.board.id, false, {
+              threadId: state.context.replyTarget.threadId,
+              postId: null,
+              author: '',
+              authorId: null,
+            })
+          "
         >
-          {{ text.checkWriting }}
+          {{ text.ordinaryReply }}
         </button>
-        <button
-          :disabled="state.preparing || state.publishing"
-          @click="workspace.writing.check(true)"
-        >
-          {{ text.prepareTextCopy }}
-        </button>
-      </div>
+      </details>
       <section v-if="state.copy" role="alert">
         <p>
           {{
@@ -937,7 +964,7 @@ function updateOption(option: WritingOption, event: Event) {
         </section>
       </section>
       <WritingDestination
-        v-if="!state.publication"
+        v-if="expanded && !state.publication"
         :writing="state.context"
         :language="workspace.preferences.state.value.language"
         review
@@ -1088,7 +1115,7 @@ function updateOption(option: WritingOption, event: Event) {
             {{ attachment("Keep server file") }}
           </button>
         </div>
-        <label
+        <label v-show="expanded || detailsOpen"
           >{{ attachment("Select attachments")
           }}<input
             type="file"
@@ -1220,7 +1247,14 @@ function updateOption(option: WritingOption, event: Event) {
       <p v-for="hint in state.context.redPacket?.hints" :key="hint">
         {{ hint }}
       </p>
-      <fieldset ref="optionFields">
+      <fieldset
+        v-show="
+          expanded ||
+          detailsOpen ||
+          state.validationIssues.some((issue) => issue.field === 'option')
+        "
+        ref="optionFields"
+      >
         <legend>{{ text.currentFormOptions }}</legend>
         <label v-for="option in currentOptions" :key="option.name">
           <template v-if="option.kind === 'checkbox'"
@@ -1280,7 +1314,9 @@ function updateOption(option: WritingOption, event: Event) {
       </fieldset>
     </div>
     <div class="composer-submit-row">
-      <span class="composer-help">{{ text.writingShortcut }}</span>
+      <span v-if="expanded" class="composer-help">{{
+        text.writingShortcut
+      }}</span>
       <button
         v-if="state.context && !state.context.draft"
         class="primary-action"
