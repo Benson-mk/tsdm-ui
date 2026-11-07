@@ -600,3 +600,149 @@ test("UI90.other-account-observation: an unconfirmed reader response invalidates
   ).toHaveCount(0);
   expect((await rows(page)).map((row) => row.id)).toEqual(["42", "43"]);
 });
+
+for (const restored of [false, true])
+  for (const observation of [
+    "unknown",
+    "guest",
+    "member",
+    "same-member",
+  ] as const)
+    test(`REVIEW.account-footer-board-${restored}-${observation}: fresh identity outranks retained public content and a later confirmed read restores the member`, async ({
+      page,
+    }, info) => {
+      let next: "initial" | typeof observation = "initial";
+      const requests = await open(page, () =>
+        next === "initial" || next === "same-member"
+          ? board([42, 43])
+          : next === "member"
+            ? board([42, 43], "8")
+            : board([42, 43]).replace(
+                account(),
+                next === "guest" ? '<form id="lsform"></form>' : "",
+              ),
+      );
+      const label = page.locator(".navigation-account");
+      await expect(label).toHaveText("Signed in as Reader 7");
+      if (restored) {
+        await page.reload();
+        await expect(label).toHaveText("Snapshot from Reader 7");
+        expect(requests).toHaveLength(1);
+        await expect(
+          page.getByText(
+            "Restored snapshot — account and content have not been rechecked.",
+            { exact: true },
+          ),
+        ).toBeVisible();
+      }
+      next = observation;
+      await refresh(page);
+      await expect.poll(() => requests.length).toBe(2);
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+      const observed = await label.textContent();
+      await expect
+        .soft(label)
+        .toHaveText(
+          observation === "unknown"
+            ? "Account not yet confirmed"
+            : observation === "guest"
+              ? "Browsing as a guest"
+              : observation === "same-member"
+                ? "Signed in as Reader 7"
+                : "Signed in as Reader 8",
+        );
+      if (
+        restored &&
+        (observation === "unknown" || observation === "same-member")
+      ) {
+        await expect
+          .soft(
+            page.getByText(
+              "Restored snapshot — retained content has not been rechecked.",
+              { exact: true },
+            ),
+          )
+          .toBeVisible();
+        await expect
+          .soft(
+            page.getByText(
+              "Restored snapshot — account and content have not been rechecked.",
+              { exact: true },
+            ),
+          )
+          .toHaveCount(0);
+      }
+      if (observation === "unknown" || observation === "same-member")
+        expect((await rows(page)).map((row) => row.id)).toEqual(["42", "43"]);
+      next = "initial";
+      const reload = page.getByRole("button", { name: "Reload", exact: true });
+      if (await reload.isVisible()) await reload.click();
+      else
+        await page
+          .getByRole("button", { name: "Refresh", exact: true })
+          .click();
+      await expect(label).toHaveText("Signed in as Reader 7");
+      expect(requests).toHaveLength(3);
+      await info.attach("footer-observation.json", {
+        body: JSON.stringify({
+          restored,
+          observation,
+          observed,
+          confirmed: await label.textContent(),
+          requests,
+        }),
+        contentType: "application/json",
+      });
+    });
+
+for (const [locale, warning, member] of [
+  [
+    "en",
+    "Restored snapshot — retained content has not been rechecked.",
+    "Signed in as Reader 7",
+  ],
+  ["zh-CN", "已恢复快照 — 尚未重新检查保留的内容。", "当前登录：Reader 7"],
+  ["zh-TW", "已復原快照 — 尚未重新檢查保留的內容。", "目前登入：Reader 7"],
+] as const)
+  test(`REVIEW.account-warning-${locale}: a confirmed scoped check keeps truthful localized retained-content provenance`, async ({
+    page,
+  }, info) => {
+    const { openSettings, closeSettingsToWorkspace } =
+      await import("./navigation-ui");
+    const requests = await open(page, () => board([42, 43]));
+    await page.reload();
+    await expect(page.locator(".navigation-account")).toHaveText(
+      "Snapshot from Reader 7",
+    );
+    await expect(
+      page.getByText(
+        "Restored snapshot — account and content have not been rechecked.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    expect(requests).toHaveLength(1);
+    await refresh(page);
+    await expect(page.locator(".navigation-account")).toHaveText(
+      "Signed in as Reader 7",
+    );
+    await openSettings(page);
+    await page.locator("#interface-language").selectOption(locale);
+    await closeSettingsToWorkspace(page);
+    await expect(page.locator(".navigation-account")).toHaveText(member);
+    await info.attach("account-and-content.json", {
+      body: JSON.stringify({
+        locale,
+        footer: await page.locator(".navigation-account").textContent(),
+        status: await page.locator(".workspace-status").textContent(),
+        requests,
+      }),
+      contentType: "application/json",
+    });
+    await expect(page.getByText(warning, { exact: true })).toBeVisible();
+    expect(requests).toHaveLength(2);
+  });

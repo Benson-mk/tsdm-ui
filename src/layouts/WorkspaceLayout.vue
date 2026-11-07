@@ -1948,13 +1948,29 @@ onMounted(() => {
   });
 });
 const accountLabel = computed(() => {
-  const account =
+  const retained =
     state.value.section === "drafts"
       ? props.workspace.drafts.value.result?.account
       : state.value.result?.account;
-  if (state.value.restored && account?.kind === "member")
+  const observation = props.workspace.accountObservation.value;
+  // Public content can outlive its account evidence. Use only metadata matching
+  // the latest accepted observation; null alone still denotes a passive snapshot.
+  const account =
+    observation === null
+      ? retained
+      : [writing.value.accountObservation, retained].find(
+          (value) =>
+            value &&
+            (value.kind === "member" ? `member:${value.id}` : value.kind) ===
+              observation,
+        );
+  if (
+    observation === null &&
+    state.value.restored &&
+    account?.kind === "member"
+  )
     return insert(text.value.snapshotMember, account.name);
-  if (state.value.restored && account?.kind === "guest")
+  if (observation === null && state.value.restored && account?.kind === "guest")
     return text.value.snapshotGuest;
   return account?.kind === "member"
     ? insert(text.value.signedIn, account.name)
@@ -2303,7 +2319,13 @@ function boardIdFrom(url: string) {
         </button>
       </section>
       <p v-if="state.stale" role="status">
-        {{ state.restored ? text.restored : text.stale }}
+        {{
+          state.restored
+            ? workspace.accountObservation.value === null
+              ? text.restored
+              : text.restoredContent
+            : text.stale
+        }}
       </p>
       <p v-if="state.loading" role="status">{{ text.loading }}</p>
       <p

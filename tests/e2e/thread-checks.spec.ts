@@ -868,3 +868,72 @@ test("UI89.compact-breadcrumb-focus: keyboard entry retains compact breadcrumb g
       .evaluate((e) => e.getBoundingClientRect().height),
   ).toBe(height);
 });
+
+for (const restored of [false, true])
+  test(`REVIEW.account-footer-thread-${restored}: an unknown newest response retains public posts but cannot retain confirmed member wording`, async ({
+    page,
+  }, info) => {
+    let unknown = false;
+    const requests = await open(page, 2, false, (n) =>
+      unknown ? fixture(n).replace(/<div id="um">.*?<\/div>/, "") : fixture(n),
+    );
+    const label = page.locator(".navigation-account");
+    await expect(label).toHaveText("Signed in as Reader Seven");
+    if (restored) {
+      await page.reload();
+      await expect(label).toHaveText("Snapshot from Reader Seven");
+      expect(requests).toHaveLength(1);
+      await expect(
+        page.getByText(
+          "Restored snapshot — account and content have not been rechecked.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+    }
+    const original = await page
+      .getByRole("article")
+      .evaluateAll((nodes) => nodes.map((node) => node.id));
+    unknown = true;
+    await check(page);
+    await expect(
+      page.locator(".public-check-state").filter({ hasText: "Check failed" }),
+    ).toBeVisible();
+    const observed = await label.textContent();
+    await expect.soft(label).toHaveText("Account not yet confirmed");
+    if (restored) {
+      await expect
+        .soft(
+          page.getByText(
+            "Restored snapshot — retained content has not been rechecked.",
+            { exact: true },
+          ),
+        )
+        .toBeVisible();
+      await expect
+        .soft(
+          page.getByText(
+            "Restored snapshot — account and content have not been rechecked.",
+            { exact: true },
+          ),
+        )
+        .toHaveCount(0);
+    }
+    expect(
+      await page
+        .getByRole("article")
+        .evaluateAll((nodes) => nodes.map((node) => node.id)),
+    ).toEqual(original);
+    unknown = false;
+    await confirmThreadPage(page, 1);
+    await expect(label).toHaveText("Signed in as Reader Seven");
+    expect(requests).toHaveLength(3);
+    await info.attach("footer-observation.json", {
+      body: JSON.stringify({
+        restored,
+        observed,
+        confirmed: await label.textContent(),
+        requests,
+      }),
+      contentType: "application/json",
+    });
+  });
