@@ -1438,9 +1438,10 @@ test("UI87.target-color: writing destination keeps the source-qualified board ro
     .getByRole("link", { name: "Existing thread", exact: true })
     .click();
   await enter(page, "reply");
-  const boardLabel = page.locator(
-    ".source-writing .writing-destination .category-label",
-  );
+  const boardLabel = page
+    .locator(".source-writing")
+    .getByRole("group", { name: "Writing destination", exact: true })
+    .locator(".category-label");
   await expect(boardLabel).toContainText("Music discussion");
   expect(
     await boardLabel.evaluate((node) => getComputedStyle(node).backgroundColor),

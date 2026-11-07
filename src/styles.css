@@ -11,6 +11,8 @@
   --support: #a6c6e1;
   --category-pink: #dda49f;
   --inverse: #6d5175;
+  --floating-shadow: 0 4px 16px rgb(0 0 0 / 6%);
+  --modal-shadow: 0 16px 48px rgb(0 0 0 / 24%);
   color-scheme: light;
   font-family:
     figmaSans, "Inter Variable", Inter, Geist, "SF Pro Display", system-ui,
@@ -44,7 +46,7 @@ nav {
 .workspace > header {
   min-height: 72px;
   padding: 16px 32px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 0;
 }
 .brand {
   font-size: calc(1.5rem * var(--text-scale, 1));
@@ -80,7 +82,13 @@ button {
   padding: 8px 12px;
   cursor: pointer;
 }
-button:hover {
+button:not(:disabled):not([data-disabled]):hover,
+.header-action:hover,
+.boards-navigation a:hover,
+.board-filter-links a:not([data-category]):hover,
+summary:hover {
+  background: var(--soft);
+  color: var(--ink);
   text-decoration: underline;
 }
 :focus-visible {
@@ -109,7 +117,8 @@ h1 {
 }
 article {
   padding: 32px;
-  border: 1px solid var(--separator);
+  border: 0;
+  box-shadow: var(--floating-shadow);
   border-radius: 24px;
   margin-bottom: 24px;
 }
@@ -132,10 +141,11 @@ article header {
   margin-inline: 0;
   border-radius: 8px;
 }
-.post-content blockquote {
+.post-content blockquote,
+.visual-editor blockquote {
   background: var(--accent);
   color: #000;
-  border-left: 3px solid #000;
+  border-inline-start: 3px solid #000;
 }
 .post-content img {
   max-width: 100%;
@@ -150,10 +160,23 @@ article header {
   overflow-x: auto;
   border-collapse: collapse;
 }
+.post-content table,
+.visual-editor table {
+  color: inherit;
+}
+.post-content th,
+.visual-editor th {
+  background: var(--support);
+  color: #000;
+}
 .post-content td,
 .post-content th {
   border: 1px solid var(--boundary);
   padding: 8px 12px;
+}
+.post-content th,
+.visual-editor th {
+  border-color: #000;
 }
 .notice,
 .content-notice {
@@ -170,21 +193,21 @@ article header {
   inset: var(--view-top, 0px) 0 auto;
   height: var(--view-height, 100dvh);
   background: rgba(0, 0, 0, 0.6);
-  z-index: 1;
+  z-index: 70;
 }
 .dialog-content {
   position: fixed;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 2;
+  z-index: 71;
   background: var(--surface);
   color: var(--ink);
   border-radius: 24px;
   padding: 32px;
   width: min(520px, calc(100vw - 32px));
   overflow-wrap: anywhere;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--modal-shadow);
 }
 @media (max-width: 767px) {
   main {
@@ -203,7 +226,7 @@ article header {
 }
 .main-destinations {
   padding: 12px 32px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 0;
 }
 .board-grid {
   display: grid;
@@ -216,7 +239,8 @@ article header {
   align-items: start;
   gap: 8px;
   padding: 24px;
-  border: 1px solid var(--separator);
+  border: 0;
+  box-shadow: var(--floating-shadow);
   border-radius: 16px;
   text-decoration: none;
   overflow-wrap: anywhere;
@@ -357,7 +381,7 @@ summary {
   align-items: center;
   gap: 16px;
   padding: 12px 24px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 0;
 }
 .workspace-tools nav {
   margin: 0;
@@ -396,7 +420,7 @@ summary {
   display: block;
   padding: 12px 8px;
   border: 0;
-  border-right: 1px solid var(--separator);
+  border-right: 0;
   background: var(--soft);
   margin: 0;
 }
@@ -440,7 +464,7 @@ summary {
   align-items: stretch;
   justify-content: flex-start;
   gap: 8px;
-  border-right: 1px solid var(--separator);
+  border-right: 0;
   margin: 0;
   padding: 20px 16px;
 }
@@ -457,7 +481,7 @@ summary {
   font-size: calc(1rem * var(--text-scale, 1));
 }
 .results-pane {
-  border-right: 1px solid var(--separator);
+  border-right: 0;
   padding: 20px 16px;
 }
 .results-pane h1 {
@@ -492,8 +516,8 @@ summary {
   line-height: 1.5;
 }
 .thread-row:has([aria-current="true"]) {
-  background: var(--accent);
-  color: #000;
+  background: var(--ink);
+  color: var(--surface);
 }
 .thread-row > span,
 .thread-row > time {
@@ -678,8 +702,7 @@ select {
   color: #000;
 }
 .thread-heading :focus-visible,
-.post-content blockquote :focus-visible,
-.thread-row:has([aria-current="true"]) :focus-visible {
+.post-content blockquote :focus-visible {
   outline-color: #000;
   box-shadow: 0 0 0 2px #fff;
 }
@@ -796,7 +819,8 @@ select {
   margin-bottom: 16px;
 }
 :host([data-spacing="compact"]) .post-content pre,
-:host([data-spacing="compact"]) .post-content blockquote {
+:host([data-spacing="compact"]) .post-content blockquote,
+:host([data-spacing="compact"]) .visual-editor blockquote {
   padding: 12px;
 }
 @media (max-width: 959px) {
@@ -863,7 +887,7 @@ select {
 .search-pane.secondary-results,
 .notices-pane.secondary-results {
   grid-column: 2;
-  border-right: 1px solid var(--separator);
+  border-right: 0;
 }
 .notices-navigation {
   grid-column: 2;
@@ -914,7 +938,7 @@ select {
   width: 100%;
   margin: 0;
   padding: 0 24px 12px;
-  border-top: 1px solid var(--separator);
+  border-top: 0;
   background: var(--surface);
 }
 .conversation-region {
@@ -1034,9 +1058,12 @@ select {
   align-items: end;
   gap: 8px;
 }
-.post-editor button[aria-pressed="true"] {
+.post-editor button[aria-pressed="true"],
+.post-editor button[aria-pressed="true"]:hover,
+.main-destinations [aria-current="page"]:hover {
   font-weight: 700;
-  box-shadow: inset 0 0 0 2px var(--ink);
+  background: var(--ink);
+  color: var(--surface);
 }
 .advanced-authoring > summary {
   min-height: 44px;
@@ -1068,21 +1095,21 @@ select {
   margin: 0;
 }
 .visual-editor blockquote {
-  border-inline-start: 3px solid currentColor;
-  margin-inline: 12px;
-  padding-inline-start: 12px;
+  margin-inline: 0;
+  padding: 16px;
+  border-radius: 8px;
 }
 .visual-editor blockquote[aria-label]::before {
   content: attr(aria-label);
   display: block;
-  opacity: 0.75;
 }
 .visual-editor pre {
   white-space: pre-wrap;
 }
 .editor-protected {
   border: 1px dashed currentColor;
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  background: var(--soft);
+  color: var(--ink);
 }
 .editor-literal {
   text-decoration: underline wavy;
@@ -1102,7 +1129,7 @@ select {
 }
 .favorites-pane.secondary-results {
   grid-column: 2;
-  border-right: 1px solid var(--separator);
+  border-right: 0;
 }
 .favorite-action {
   max-height: 40vh;
@@ -1143,7 +1170,9 @@ select {
   vertical-align: top;
 }
 .visual-editor .selectedCell {
-  background: color-mix(in srgb, var(--accent, #5588cc) 25%, transparent);
+  background: var(--inverse);
+  color: #fff;
+  border-color: #fff;
 }
 .editor-tools input[type="number"] {
   width: 5em;
@@ -1158,7 +1187,6 @@ select {
   content: attr(data-editor-label);
   display: block;
   font-weight: 600;
-  opacity: 0.75;
 }
 
 .navigation-preferences {
@@ -1217,7 +1245,7 @@ select {
 .board-filter-group {
   min-width: 0;
   padding-block: 8px;
-  border-block-start: 1px solid var(--separator);
+  border-block-start: 0;
 }
 .board-filter-group h2 {
   margin: 0 0 8px;
@@ -1285,7 +1313,8 @@ select {
   width: 100%;
   min-width: 0;
   padding: 16px;
-  border: 2px solid var(--boundary);
+  border: 0;
+  box-shadow: var(--floating-shadow);
   border-radius: 12px;
   overflow-wrap: anywhere;
 }
@@ -1319,7 +1348,7 @@ select {
 /* The destination rail and board navigation share one owner and one track. */
 .boards-region {
   padding: 12px;
-  border-right: 1px solid var(--separator);
+  border-right: 0;
   grid-column: 1;
   min-height: 0;
 }
@@ -1360,7 +1389,7 @@ select {
   background: var(--surface);
   color: var(--ink);
   border: 0;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 0;
 }
 .conversation-region .thread-heading h1 {
   font-size: calc(1.5rem * var(--text-scale, 1));
@@ -1523,17 +1552,21 @@ select {
   grid-column: 1;
 }
 
+.pane-drawer-overlay {
+  z-index: 60;
+}
 .pane-drawer {
   position: fixed;
   inset: var(--view-top, 0px) auto auto 0;
-  z-index: 2;
+  z-index: 61;
   width: min(340px, calc(100vw - 32px));
   height: var(--view-height, 100dvh);
   display: flex;
   flex-direction: column;
   min-height: 0;
   padding: 0;
-  border: 1px solid var(--boundary);
+  border: 0;
+  box-shadow: var(--modal-shadow);
   background: var(--surface);
   color: var(--ink);
 }
@@ -1577,10 +1610,10 @@ select {
 }
 
 .thread-change-overlay {
-  z-index: 3;
+  z-index: 80;
 }
 .thread-change-dialog {
-  z-index: 4;
+  z-index: 81;
 }
 
 @media (max-width: 959px) {
@@ -1673,7 +1706,7 @@ select {
   align-items: center;
   gap: 4px;
   padding-block: 4px;
-  border-bottom: 1px solid var(--separator);
+  border-bottom: 0;
 }
 .conversation-tool-row .thread-context-tools,
 .conversation-tool-row .workspace-tools {
@@ -1859,7 +1892,7 @@ select {
   color: var(--muted);
 }
 .navigation-account {
-  border-top: 1px solid var(--separator);
+  border-top: 0;
   padding: 16px 8px;
   font-size: calc(0.875rem * var(--text-scale, 1));
   color: var(--muted);
@@ -1942,19 +1975,23 @@ select {
   color: var(--muted);
   font-weight: 400;
 }
-.thread-row:has([aria-current="true"]) {
-  background: var(--support);
+.thread-row:not(:has([aria-current="true"])):hover {
+  background: var(--soft);
+}
+.thread-row:has([aria-current="true"]) :focus-visible {
+  outline-color: var(--surface);
+  box-shadow: 0 0 0 2px var(--ink);
 }
 .thread-row:has([aria-current="true"]) > span,
 .thread-row:has([aria-current="true"]) > time {
-  color: #000;
+  color: var(--surface);
 }
 .workspace-tools nav {
   gap: 4px;
 }
 .composer-entry {
   flex: 0 0 auto;
-  border-top: 1px solid var(--separator);
+  border-top: 0;
   padding: 8px max(var(--conversation-gutter), var(--safe-right))
     calc(12px + var(--safe-bottom))
     max(var(--conversation-gutter), var(--edge-left));
@@ -2118,8 +2155,25 @@ select {
   color: var(--surface);
   padding: 8px 18px;
 }
-button:disabled {
+/* Disabled controls use a solid palette surface, without hover or tinting. */
+:host button:disabled,
+:host button:disabled:hover,
+.thread-options-menu [data-disabled],
+input:disabled,
+select:disabled {
+  background: var(--soft);
+  color: var(--ink);
+  opacity: 1;
+  text-decoration: none;
   cursor: not-allowed;
+}
+input {
+  accent-color: var(--ink);
+}
+.source-writing .primary-action:not(:disabled):hover,
+.page-picker-actions button[type="submit"]:not(:disabled):hover {
+  background: var(--ink);
+  color: var(--surface);
 }
 @media (max-width: 559px) {
   .workspace > header .brand {
@@ -2290,7 +2344,7 @@ button:disabled {
   padding: 12px;
   padding-left: max(12px, var(--safe-left));
   padding-bottom: calc(12px + var(--safe-bottom));
-  border-top: 1px solid var(--separator);
+  border-top: 0;
   background: var(--surface);
 }
 .pane-drawer .navigation-footer {
@@ -2360,17 +2414,25 @@ button:disabled {
   --category-ink: #000;
 }
 .board-card[data-category],
+.avatar[data-category],
+.board-filter-links a[data-category],
 .category-label,
 .board-context-link {
   background: var(--category-fill);
   color: var(--category-ink);
 }
+.board-filter-links a[data-category],
 .category-label,
 .board-context-link {
   display: inline-block;
   padding: 4px 8px;
   border-radius: 6px;
   overflow-wrap: anywhere;
+}
+[data-category]:not([data-category="neutral"]):focus-visible,
+.visual-editor blockquote :focus-visible {
+  outline-color: #000;
+  box-shadow: 0 0 0 2px #fff;
 }
 .category-dot {
   display: inline-block;
@@ -2455,7 +2517,7 @@ button:disabled {
   overflow: auto;
   color: var(--ink);
   background: var(--surface);
-  box-shadow: 0 4px 16px rgb(0 0 0 / 6%);
+  box-shadow: var(--floating-shadow);
 }
 .thread-options-menu [role="menuitem"] {
   text-align: start;
@@ -2468,7 +2530,7 @@ button:disabled {
   outline-offset: -2px;
 }
 .thread-options-menu [data-disabled] {
-  opacity: 0.5;
+  opacity: 1;
   pointer-events: none;
 }
 .reader-page-dialog nav {
@@ -2675,5 +2737,107 @@ button:disabled {
   padding: 12px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 4px 16px #0000000f;
+  box-shadow: var(--floating-shadow);
+}
+
+/* Surface hierarchy: workspace chrome and pane shadows, then resize edges,
+   floating menus (50), drawers (60/61), dialogs (70/71), guards (80/81).
+   Portalled interaction layers remain outside the pane stacking contexts. */
+.workspace > header {
+  position: relative;
+  z-index: 10;
+  box-shadow: var(--floating-shadow);
+}
+.workspace-body {
+  z-index: 0;
+}
+.boards-region,
+.results-pane {
+  position: relative;
+  box-shadow: 4px 0 16px rgb(0 0 0 / 6%);
+}
+.boards-region {
+  z-index: 2;
+}
+.results-pane {
+  z-index: 1;
+}
+.conversation-heading {
+  position: relative;
+  z-index: 1;
+  box-shadow: var(--floating-shadow);
+}
+.source-writing,
+.navigation-footer,
+.composer-entry {
+  box-shadow: 0 -4px 16px rgb(0 0 0 / 6%);
+}
+.reading-pane > article,
+.conversation-region .thread-heading {
+  box-shadow: none;
+}
+/* Black shadows cannot separate black surfaces. These lines convey the region
+   or floating layer boundary; the post stream still uses whitespace alone. */
+:host([data-theme="dark"]) .workspace > header,
+:host([data-theme="dark"]) .conversation-heading {
+  border-bottom: 1px solid var(--boundary);
+}
+:host([data-theme="dark"]) .boards-region,
+:host([data-theme="dark"]) .results-pane {
+  border-right: 1px solid var(--boundary);
+}
+:host([data-theme="dark"]) .source-writing,
+:host([data-theme="dark"]) .navigation-footer,
+:host([data-theme="dark"]) .composer-entry,
+:host([data-theme="dark"]) .bottom-resume {
+  border-top: 1px solid var(--boundary);
+}
+:host([data-theme="dark"]) .writing-wide > .source-writing {
+  border-top: 0;
+  border-left: 1px solid var(--boundary);
+}
+:host([data-theme="dark"]) .dialog-content,
+:host([data-theme="dark"]) .pane-drawer,
+:host([data-theme="dark"]) .thread-options-menu,
+:host([data-theme="dark"]) .board-check-explanation,
+:host([data-theme="dark"]) .prepared-review,
+:host([data-theme="dark"]) .board-card[data-category="neutral"] {
+  border: 1px solid var(--boundary);
+}
+@media (forced-colors: active) {
+  :host {
+    --boundary: CanvasText;
+  }
+  .workspace > header,
+  .conversation-heading {
+    border-bottom: 1px solid CanvasText;
+  }
+  .boards-region,
+  .results-pane {
+    border-right: 1px solid CanvasText;
+  }
+  .source-writing,
+  .navigation-footer,
+  .composer-entry,
+  .bottom-resume {
+    border-top: 1px solid CanvasText;
+  }
+  .writing-wide > .source-writing {
+    border-left: 1px solid CanvasText;
+  }
+  .dialog-content,
+  .pane-drawer,
+  .thread-options-menu,
+  .board-check-explanation,
+  .prepared-review,
+  .board-card {
+    border: 1px solid CanvasText;
+  }
+  button:disabled,
+  [data-disabled] {
+    color: GrayText;
+  }
+  :focus-visible {
+    outline-color: Highlight;
+  }
 }

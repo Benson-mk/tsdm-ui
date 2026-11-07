@@ -2890,6 +2890,9 @@ function boardIdFrom(url: string) {
                 v-for="filter in group.links"
                 :key="filter.url"
                 :href="filter.url"
+                :data-category="
+                  group.kind === 'category' ? listCategory.role : undefined
+                "
                 >{{ filter.label }}</a
               >
             </div>
@@ -3254,9 +3257,12 @@ function boardIdFrom(url: string) {
               tabindex="-1"
             >
               <header class="post-header">
-                <span class="avatar" aria-hidden="true">{{
-                  Array.from(post.author.trim())[0] ?? ""
-                }}</span>
+                <span
+                  class="avatar"
+                  :data-category="readerCategory.role"
+                  aria-hidden="true"
+                  >{{ Array.from(post.author.trim())[0] ?? "" }}</span
+                >
                 <div class="post-identity">
                   <strong class="post-author">{{ post.author }}</strong>
                   <div class="post-metadata">

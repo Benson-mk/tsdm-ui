@@ -965,6 +965,7 @@ function updateOption(option: WritingOption, event: Event) {
       </section>
       <WritingDestination
         v-if="expanded && !state.publication"
+        :category="category ?? 'neutral'"
         :writing="state.context"
         :language="workspace.preferences.state.value.language"
         review
@@ -973,6 +974,7 @@ function updateOption(option: WritingOption, event: Event) {
         <PreparedPublication
           v-if="state.publication"
           :publication="state.publication"
+          :category="category ?? 'neutral'"
           :language="workspace.preferences.state.value.language"
         >
           <button :disabled="state.publishing" @click="cancelReview">
