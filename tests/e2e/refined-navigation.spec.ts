@@ -1,3 +1,4 @@
+import { visibleCharacter, expectCharacter } from "./visible-character";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -311,7 +312,7 @@ test("UI82.same-retained-thread: choosing the retained thread from its board rev
   const reader = page.locator(".reading-pane");
   await expect(reader).toBeVisible();
   await reader.evaluate((node) => (node.scrollTop = 422));
-  const visibleBefore = await nativeBodyLines(page);
+  const glyph = await visibleCharacter(page);
   const post = await page.getByRole("article").first().elementHandle();
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await page
@@ -332,16 +333,10 @@ test("UI82.same-retained-thread: choosing the retained thread from its board rev
   await expect(reader).toBeVisible();
   await expect(page.locator(".results-pane")).toBeHidden();
   expect(await post!.evaluate((node) => node.isConnected)).toBe(true);
-  const visibleAfter = await nativeBodyLines(page);
-  const restored = visibleAfter.lines.find(
-    (line) =>
-      line.post === visibleBefore.first!.post &&
-      line.index === visibleBefore.first!.index &&
-      line.line === visibleBefore.first!.line,
-  )!;
-  expect(Math.abs(restored.top - visibleBefore.first!.top)).toBeLessThanOrEqual(
-    1,
-  );
+  await info.attach("retained-glyph.json", {
+    body: JSON.stringify(await expectCharacter(glyph, "screen")),
+    contentType: "application/json",
+  });
   expect(ledger).toHaveLength(before);
   await info.attach("same-row-state.json", {
     body: JSON.stringify({

@@ -844,3 +844,86 @@ test("UI92.restored-short-history: a truthful restored snapshot leaves useful ac
   expect(requests.every((request) => request.startsWith("GET "))).toBe(true);
   await cdp.detach();
 });
+
+for (const expanded of [false, true])
+  test(`UI93.short-review-clip-${expanded}: restored real Review and writing retain at least95px of actually unclipped history after geometry settles`, async ({
+    page,
+  }, info) => {
+    await page.setViewportSize({ width: 390, height: 420 });
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setSafeAreaInsetsOverride", {
+      insets: { top: 24, left: 0, right: 0, bottom: 34, bottomMax: 34 },
+    });
+    const requests = await open(page, threadURL);
+    await page
+      .getByRole("button", { name: "Reply to this post", exact: true })
+      .first()
+      .click();
+    const source = page.getByLabel("Complete source", { exact: true });
+    await source.fill("Exact retained short source 保留內容");
+    await page.reload();
+    await expect(source).toHaveValue("Exact retained short source 保留內容");
+    if (expanded)
+      await page
+        .getByRole("button", { name: "Expand writing", exact: true })
+        .click();
+    await page
+      .getByRole("button", { name: "Review publication", exact: true })
+      .click();
+    const review = page.getByRole("region", {
+      name: "Prepared publication review",
+      exact: true,
+    });
+    await expect(review).toBeVisible();
+    const observations = [];
+    for (const state of ["review", "source"] as const) {
+      if (state === "source") {
+        await review
+          .getByRole("button", {
+            name: "Cancel review and return to writing",
+            exact: true,
+          })
+          .click();
+        await expect(source).toHaveValue(
+          "Exact retained short source 保留內容",
+        );
+        await source.focus();
+      }
+      for (let n = 0; n < 4; n++) {
+        await page.waitForTimeout(100);
+        observations.push({
+          state,
+          ...(await page.locator(".reading-pane").evaluate((reader) => {
+            const r = reader.getBoundingClientRect(),
+              outer = reader.closest(".conversation-region")!,
+              o = outer.getBoundingClientRect();
+            const top = Math.max(r.top, o.top, 0),
+              bottom = Math.min(r.bottom, o.bottom, innerHeight);
+            return {
+              reader: r.toJSON(),
+              outer: o.toJSON(),
+              outerScroll: outer.scrollTop,
+              top,
+              bottom,
+              visible: bottom - top,
+            };
+          })),
+        });
+      }
+      await info.attach(`settled-${state}-clip.png`, {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
+    }
+    await info.attach("settled-clip.json", {
+      body: JSON.stringify(observations),
+      contentType: "application/json",
+    });
+    for (const observation of observations)
+      expect(
+        observation.visible,
+        JSON.stringify(observation),
+      ).toBeGreaterThanOrEqual(95);
+    expect(requests.every((request) => request.startsWith("GET "))).toBe(true);
+    await cdp.detach();
+  });

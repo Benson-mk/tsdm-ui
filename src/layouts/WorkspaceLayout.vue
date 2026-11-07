@@ -217,6 +217,10 @@ function closeDrawer() {
 function togglePane(pane: DrawerPane) {
   const change = () => {
     if (pane === "threads" && !threadsDocked.value) {
+      if (!resultsVisible.value)
+        browsingReaderPosition = capturePositions().filter(({ pane }) =>
+          pane.classList.contains("reading-pane"),
+        );
       rememberPositions();
       rememberPaneScroll();
       narrowBrowsing.value = hasConversation.value
@@ -267,9 +271,10 @@ watch(resultsVisible, (visible, previous) => {
   rememberPaneScroll();
   void nextTick().then(restorePaneScroll);
   if (visible && !previous) {
-    browsingReaderPosition = capturePositions().filter(({ pane }) =>
-      pane.classList.contains("reading-pane"),
-    );
+    if (!browsingReaderPosition.length)
+      browsingReaderPosition = capturePositions().filter(({ pane }) =>
+        pane.classList.contains("reading-pane"),
+      );
   } else if (!visible && previous) {
     void nextTick().then(() => {
       restorePositions(browsingReaderPosition);
@@ -420,11 +425,10 @@ type PanePosition = {
   anchor: HTMLElement;
   offset: number;
   paneTop: number;
-};
-let viewportPositions: PanePosition[] = [];
-type RestoredAnchor = PanePosition & {
   scrollTop: number;
 };
+let viewportPositions: RestoredAnchor[] = [];
+type RestoredAnchor = PanePosition;
 let appearanceAnchors: RestoredAnchor[] = [];
 let readingRestoreRevision = 0;
 let viewportWidth = window.innerWidth;
@@ -489,7 +493,16 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
       (position) =>
         position.pane === pane &&
         position.anchor.isConnected &&
-        position.scrollTop === pane.scrollTop,
+        position.scrollTop === pane.scrollTop &&
+        // Another presentation change may reflow content without scrolling.
+        // Only reuse a range whose prior restoration still describes the view.
+        [position.offset, position.offset + bounds.top - position.paneTop].some(
+          (top) =>
+            Math.abs(
+              (position.range ?? position.anchor).getBoundingClientRect().top -
+                top,
+            ) <= 1,
+        ),
     );
     const visible = (node: HTMLElement) =>
       node.getBoundingClientRect().bottom > bounds.top + 1 &&
@@ -520,6 +533,7 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
             offset:
               previous?.offset ?? (range ?? anchor).getBoundingClientRect().top,
             paneTop: previous?.paneTop ?? bounds.top,
+            scrollTop: pane.scrollTop,
           },
         ]
       : [];
@@ -540,7 +554,10 @@ function rememberPositions() {
     window.innerHeight !== viewportHeight
   )
     return;
-  const current = capturePositions();
+  const current = capturePositions(viewportPositions).map((position) => ({
+    ...position,
+    scrollTop: position.pane.scrollTop,
+  }));
   viewportPositions = [
     ...viewportPositions.filter(
       ({ pane }) =>
@@ -551,8 +568,10 @@ function rememberPositions() {
 }
 function restorePositions(positions: PanePosition[], relativeToPane = false) {
   suppressAutomaticHistory();
-  for (const { pane, anchor, range, offset, paneTop } of positions) {
+  for (const { pane, anchor, range, offset, paneTop, scrollTop } of positions) {
     if (!anchor.isConnected || !pane.getClientRects().length) continue;
+    if (pane.classList.contains("reading-pane"))
+      restoreReadingHeading(scrollTop);
     const bounds = pane.getBoundingClientRect();
     const anchorRect = (
       range?.startContainer.isConnected ? range : anchor
@@ -560,15 +579,22 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
     const anchorTop = anchorRect.top;
     let target = offset + (relativeToPane ? bounds.top - paneTop : 0);
     if (
-      relativeToPane &&
-      titleSpace.value > 0 &&
+      range?.startContainer.isConnected &&
       pane.classList.contains("reading-pane")
     ) {
-      // Compact-heading compensation can leave the retained first line below
-      // a newly shortened pane. Preserve its offset while it fits; otherwise
-      // move only far enough to expose that complete line in the new viewport.
-      if (range?.startContainer.isConnected)
-        target = Math.min(target, bounds.bottom - anchorRect.height);
+      const outer = pane
+        .closest(".conversation-region")!
+        .getBoundingClientRect();
+      const top = Math.max(0, bounds.top, outer.top);
+      const bottom = Math.min(window.innerHeight, bounds.bottom, outer.bottom);
+      // Keep the screen coordinate only while the complete glyph still fits.
+      // Growing headings can cover that coordinate; preserve the original
+      // reader-relative offset instead, bounded by the actual visible region.
+      if (target < top || target + anchorRect.height > bottom)
+        target = Math.max(
+          top,
+          Math.min(bottom - anchorRect.height, top + offset - paneTop),
+        );
     }
     pane.scrollTop += anchorTop - target;
   }
@@ -624,6 +650,12 @@ function resize() {
         true,
       );
     restorePaneScroll();
+    // A restored scroll event must keep the exact character across successive
+    // widths. Recapturing the start of its newly wrapped line drifts on return.
+    viewportPositions = positions.map((position) => ({
+      ...position,
+      scrollTop: position.pane.scrollTop,
+    }));
     // Resize may clip the still-focused source without a new focus event.
     // Scroll its existing node; focusing it again would disturb composition.
     const focused = host.shadowRoot?.activeElement;
@@ -680,9 +712,16 @@ watch(
   props.workspace.preferences.state,
   () => {
     const host = workspaceHost();
-    // Keep the same block across repeated reflows until the reader scrolls.
-    // A shorter toolbar can expose the preceding block without user movement.
-    const positions = capturePositions(appearanceAnchors);
+    // Retain the same character, but use this action's actual coordinates.
+    // A prior clipped fallback must not restore an older screen baseline when
+    // the next typography change makes that older coordinate visible again.
+    const positions = capturePositions(
+      appearanceAnchors.length ? appearanceAnchors : viewportPositions,
+    ).map((position) => ({
+      ...position,
+      offset: (position.range ?? position.anchor).getBoundingClientRect().top,
+      paneTop: position.pane.getBoundingClientRect().top,
+    }));
     host.style.setProperty(
       "--text-scale",
       String(props.workspace.preferences.state.value.textSize / 100),
@@ -697,6 +736,14 @@ watch(
       restorePositions(positions);
       appearanceAnchors = positions.map((position) => ({
         ...position,
+        scrollTop: position.pane.scrollTop,
+      }));
+      // Typography owns a screen coordinate; a subsequent viewport action
+      // starts from the resulting pane-relative coordinate of that same glyph.
+      viewportPositions = positions.map((position) => ({
+        ...position,
+        offset: (position.range ?? position.anchor).getBoundingClientRect().top,
+        paneTop: position.pane.getBoundingClientRect().top,
         scrollTop: position.pane.scrollTop,
       }));
       rememberPositions();
@@ -823,6 +870,27 @@ const writingWide = computed(
     writingExpanded.value &&
     paneWidth.value >= 1440 &&
     conversationWidth.value >= 600,
+);
+// The measured aside threshold can settle after the browser resize event.
+// Preserve the same character when that second layout transition actually occurs.
+watch(
+  writingWide,
+  () => {
+    const positions = viewportPositions.filter(({ pane }) =>
+      pane.classList.contains("reading-pane"),
+    );
+    const revision = readingRestoreRevision;
+    void nextTick().then(() => {
+      if (revision !== readingRestoreRevision) return;
+      restorePositions(positions, true);
+      viewportPositions = positions.map((position) => ({
+        ...position,
+        scrollTop: position.pane.scrollTop,
+      }));
+      rememberPositions();
+    });
+  },
+  { flush: "post" },
 );
 const writingElsewhere = computed(() => {
   const context = writing.value.context;
@@ -1133,6 +1201,16 @@ function navigate(event: MouseEvent) {
   const route = describeDestination(link.href);
   if (!route || new URL(route.url).origin !== location.origin) return;
   event.preventDefault();
+  // Capture before a board request adds transient loading chrome. Waiting for
+  // the result watcher would remember its displaced line as the user's place.
+  if (
+    !threadsDocked.value &&
+    conversationVisible.value &&
+    ["board", "directory"].includes(route.kind)
+  )
+    browsingReaderPosition = capturePositions().filter(({ pane }) =>
+      pane.classList.contains("reading-pane"),
+    );
   void props.workspace.openThread(
     link.href,
     link.closest("[data-favorite-id]")?.getAttribute("data-favorite-id") ??
@@ -1200,6 +1278,31 @@ function focusedBreadcrumb(heading: HTMLElement) {
     ?.contains((heading.getRootNode() as ShadowRoot).activeElement);
 }
 const titleSpace = ref(0);
+function restoreReadingHeading(restoredScroll: number | undefined) {
+  const heading = readerHeading.value;
+
+  if (heading && restoredScroll !== undefined) {
+    const compact = compactTitle.value
+      ? restoredScroll >= 8
+      : restoredScroll > 32;
+    if (compact !== compactTitle.value) {
+      const before = heading.getBoundingClientRect().height;
+      keepBreadcrumb.value =
+        compact && (keepBreadcrumb.value || focusedBreadcrumb(heading));
+      heading.dataset.keepBreadcrumb = String(keepBreadcrumb.value);
+      heading.dataset.compact = String(compact);
+      titleSpace.value = compact
+        ? Math.max(0, before - heading.getBoundingClientRect().height)
+        : 0;
+      compactTitle.value = compact;
+      const spacer = workspaceHost().shadowRoot?.querySelector<HTMLElement>(
+        ".thread-heading-spacer",
+      );
+      if (spacer) spacer.style.height = `${titleSpace.value}px`;
+    }
+  }
+}
+
 const readingPage = ref<{
   page: string;
   url: string;
@@ -1305,7 +1408,12 @@ function readingScroll(event: Event) {
       compactTitle.value = compact;
       // The title and its spacer settle after the scroll event. Capture the
       // now-visible character, rather than a pre-compaction line, for resize.
-      void nextTick().then(rememberPositions);
+      void nextTick().then(() => {
+        viewportPositions = viewportPositions.filter(
+          (position) => position.pane !== pane,
+        );
+        rememberPositions();
+      });
       return;
     }
   }
@@ -1595,28 +1703,7 @@ onMounted(() => {
     // A cached/reloaded reader is restored before its first scroll event. Settle
     // its title now so the viewport calculation sees the final heading height,
     // rather than rebasing for an expanded title that immediately compacts.
-    const heading = readerHeading.value;
-    const restoredScroll = position?.readingScrollTop;
-    if (heading && restoredScroll !== undefined) {
-      const compact = compactTitle.value
-        ? restoredScroll >= 8
-        : restoredScroll > 32;
-      if (compact !== compactTitle.value) {
-        const before = heading.getBoundingClientRect().height;
-        keepBreadcrumb.value =
-          compact && (keepBreadcrumb.value || focusedBreadcrumb(heading));
-        heading.dataset.keepBreadcrumb = String(keepBreadcrumb.value);
-        heading.dataset.compact = String(compact);
-        titleSpace.value = compact
-          ? Math.max(0, before - heading.getBoundingClientRect().height)
-          : 0;
-        compactTitle.value = compact;
-        const spacer = root.shadowRoot?.querySelector<HTMLElement>(
-          ".thread-heading-spacer",
-        );
-        if (spacer) spacer.style.height = `${titleSpace.value}px`;
-      }
-    }
+    restoreReadingHeading(position?.readingScrollTop);
     // History can settle before the queued browser resize event. Update the
     // existing viewport owner before the old host height clamps outer scrolling.
     if (

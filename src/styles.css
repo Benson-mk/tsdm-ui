@@ -940,7 +940,9 @@ select {
   min-width: 0;
   min-height: 96px;
   height: calc(var(--view-height, 100dvh) * 0.46);
-  max-height: calc(var(--view-height, 100dvh) * 0.46);
+  /* Restored status and safe edges can leave less room than the viewport.
+     Keep the reader's minimum visible beside the bottom writer. */
+  max-height: min(calc(var(--view-height, 100dvh) * 0.46), calc(100% - 96px));
   overflow: auto;
   width: 100%;
   margin: 0;

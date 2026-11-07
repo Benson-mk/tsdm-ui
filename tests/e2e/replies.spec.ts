@@ -469,7 +469,10 @@ test("J5.reply-pending: reload retains uncertainty then explicit exact-post chec
   await page.reload();
   release();
   await expect(
-    page.getByText(/Pending publication restored as uncertain/),
+    page.getByText(
+      "The response was lost. The forum may have accepted this attempt. Check result; no send was repeated.",
+      { exact: true },
+    ),
   ).toBeVisible();
   await page
     .getByLabel("Candidate thread URL", { exact: true })
@@ -666,15 +669,21 @@ for (const mutation of [
     await expect(
       page.getByText(/Recovery acknowledged for revision/),
     ).toBeVisible();
-    await page.evaluate((mutation) => {
+    const rejected = await page.evaluate((mutation) => {
       const key = "tsdm.workspace.recovery",
         record = JSON.parse(sessionStorage.getItem(key)!);
       const writing = record.writing;
       if (mutation === "new-thread-with-reply") writing.action = "new-thread";
       if (mutation === "reply-with-post") writing.replyTarget.postId = "101";
       if (mutation === "quote-without-post") writing.action = "quick-quote";
-      sessionStorage.setItem(key, JSON.stringify(record));
+      return JSON.stringify(record);
     }, mutation);
+    // Install the authored corrupt record after pagehide has saved the old
+    // document, before the next application boot can read browser storage.
+    await page.addInitScript(
+      (raw) => sessionStorage.setItem("tsdm.workspace.recovery", raw),
+      rejected,
+    );
     await page.reload();
     await expect(
       page
@@ -684,6 +693,11 @@ for (const mutation of [
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveCount(0);
+    expect(
+      await page.evaluate(() =>
+        sessionStorage.getItem("tsdm.workspace.recovery"),
+      ),
+    ).toBe(rejected);
     await info.attach("action-binding.png", {
       body: await page.screenshot(),
       contentType: "image/png",
@@ -789,7 +803,7 @@ for (const mutation of [
     await expect(
       page.getByLabel("Complete source before sending", { exact: true }),
     ).toHaveValue(state.priorSource);
-    await page.evaluate((mutation) => {
+    const rejected = await page.evaluate((mutation) => {
       const key = "tsdm.workspace.recovery",
         record = JSON.parse(sessionStorage.getItem(key)!);
       const attempt = record.writing.attempts[0];
@@ -802,14 +816,25 @@ for (const mutation of [
       if (mutation === "baseline-thread")
         attempt.publication.replyBefore.pageURL =
           attempt.publication.replyBefore.pageURL.replace("tid=42", "tid=43");
-      sessionStorage.setItem(key, JSON.stringify(record));
+      return JSON.stringify(record);
     }, mutation);
+    // Install the authored corrupt record after pagehide has saved the old
+    // document, before the next application boot can read browser storage.
+    await page.addInitScript(
+      (raw) => sessionStorage.setItem("tsdm.workspace.recovery", raw),
+      rejected,
+    );
     await page.reload();
     await expect(page.getByText(/incompatible/i).first()).toBeVisible();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
+    expect(
+      await page.evaluate(() =>
+        sessionStorage.getItem("tsdm.workspace.recovery"),
+      ),
+    ).toBe(rejected);
     await info.attach("comparison-binding.png", {
       body: await page.screenshot(),
       contentType: "image/png",
@@ -1538,9 +1563,12 @@ for (const mutation of [
           { ...sentinel },
         ];
       const raw = JSON.stringify(record);
-      sessionStorage.setItem(key, raw);
       return raw;
     }, mutation);
+    await page.addInitScript(
+      (raw) => sessionStorage.setItem("tsdm.workspace.recovery", raw),
+      rejected,
+    );
     const count = state.requests.length;
     await page.reload();
     await expect(

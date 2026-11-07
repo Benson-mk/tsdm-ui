@@ -906,7 +906,7 @@ test("J76.private-local-target-list: local exact targets preserve the currently 
     page.locator(".board-card").filter({ hasText: "Music discussion" }),
   ).toBeVisible();
   const native = page
-    .getByRole("navigation", { name: "Thread actions", exact: true })
+    .getByRole("banner")
     .getByRole("link", { name: "Continue in native forum", exact: true });
   const destination = await native.getAttribute("href");
   const before = ledger.length;
@@ -944,10 +944,10 @@ test("J76.private-drawer: selecting a peer closes the narrow list drawer and reo
     `${origin}/forum.php`,
     peers.replace("Preview 9", "Authored long preview. ".repeat(100)),
   );
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Close", exact: true })
-    .click();
+  await expect(
+    page.getByRole("region", { name: "Boards overview", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await loadPeers(page);
   const list = page.locator(".messages-pane");

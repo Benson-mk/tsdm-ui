@@ -1,4 +1,10 @@
 import {
+  visibleCharacter,
+  expectCharacter,
+  characterObservation,
+  rebaseCharacter,
+} from "./visible-character";
+import {
   openSettings,
   closeSettingsToWorkspace,
   revealNavigation,
@@ -369,9 +375,11 @@ test("J5.appearance-locales: translated controls retain forum text, content iden
     page.getByRole("heading", { name: "关于此工作区", exact: true }),
   ).toBeVisible();
   await closeSettingsToWorkspace(page);
+  await page.getByRole("button", { name: "更多主题选项", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "刷新主题", exact: true }),
+    page.getByRole("menuitem", { name: "刷新主题", exact: true }),
   ).toBeVisible();
+  await page.keyboard.press("Escape");
   expect(requests).toHaveLength(1);
 });
 
@@ -541,7 +549,10 @@ test("J5.appearance-localized-reader-and-failure: application descriptions trans
       body: `${account}<div id="messagetext">阅读权限不足</div>`,
     }),
   );
-  await page.getByRole("button", { name: "重新整理主題", exact: true }).click();
+  await page.getByRole("button", { name: "更多主題選項", exact: true }).click();
+  await page
+    .getByRole("menuitem", { name: "重新整理主題", exact: true })
+    .click();
   await expect(
     page.getByText("目前帳號沒有閱讀此主題的權限。", { exact: true }),
   ).toBeVisible();
@@ -744,7 +755,7 @@ test("J5.appearance-roles: nested roles scale exactly once and compose with a la
     [".post-content blockquote p", 18],
     [".post-content pre code", 14],
     ["article header", 14],
-    [".thread-heading h1", 24],
+    [".thread-heading h1", 26],
     [".dialog-content p", 18],
     [".dialog-content h2", 24],
     [".boards-navigation a", 16],
@@ -759,9 +770,16 @@ test("J5.appearance-roles: nested roles scale exactly once and compose with a la
           size: Number.parseFloat(getComputedStyle(node).fontSize),
           weight: getComputedStyle(node).fontWeight,
         }));
+      const role =
+        selector === ".thread-heading h1" &&
+        (await page
+          .locator(".conversation-heading")
+          .getAttribute("data-compact")) === "true"
+          ? 16
+          : baseline;
       expect
         .soft(metrics.size, `${selector} at ${size}%`)
-        .toBeCloseTo((baseline * size) / 100, 2);
+        .toBeCloseTo((role * size) / 100, 2);
     }
   }
   // A native document/user stylesheet establishes the larger relative baseline;
@@ -783,7 +801,7 @@ test("J5.appearance-roles: nested roles scale exactly once and compose with a la
   });
 });
 
-test("J5.appearance-resize-context: viewport transitions preserve the visible paragraph without navigation or reads", async ({
+test("J5.appearance-resize-context: viewport transitions preserve the visible character without navigation or reads", async ({
   page,
 }, info) => {
   const requests = await open(page, "", boardTarget);
@@ -800,11 +818,7 @@ test("J5.appearance-resize-context: viewport transitions preserve the visible pa
   const anchor = article.locator(".post-content > p").nth(2);
   const identity = await article.elementHandle();
   await anchor.evaluate((node) => node.scrollIntoView({ block: "start" }));
-  const anchorOffset = await anchor.evaluate(
-    (node) =>
-      node.getBoundingClientRect().top -
-      node.closest(".reading-pane")!.getBoundingClientRect().top,
-  );
+  const glyph = await visibleCharacter(page);
   const rowOffset = await row.evaluate(
     (node) =>
       node.getBoundingClientRect().top -
@@ -820,18 +834,10 @@ test("J5.appearance-resize-context: viewport transitions preserve the visible pa
   });
   for (const width of [375, 960, 1280, 1920, 1280]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect
-      .poll(() =>
-        anchor.evaluate((node, offset) => {
-          const pane = node.closest(".reading-pane")!;
-          return Math.abs(
-            node.getBoundingClientRect().top -
-              pane.getBoundingClientRect().top -
-              offset,
-          );
-        }, anchorOffset),
-      )
-      .toBeLessThanOrEqual(1);
+    await info.attach(`glyph-${width}.json`, {
+      body: JSON.stringify(await expectCharacter(glyph)),
+      contentType: "application/json",
+    });
     expect(await identity?.evaluate((node) => node.isConnected)).toBe(true);
     if (width >= 960)
       await expect
@@ -861,7 +867,7 @@ test("J5.appearance-resize-context: viewport transitions preserve the visible pa
   });
 });
 
-test("J5.appearance-context: reflow retains mounted content, disclosures, visible blocks and history without a forum read", async ({
+test("J5.appearance-context: reflow retains mounted content, disclosures, visible characters and history without a forum read", async ({
   page,
 }, info) => {
   const requests = await open(page);
@@ -870,9 +876,7 @@ test("J5.appearance-context: reflow retains mounted content, disclosures, visibl
   const anchor = article.locator(".post-content > p").nth(2);
   const identity = await article.elementHandle();
   await anchor.evaluate((node) => node.scrollIntoView({ block: "start" }));
-  const offset = await anchor.evaluate(
-    (node) => node.getBoundingClientRect().top,
-  );
+  const glyph = await visibleCharacter(page);
   const before = await page.evaluate(() => ({
     length: history.length,
     state: history.state as unknown,
@@ -883,14 +887,11 @@ test("J5.appearance-context: reflow retains mounted content, disclosures, visibl
   for (const size of [70, 90, 100, 150]) {
     await slider.fill(String(size));
     await expect(slider).toBeFocused();
-    await expect
-      .poll(async () =>
-        Math.abs(
-          (await anchor.evaluate((node) => node.getBoundingClientRect().top)) -
-            offset,
-        ),
-      )
-      .toBeLessThanOrEqual(1);
+    await info.attach(`glyph-${size}.json`, {
+      body: JSON.stringify(await expectCharacter(glyph, "screen")),
+      contentType: "application/json",
+    });
+    await rebaseCharacter(glyph);
     expect(await identity?.evaluate((node) => node.isConnected)).toBe(true);
     await expect(
       page.locator("article").first().locator("details"),
@@ -914,7 +915,7 @@ test("J5.appearance-context: reflow retains mounted content, disclosures, visibl
   });
 });
 
-test("J5.appearance-new-anchor: scrolling after an appearance change establishes a new reading block", async ({
+test("J5.appearance-new-anchor: scrolling after an appearance change establishes a new visible reading character", async ({
   page,
 }, info) => {
   const requests = await open(page);
@@ -925,21 +926,16 @@ test("J5.appearance-new-anchor: scrolling after an appearance change establishes
   await closeSettingsToWorkspace(page);
   const next = page.locator("#pid108 .post-content > p").nth(1);
   await next.evaluate((node) => node.scrollIntoView({ block: "start" }));
-  const offset = await next.evaluate(
-    (node) => node.getBoundingClientRect().top,
-  );
+  const glyph = await visibleCharacter(page);
   await openSettings(page);
   const slider = page.getByRole("slider", { name: "Text size", exact: true });
   for (const size of [90, 100, 150, 70]) {
     await slider.fill(String(size));
-    await expect
-      .poll(async () =>
-        Math.abs(
-          (await next.evaluate((node) => node.getBoundingClientRect().top)) -
-            offset,
-        ),
-      )
-      .toBeLessThanOrEqual(1);
+    await info.attach(`glyph-${size}.json`, {
+      body: JSON.stringify(await expectCharacter(glyph, "screen")),
+      contentType: "application/json",
+    });
+    await rebaseCharacter(glyph);
   }
   await closeSettingsToWorkspace(page);
   expect(requests).toHaveLength(1);
@@ -1019,5 +1015,93 @@ test("J5.appearance-palettes-spacing: four palettes share exact Compact metrics 
       contentType: "image/png",
     });
   }
+  expect(requests).toHaveLength(1);
+});
+
+test("UI93.consecutive-typography: shrinking after a clipped growth preserves the current visible character screen coordinate", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1520, height: 900 });
+  const requests = await open(page);
+  await page.locator(".reading-pane").evaluate((pane) => {
+    pane.scrollTop = 500;
+  });
+  const glyph = await visibleCharacter(page);
+  await info.attach("before.json", {
+    body: JSON.stringify(await characterObservation(glyph)),
+    contentType: "application/json",
+  });
+  await openSettings(page);
+  await page.getByRole("radio", { name: "Alias", exact: true }).check();
+  await page
+    .getByRole("slider", { name: "Text size", exact: true })
+    .fill("150");
+  await closeSettingsToWorkspace(page);
+  const growth = await expectCharacter(glyph, "screen");
+  await info.attach("clipped-growth.json", {
+    body: JSON.stringify(growth),
+    contentType: "application/json",
+  });
+  expect(growth.screenFits).toBe(false);
+  await rebaseCharacter(glyph);
+  await openSettings(page);
+  await page.getByRole("radio", { name: "Mono", exact: true }).check();
+  await page
+    .getByRole("slider", { name: "Text size", exact: true })
+    .fill("100");
+  await closeSettingsToWorkspace(page);
+  const shrink = await characterObservation(glyph);
+  await info.attach("shrink.json", {
+    body: JSON.stringify(shrink),
+    contentType: "application/json",
+  });
+  await info.attach("shrink.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  expect(shrink.screenFits).toBe(true);
+  await expectCharacter(glyph, "screen");
+  expect(requests).toHaveLength(1);
+});
+
+test("UI93.consecutive-typography-minimal: shrinking after a clipped growth preserves the current visible character screen coordinate", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1520, height: 900 });
+  const requests = await open(page);
+  await page.locator(".reading-pane").evaluate((pane) => {
+    pane.scrollTop = 500;
+  });
+  const glyph = await visibleCharacter(page);
+  await info.attach("before.json", {
+    body: JSON.stringify(await characterObservation(glyph)),
+    contentType: "application/json",
+  });
+  await openSettings(page);
+  await page
+    .getByRole("slider", { name: "Text size", exact: true })
+    .fill("150");
+  const growth = await expectCharacter(glyph, "screen");
+  await info.attach("clipped-growth.json", {
+    body: JSON.stringify(growth),
+    contentType: "application/json",
+  });
+  expect(growth.screenFits).toBe(false);
+  await rebaseCharacter(glyph);
+  await page
+    .getByRole("slider", { name: "Text size", exact: true })
+    .fill("100");
+  await closeSettingsToWorkspace(page);
+  const shrink = await characterObservation(glyph);
+  await info.attach("shrink.json", {
+    body: JSON.stringify(shrink),
+    contentType: "application/json",
+  });
+  await info.attach("shrink.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  expect(shrink.screenFits).toBe(true);
+  await expectCharacter(glyph, "screen");
   expect(requests).toHaveLength(1);
 });

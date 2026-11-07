@@ -193,9 +193,27 @@ test("DESIGN.composer: compact reply exposes editor and review together, expansi
   expect(
     await input.evaluate((current, previous) => current === previous, node),
   ).toBe(true);
-  expect((await style(page, ".source-writing")).height).toBeLessThanOrEqual(
-    414,
-  );
+  // Parent #81 decision13 intentionally replaces the old bottom-only cap.
+  const aside = (await page.locator(".source-writing").boundingBox())!;
+  const reader = (await page.locator(".reading-pane").boundingBox())!;
+  expect(aside.x).toBeGreaterThanOrEqual(reader.x + reader.width);
+  expect(reader.width).toBeGreaterThanOrEqual(320);
+  expect(aside.width).toBeGreaterThanOrEqual(280);
+  await expect(input).toBeInViewport();
+  await expect(review).toBeInViewport();
+  await page.setViewportSize({ width: 1439, height: 900 });
+  await expect
+    .poll(async () => {
+      const writing = (await page.locator(".source-writing").boundingBox())!;
+      const reading = (await page.locator(".reading-pane").boundingBox())!;
+      return writing.y >= reading.y + reading.height - 1;
+    })
+    .toBe(true);
+  expect(
+    await input.evaluate((current, previous) => current === previous, node),
+  ).toBe(true);
+  await expect(input).toHaveValue("A retained reply 中文");
+  await expect(review).toBeInViewport();
   await capture(page, info, "expanded-reply");
   await page
     .getByRole("button", { name: "Compact writing", exact: true })
