@@ -166,6 +166,26 @@ function escape(event: KeyboardEvent) {
           {{ text.storageUnavailable }}
         </p>
         <section>
+          <h3>{{ text.checkingSettings }}</h3>
+          <p>{{ text.newestBaselineHelp }}</p>
+          <label>
+            <input
+              type="checkbox"
+              :checked="workspace.threadHistory.state.value.automatic"
+              :disabled="!workspace.threadHistory.canCheck()"
+              @change="
+                workspace.threadHistory.setAutomatic(
+                  ($event.target as HTMLInputElement).checked,
+                )
+              "
+            />
+            {{ text.automaticChecks }}
+          </label>
+          <p v-if="!workspace.threadHistory.canCheck()">
+            {{ text.checkingUnavailable }}
+          </p>
+        </section>
+        <section>
           <h3>{{ text.columnWidths }}</h3>
           <p>{{ text.columnWidthsMemory }}</p>
           <button @click="emit('reset-columns')">

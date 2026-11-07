@@ -1,3 +1,4 @@
+import { setAutomaticChecks } from "./navigation-ui";
 import { openThreadPages, loadThreadRange } from "./navigation-ui";
 import { clickThreadTool } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
@@ -287,12 +288,7 @@ test("IM71.failure-recovery: failed refresh retains content and requires deliber
     },
     route(3),
   );
-  await page
-    .getByRole("checkbox", {
-      name: "Check every 2 minutes while active",
-      exact: true,
-    })
-    .check();
+  await setAutomaticChecks(page, true);
   fail = true;
   await clickThreadTool(page, "Refresh thread");
   await expect(
@@ -308,9 +304,7 @@ test("IM71.failure-recovery: failed refresh retains content and requires deliber
   await page.keyboard.press("Escape");
   expect(requests).toHaveLength(2);
   release?.();
-  await expect(
-    page.getByText(/Check failed. Retry available in 2 minutes/),
-  ).toBeVisible();
+  await expect(page.getByText(/Check failed · wait 2 min/)).toBeVisible();
   await expect(page.locator(".reading-pane article")).toHaveCount(3);
   await clickThreadTool(page, "Refresh thread");
   await page.waitForTimeout(100);
@@ -320,9 +314,7 @@ test("IM71.failure-recovery: failed refresh retains content and requires deliber
   await clickThreadTool(page, "Refresh thread");
   await expect.poll(() => requests.length).toBe(3);
   release?.();
-  await expect(
-    page.getByText(/Check failed. Retry available in 4 minutes/),
-  ).toBeVisible();
+  await expect(page.getByText(/Check failed · wait 4 min/)).toBeVisible();
 });
 
 test("IM71.auto-policy: opt-in checks wait120seconds, pause for visible modal and resume without backlog", async ({
@@ -331,14 +323,14 @@ test("IM71.auto-policy: opt-in checks wait120seconds, pause for visible modal an
   test.setTimeout(290_000);
   const requests = await open(page, undefined, route(3));
   await expect(page.getByText("Manual refresh", { exact: true })).toBeVisible();
-  const toggle = page.getByRole("checkbox", {
+  await openSettings(page);
+  const toggle = page.getByRole("dialog").getByRole("checkbox", {
     name: "Check every 2 minutes while active",
     exact: true,
   });
   await expect(toggle).not.toBeChecked();
   await toggle.check();
   expect(requests).toHaveLength(1);
-  await openSettings(page);
   await page.waitForTimeout(121_000);
   expect(requests).toHaveLength(1);
   await closeSettingsToWorkspace(page, "button");
@@ -348,7 +340,7 @@ test("IM71.auto-policy: opt-in checks wait120seconds, pause for visible modal an
   await page.waitForTimeout(118_000);
   expect(requests).toHaveLength(1);
   await expect.poll(() => requests.length, { timeout: 5000 }).toBe(2);
-  await toggle.uncheck();
+  await setAutomaticChecks(page, false);
   await expect(page.getByText("Manual refresh", { exact: true })).toBeVisible();
 });
 
@@ -668,12 +660,7 @@ test("IM71.returned-later: refreshed latest page can reveal a real next boundary
     }),
     route(3),
   );
-  await page
-    .getByRole("checkbox", {
-      name: "Check every 2 minutes while active",
-      exact: true,
-    })
-    .check();
+  await setAutomaticChecks(page, true);
   changed = true;
   await clickThreadTool(page, "Refresh thread");
   await expect(
@@ -689,14 +676,16 @@ test("IM71.returned-later: refreshed latest page can reveal a real next boundary
     0,
   );
   await expect(page.getByText("Checks paused", { exact: true })).toBeVisible();
-  const toggle = page.getByRole("checkbox", {
+  await page.keyboard.press("Escape");
+  await openSettings(page);
+  const toggle = page.getByRole("dialog").getByRole("checkbox", {
     name: "Check every 2 minutes while active",
     exact: true,
   });
   await expect(toggle).toBeChecked();
-  await page.keyboard.press("Escape");
-  await toggle.click();
-  await expect(toggle).toHaveCount(0);
+  await toggle.uncheck();
+  await expect(toggle).not.toBeChecked();
+  await closeSettingsToWorkspace(page);
   await expect(page.getByText("Manual refresh", { exact: true })).toBeVisible();
   expect(requests).toHaveLength(2);
 });
@@ -706,6 +695,7 @@ test("IM71.toggle-target: the complete automatic check label remains a44px targe
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page, undefined, route(3));
+  await openSettings(page);
   const box = await page
     .getByRole("checkbox", {
       name: "Check every 2 minutes while active",
@@ -734,17 +724,15 @@ test("IM71.cached-range: explicit page navigation and Back preserve arrival memb
   );
   await loadThreadRange(page, "earlier");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
-  await page
-    .getByRole("checkbox", {
-      name: "Check every 2 minutes while active",
-      exact: true,
-    })
-    .check();
+  await setAutomaticChecks(page, true);
   phase = 1;
   await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByRole("button", { name: "New replies (1)", exact: true }),
   ).toBeVisible();
+  const priorChecked = await page
+    .locator(".public-check-time time")
+    .getAttribute("datetime");
   await (
     await openThreadPages(page)
   )
@@ -755,12 +743,22 @@ test("IM71.cached-range: explicit page navigation and Back preserve arrival memb
   await expect(page.locator("#pid108")).toHaveCount(1);
   await expect(page.locator("#pid107")).toHaveCount(0);
   await expect(page.locator("#pid103")).toHaveCount(1);
+  await expect(page.locator(".public-check-time time")).toHaveAttribute(
+    "datetime",
+    priorChecked!,
+  );
+  await expect(page.locator(".public-check-time time")).toHaveAttribute(
+    "aria-label",
+    new RegExp(String(new Date(priorChecked!).getFullYear())),
+  );
+  await openSettings(page);
   await expect(
     page.getByRole("checkbox", {
       name: "Check every 2 minutes while active",
       exact: true,
     }),
   ).not.toBeChecked();
+  await closeSettingsToWorkspace(page);
   phase = 2;
   await clickThreadTool(page, "Refresh thread");
   await expect(page.locator("#pid107")).toHaveCount(1);
@@ -789,9 +787,7 @@ test("IM71.cached-cooldown: Back restores a failed range without bypassing the d
   );
   fail = true;
   await clickThreadTool(page, "Refresh thread");
-  await expect(
-    page.getByText(/Check failed. Retry available in 2 minutes/),
-  ).toBeVisible();
+  await expect(page.getByText(/Check failed · wait 2 min/)).toBeVisible();
   await (
     await openThreadPages(page)
   )
@@ -800,9 +796,7 @@ test("IM71.cached-cooldown: Back restores a failed range without bypassing the d
   await expect(page.locator("#pid101")).toHaveCount(1);
   await clickThreadTool(page, "Back");
   await expect(page.locator("#pid107")).toHaveCount(1);
-  await expect(
-    page.getByText(/Check failed. Retry available in 2 minutes/),
-  ).toBeVisible();
+  await expect(page.getByText(/Check failed · wait 2 min/)).toBeVisible();
   await clickThreadTool(page, "Refresh thread");
   await page.waitForTimeout(100);
   expect(requests).toHaveLength(3);
@@ -944,12 +938,14 @@ test("IM71.last-success: a local successful-check time stays visible through a l
   const checked = page.getByText(/^Last successful check:/);
   await expect(checked).toBeVisible();
   const last = await checked.textContent();
-  expect(last).toMatch(/\d{1,2}:\d{2}:\d{2}/);
+  expect(last).toMatch(/\d{1,2}:\d{2}/);
+  await expect(page.locator(".public-check-time time")).toHaveAttribute(
+    "aria-label",
+    /\d{1,2}:\d{2}:\d{2}/,
+  );
   fail = true;
   await clickThreadTool(page, "Refresh thread");
-  await expect(
-    page.getByText(/Check failed. Retry available in 2 minutes/),
-  ).toBeVisible();
+  await expect(page.getByText(/Check failed · wait 2 min/)).toBeVisible();
   await expect(checked).toHaveText(last!);
   expect(requests).toHaveLength(3);
 });
@@ -1391,6 +1387,9 @@ test("F79.public-context-review: populated board through loaded range and addres
     expect(await handle!.evaluate((n) => n.isConnected)).toBe(true);
     await expect(page.locator(".reading-pane article")).toHaveCount(7);
   }
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Visual editor", exact: true })
     .click();

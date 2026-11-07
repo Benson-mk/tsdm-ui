@@ -1,5 +1,7 @@
 <script setup lang="ts">
 const paths = {
+  refresh:
+    "M20 7v5h-5 M4 17v-5h5 M6 7a7 7 0 0 1 12-2l2 3 M18 17a7 7 0 0 1-12 2l-2-3",
   compose: "M4 20l4-1 12-12-3-3L5 16z M14 7l3 3",
   expand: "M8 3H3v5 M3 3l7 7 M16 21h5v-5 M21 21l-7-7",
   compact: "M3 8h5V3 M8 8L2 2 M21 16h-5v5 M16 16l6 6",

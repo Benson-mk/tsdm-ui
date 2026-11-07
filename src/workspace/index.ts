@@ -397,10 +397,13 @@ export function createWorkspace(
   let view: ViewAdapter | null = null;
   let knownAccount: string | null = null;
   const threadHistory = createThreadHistory(client, {
-    active: () =>
-      state.value.result?.kind === "thread" && !state.value.privateReading,
+    openNewest: async (url) => {
+      await openThread(url);
+    },
+    active: () => !!state.value.reading && !state.value.privateReading,
     busy: () =>
       state.value.loading ||
+      writing.state.value.composing ||
       writing.state.value.preparing ||
       writing.state.value.publishing ||
       writing.state.value.findingMention ||

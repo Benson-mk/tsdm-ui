@@ -63,6 +63,28 @@ const reading = computed(() =>
     ? null
     : (history.value.result ?? state.value.reading),
 );
+const reverseReading = computed(
+  () => reading.value?.thread.history?.order === "descending",
+);
+const visiblePosts = computed(() =>
+  reverseReading.value
+    ? [...(reading.value?.thread.posts ?? [])].reverse()
+    : (reading.value?.thread.posts ?? []),
+);
+const newestReplyId = computed(() => {
+  const posts = visiblePosts.value;
+  if (!reverseReading.value) return posts.at(-1)?.id;
+  const first = posts.findIndex(
+    (post) => !/^(?:-1)?#$/.test(post.floor.trim()),
+  );
+  // Only the observed native pinned prefix is skipped, and only when the next
+  // post has a positive native floor. Unknown labels keep source order intact.
+  return (
+    first >= 0 && /^[1-9]\d*#?$/.test(posts[first]!.floor.trim())
+      ? posts[first]
+      : posts[0]
+  )?.id;
+});
 const boardsCollapsed = ref(false);
 const threadsCollapsed = ref(false);
 const paneWidth = ref(window.innerWidth);
@@ -1156,6 +1178,18 @@ function suppressAutomaticHistory() {
 }
 const readerHeading = ref<HTMLElement | null>(null);
 const compactTitle = ref(false);
+const keepBreadcrumb = ref(false);
+function retainBreadcrumb() {
+  if (!compactTitle.value || keepBreadcrumb.value) return;
+  const positions = capturePositions();
+  keepBreadcrumb.value = true;
+  void nextTick().then(() => restorePositions(positions, true));
+}
+function focusedBreadcrumb(heading: HTMLElement) {
+  return !!heading
+    .querySelector(".reader-breadcrumb")
+    ?.contains((heading.getRootNode() as ShadowRoot).activeElement);
+}
 const titleSpace = ref(0);
 const readingPage = ref<{
   page: string;
@@ -1190,7 +1224,9 @@ function scheduleReadingPage() {
       url,
       terminal:
         history.value.later.status === "end" &&
-        pane.scrollTop >= latestReadingScroll(pane) - 1,
+        (reverseReading.value
+          ? Math.abs(pane.scrollTop - latestReadingScroll(pane)) <= 1
+          : pane.scrollTop >= latestReadingScroll(pane) - 1),
     };
   });
 }
@@ -1247,9 +1283,14 @@ function readingScroll(event: Event) {
       // Measure the target title once, then update heading and compensation in
       // the same Vue render. A deferred scrollTop write could overwrite a newer
       // user scroll or history restoration while those two renders settle.
+      const retain =
+        compact && (keepBreadcrumb.value || focusedBreadcrumb(heading));
+      heading.dataset.keepBreadcrumb = String(retain);
       heading.dataset.compact = String(compact);
       const after = heading.getBoundingClientRect().height;
       heading.dataset.compact = String(compactTitle.value);
+      heading.dataset.keepBreadcrumb = String(keepBreadcrumb.value);
+      keepBreadcrumb.value = retain;
       pane.scrollTop = scroll;
       titleSpace.value = compact ? Math.max(0, before - after) : 0;
       compactTitle.value = compact;
@@ -1265,6 +1306,7 @@ watch(
   () => reading.value?.thread.id,
   () => {
     compactTitle.value = false;
+    keepBreadcrumb.value = false;
     readingPage.value = null;
     titleSpace.value = 0;
     titlePosition = null;
@@ -1316,15 +1358,23 @@ function approachHistory(
     }
     if (
       (edges?.top ?? pane.scrollTop) <= 160 &&
-      history.value.earlier.status === "unloaded"
+      history.value[reverseReading.value ? "later" : "earlier"].status ===
+        "unloaded"
     )
-      void props.workspace.threadHistory.load("earlier", true);
+      void props.workspace.threadHistory.load(
+        reverseReading.value ? "later" : "earlier",
+        true,
+      );
     else if (
       (edges?.bottom ??
         pane.scrollHeight - pane.clientHeight - pane.scrollTop) <= 160 &&
-      history.value.later.status === "unloaded"
+      history.value[reverseReading.value ? "earlier" : "later"].status ===
+        "unloaded"
     )
-      void props.workspace.threadHistory.load("later", true);
+      void props.workspace.threadHistory.load(
+        reverseReading.value ? "earlier" : "later",
+        true,
+      );
   });
 }
 onUnmounted(() => {
@@ -1334,6 +1384,24 @@ onUnmounted(() => {
 });
 let stopReadingImageRestore: (() => void) | undefined;
 function latestReadingScroll(reader: HTMLElement) {
+  if (
+    reverseReading.value &&
+    !reader.classList.contains("private-reading-pane")
+  ) {
+    const boundary = reader.querySelector<HTMLElement>(".newest-check");
+    const post = reader.querySelector<HTMLElement>(
+      `#pid${newestReplyId.value}`,
+    );
+    const anchor = boundary ?? post;
+    return anchor
+      ? Math.max(
+          0,
+          reader.scrollTop +
+            anchor.getBoundingClientRect().top -
+            reader.getBoundingClientRect().top,
+        )
+      : 0;
+  }
   const end = reader.scrollHeight - reader.clientHeight;
   const last = reader.querySelector<HTMLElement>("article:last-of-type");
   const content = last?.querySelector<HTMLElement>(".post-content");
@@ -1526,6 +1594,9 @@ onMounted(() => {
         : restoredScroll > 32;
       if (compact !== compactTitle.value) {
         const before = heading.getBoundingClientRect().height;
+        keepBreadcrumb.value =
+          compact && (keepBreadcrumb.value || focusedBreadcrumb(heading));
+        heading.dataset.keepBreadcrumb = String(keepBreadcrumb.value);
         heading.dataset.compact = String(compact);
         titleSpace.value = compact
           ? Math.max(0, before - heading.getBoundingClientRect().height)
@@ -1665,12 +1736,17 @@ onMounted(() => {
     nearLatest() {
       const reader =
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
-      return (
-        !!reader &&
-        (titlePosition?.pane === reader &&
+      if (!reader) return false;
+      const distance =
+        titlePosition?.pane === reader &&
         titlePosition.scroll === reader.scrollTop
           ? titlePosition.endDistance
-          : latestReadingScroll(reader) - reader.scrollTop) <= 64
+          : latestReadingScroll(reader) - reader.scrollTop;
+      return (
+        (reverseReading.value &&
+        !reader.classList.contains("private-reading-pane")
+          ? Math.abs(distance)
+          : distance) <= 64
       );
     },
     followLatest() {
@@ -2859,10 +2935,14 @@ function boardIdFrom(url: string) {
           ref="readerHeading"
           class="conversation-heading"
           :data-compact="compactTitle"
+          :data-keep-breadcrumb="keepBreadcrumb"
         >
           <div class="reader-heading-row">
             <section class="thread-heading">
-              <div class="context-kind reader-breadcrumb">
+              <div
+                class="context-kind reader-breadcrumb"
+                @focusin="retainBreadcrumb"
+              >
                 {{ text.thread }} {{ reading.thread.id }}
                 <span
                   v-if="readerCategory.label"
@@ -2903,117 +2983,154 @@ function boardIdFrom(url: string) {
           >
             {{ notice }}
           </p>
-          <div class="history-controls" :aria-label="text.threadHistory">
-            <label
-              v-if="
-                history.automatic ||
-                (history.later.status === 'end' &&
-                  history.result?.thread.history?.order === 'ascending')
-              "
-            >
-              <input
-                type="checkbox"
-                :checked="history.automatic"
-                @change="
-                  workspace.threadHistory.setAutomatic(
-                    ($event.target as HTMLInputElement).checked,
+          <div
+            class="history-controls public-history-controls"
+            :aria-label="text.threadHistory"
+          >
+            <div class="public-check-row">
+              <p class="public-check-state" role="status">
+                {{
+                  history.checking
+                    ? text.refreshChecking
+                    : history.refreshFailure
+                      ? history.retryMinutes
+                        ? insert(text.checkCooldown, history.retryMinutes)
+                        : text.checkFailed
+                      : history.automatic
+                        ? history.paused
+                          ? text.refreshPaused
+                          : text.refreshEnabled
+                        : history.baselineEstablished
+                          ? text.newestBaseline
+                          : text.refreshManual
+                }}
+              </p>
+              <div class="public-check-actions">
+                <button
+                  v-if="history.arrivals.length"
+                  @click="workspace.threadHistory.revealArrivals()"
+                >
+                  {{ insert(text.newReplies, history.arrivals.length) }}
+                </button>
+                <details
+                  v-if="
+                    history.refreshFailure &&
+                    'message' in history.refreshFailure
+                  "
+                >
+                  <summary
+                    :aria-label="text.checkDetails"
+                    :title="text.checkDetails"
+                  >
+                    <WorkspaceIcon name="about" />
+                  </summary>
+                  <p>{{ text.checkRetry }}</p>
+                  <p>
+                    {{
+                      description(
+                        history.refreshFailure.message,
+                        workspace.preferences.state.value.language,
+                      )
+                    }}
+                  </p>
+                </details>
+              </div>
+            </div>
+            <span class="public-check-time">
+              <time
+                v-if="history.checkedAt"
+                tabindex="0"
+                :datetime="new Date(history.checkedAt).toISOString()"
+                :title="
+                  new Date(history.checkedAt).toLocaleString(
+                    workspace.preferences.state.value.language,
                   )
                 "
-              />
-              {{ text.automaticChecks }}
-            </label>
-            <p role="status">
-              {{
-                history.checking
-                  ? text.refreshChecking
-                  : history.refreshFailure
-                    ? history.retryMinutes
-                      ? insert(text.refreshCooldown, history.retryMinutes)
-                      : text.refreshRetry
-                    : history.automatic
-                      ? history.paused
-                        ? text.refreshPaused
-                        : text.refreshEnabled
-                      : text.refreshManual
-              }}
-            </p>
-            <span v-if="history.checkedAt">{{
-              insert(
-                text.lastSuccessfulCheck,
-                new Date(history.checkedAt).toLocaleString(
-                  workspace.preferences.state.value.language,
-                ),
-              )
-            }}</span>
-            <p
-              v-if="
-                history.refreshFailure && 'message' in history.refreshFailure
-              "
-            >
-              {{
-                description(
-                  history.refreshFailure.message,
-                  workspace.preferences.state.value.language,
-                )
-              }}
-            </p>
-            <button
-              v-if="history.arrivals.length"
-              @click="workspace.threadHistory.revealArrivals()"
-            >
-              {{ insert(text.newReplies, history.arrivals.length) }}
-            </button>
-            <template
-              v-for="direction in ['earlier', 'later'] as const"
-              :key="direction"
-            >
-              <span
-                v-if="history[direction].status === 'loading'"
-                role="status"
-                >{{ text.historyLoading }}</span
-              >
-              <button
-                v-if="
-                  history[direction].url &&
-                  history[direction].status === 'failed'
+                :aria-label="
+                  insert(
+                    text.lastSuccessfulCheck,
+                    new Date(history.checkedAt).toLocaleString(
+                      workspace.preferences.state.value.language,
+                    ),
+                  )
                 "
-                :disabled="
-                  history.checking ||
-                  history.earlier.status === 'loading' ||
-                  history.later.status === 'loading'
-                "
-                @click="workspace.threadHistory.load(direction)"
               >
                 {{
-                  direction === "earlier" ? text.retryEarlier : text.retryLater
-                }}
-              </button>
-              <span v-else-if="!history[direction].url">{{
-                history[direction].status === "end"
-                  ? direction === "earlier"
-                    ? text.historyBeginning
-                    : text.historyEnd
-                  : direction === "earlier"
-                    ? text.historyEarlierUnknown
-                    : text.historyLaterUnknown
-              }}</span>
-            </template>
-            <p
-              v-for="direction in ['earlier', 'later'] as const"
-              v-show="history[direction].failure"
-              :key="`failure-${direction}`"
-              role="status"
-            >
-              {{
-                history[direction].failure &&
-                "message" in history[direction].failure
-                  ? description(
-                      history[direction].failure.message,
+                  insert(
+                    text.lastSuccessfulCheck,
+                    new Date(history.checkedAt).toLocaleString(
                       workspace.preferences.state.value.language,
-                    )
-                  : ""
-              }}
-            </p>
+                      {
+                        month: "numeric",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      },
+                    ),
+                  )
+                }}
+              </time>
+            </span>
+            <div
+              class="public-history-boundaries"
+              :data-reserve="`${text.historyEarlierUnknown}   ${text.historyLaterUnknown}`"
+            >
+              <div class="public-history-boundary-content">
+                <template
+                  v-for="direction in ['earlier', 'later'] as const"
+                  :key="direction"
+                >
+                  <span
+                    v-if="history[direction].status === 'loading'"
+                    role="status"
+                    >{{ text.historyLoading }}</span
+                  >
+                  <button
+                    v-if="
+                      history[direction].url &&
+                      history[direction].status === 'failed'
+                    "
+                    :disabled="
+                      history.checking ||
+                      history.earlier.status === 'loading' ||
+                      history.later.status === 'loading'
+                    "
+                    @click="workspace.threadHistory.load(direction)"
+                  >
+                    {{
+                      direction === "earlier"
+                        ? text.retryEarlier
+                        : text.retryLater
+                    }}
+                  </button>
+                  <span v-else-if="!history[direction].url">{{
+                    history[direction].status === "end"
+                      ? direction === "earlier"
+                        ? text.historyBeginning
+                        : text.historyEnd
+                      : direction === "earlier"
+                        ? text.historyEarlierUnknown
+                        : text.historyLaterUnknown
+                  }}</span>
+                </template>
+                <p
+                  v-for="direction in ['earlier', 'later'] as const"
+                  v-show="history[direction].failure"
+                  :key="`failure-${direction}`"
+                  role="status"
+                >
+                  {{
+                    history[direction].failure &&
+                    "message" in history[direction].failure
+                      ? description(
+                          history[direction].failure.message,
+                          workspace.preferences.state.value.language,
+                        )
+                      : ""
+                  }}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
         <section
@@ -3028,126 +3145,159 @@ function boardIdFrom(url: string) {
             aria-hidden="true"
             :style="{ height: titleSpace + 'px' }"
           />
-          <article
-            v-for="post in reading.thread.posts"
-            :id="`pid${post.id}`"
-            :key="post.id"
-            :aria-label="`${text.post} ${post.id}`"
-            :data-targeted="reading.thread.target === post.id"
-            tabindex="-1"
-          >
-            <header class="post-header">
-              <span class="avatar" aria-hidden="true">{{
-                Array.from(post.author.trim())[0] ?? ""
-              }}</span>
-              <div class="post-identity">
-                <strong class="post-author">{{ post.author }}</strong>
-                <div class="post-metadata">
-                  <time>{{ post.date }}</time
-                  ><span
-                    >{{ text.floor }} {{ post.floor || text.unknown }}</span
-                  >
-                </div>
-              </div>
-              <a class="post-number" :href="post.url"
-                >{{ text.post }} {{ post.id }}</a
-              >
-            </header>
-            <ContentView
-              :nodes="post.content"
-              :language="workspace.preferences.state.value.language"
-              summarize-formatting
-            />
-            <footer
+          <template v-for="post in visiblePosts" :key="post.id">
+            <button
               v-if="
-                reading.thread.parent ||
-                (reading.account.kind === 'member' &&
-                  post.authorId === reading.account.id) ||
-                threadFilters.some(
-                  (filter) =>
-                    filter.authorId === post.authorId &&
-                    filter.authorId !== null,
-                )
+                reverseReading &&
+                history.later.status === 'end' &&
+                post.id === newestReplyId
               "
-              class="post-actions"
+              class="newest-check"
+              :aria-label="text.checkNewPosts"
+              :title="text.checkNewPosts"
+              :disabled="
+                history.checking || history.retryMinutes > 0 || state.loading
+              "
+              @click="workspace.threadHistory.checkNewest()"
             >
-              <button
-                v-if="reading.thread.parent"
-                @click="
-                  workspace.writing.prepareReply(
-                    boardIdFrom(reading.thread.parent.url),
-                    {
-                      threadId: reading.thread.id,
-                      postId: post.id,
-                      author: post.author,
-                      authorId: post.authorId,
-                    },
+              <WorkspaceIcon name="refresh" />
+            </button>
+            <article
+              :id="`pid${post.id}`"
+              :aria-label="`${text.post} ${post.id}`"
+              :data-targeted="reading.thread.target === post.id"
+              tabindex="-1"
+            >
+              <header class="post-header">
+                <span class="avatar" aria-hidden="true">{{
+                  Array.from(post.author.trim())[0] ?? ""
+                }}</span>
+                <div class="post-identity">
+                  <strong class="post-author">{{ post.author }}</strong>
+                  <div class="post-metadata">
+                    <time>{{ post.date }}</time
+                    ><span
+                      >{{ text.floor }} {{ post.floor || text.unknown }}</span
+                    >
+                  </div>
+                </div>
+                <a class="post-number" :href="post.url"
+                  >{{ text.post }} {{ post.id }}</a
+                >
+              </header>
+              <ContentView
+                :nodes="post.content"
+                :language="workspace.preferences.state.value.language"
+                summarize-formatting
+              />
+              <footer
+                v-if="
+                  reading.thread.parent ||
+                  (reading.account.kind === 'member' &&
+                    post.authorId === reading.account.id) ||
+                  threadFilters.some(
+                    (filter) =>
+                      filter.authorId === post.authorId &&
+                      filter.authorId !== null,
                   )
                 "
+                class="post-actions"
               >
-                {{ text.quickQuote }}
-              </button>
-              <button
-                v-if="
-                  reading.account.kind === 'member' &&
-                  post.authorId === reading.account.id
-                "
-                @click="
-                  workspace.writing.prepareEdit(reading.thread.url, post.id)
-                "
-              >
-                {{ insert(text.editPost, post.id) }}
-              </button>
-              <a
-                v-for="filter in threadFilters.filter(
-                  (filter) =>
-                    filter.authorId === post.authorId &&
-                    filter.authorId !== null,
-                )"
-                :key="filter.url"
-                :href="filter.url"
-                class="author-filter"
-                >{{ filter.label }}</a
-              >
-            </footer>
-            <ul v-if="post.attachments?.length" :aria-label="text.attachments">
-              <li v-for="attachment in post.attachments" :key="attachment.id">
                 <button
-                  :disabled="download?.status === 'checking'"
-                  @click="workspace.prepareDownload(post.id, attachment.id)"
-                >
-                  {{ text.download }} {{ attachment.name }}
-                </button>
-                <section
-                  v-if="
-                    download?.postId === post.id &&
-                    download?.attachmentId === attachment.id
+                  v-if="reading.thread.parent"
+                  @click="
+                    workspace.writing.prepareReply(
+                      boardIdFrom(reading.thread.parent.url),
+                      {
+                        threadId: reading.thread.id,
+                        postId: post.id,
+                        author: post.author,
+                        authorId: post.authorId,
+                      },
+                    )
                   "
-                  data-download-status
-                  :aria-label="text.fileDownload"
                 >
-                  <strong>{{ download.name }}</strong>
-                  <p :role="download.status === 'failure' ? 'alert' : 'status'">
-                    {{
-                      description(
-                        download.message,
-                        workspace.preferences.state.value.language,
-                      )
-                    }}
-                  </p>
+                  {{ text.quickQuote }}
+                </button>
+                <button
+                  v-if="
+                    reading.account.kind === 'member' &&
+                    post.authorId === reading.account.id
+                  "
+                  @click="
+                    workspace.writing.prepareEdit(reading.thread.url, post.id)
+                  "
+                >
+                  {{ insert(text.editPost, post.id) }}
+                </button>
+                <a
+                  v-for="filter in threadFilters.filter(
+                    (filter) =>
+                      filter.authorId === post.authorId &&
+                      filter.authorId !== null,
+                  )"
+                  :key="filter.url"
+                  :href="filter.url"
+                  class="author-filter"
+                  >{{ filter.label }}</a
+                >
+              </footer>
+              <ul
+                v-if="post.attachments?.length"
+                :aria-label="text.attachments"
+              >
+                <li v-for="attachment in post.attachments" :key="attachment.id">
                   <button
-                    v-if="
-                      download.status === 'ready' ||
-                      download.status === 'requested'
-                    "
-                    @click="workspace.saveDownload()"
+                    :disabled="download?.status === 'checking'"
+                    @click="workspace.prepareDownload(post.id, attachment.id)"
                   >
-                    {{ text.saveFile }}
+                    {{ text.download }} {{ attachment.name }}
                   </button>
-                </section>
-              </li>
-            </ul>
-          </article>
+                  <section
+                    v-if="
+                      download?.postId === post.id &&
+                      download?.attachmentId === attachment.id
+                    "
+                    data-download-status
+                    :aria-label="text.fileDownload"
+                  >
+                    <strong>{{ download.name }}</strong>
+                    <p
+                      :role="download.status === 'failure' ? 'alert' : 'status'"
+                    >
+                      {{
+                        description(
+                          download.message,
+                          workspace.preferences.state.value.language,
+                        )
+                      }}
+                    </p>
+                    <button
+                      v-if="
+                        download.status === 'ready' ||
+                        download.status === 'requested'
+                      "
+                      @click="workspace.saveDownload()"
+                    >
+                      {{ text.saveFile }}
+                    </button>
+                  </section>
+                </li>
+              </ul>
+            </article>
+          </template>
+          <button
+            v-if="!reverseReading && history.later.status === 'end'"
+            class="newest-check"
+            :aria-label="text.checkNewPosts"
+            :title="text.checkNewPosts"
+            :disabled="
+              history.checking || history.retryMinutes > 0 || state.loading
+            "
+            @click="workspace.threadHistory.checkNewest()"
+          >
+            <WorkspaceIcon name="refresh" />
+          </button>
         </section>
         <Teleport
           :to="browsingWritingStatus ?? portal"

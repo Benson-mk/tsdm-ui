@@ -2427,8 +2427,8 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.conversation-heading[data-compact="true"]
-  .reader-breadcrumb:not(:focus-within) {
+.conversation-heading[data-compact="true"][data-keep-breadcrumb="false"]
+  .reader-breadcrumb {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -2562,4 +2562,63 @@ button:disabled {
 .workspace-body[data-column-resizing],
 .workspace-body[data-column-resizing] * {
   user-select: none;
+}
+
+/* Passive check updates preserve the reader's available geometry. */
+.public-check-row {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: max(44px, 2.9em);
+}
+.public-history-controls .public-check-state {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.public-history-controls .public-check-time {
+  flex-basis: 100%;
+  min-height: 1.45em;
+}
+.public-check-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.public-check-actions summary {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.public-check-actions details[open] {
+  max-width: 18em;
+}
+.newest-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+.public-history-boundaries {
+  flex-basis: 100%;
+  display: grid;
+  min-height: 1.45em;
+}
+.public-history-boundaries::before {
+  content: attr(data-reserve);
+  visibility: hidden;
+  grid-area: 1 / 1;
+  white-space: pre-wrap;
+}
+.public-history-boundary-content {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: start;
+  flex-wrap: wrap;
+  gap: 4px 12px;
 }

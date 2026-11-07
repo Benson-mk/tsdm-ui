@@ -41,6 +41,7 @@ const copied = ref(false),
 const fallbackField = ref<HTMLInputElement | null>(null);
 const moreTrigger = ref<InstanceType<typeof DropdownMenuTrigger> | null>(null);
 let outsidePress = false;
+const moreInteractedOutside = ref(false);
 const pendingPage = ref("");
 const currentPage = computed(
   () => props.position?.page ?? props.thread.pages.current,
@@ -289,6 +290,15 @@ function overlayClick() {
             :side-offset="4"
             :collision-padding="12"
             @keydown.esc.stop="moreOpen = false"
+            @interact-outside="moreInteractedOutside = true"
+            @close-auto-focus="
+              (event) => {
+                event.preventDefault();
+                if (!moreInteractedOutside)
+                  moreTrigger?.$el.focus({ preventScroll: true });
+                moreInteractedOutside = false;
+              }
+            "
           >
             <DropdownMenuItem
               v-if="workspace.state.value.canBack"
@@ -296,6 +306,16 @@ function overlayClick() {
               @select="workspace.back()"
               ><button>{{ text.backInHistory }}</button></DropdownMenuItem
             >
+            <DropdownMenuItem
+              v-if="workspace.threadHistory.canCheck()"
+              as-child
+              :disabled="history.checking || history.retryMinutes > 0"
+              @select="workspace.threadHistory.checkNewest()"
+            >
+              <button :disabled="history.checking || history.retryMinutes > 0">
+                {{ text.checkNewPosts }}
+              </button>
+            </DropdownMenuItem>
             <DropdownMenuItem as-child @select="emit('refresh')"
               ><button :disabled="workspace.state.value.loading">
                 {{ text.refreshThread }}

@@ -148,3 +148,16 @@ export async function confirmThreadPage(page: Page, number: number) {
   await dialog.getByRole("button", { name: "Go", exact: true }).click();
   await expect(dialog).toBeHidden();
 }
+
+// Settings is the single opt-in surface for visible-thread checks.
+export async function setAutomaticChecks(page: Page, enabled: boolean) {
+  await openSettings(page);
+  await page
+    .getByRole("dialog", { name: "Settings", exact: true })
+    .getByRole("checkbox", {
+      name: "Check every 2 minutes while active",
+      exact: true,
+    })
+    .setChecked(enabled);
+  await closeSettingsToWorkspace(page);
+}

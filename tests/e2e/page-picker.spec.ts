@@ -317,8 +317,9 @@ for (const context of ["", "&ordertype=2", "&ordertype=1&authorid=9"]) {
   test(`UI86.position${context || "-default"}: Page follows actual visible loaded posts, preserves anchors and marks only the real terminal end`, async ({
     page,
   }) => {
-    const firstPage = context.includes("ordertype=1") ? 3 : 1;
-    const lastPage = firstPage === 1 ? 3 : 1;
+    const reverse = context.includes("ordertype=1");
+    const firstPage = 1;
+    const lastPage = 3;
     const requests = await open(page, 2, context);
     const pane = page.getByRole("region", {
       name: "Thread reading",
@@ -409,17 +410,32 @@ for (const context of ["", "&ordertype=2", "&ordertype=1&authorid=9"]) {
       p.scrollTop = p.scrollHeight;
     });
     await expect(
-      page.getByRole("button", {
-        name: new RegExp(`^Page ${lastPage}.*End of thread`),
-      }),
+      page.getByRole("button", { name: new RegExp(`^Page ${lastPage}`) }),
     ).toBeVisible();
+    if (reverse) {
+      await expect(
+        page.getByRole("button", { name: /End of thread/ }),
+      ).toHaveCount(0);
+      await pane.locator(".newest-check").evaluate((button) => {
+        const pane = button.closest(".reading-pane")!;
+        pane.scrollTop +=
+          button.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+      });
+      await expect(
+        page.getByRole("button", { name: /^Page 1.*End of thread/ }),
+      ).toBeVisible();
+    } else {
+      await expect(
+        page.getByRole("button", { name: /^Page 3.*End of thread/ }),
+      ).toBeVisible();
+    }
     expect(
       await pane
         .locator("article")
         .evaluateAll((posts) => posts.map((p) => p.id)),
     ).toEqual(
       [firstPage, 2, lastPage].flatMap((n) =>
-        [0, 1, 2].map((i) => `pid${n * 100 + i}`),
+        (reverse ? [2, 1, 0] : [0, 1, 2]).map((i) => `pid${n * 100 + i}`),
       ),
     );
     await expect(
@@ -428,12 +444,14 @@ for (const context of ["", "&ordertype=2", "&ordertype=1&authorid=9"]) {
     expect(requests).toHaveLength(3);
     await page.goto(copied);
     await expect(
-      page.getByRole("button", { name: `Page ${firstPage}`, exact: true }),
+      page.getByRole("button", {
+        name: new RegExp(`^Page ${firstPage}(?: ·|$)`),
+      }),
     ).toBeVisible();
     await expect(pane.locator("article")).toHaveCount(3);
     await expect(pane.locator("article").first()).toHaveAttribute(
       "id",
-      `pid${firstPage * 100}`,
+      `pid${firstPage * 100 + (reverse ? 2 : 0)}`,
     );
   });
 }
