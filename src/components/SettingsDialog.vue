@@ -15,6 +15,7 @@ import type { Workspace } from "../workspace";
 import { strings } from "../layouts/strings";
 const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
 const emit = defineEmits<{
+  "reset-columns": [];
   "open-change": [open: boolean];
   "close-auto-focus": [event: Event];
 }>();
@@ -164,6 +165,13 @@ function escape(event: KeyboardEvent) {
         >
           {{ text.storageUnavailable }}
         </p>
+        <section>
+          <h3>{{ text.columnWidths }}</h3>
+          <p>{{ text.columnWidthsMemory }}</p>
+          <button @click="emit('reset-columns')">
+            {{ text.resetColumnWidths }}
+          </button>
+        </section>
         <section class="settings-about" aria-labelledby="settings-about-title">
           <h3 id="settings-about-title">{{ text.about }}</h3>
           <p>{{ text.aboutDescription }}</p>

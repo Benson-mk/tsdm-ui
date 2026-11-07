@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "reka-ui";
+import ColumnSeparator from "../components/ColumnSeparator.vue";
 import ThreadTools from "../components/ThreadTools.vue";
 import WorkspaceIcon from "../components/WorkspaceIcon.vue";
 import WorkspaceBrand from "../components/WorkspaceBrand.vue";
@@ -702,12 +703,103 @@ watch(download, async (value) => {
 const writingExpanded = ref(false);
 const conversationRegion = ref<HTMLElement | null>(null);
 const conversationWidth = ref(0);
+type Column = "boards" | "threads" | "writing";
+const defaultWidths = { boards: 216, threads: 300, writing: 420 };
+const desiredWidths = ref({ ...defaultWidths });
+const boardsResizable = computed(
+  () => boardsDocked.value && !boardsCollapsed.value,
+);
+const threadsResizable = computed(
+  () =>
+    threadsDocked.value && resultsVisible.value && conversationVisible.value,
+);
+const columnBounds = computed(() => {
+  const writingMinimum =
+    writing.value.visible && writingExpanded.value && paneWidth.value >= 1440
+      ? 280
+      : 0;
+  const remainingMinimum = conversationVisible.value
+    ? 320 + writingMinimum
+    : 220;
+  const boardsMaximum = Math.max(
+    160,
+    Math.min(
+      360,
+      paneWidth.value - (threadsResizable.value ? 220 : 0) - remainingMinimum,
+    ),
+  );
+  const boards = boardsResizable.value
+    ? Math.min(desiredWidths.value.boards, boardsMaximum)
+    : 0;
+  const threadsMaximum = Math.max(
+    220,
+    Math.min(520, paneWidth.value - boards - remainingMinimum),
+  );
+  const threads = threadsResizable.value
+    ? Math.min(desiredWidths.value.threads, threadsMaximum)
+    : 0;
+  const writingMaximum = Math.max(
+    280,
+    Math.min(640, paneWidth.value - boards - threads - 320),
+  );
+  return {
+    boards: { value: boards, minimum: 160, maximum: boardsMaximum },
+    threads: { value: threads, minimum: 220, maximum: threadsMaximum },
+    writing: {
+      value: Math.min(desiredWidths.value.writing, writingMaximum),
+      minimum: 280,
+      maximum: writingMaximum,
+    },
+  };
+});
+const columnStyle = computed(() => ({
+  gridTemplateColumns: [
+    ...(boardsResizable.value ? [`${columnBounds.value.boards.value}px`] : []),
+    ...(threadsResizable.value
+      ? [`${columnBounds.value.threads.value}px`]
+      : []),
+    "minmax(0, 1fr)",
+  ].join(" "),
+  "--writer-width": `${columnBounds.value.writing.value}px`,
+}));
+const resizingColumns = ref(false);
+let columnPositions: PanePosition[] = [];
+let originalWidths = { ...defaultWidths };
+function beginColumnResize() {
+  resizingColumns.value = true;
+  columnPositions = capturePositions();
+  originalWidths = { ...desiredWidths.value };
+  suppressAutomaticHistory();
+}
+function settleColumnResize() {
+  const positions = columnPositions;
+  const revision = readingRestoreRevision;
+  void nextTick().then(() => {
+    if (revision === readingRestoreRevision) restorePositions(positions, true);
+    rememberPositions();
+  });
+}
+function setColumnWidth(column: Column, value: number) {
+  suppressAutomaticHistory();
+  desiredWidths.value = { ...desiredWidths.value, [column]: value };
+  settleColumnResize();
+}
+function endColumnResize(cancelled: boolean) {
+  resizingColumns.value = false;
+  if (cancelled) desiredWidths.value = { ...originalWidths };
+  settleColumnResize();
+}
+function resetColumns() {
+  beginColumnResize();
+  desiredWidths.value = { ...defaultWidths };
+  endColumnResize(false);
+}
 const writingWide = computed(
   () =>
     writing.value.visible &&
     writingExpanded.value &&
     paneWidth.value >= 1440 &&
-    conversationWidth.value >= 740,
+    conversationWidth.value >= 600,
 );
 const writingElsewhere = computed(() => {
   const context = writing.value.context;
@@ -1161,6 +1253,9 @@ function readingScroll(event: Event) {
       pane.scrollTop = scroll;
       titleSpace.value = compact ? Math.max(0, before - after) : 0;
       compactTitle.value = compact;
+      // The title and its spacer settle after the scroll event. Capture the
+      // now-visible character, rather than a pre-compaction line, for resize.
+      void nextTick().then(rememberPositions);
       return;
     }
   }
@@ -2155,11 +2250,46 @@ function boardIdFrom(url: string) {
         'thread-without-results': threadWithoutResults,
         'browse-only': browseOnly,
       }"
+      :style="columnStyle"
+      :data-column-resizing="resizingColumns || undefined"
       :data-boards-collapsed="!boardsDocked || boardsCollapsed"
       :data-threads-collapsed="!threadsDocked || threadsCollapsed"
       :data-view="state.result?.kind ?? 'unavailable'"
       :data-narrow-browsing="!threadsDocked && resultsVisible"
     >
+      <ColumnSeparator
+        v-if="boardsResizable"
+        :label="text.resizeBoards"
+        v-bind="columnBounds.boards"
+        :style="{ left: `${columnBounds.boards.value}px` }"
+        @begin="beginColumnResize"
+        @change="setColumnWidth('boards', $event)"
+        @reset="setColumnWidth('boards', defaultWidths.boards)"
+        @end="endColumnResize"
+      />
+      <ColumnSeparator
+        v-if="threadsResizable"
+        :label="text.resizeThreads"
+        v-bind="columnBounds.threads"
+        :style="{
+          left: `${columnBounds.boards.value + columnBounds.threads.value}px`,
+        }"
+        @begin="beginColumnResize"
+        @change="setColumnWidth('threads', $event)"
+        @reset="setColumnWidth('threads', defaultWidths.threads)"
+        @end="endColumnResize"
+      />
+      <ColumnSeparator
+        v-if="writingWide && conversationVisible"
+        :label="text.resizeWriting"
+        v-bind="columnBounds.writing"
+        :style="{ left: `${paneWidth - columnBounds.writing.value}px` }"
+        reverse
+        @begin="beginColumnResize"
+        @change="setColumnWidth('writing', $event)"
+        @reset="setColumnWidth('writing', defaultWidths.writing)"
+        @end="endColumnResize"
+      />
       <Teleport
         :to="drawerContent ?? portal"
         :disabled="drawer !== 'boards' || !drawerContent"
@@ -2316,6 +2446,7 @@ function boardIdFrom(url: string) {
               :portal="portal"
               @open-change="settingsOpenChanged"
               @close-auto-focus="settingsFocusReturn"
+              @reset-columns="resetColumns"
             />
           </footer>
         </div>

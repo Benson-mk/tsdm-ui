@@ -115,6 +115,14 @@ const english = {
   fileDownload: "File download",
   settings: "Settings",
   settingsDescription: "Changes preview and save immediately.",
+  resizeBoards: "Resize Boards",
+  resizeThreads: "Resize Threads",
+  resizeWriting: "Resize Writing",
+  columnWidths: "Column widths",
+  columnWidthsMemory:
+    "Column widths last for this page session and reset on reload.",
+  resetColumnWidths: "Reset column widths",
+
   incompatiblePreferences:
     "Stored preferences are incompatible. Changes apply to this page only until you explicitly reset the retained record.",
   retainedPreferences: "Retained preferences",
@@ -556,6 +564,13 @@ const simplified: Strings = {
   fileDownload: "文件下载",
   settings: "设置",
   settingsDescription: "更改会立即预览并保存。",
+  resizeBoards: "调整版块宽度",
+  resizeThreads: "调整主题宽度",
+  resizeWriting: "调整写作宽度",
+  columnWidths: "栏目宽度",
+  columnWidthsMemory: "栏目宽度仅保留在当前页面，重新加载后重设。",
+  resetColumnWidths: "重设栏目宽度",
+
   incompatiblePreferences:
     "已存偏好设置不兼容。明确重置保留记录之前，更改仅适用于本页。",
   retainedPreferences: "保留的偏好设置",
@@ -976,6 +991,13 @@ const traditional: Strings = {
   fileDownload: "檔案下載",
   settings: "設定",
   settingsDescription: "變更會立即預覽並儲存。",
+  resizeBoards: "調整版塊寬度",
+  resizeThreads: "調整主題寬度",
+  resizeWriting: "調整寫作寬度",
+  columnWidths: "欄目寬度",
+  columnWidthsMemory: "欄目寬度僅保留在目前頁面，重新載入後重設。",
+  resetColumnWidths: "重設欄目寬度",
+
   incompatiblePreferences:
     "已存偏好設定不相容。明確重設保留記錄之前，變更僅適用於本頁。",
   retainedPreferences: "保留的偏好設定",

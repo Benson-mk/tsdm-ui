@@ -2030,7 +2030,7 @@ select {
 }
 .workspace-body > .conversation-region.writing-wide {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) 420px;
+  grid-template-columns: minmax(320px, 1fr) var(--writer-width, 420px);
   grid-template-rows: auto minmax(96px, 1fr) auto auto;
 }
 .writing-wide > .conversation-heading {
@@ -2518,4 +2518,48 @@ button:disabled {
   .thread-options-menu {
     border: 1px solid CanvasText;
   }
+}
+
+/* Quiet edges overlay the boundary without consuming a grid track. */
+.workspace-body {
+  position: relative;
+}
+.column-separator {
+  position: absolute;
+  inset-block: 0;
+  z-index: 4;
+  width: 12px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+.column-separator::after {
+  content: "";
+  position: absolute;
+  inset: 0 5px;
+}
+.column-separator:hover::after,
+.column-separator:focus-visible::after {
+  background: var(--ink);
+}
+.column-separator:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+@media (pointer: coarse) {
+  .column-separator {
+    width: 18px;
+  }
+  .column-separator::after {
+    inset-inline: 8px;
+  }
+}
+
+.workspace-body[data-column-resizing] {
+  cursor: col-resize;
+}
+.workspace-body[data-column-resizing],
+.workspace-body[data-column-resizing] * {
+  user-select: none;
 }
