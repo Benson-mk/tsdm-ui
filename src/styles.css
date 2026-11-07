@@ -387,7 +387,14 @@ summary {
   margin: 0;
 }
 .workspace-status {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-height: 1lh;
+  overflow: auto;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+}
+.workspace-status:focus-visible {
+  outline-offset: -3px;
+  box-shadow: none;
 }
 .workspace-status:empty {
   display: none;
@@ -403,7 +410,7 @@ summary {
   display: grid;
   grid-template-columns: 216px 300px minmax(0, 1fr);
   flex: 1;
-  min-height: 0;
+  min-height: 96px;
   max-width: none;
   width: 100%;
   margin: 0;
@@ -1756,6 +1763,7 @@ select {
 }
 .conversation-region {
   --edge-left: 0px;
+  --edge-right: var(--safe-right);
   --conversation-gutter: 24px;
   --composer-bottom: 12px;
 }
@@ -1769,7 +1777,10 @@ select {
 :host .conversation-region > .source-writing,
 :host .conversation-region > .retained-writing {
   padding-left: max(var(--conversation-gutter), var(--edge-left));
-  padding-right: max(var(--conversation-gutter), var(--safe-right));
+  padding-right: max(
+    var(--conversation-gutter),
+    var(--edge-right, var(--safe-right))
+  );
 }
 :host .conversation-region > .source-writing {
   padding-bottom: calc(var(--composer-bottom) + var(--safe-bottom));
@@ -1818,7 +1829,10 @@ select {
 }
 .conversation-status {
   padding-left: max(var(--conversation-gutter), var(--edge-left));
-  padding-right: max(var(--conversation-gutter), var(--safe-right));
+  padding-right: max(
+    var(--conversation-gutter),
+    var(--edge-right, var(--safe-right))
+  );
 }
 @media (max-width: 559px) {
   .workspace-status > p,
@@ -1992,7 +2006,8 @@ select {
 .composer-entry {
   flex: 0 0 auto;
   border-top: 0;
-  padding: 8px max(var(--conversation-gutter), var(--safe-right))
+  padding: 8px
+    max(var(--conversation-gutter), var(--edge-right, var(--safe-right)))
     calc(12px + var(--safe-bottom))
     max(var(--conversation-gutter), var(--edge-left));
 }
@@ -2069,6 +2084,13 @@ select {
   display: grid;
   grid-template-columns: minmax(320px, 1fr) var(--writer-width, 420px);
   grid-template-rows: auto minmax(96px, 1fr) auto auto;
+}
+.writing-wide {
+  --edge-right: 0px;
+}
+:host .writing-wide > .source-writing {
+  padding-left: var(--conversation-gutter);
+  padding-right: max(var(--conversation-gutter), var(--safe-right));
 }
 .writing-wide > .conversation-heading {
   grid-column: 1;
@@ -2588,7 +2610,7 @@ input {
 }
 .column-separator {
   position: absolute;
-  inset-block: 0;
+  inset-block: 0 var(--safe-bottom);
   z-index: 4;
   width: 12px;
   transform: translateX(-50%);
@@ -2840,4 +2862,51 @@ input {
   :focus-visible {
     outline-color: Highlight;
   }
+}
+
+/* Only surfaces that reach the outside boundary consume its safe reserve. */
+.workspace-body.browse-only > #thread-list-pane,
+.workspace-body[data-narrow-browsing="true"] > #thread-list-pane {
+  padding-right: max(16px, var(--safe-right));
+}
+.conversation-region[data-writing-visible="false"]:has(> .composer-entry),
+.workspace:has(> .bottom-resume)
+  .conversation-region[data-writing-visible="false"] {
+  padding-bottom: 0;
+}
+.workspace:has(> .bottom-resume) .navigation-footer {
+  padding-bottom: 12px;
+}
+.workspace:has(> .bottom-resume) .workspace-body > #thread-list-pane {
+  padding-bottom: 20px;
+}
+.workspace:has(> .bottom-resume) .column-separator {
+  bottom: 0;
+}
+
+/* Reka measures the same safe rectangle as dialogs, including scale-one pan. */
+.safe-viewport-boundary {
+  position: fixed;
+  top: calc(var(--view-top, 0px) + var(--safe-top));
+  left: var(--safe-left);
+  right: var(--safe-right);
+  height: max(
+    0px,
+    calc(var(--view-height, 100dvh) - var(--safe-top) - var(--safe-bottom))
+  );
+  pointer-events: none;
+  visibility: hidden;
+}
+.workspace:has(> .bottom-resume) .conversation-region {
+  scroll-padding-bottom: clamp(0px, calc(100% - 96px), 12px);
+}
+.workspace:has(> .bottom-resume) .composer-entry {
+  padding-bottom: 12px;
+}
+.writing-wide:has(> .conversation-status:empty) > .reading-pane,
+.writing-wide > .conversation-status:not(:empty) {
+  padding-bottom: var(--safe-bottom);
+}
+.workspace:has(> .bottom-resume) > .browsing-writing-status {
+  padding-bottom: 0;
 }

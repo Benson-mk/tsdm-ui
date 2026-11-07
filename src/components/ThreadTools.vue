@@ -32,6 +32,7 @@ const emit = defineEmits<{ refresh: [] }>();
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
+const menuBoundary = ref<HTMLElement | null>(null);
 const pageOpen = ref(false),
   moreOpen = ref(false),
   fallbackOpen = ref(false);
@@ -283,11 +284,17 @@ function overlayClick() {
           ><WorkspaceIcon name="more"
         /></DropdownMenuTrigger>
         <DropdownMenuPortal :to="portal">
+          <div
+            ref="menuBoundary"
+            class="safe-viewport-boundary"
+            aria-hidden="true"
+          />
           <DropdownMenuContent
             class="thread-options-menu"
             :aria-label="text.threadOptions"
             align="end"
             :side-offset="4"
+            :collision-boundary="menuBoundary"
             :collision-padding="12"
             @keydown.esc.stop="moreOpen = false"
             @interact-outside="moreInteractedOutside = true"

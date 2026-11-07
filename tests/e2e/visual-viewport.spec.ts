@@ -327,6 +327,17 @@ test("IM74.short-history: short enlarged ordinary writing keeps actual post hist
     node.scrollTop +=
       post.getBoundingClientRect().top - node.getBoundingClientRect().top;
   });
+  await expect(page.locator(".conversation-heading")).toHaveAttribute(
+    "data-compact",
+    "true",
+  );
+  // Compaction introduces a compensating spacer. Deliberately scroll the post
+  // into the settled reader before measuring useful reading height.
+  await reader.evaluate((node) => {
+    const post = node.querySelector(".post-content")!;
+    node.scrollTop +=
+      post.getBoundingClientRect().top - node.getBoundingClientRect().top;
+  });
   await reader.scrollIntoViewIfNeeded();
   const geometry = await reader.evaluate((node) => {
     const bounds = node.getBoundingClientRect();
@@ -420,6 +431,9 @@ test("IM74.continuity: repeated viewport cycles preserve browser composition, un
   await page
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
     .click();
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Retained ");
@@ -515,6 +529,9 @@ test("IM74.extremely-short: bounded writer scrolling exposes protected source, v
   await page
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
     .click();
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("[alien]Protected exact text[/alien]");

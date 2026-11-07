@@ -521,9 +521,10 @@ for (const mode of [
               .getByRole("button", { name: "Reply to this post", exact: true })
               .last()
           : mode === "hidden-writing"
-            ? page
-                .getByRole("region", { name: "Retained writing", exact: true })
-                .locator("summary")
+            ? page.getByRole("button", {
+                name: "Return to writing",
+                exact: true,
+              })
             : reader.locator("p");
     await last.scrollIntoViewIfNeeded();
     await page.locator(".conversation-region").evaluate((node) => {
