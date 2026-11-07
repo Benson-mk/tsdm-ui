@@ -147,8 +147,10 @@ const english = {
   nativeHelp:
     "For unsupported content or verification, continue at the same destination in the native forum.",
   snapshotMember: "Snapshot from {value}",
+  snapshotMemberStatus: "Snapshot from ",
   snapshotGuest: "Snapshot from guest browsing",
   signedIn: "Signed in as {value}",
+  signedInStatus: "Signed in as ",
   guest: "Browsing as a guest",
   accountUnknown: "Account not yet confirmed",
   actions: "Thread actions",
@@ -618,8 +620,10 @@ const simplified: Strings = {
   nativeHelp:
     "如需查看不支持的内容或完成验证，请在原版论坛中继续访问同一目标。",
   snapshotMember: "来自 {value} 的快照",
+  snapshotMemberStatus: "账号快照：",
   snapshotGuest: "游客浏览快照",
   signedIn: "当前登录：{value}",
+  signedInStatus: "当前登录：",
   guest: "正在以游客身份浏览",
   accountUnknown: "尚未确认账号",
   actions: "主题操作",
@@ -1067,8 +1071,10 @@ const traditional: Strings = {
   nativeHelp:
     "如需查看不支援的內容或完成驗證，請在原版論壇中繼續存取同一目標。",
   snapshotMember: "來自 {value} 的快照",
+  snapshotMemberStatus: "帳號快照：",
   snapshotGuest: "訪客瀏覽快照",
   signedIn: "目前登入：{value}",
+  signedInStatus: "目前登入：",
   guest: "正在以訪客身分瀏覽",
   accountUnknown: "尚未確認帳號",
   actions: "主題操作",

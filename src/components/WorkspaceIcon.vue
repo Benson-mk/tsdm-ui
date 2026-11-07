@@ -3,8 +3,9 @@ const paths = {
   refresh:
     "M20 7v5h-5 M4 17v-5h5 M6 7a7 7 0 0 1 12-2l2 3 M18 17a7 7 0 0 1-12 2l-2-3",
   compose: "M4 20l4-1 12-12-3-3L5 16z M14 7l3 3",
-  expand: "M8 3H3v5 M3 3l7 7 M16 21h5v-5 M21 21l-7-7",
-  compact: "M3 8h5V3 M8 8L2 2 M21 16h-5v5 M16 16l6 6",
+  expand: "M8 3H3v5 M16 3h5v5 M3 16v5h5 M21 16v5h-5",
+  compact: "M3 8h5V3 M21 8h-5V3 M8 21v-5H3 M16 21v-5h5",
+  minimize: "M5 12h14",
   more: "M5 12h.01 M12 12h.01 M19 12h.01",
   disclosure: "M6 9l6 6 6-6",
   boards: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
@@ -16,7 +17,7 @@ const paths = {
   drafts: "M14 3H4v18h16V10 M14 3v7h6 M8 14h8 M8 17h5",
   native: "M14 3h7v7 M21 3l-9 9 M10 5H3v16h16v-7",
   settings:
-    "M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2",
+    "M4 7h2 M12 7h8 M4 17h8 M18 17h2 M12 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0 M18 17a3 3 0 1 1-6 0 3 3 0 0 1 6 0",
   about: "M12 10v7 M12 7h.01 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0",
 } as const;
 defineProps<{ name: keyof typeof paths }>();

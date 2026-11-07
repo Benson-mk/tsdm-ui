@@ -43,10 +43,12 @@ const action = computed(() =>
 <template>
   <div
     class="writing-destination"
+    :class="{ 'writing-destination-compact': compact }"
+    :data-category="compact ? category : undefined"
     role="group"
     :aria-label="review ? text.reviewDestination : text.writingDestination"
   >
-    <p>
+    <p :class="{ 'sr-only': compact }">
       <strong>{{ action }}</strong> ·
       {{ insert(text.writingAs, writing.account.name) }} ({{
         writing.account.id

@@ -179,7 +179,8 @@ test("DESIGN.composer: compact reply exposes editor and review together, expansi
   await capture(page, info, "compact-reply");
   expect
     .soft((await style(page, ".source-writing")).height)
-    .toBeLessThanOrEqual(300);
+    // The sidebar prototype reserves 324px for its visible target and reply controls.
+    .toBeLessThanOrEqual(324);
   const review = page.getByRole("button", {
     name: "Review publication",
     exact: true,

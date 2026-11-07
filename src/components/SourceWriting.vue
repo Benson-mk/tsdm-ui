@@ -275,26 +275,46 @@ function updateOption(option: WritingOption, event: Event) {
       {{ text.finishComposition }}
     </p>
     <div class="writing-presentation-actions">
-      <strong class="composer-caption">{{
-        ownerState.context.action === "private-message"
-          ? privateWritingText(
-              "To {value}",
-              workspace.preferences.state.value.language,
-            ).replace("{value}", ownerState.context.recipient.name)
-          : state.context?.replyTarget
-            ? insert(text.replyIn, state.context.replyTarget.threadId)
-            : state.context?.action === "edit-post"
-              ? insert(text.editPost, state.context.editTarget?.postId ?? "")
-              : text.newThread
-      }}</strong>
-      <button :aria-expanded="expanded" @click="emit('resize', !expanded)">
+      <strong class="composer-caption"
+        >{{
+          ownerState.context.action === "private-message"
+            ? privateWritingText(
+                "To {value}",
+                workspace.preferences.state.value.language,
+              ).replace("{value}", ownerState.context.recipient.name)
+            : state.context?.replyTarget
+              ? insert(text.replyIn, state.context.replyTarget.threadId)
+              : state.context?.action === "edit-post"
+                ? insert(text.editPost, state.context.editTarget?.postId ?? "")
+                : text.newThread
+        }}
+        · {{ ownerState.context.account.name }}</strong
+      >
+      <button
+        class="icon-button"
+        :aria-label="expanded ? text.compactWriting : text.expandWriting"
+        :title="expanded ? text.compactWriting : text.expandWriting"
+        :aria-expanded="expanded"
+        @click="emit('resize', !expanded)"
+      >
         <WorkspaceIcon :name="expanded ? 'compact' : 'expand'" />
-        {{ expanded ? text.compactWriting : text.expandWriting }}
       </button>
-      <button @click="workspace.writing.hide()">
-        {{ text.returnReading }}
+      <button
+        class="icon-button"
+        :aria-label="text.returnReading"
+        :title="text.returnReading"
+        @click="workspace.writing.hide()"
+      >
+        <WorkspaceIcon name="minimize" />
       </button>
     </div>
+    <WritingDestination
+      v-if="state.context"
+      :writing="state.context"
+      :language="workspace.preferences.state.value.language"
+      :category="category ?? 'neutral'"
+      compact
+    />
     <p v-if="elsewhere" class="writing-mismatch" role="status">
       {{ text.writingElsewhere }}
     </p>
@@ -321,12 +341,6 @@ function updateOption(option: WritingOption, event: Event) {
       <p v-if="state.context.draft">
         {{ insert(text.draftIdentity, state.context.draft.threadId) }}
       </p>
-      <WritingDestination
-        :writing="state.context"
-        :language="workspace.preferences.state.value.language"
-        :category="category ?? 'neutral'"
-        compact
-      />
       <section class="writing-recovery" :aria-label="text.writingRecovery">
         <p :role="state.recoveryAvailable === false ? 'alert' : 'status'">
           {{ recoverySummary }}

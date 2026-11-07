@@ -1947,7 +1947,7 @@ onMounted(() => {
     },
   });
 });
-const accountLabel = computed(() => {
+const accountPresentation = computed(() => {
   const retained =
     state.value.section === "drafts"
       ? props.workspace.drafts.value.result?.account
@@ -1964,20 +1964,32 @@ const accountLabel = computed(() => {
             (value.kind === "member" ? `member:${value.id}` : value.kind) ===
               observation,
         );
-  if (
-    observation === null &&
-    state.value.restored &&
-    account?.kind === "member"
-  )
-    return insert(text.value.snapshotMember, account.name);
-  if (observation === null && state.value.restored && account?.kind === "guest")
-    return text.value.snapshotGuest;
-  return account?.kind === "member"
-    ? insert(text.value.signedIn, account.name)
-    : account?.kind === "guest"
-      ? text.value.guest
-      : text.value.accountUnknown;
+  if (account?.kind === "member") {
+    const snapshot = observation === null && state.value.restored;
+    return {
+      label: insert(
+        snapshot ? text.value.snapshotMember : text.value.signedIn,
+        account.name,
+      ),
+      name: account.name,
+      status: snapshot
+        ? text.value.snapshotMemberStatus
+        : text.value.signedInStatus,
+    };
+  }
+  return {
+    label:
+      account?.kind === "guest"
+        ? observation === null && state.value.restored
+          ? text.value.snapshotGuest
+          : text.value.guest
+        : text.value.accountUnknown,
+    name: null,
+    status: "",
+  };
 });
+const accountLabel = computed(() => accountPresentation.value.label);
+
 function boardIdFrom(url: string) {
   return new URL(url).searchParams.get("fid") ?? "";
 }
@@ -2134,7 +2146,10 @@ function boardIdFrom(url: string) {
             @click="workspace.submitSearch(true)"
           >
             {{ text.rerunSearch }}</button
-          ><button v-else @click="workspace.refresh()">
+          ><button
+            v-else-if="state.result?.kind !== 'directory'"
+            @click="workspace.refresh()"
+          >
             {{
               state.destination.includes("mod=viewthread")
                 ? text.refreshThread
@@ -2633,7 +2648,11 @@ function boardIdFrom(url: string) {
           </div>
           <footer class="navigation-footer">
             <p class="navigation-account" :title="accountLabel">
-              {{ accountLabel }}
+              <template v-if="accountPresentation.name !== null">
+                <small>{{ accountPresentation.status }}</small>
+                <strong>{{ accountPresentation.name }}</strong>
+              </template>
+              <template v-else>{{ accountLabel }}</template>
             </p>
             <SettingsDialog
               :workspace="workspace"
@@ -2808,7 +2827,18 @@ function boardIdFrom(url: string) {
         data-scroll-pane="overview"
         :aria-label="text.boardsOverview"
       >
-        <h1>{{ text.boards }}</h1>
+        <div class="board-heading">
+          <h1>{{ text.boards }}</h1>
+          <button
+            class="icon-button"
+            :aria-label="text.refresh"
+            :title="text.refresh"
+            :disabled="state.loading"
+            @click="workspace.refresh()"
+          >
+            <WorkspaceIcon name="refresh" />
+          </button>
+        </div>
         <p>{{ text.chooseBoardDescription }}</p>
         <div class="board-filter">
           <label for="board-filter">{{ text.filterBoards }}</label>
@@ -2882,6 +2912,12 @@ function boardIdFrom(url: string) {
         data-scroll-pane="results"
         :aria-label="text.threadResults"
       >
+        <span
+          v-if="listCategory.label"
+          class="category-label"
+          :data-category="listCategory.role"
+          >{{ listCategory.label }}</span
+        >
         <div class="board-heading">
           <h1>{{ boardContext.title }}</h1>
           <button
@@ -2959,12 +2995,6 @@ function boardIdFrom(url: string) {
             </details>
           </div>
         </div>
-        <span
-          v-if="listCategory.label"
-          class="category-label"
-          :data-category="listCategory.role"
-          >{{ listCategory.label }}</span
-        >
         <section v-if="boardContext.boards.length">
           <h2>{{ text.subordinateBoards }}</h2>
           <div class="board-grid">
@@ -3138,9 +3168,12 @@ function boardIdFrom(url: string) {
             <section class="thread-heading">
               <div
                 class="context-kind reader-breadcrumb"
+                :data-category="readerCategory.role"
                 @focusin="retainBreadcrumb"
               >
-                {{ text.thread }} {{ reading.thread.id }}
+                <span :class="{ 'sr-only': reading.thread.parent }"
+                  >{{ text.thread }} {{ reading.thread.id }}</span
+                >
                 <span
                   v-if="readerCategory.label"
                   class="category-label"

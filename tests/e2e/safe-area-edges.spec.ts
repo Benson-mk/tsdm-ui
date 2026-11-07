@@ -118,7 +118,7 @@ test("IM73.edges: exposed surfaces protect top, lateral and stable bottom edges 
   const top = await padding(".workspace > header");
   expect(top.x).toBe(0);
   expect(top.width).toBe(1280);
-  expect(top.top).toBe(28);
+  expect(top.top).toBe(32); // 24px safe top + the prototype's 8px content inset.
   expect(top.left).toBe(42);
   expect(top.right).toBe(36);
   expect(top.background).not.toBe("rgba(0, 0, 0, 0)");
@@ -162,7 +162,7 @@ test("IM73.edges: exposed surfaces protect top, lateral and stable bottom edges 
   });
   expect((await padding(".source-writing")).bottom).toBe(40);
   await browser.send("Emulation.setSafeAreaInsetsOverride", { insets: {} });
-  expect((await padding(".workspace > header")).top).toBe(4);
+  expect((await padding(".workspace > header")).top).toBe(8);
   expect((await padding(".source-writing")).bottom).toBe(12);
   expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
   await expect(source).toHaveValue("Exact retained [quote]safe edges[/quote]");
@@ -439,7 +439,7 @@ test("IM73.portrait-fallback: portrait edges and unavailable VisualViewport reta
   const topPadding = await page
     .locator(".workspace > header")
     .evaluate((node) => getComputedStyle(node).paddingTop);
-  expect(topPadding).toBe("48px");
+  expect(topPadding).toBe("52px"); // 44px safe top + 8px content inset.
   await expect(source).toHaveValue("Portrait complete source");
   expect(ledger.every((request) => request.startsWith("GET "))).toBe(true);
   await info.attach("portrait-no-visualviewport.json", {
