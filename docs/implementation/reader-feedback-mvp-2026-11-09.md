@@ -91,7 +91,7 @@ production import graph.
   Reply opens a local writing context with the exact thread/author/post destination.
   Existing nonempty writing survives thread switching and cannot be silently
   retargeted. Rate/report open explicitly labelled placement previews only.
-- In the absence of an answer to the optional gesture question, double-click
+- The owner confirmed the gesture choice on 2026-11-09: double-click
   **empty post space** prepares a reply; text and links retain selection/activation.
   Selected-text and link right-clicks do not open the custom menu. The approved ⋯
   access remains available without a pointer gesture.
@@ -116,7 +116,7 @@ production import graph.
    less immediately visible. The already-approved ⋯ and Reply menu entry add a
    small visible control in exchange for keyboard/touch access. Double-click is
    limited to empty space to preserve text selection; it is less discoverable
-   than double-clicking anywhere, and remains an owner-review assumption.
+   than double-clicking anywhere. The owner approved this trade-off on 2026-11-09.
 4. One in-memory writing context survives navigation and refuses retargeting while
    nonempty. That protects sample writing but requires discarding it before a
    different reply and offers no reload recovery or actual sending.
@@ -216,3 +216,22 @@ rather than independently repeating active browser interactions. Its two
 additional distinct trade-offs—author-filter context and toast overlay—are
 recorded above. All five preview-delivery acceptance criteria are verified.
 Owner design approval and production acceptance remain pending.
+
+## Owner gesture approval — 2026-11-09
+
+The owner answered the optional gesture question with “Double-click empty post
+space to reply; keep text selection (recommended).” This confirms the behavior
+already implemented and verified in `ed829c8`: empty-space double-click prepares
+a reply; text selection remains available. The shared right-click/⋯ menu with
+Reply was approved separately and remains available.
+
+This answer approves the gesture choice for comment 6. Approval of the overall
+comments 4–7 reader presentation remains pending. Production implementation and
+GitHub ticket publication remain later work. No runtime change or new technical
+trade-off is introduced. The existing evidence package remains the historical
+capture of the pre-approval MVP and is intentionally unchanged.
+
+Approval-record verification: the reply is recorded verbatim, its scope is limited
+to the gesture choice, and documentation formatting, whitespace and the scoped
+diff checks passed. The prior browser verification still covers
+the unchanged gesture behavior; no new runtime test is needed for this record.
