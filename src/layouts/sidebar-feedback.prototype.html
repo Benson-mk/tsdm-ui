@@ -1,0 +1,1289 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <title>Sidebar MVP — revised A</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        background: white;
+        font-family: system-ui, sans-serif;
+      }
+      #preview {
+        display: block;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="preview"></div>
+    <script type="module">
+      // Throwaway approval MVP: selected A footer with About inside Settings.
+      // Synthetic data only. Not imported by the production entry point.
+      import workspaceStyles from "../styles.css?inline";
+      import brandMark from "./tsdm-brand.prototype.svg?raw";
+      import { EditorView } from "prosemirror-view";
+      import { baseKeymap } from "prosemirror-commands";
+      import { keydownHandler } from "prosemirror-keymap";
+      import { createEditorSession } from "../editor/session.ts";
+      import { editorNode, editorMark } from "../components/editor-dom.ts";
+      const host = document.querySelector("#preview");
+      const root = host.attachShadow({ mode: "open" });
+      const paths = {
+        boards:
+          '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+        messages:
+          '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/>',
+        search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+        saved: '<path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4z"/>',
+        notices:
+          '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+        drafts: '<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h8M8 16h6"/>',
+        settings:
+          '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--surface)"/><circle cx="15" cy="17" r="3" fill="var(--surface)"/>',
+        threads: '<path d="M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"/>',
+        external: '<path d="M14 3h7v7M21 3l-10 10M10 5H4v15h15v-6"/>',
+        refresh: '<path d="M20 7a9 9 0 1 0 1 8M20 3v5h-5"/>',
+        more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+        expand: '<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',
+        compact: '<path d="M3 8h5V3M21 8h-5V3M8 21v-5H3M16 21v-5h5"/>',
+        minimize: '<path d="M5 12h14"/>',
+        compose: '<path d="M12 20H4V4h9M16 3l5 5M9 15l1-5L18 2l5 5-8 8-6 1z"/>',
+      };
+      const icon = (name) =>
+        `<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
+      const sections = [
+        "Boards",
+        "Messages",
+        "Search",
+        "Saved",
+        "Notices",
+        "Drafts",
+      ];
+      const boards = [
+        [
+          "事务所",
+          "论坛公告发布 / 论坛系统问题上报处理。新人疑问帮助 / 意见反馈 / 版务投诉。",
+          0,
+        ],
+        ["动漫游戏新闻", "欢迎发表二次元新闻。子版：后花园、神秘园。", 1],
+        ["若闲小阁", "欢迎来到水区，和同好轻松聊天。", 0],
+        ["新人报到", "和大家打个招呼。", 0],
+        ["活动专区", "查看近期活动。", 0],
+        ["天使名册", "认识社区的朋友。", 0],
+        ["天使动漫萌战", "动漫角色讨论。", 1],
+        ["音乐分享", "一起发现音乐。", 3],
+        ["动漫音乐", "分享喜欢的旋律。", 3],
+        ["绘画交流", "分享创作与灵感。", 2],
+        ["TSDM杂志社", "社区创作与投稿。", 2],
+        ["萌化区", "主题与桌面交流。", 2],
+        ["宣传组", "社区协作。", 0],
+        ["学生会", "社区交流。", 0],
+        ["美工综合讨论区", "设计交流。", 2],
+        ["美工商店街", "创作交流。", 2],
+        ["动态 / UI组", "界面设计交流。", 2],
+        ["平面设计组", "平面设计交流。", 2],
+        ["版主申请区 / 各工作组", "社区协作与申请。", 0],
+      ];
+      const groups = ["Community", "Anime", "Creative", "Music"];
+      const sampleThreads = [
+        {
+          id: 1,
+          title: "最近有什么值得分享的新发现？",
+          excerpt: "聊聊最近的作品、音乐与日常。",
+        },
+        {
+          id: 2,
+          title: "本周交流与提问",
+          excerpt: "分享你的想法，也欢迎提出问题。",
+        },
+        {
+          id: 3,
+          title: "一起整理实用资料",
+          excerpt: "和同好交流、补充有用的信息。",
+        },
+      ];
+      root.innerHTML = `<style>${workspaceStyles}</style><style>
+        :host { display:block; height:100%; accent-color:var(--ink); --hover-surface:var(--soft); --safe-top:env(safe-area-inset-top,0px); --safe-right:env(safe-area-inset-right,0px); --safe-bottom:env(safe-area-max-inset-bottom,env(safe-area-inset-bottom,0px)); --safe-left:env(safe-area-inset-left,0px); --text-scale:1; --section-base:var(--accent); --section-pink:#dda49f; --section-alt:var(--secondary-accent); --section-cool:var(--support); --floating-shadow:0 4px 16px rgba(0,0,0,0.06); --modal-shadow:0 16px 48px rgba(0,0,0,0.24); }
+        .prototype-shell { position:fixed; top:var(--viewport-top,0px); left:0; right:0; height:100vh; height:var(--viewport-height,100dvh); display:grid; grid-template-rows:minmax(0,1fr); overflow:hidden; background:var(--surface); }
+        .workspace { min-height:0; height:100%; display:grid; grid-template-rows:auto minmax(0,1fr); }
+        .workspace > header { display:flex; min-height:56px; padding:8px max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); gap:12px; flex-wrap:nowrap; }
+        .brand { display:flex; align-items:center; justify-content:center; gap:8px; font-size:24px; min-width:44px; min-height:44px; }
+        svg { width:20px; height:20px; flex:none; }
+        .brand svg { width:44px; height:44px; }
+        .workspace > header .brand { flex:none; margin-right:0; }
+        .workspace > header .workspace-caption { flex:none; margin-right:0; }
+        .pane-controls { display:flex; flex:none; flex-wrap:nowrap; align-items:center; gap:8px; margin-left:auto; }
+        .pane-controls button { display:inline-flex; flex:none; gap:8px; justify-content:center; min-width:44px; min-height:44px; }
+        @media(max-width:959px) { .workspace > header .workspace-caption,.pane-control-label { display:none; } .pane-controls button { width:44px; height:44px; padding:10px; } }
+        .workspace-caption { font-size:12px; }
+        main.preview-body { display:grid; grid-template-columns:var(--boards-width,216px) var(--threads-width,300px) minmax(0,1fr); position:relative; min-height:0; max-width:none; width:100%; margin:0; padding:0; overflow:hidden; }
+        .preview-body .boards-region { display:flex; flex-direction:column; overflow:hidden; padding:0; min-height:0; min-width:0; border:0; position:relative; z-index:2; background:var(--surface); box-shadow:4px 0 16px rgba(0,0,0,0.06); }
+        .sidebar-scroll { flex:1; min-height:0; overflow:auto; padding:12px 12px 12px max(12px,var(--safe-left)); scrollbar-gutter:stable; }
+        .sidebar-scroll .main-destinations { display:grid; gap:4px; padding:0; background:var(--surface); border:0; }
+        .main-destinations button { min-height:44px; }
+        .boards-navigation { padding:24px 0 12px; border:0; gap:4px; }
+        .boards-navigation a { line-height:1.5; min-height:44px; font-size:calc(16px * var(--text-scale)); }
+        .boards-navigation a::before { background:var(--support); }
+        [data-group="0"] { --group-surface:var(--section-base); }
+        [data-group="1"] { --group-surface:var(--section-pink); }
+        [data-group="2"] { --group-surface:var(--section-alt); }
+        [data-group="3"] { --group-surface:var(--section-cool); }
+        .category-label { display:inline-flex; align-items:center; padding:4px 8px; border-radius:8px; background:var(--group-surface,var(--soft)); color:var(--ink); font-size:12px; line-height:1.4; }
+        .preview-body .navigation-account { flex:none; border:0; position:relative; z-index:1; box-shadow:0 -4px 16px rgba(0,0,0,0.06); margin:0; padding:12px 12px 12px max(12px,var(--safe-left)); display:flex; align-items:center; gap:4px; background:var(--surface); color:var(--ink); }
+        .identity { flex:1; min-width:0; overflow-wrap:anywhere; font-size:calc(14px * var(--text-scale)); line-height:1.45; }
+        .identity small { display:block; font-size:calc(12px * var(--text-scale)); color:var(--muted); }
+        .account-actions { display:flex; gap:4px; flex:none; }
+        .account-actions button { min-width:44px; min-height:44px; padding:10px; border-radius:50%; gap:8px; }
+        .action-text { display:none; }
+        .preview-results { padding:24px; min-height:0; overflow:auto; border:0; position:relative; z-index:1; background:var(--surface); box-shadow:4px 0 16px rgba(0,0,0,0.06); }
+        .preview-results h1 { font-size:calc(30px * var(--text-scale)); font-weight:600; }
+        .preview-results h2 { font-size:calc(21px * var(--text-scale)); margin:24px 0 16px; }
+        .preview-results > p { font-size:calc(18px * var(--text-scale)); }
+        .board-grid { display:grid; grid-template-columns:minmax(0,1fr); }
+        .board-card { padding:20px; border:0; border-radius:24px; background:var(--group-surface,var(--surface)); color:var(--ink); box-shadow:var(--floating-shadow); font-size:calc(16px * var(--text-scale)); }
+        .board-card strong { font-weight:600; font-size:calc(18px * var(--text-scale)); }
+        .board-card span,.board-card .card-category { color:var(--ink); }
+        .board-card .card-category { font-size:12px; line-height:1.4; font-weight:600; }
+        .preview-reader { padding:24px max(24px,var(--safe-right)) 24px 24px; overflow:auto; font-size:calc(18px * var(--text-scale)); }
+        .preview-reader p { margin:0; }
+        button:hover:not(:disabled), a:hover { background:var(--hover-surface); text-decoration:none; }
+        .main-destinations [aria-current="page"] { background:var(--ink); color:var(--surface); }
+        .main-destinations [aria-current="page"]:hover { background:var(--ink); text-decoration:underline; }
+        .board-card:hover { background:var(--group-surface,var(--hover-surface)); }
+        .board-card:hover > strong { text-decoration:underline; }
+        button:disabled { color:var(--ink); background:var(--soft); cursor:default; }
+        :focus-visible { outline:3px solid var(--ink); outline-offset:2px; box-shadow:0 0 0 2px var(--surface); }
+        .preview-tools { padding:8px max(12px,var(--safe-right)) calc(8px + var(--safe-bottom)) max(12px,var(--safe-left)); background:var(--soft); border-top:1px solid var(--separator); display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; font-size:12px; z-index:1; }
+        .preview-tools label { display:flex; gap:6px; align-items:center; }
+        .preview-tools input { width:18px; height:18px; }
+        .preview-state { flex-basis:100%; margin:0; color:var(--ink); font-size:12px; }
+        [hidden] { display:none !important; }
+        .board-disclosure { width:100%; }
+        .board-disclosure summary { display:flex; align-items:center; gap:8px; min-height:44px; padding:8px 12px; cursor:pointer; border-radius:8px; list-style:none; font-size:calc(14px * var(--text-scale)); }
+        .board-disclosure summary::-webkit-details-marker { display:none; }
+        .board-disclosure summary::before { content:""; border-right:2px solid currentColor; border-bottom:2px solid currentColor; width:6px; height:6px; transform:rotate(-45deg); flex:none; }
+        .board-disclosure[open] summary::before { transform:rotate(45deg); }
+        .board-disclosure summary:hover { background:var(--soft); }
+        .group-count { margin-left:auto; color:var(--muted); }
+        .board-group-links { display:grid; gap:4px; }
+        .boards-navigation .board-group-links a::before { content:""; flex:none; width:10px; height:10px; border-radius:50%; margin-right:10px; background:var(--group-surface,var(--support)); }
+        .results-heading { display:flex; gap:8px; align-items:center; }
+        .results-heading h1 { flex:1; min-width:0; }
+        .context-action { font-size:calc(14px * var(--text-scale)); gap:8px; }
+        .sample-thread-list { display:grid; gap:8px; margin-top:16px; }
+        .sample-thread { display:block; text-align:left; width:100%; padding:16px; border:0; border-radius:8px; background:var(--surface); box-shadow:var(--floating-shadow); }
+        .sample-thread strong,.sample-thread span { display:block; line-height:1.5; }
+        .sample-thread span { margin-top:8px; font-size:calc(14px * var(--text-scale)); }
+        .sample-thread[aria-current="true"],.sample-thread[aria-current="true"]:hover { background:var(--ink); color:var(--surface); }
+        .board-card:focus-visible,.sample-thread:focus-visible { box-shadow:0 0 0 2px var(--surface),var(--floating-shadow); }
+        .preview-reader h1 { font-size:calc(26px * var(--text-scale)); }
+        .preview-reader article { padding:20px 0; border:0; }
+        .preview-reader article p { margin-block:16px; line-height:1.6; }
+        .pane-controls [aria-pressed="true"] { background:var(--soft); }
+        #reader-content { height:100%; display:flex; flex-direction:column; min-width:0; }
+        .reader-main { container:reader / inline-size; display:flex; flex-direction:column; min-height:0; min-width:0; flex:1; }
+        .reader-tools { display:flex; flex-wrap:wrap; align-items:flex-start; gap:8px; flex:none; padding:0 0 12px; background:var(--surface); position:relative; z-index:3; }
+        .reader-heading { flex:1; min-width:180px; }
+        .reader-heading #reader-board { display:block; width:fit-content; max-width:100%; font-size:12px; margin-bottom:6px; padding:4px 10px; border-radius:8px; background:var(--group-surface,var(--surface)); color:var(--ink); }
+        .reader-heading #reader-title { margin:0; font-size:calc(26px * var(--text-scale)); line-height:1.35; overflow-wrap:anywhere; }
+        .reader-tools.compact { align-items:center; flex-wrap:nowrap; }
+        .reader-tools.compact .reader-heading { min-width:0; }
+        .reader-tools.compact #reader-board { display:none; }
+        .reader-tools.compact #reader-title { font-size:calc(16px * var(--text-scale)); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .reader-control-stack { flex:none; display:flex; align-items:center; gap:8px; }
+        @container reader (max-width:400px) {
+          .reader-tools.compact { flex-wrap:wrap; }
+          .reader-heading { flex-basis:100%; }
+          .reader-control-stack { margin-left:auto; }
+          #order-state { max-width:80px; }
+        }
+        .fresh-status { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-height:44px; font-size:12px; flex:none; }
+        .fresh-status button { min-height:44px; font-size:12px; }
+        .fresh-status:has(button:not([hidden])) > span { display:none; }
+        .thread-end { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:20px 0; border:0; font-size:14px; }
+        .icon-action { display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; padding:10px; }
+        #reply-open { justify-content:flex-end; }
+        .reader-tool-group { position:relative; display:flex; align-items:center; flex:none; gap:8px; }
+        .reader-tool-group #page-open { min-height:44px; border:0; border-radius:24px; padding:10px 12px; white-space:nowrap; }
+        .reader-tool-group .reader-more { position:static; }
+        .column-grip { position:absolute; z-index:5; width:12px; transform:translateX(-50%); padding:0; border:0; background:transparent; cursor:col-resize; touch-action:none; }
+        .column-grip::before { content:""; position:absolute; top:0; bottom:0; left:50%; width:2px; transform:translateX(-50%); background:transparent; }
+        .column-grip:hover::before,.column-grip:focus-visible::before { background:var(--ink); }
+        .column-grip:focus-visible { outline:0; box-shadow:none; }
+        @media(pointer:coarse) { .column-grip { width:18px; } }
+        :host([data-resizing]) { user-select:none; cursor:col-resize; }
+        .reader-scroll { min-height:0; flex:1; overflow:auto; padding:6px; margin:-6px -6px 0; }
+        .reader-title-row,.reader-pagination,.reply-toolbar,.reply-footer { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .reader-title-row h1 { flex:1; min-width:0; margin:12px 0; }
+        .reader-actions { display:flex; gap:4px; align-items:center; }
+        .reader-actions button,.reader-more summary,.reply-toolbar button { min-width:44px; min-height:44px; }
+        .reader-more { position:relative; }
+        .reader-more summary { display:flex; align-items:center; justify-content:center; cursor:pointer; border-radius:50%; list-style:none; }
+        .reader-more summary::-webkit-details-marker { display:none; }
+        .reader-more summary:hover { background:var(--soft); }
+        .reader-more-options { position:absolute; right:0; top:100%; z-index:2; width:205px; padding:8px; border:0; border-radius:8px; background:var(--surface); box-shadow:var(--floating-shadow); }
+        .reader-more-options button { display:block; width:100%; text-align:left; }
+        .reader-tools { font-size:14px; }
+        #order-state { font-size:13px; padding:4px 8px; background:var(--accent); border-radius:8px; }
+        .reader-scroll .sample-post { border:0; padding:24px 0; }
+        .sample-post small { color:var(--muted); }
+        .reply-composer { flex:none; max-height:55%; overflow:auto; border:0; position:relative; z-index:1; box-shadow:0 -4px 16px rgba(0,0,0,0.06); padding-top:10px; margin-top:8px; font-size:14px; }
+        .reply-toolbar strong { flex:1; min-width:100px; font-size:14px; }
+        .reply-toolbar button { padding:10px; }
+        .rich-editor .ProseMirror { box-sizing:border-box; display:block; width:100%; height:92px; min-height:92px; resize:vertical; border:1px solid var(--boundary); border-radius:8px; padding:10px; font:inherit; margin-top:8px; }
+        .reply-composer.expanded { max-height:min(80%,calc(100% - var(--reader-reserve,160px))); }
+        .reply-composer.expanded .ProseMirror { height:220px; }
+        .rich-editor { min-height:0; padding:5px; margin:0 -5px; }
+        .rich-editor .ProseMirror { overflow:auto; resize:none; white-space:pre-wrap; }
+        .rich-editor .ProseMirror p { margin:0 0 8px; font:inherit; }
+        .rich-editor .ProseMirror blockquote,#review-copy .ProseMirror blockquote { margin:8px 0; padding:12px 16px; border-left:3px solid var(--ink); background:var(--section-base); color:var(--ink); }
+        .rich-tools { display:none; gap:4px; flex-wrap:wrap; margin-top:8px; }
+        .reply-composer.expanded .rich-tools { display:flex; }
+        .rich-tools button { min-height:44px; min-width:44px; padding:6px 10px; }
+        .rich-tools button[aria-pressed="true"] { background:var(--soft); box-shadow:inset 0 0 0 1px var(--ink); }
+        .reply-resume { flex:none; display:flex; align-items:center; gap:12px; width:100%; min-height:56px; padding:10px 12px; border:0; border-radius:0; text-align:left; position:relative; z-index:1; background:var(--surface); box-shadow:0 -4px 16px rgba(0,0,0,0.06); }
+        .reply-resume span { font-size:12px; overflow-wrap:anywhere; }
+        #copy-value { width:100%; min-height:44px; }
+        #page-number,#copy-value,#safe-preview { border:1px solid var(--boundary); border-radius:8px; padding:8px; background:var(--surface); color:var(--ink); font:inherit; }
+        @media(min-width:1440px) {
+          #reader-content:has(.reply-composer.expanded:not([hidden])) { display:grid; grid-template-columns:minmax(0,1fr) var(--writing-width,420px); gap:24px; }
+          #reader-content .reply-composer.expanded:not([hidden]) { display:flex; flex-direction:column; min-width:0; max-height:none; margin:0; padding:0 6px 0 20px; border:0; box-shadow:-4px 0 16px rgba(0,0,0,0.06); }
+          .reply-composer.expanded .rich-editor { flex:1; display:flex; min-height:140px; }
+          .reply-composer.expanded .ProseMirror { flex:1; height:auto; min-height:140px; }
+        }
+        .reply-composer details { margin:8px 0; }
+        .reply-composer details p { font-size:13px; line-height:1.5; margin:8px 0; }
+        .reply-footer { justify-content:space-between; padding:8px 0; }
+        .reply-footer small { color:var(--muted); }
+        #reply-review { background:var(--ink); color:var(--surface); }
+        #reply-review:disabled { background:var(--soft); color:var(--muted); }
+        #reply-target { display:block; padding:6px 10px; border-radius:8px; background:var(--group-surface,var(--surface)); color:var(--ink); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+        #reply-mismatch { font-size:13px; margin-top:8px; }
+        #page-dialog label { display:block; margin:12px 0; }
+        #page-slider { width:100%; min-height:44px; accent-color:var(--ink); }
+        #page-number { width:90px; min-height:44px; font:inherit; }
+        #review-copy { white-space:pre-wrap; overflow-wrap:anywhere; border:0; background:var(--soft); padding:12px; }
+        .preview-reader { min-width:0; }
+        .group-key { display:none; margin:12px 0; font-size:12px; color:var(--muted); }
+        :host([data-colors="groups"]) .group-key { display:block; }
+        dialog { color:var(--ink); background:var(--surface); border:0; box-shadow:var(--modal-shadow); border-radius:24px; padding:24px; max-width:min(440px,calc(100vw - var(--safe-left) - var(--safe-right) - 32px)); max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px); overflow:auto; position:fixed; inset:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left); margin:auto; }
+        dialog::backdrop { background:#0009; }
+        dialog p { line-height:1.5; }
+        dialog button { border:0; }
+        @media(min-width:768px) and (max-width:959px) { main.preview-body { grid-template-columns:var(--threads-width,300px) minmax(0,1fr); } .preview-body .boards-region { display:none; } :host([data-mobile-view="boards"]) main.preview-body { grid-template-columns:var(--boards-width,216px) minmax(0,1fr); } :host([data-mobile-view="boards"]) .preview-body .boards-region { display:flex; } :host([data-mobile-view="boards"]) .preview-reader { display:none; } }
+        @media(max-width:767px) {
+          main.preview-body { grid-template-columns:minmax(0,1fr); }
+          .preview-body .boards-region,.preview-body .preview-results,.preview-body .preview-reader { display:none; min-width:0; }
+          :host([data-mobile-view="boards"]) .preview-body .boards-region { display:flex; border-right:0; }
+          :host([data-mobile-view="results"]) .preview-results { display:block; border-right:0; }
+          :host([data-mobile-view="reader"]) .preview-reader { display:block; }
+          .preview-results,.preview-reader { padding:20px max(16px,var(--safe-right)) 20px max(16px,var(--safe-left)); }
+          .workspace > header { padding:8px max(12px,var(--safe-right)) 8px max(12px,var(--safe-left)); }
+          .preview-tools { gap:4px 12px; }
+          .sidebar-scroll,.preview-body .navigation-account { padding-right:max(12px,var(--safe-right)); }
+          .preview-state { font-size:11px; }
+        }
+
+        /* Edge-to-edge surfaces; gutters/insets belong to their content. */
+        .workspace > header { border:0; position:relative; z-index:6; box-shadow:var(--floating-shadow); min-height:calc(60px + var(--safe-top)); padding:calc(8px + var(--safe-top)) max(16px,var(--safe-right)) 8px max(16px,var(--safe-left)); background:var(--surface); }
+        .preview-body .navigation-account { padding-bottom:calc(12px + var(--safe-bottom)); }
+        .preview-results { --list-left:0px; --list-right:0px; padding:24px max(24px,var(--list-right)) calc(24px + var(--safe-bottom)) max(24px,var(--list-left)); }
+        .preview-reader { --reader-gutter:24px; --reader-left:0px; --reader-right:var(--safe-right); padding:0 0 var(--safe-bottom); background:var(--surface); overflow:auto; }
+        #reader-empty { padding:24px max(var(--reader-gutter),var(--reader-right)) 24px max(var(--reader-gutter),var(--reader-left)); }
+        #reader-content { min-height:calc(var(--reader-reserve,160px) + 64px); }
+        #reader-content:has(.reply-composer:not([hidden])) { min-height:calc(var(--reader-reserve,160px) + 200px); }
+        .reader-tools { padding:16px max(var(--reader-gutter),var(--reader-right)) 12px max(var(--reader-gutter),var(--reader-left)); }
+        .reader-main > .fresh-status { padding:0 max(var(--reader-gutter),var(--reader-right)) 0 max(var(--reader-gutter),var(--reader-left)); }
+        .reader-scroll { padding:0; margin:0; }
+        .preview-reader .sample-post { padding:24px max(var(--reader-gutter),var(--reader-right)) 24px max(var(--reader-gutter),var(--reader-left)); border-radius:0; box-shadow:none; margin:0; border:0; }
+        .thread-end { padding:16px max(var(--reader-gutter),var(--reader-right)) 16px max(var(--reader-gutter),var(--reader-left)); }
+        .reply-resume { padding:10px max(var(--reader-gutter),var(--safe-right)) 10px max(var(--reader-gutter),var(--reader-left)); }
+        .reply-composer { margin:0; padding:12px max(var(--reader-gutter),var(--safe-right)) 8px max(var(--reader-gutter),var(--reader-left)); background:var(--surface); }
+        .reader-more-options { max-height:var(--reader-menu-height,240px); overflow:auto; }
+        .preview-tools { padding:12px 0; margin:0; background:var(--surface); border:0; }
+        .preview-tools select { max-width:100%; min-height:44px; font:inherit; }
+        .preview-tools label { flex-wrap:wrap; }
+        .mvp-settings { margin:16px 0; }
+        .mvp-settings > summary { cursor:pointer; min-height:44px; padding:10px 0; }
+        @media(min-width:1440px) {
+          #reader-content:has(.reply-composer.expanded:not([hidden])) { gap:0; }
+          #reader-content:has(.reply-composer.expanded:not([hidden])) .reader-main { --reader-right:0px; }
+          #reader-content .reply-composer.expanded:not([hidden]) { padding:16px max(24px,var(--safe-right)) 12px 24px; }
+        }
+        @media(min-width:768px) and (max-width:959px) {
+          .preview-results { --list-left:var(--safe-left); }
+          :host([data-mobile-view="boards"]) .preview-results { --list-left:0px; --list-right:var(--safe-right); }
+        }
+        @media(max-width:767px) {
+          .workspace > header { padding-left:max(12px,var(--safe-left)); padding-right:max(12px,var(--safe-right)); }
+          .preview-reader { --reader-left:var(--safe-left); }
+          .preview-results { --list-left:var(--safe-left); --list-right:var(--safe-right); }
+          .sidebar-scroll,.preview-body .navigation-account { padding-right:max(12px,var(--safe-right)); }
+        }
+        @media(max-width:559px) {
+          .preview-reader { --reader-gutter:16px; }
+          .preview-results { padding-left:max(16px,var(--list-left)); padding-right:max(16px,var(--list-right)); }
+        }
+      </style>
+      <div class="prototype-shell">
+
+        <div class="workspace">
+          <header><a class="brand" href="#" data-stub="Home" aria-label="TSDM home" title="TSDM home">${brandMark}<span>TSDM</span></a><span class="workspace-caption">Forum / IM · MVP</span><div class="pane-controls" role="group" aria-label="Workspace controls"><button data-pane="boards" aria-label="Boards pane" title="Boards pane">${icon("boards")}<span class="pane-control-label">Boards</span></button><button class="threads-control" data-pane="results" aria-label="Threads pane" title="Threads pane">${icon("threads")}<span class="pane-control-label">Threads pane</span></button><button data-stub="Continue in native forum" aria-label="Continue in native forum" title="Continue in native forum">${icon("external")}<span class="pane-control-label">Native forum</span></button></div></header>
+          <main class="preview-body">
+            <aside class="boards-region" aria-label="Preview sidebar">
+              <div class="sidebar-scroll" tabindex="0" aria-label="Scrollable navigation">
+                <p class="navigation-caption">Main destinations</p>
+                <nav aria-label="Main destinations" class="main-destinations">${sections.map((section, i) => `<button ${i === 0 ? 'aria-current="page"' : ""} data-stub="${section}">${icon(section.toLowerCase())}<span>${section}</span></button>`).join("")}</nav>
+                <nav class="boards-navigation" aria-label="Browse boards"><h2>Browse boards</h2><a href="#" data-all-boards>All boards</a>${groups.map((groupName, group) => `<details class="board-disclosure" data-group="${group}" open><summary aria-label="${groupName} boards"><span class="category-label">${groupName}</span><span class="group-count">${boards.filter((b) => b[2] === group).length}</span></summary><div class="board-group-links">${boards.map(([name, , g], index) => (g === group ? `<a href="#" lang="zh-Hans" data-group="${group}" data-board="${index}">${name}</a>` : "")).join("")}</div></details>`).join("")}</nav>
+                <p class="group-key">Sample groups: green · Community; rose · Anime; lavender · Creative; blue · Music. Color supplements the board name.</p>
+              </div>
+              <footer class="navigation-account"><div class="identity"><small>Signed in as</small><strong>demo-member</strong></div><div class="account-actions"><button aria-label="Settings" title="Settings" data-dialog="Settings">${icon("settings")}<span class="action-text">Settings</span></button></div></footer>
+            </aside>
+            <section class="preview-results"><span id="results-category" class="category-label" hidden></span><div class="results-heading"><h1 id="results-title" tabindex="-1">Boards</h1><button class="context-action" id="board-check" aria-label="Refresh current list" title="Refresh current list">${icon("refresh")}</button></div><button class="context-action" data-all-boards id="list-back" hidden>All boards</button><div id="directory-results"><p>Choose a board to read its threads.</p><label for="filter">Filter boards in this preview</label><input id="filter" type="search" style="width:100%;min-height:44px;margin-top:8px;border:1px solid var(--boundary);border-radius:8px;font:inherit;padding:8px"/><p id="count" style="font-size:14px"></p><h2 lang="zh-Hans">我收藏的版块</h2><div class="board-grid">${boards
+              .slice(0, 5)
+              .map(
+                ([name, description, group], index) =>
+                  `<a href="#" class="board-card" lang="zh-Hans" data-board="${index}" data-group="${group}"><small class="card-category">${groups[group]}</small><strong>${name}</strong><span>${description}</span></a>`,
+              )
+              .join(
+                "",
+              )}</div></div><div id="thread-results" hidden><div class="fresh-status" aria-live="polite"><span id="board-fresh-state">Not checked</span><button id="board-reveal" hidden>Show new thread</button></div><div class="sample-thread-list">${sampleThreads.map((thread) => `<button class="sample-thread" data-thread="${thread.id}" lang="zh-Hans"><strong>${thread.title}</strong><span>${thread.excerpt}</span></button>`).join("")}</div></div></section>
+            <section class="preview-reader"><div id="reader-empty"><p>Choose a thread to read.</p></div><div id="reader-content" hidden>
+              <div class="reader-main">
+                <div class="reader-tools" role="group" aria-label="Reader controls"><div class="reader-heading"><a href="#" id="reader-board"></a><h1 id="reader-title" lang="zh-Hans" tabindex="-1"></h1></div><div class="reader-control-stack"><span id="order-state" hidden>Newest first</span><div class="reader-tool-group" role="group" aria-label="Page and thread options"><button id="page-open" aria-haspopup="dialog">Page 1 / 92</button><details class="reader-more"><summary aria-label="More thread options" title="More thread options">${icon("more")}</summary><div class="reader-more-options"><button data-stub="Back in history">Back in history</button><button id="thread-check-menu">Refresh thread</button><button data-stub="Save thread">Save thread</button><button id="copy-url">Copy URL</button><button id="reverse-order" aria-pressed="false">Reverse order</button></div></details></div></div></div>
+                <div class="fresh-status" aria-live="polite"><span id="thread-fresh-state">Not checked</span><button id="thread-reveal" hidden>Show new posts</button></div>
+                <div class="reader-scroll">
+                <div id="thread-newest" class="thread-end" hidden><span>Newest end</span><button id="thread-check" class="icon-action" aria-label="Check for new posts" title="Check for new posts">${icon("refresh")}</button></div><div id="sample-posts"></div>
+                </div>
+              </div>
+              <section class="reply-composer" aria-label="Compact reply" hidden><div class="reply-toolbar"><strong>Reply · demo-member</strong><button id="reply-expand" aria-label="Expand reply" title="Expand reply" aria-expanded="false">${icon("expand")}</button><button id="reply-hide" aria-label="Minimize reply" title="Minimize reply">${icon("minimize")}</button></div><span id="reply-target"></span><p id="reply-mismatch" role="status" hidden>Reply is still addressed to the earlier thread.</p><div class="rich-tools" role="group" aria-label="Rich text formatting">${[
+                ["b", "Bold", "<b>B</b>"],
+                ["i", "Italic", "<i>I</i>"],
+                ["u", "Underline", "<u>U</u>"],
+                ["ul", "Bullet list", "Bullets"],
+                ["ol", "Numbered list", "Numbered"],
+                ["quote", "Quote", "Quote"],
+                ["code", "Code block", "Code"],
+                ["undo", "Undo", "Undo"],
+                ["redo", "Redo", "Redo"],
+              ]
+                .map(
+                  ([tool, label, content]) =>
+                    `<button data-format="${tool}" aria-label="${label}" title="${label}">${content}</button>`,
+                )
+                .join(
+                  "",
+                )}</div><div id="reply-editor" class="rich-editor"></div><p id="editor-message" role="status" hidden></p><details><summary>Details</summary><p>This ordinary reply addresses the named thread. A post-specific reply would also show its author and post.</p><p>Text stays in this preview until reload. Nothing is saved to the forum. Review remains a separate step before any real publication.</p></details><div class="reply-footer"><small>Unsaved preview text</small><button id="reply-review" disabled>Review reply</button></div></section>
+              <button id="reply-open" class="reply-resume">Reply</button>
+              <button id="reply-resume" class="reply-resume" aria-label="Resume reply" aria-describedby="resume-target" title="Resume reply" hidden>${icon("compose")}<span id="resume-target"></span></button>
+            </div></section>
+            ${["boards", "threads", "writing"].map((pane) => `<div class="column-grip" tabindex="0" data-resize="${pane}" role="separator" aria-orientation="vertical" aria-label="Resize ${pane} column" title="Drag to resize ${pane}; Left/Right to adjust, Home to reset" hidden></div>`).join("")}
+          </main>
+        </div>
+
+        <dialog aria-labelledby="dialog-title"><h2 id="dialog-title">Settings</h2><p>Preview only. No preferences are saved.</p><section aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3><p>Drag a column edge directly. Focus a divider and use Left/Right to adjust, or Home to reset it. Widths stay in this preview until reload.</p><button id="reset-columns">Reset column widths</button></section><section aria-labelledby="updates-heading"><h3 id="updates-heading">Updates</h3><label><input id="automatic-updates" type="checkbox"/> Check visible open thread and board every 2 minutes</label><p>Checks pause when this tab or pane is hidden, or a dialog is open. New content waits for you to show it.</p></section><section aria-labelledby="about-heading"><h3 id="about-heading">About this workspace</h3><p>TSDM — a workspace for boards, threads and private conversations.</p></section><details class="mvp-settings"><summary>MVP controls</summary><div class="preview-tools" aria-label="Preview controls"><p>Approval MVP · synthetic data only. No forum requests. Changes reset on reload.</p><strong>Fresh-content simulation</strong><button id="stage-arrivals">Stage sample arrivals</button><button id="advance-check">Advance 2 min</button><label><input type="checkbox" id="large"/>125% text</label><label>Safe-area simulation<select id="safe-preview"><option value="device">Device insets</option><option value="portrait">Portrait · top24 / bottom24</option><option value="landscape">Landscape · sides44 / bottom24</option></select></label><p class="preview-state" role="status"></p></div></details><button id="close-dialog">Close</button></dialog>
+        <dialog id="page-dialog" aria-labelledby="page-title"><h2 id="page-title">Jump to page</h2><form id="page-form"><label for="page-slider">Choose page <output id="page-choice">1</output> of 92</label><input id="page-slider" aria-label="Page slider" type="range" min="1" max="92" step="1" value="1"/><label for="page-number">Page number</label><input id="page-number" type="number" min="1" max="92" step="1" required value="1"/><div class="reply-footer"><button type="button" id="page-cancel">Cancel</button><button type="submit">Go to page</button></div></form></dialog>
+        <dialog id="copy-dialog" aria-labelledby="copy-title"><h2 id="copy-title">Copy preview URL</h2><p>Clipboard access was unavailable. Copy this preview link manually.</p><input id="copy-value" aria-label="Preview URL" readonly/><button id="copy-close">Close</button></dialog>
+        <dialog id="reply-dialog" aria-labelledby="review-title"><h2 id="review-title">Review reply</h2><p id="review-target"></p><div id="review-copy"></div><p>Preview only. No reply will be sent.</p><button id="review-close">Back to writing</button></dialog>
+      </div>`;
+      host.dataset.variant = "A";
+      host.dataset.colors = "groups";
+      const url = new URL(location.href);
+      url.searchParams.set("variant", "A");
+      history.replaceState(null, "", url);
+      let selectedBoard = null;
+      let selectedThread = null;
+      let mobileView = "results";
+      let page = 1;
+      let reverse = false;
+      let replyTarget = null;
+      let loadedLow = 1,
+        loadedHigh = 1;
+      let restoringStream = false,
+        restorationToken = 0,
+        streamFrame = null;
+      const threadUpdates = new Map(),
+        boardUpdates = new Map();
+      const updatesFor = (map, key) => {
+        if (!map.has(key))
+          map.set(key, { available: 0, found: 0, shown: 0, checked: false });
+        return map.get(key);
+      };
+      const currentThreadUpdates = () =>
+        updatesFor(
+          threadUpdates,
+          `${selectedThread.boardIndex}:${selectedThread.id}`,
+        );
+      const currentBoardUpdates = () => updatesFor(boardUpdates, selectedBoard);
+      const arrivalThread = {
+        id: 4,
+        title: "新话题 · 今天的新发现",
+        excerpt: "模拟新增话题，点击后可阅读。",
+      };
+      let simulatedTime = 0,
+        nextCheck = Date.now() + 120_000,
+        wasPaused = false;
+      function visiblePane(selector) {
+        return (
+          !document.hidden &&
+          !root.querySelector("dialog[open]") &&
+          !!root.querySelector(selector).getClientRects().length
+        );
+      }
+      function updateFreshUI() {
+        for (const [kind, entry] of [
+          ["thread", selectedThread && currentThreadUpdates()],
+          ["board", selectedBoard !== null && currentBoardUpdates()],
+        ]) {
+          if (!entry) continue;
+          const count = entry.found - entry.shown;
+          root.querySelector(`#${kind}-fresh-state`).textContent = count
+            ? `${count} new ${kind === "thread" ? "posts" : "thread"} available`
+            : entry.checked
+              ? "Up to date · sample"
+              : "Not checked";
+          const button = root.querySelector(`#${kind}-reveal`);
+          button.hidden = !count;
+          button.textContent = `Show ${count} new ${kind === "thread" ? "posts" : "thread"}`;
+        }
+        root.querySelector("#board-check").disabled = selectedBoard === null;
+      }
+      function checkUpdates(kind) {
+        if (kind === "thread" ? !selectedThread : selectedBoard === null)
+          return;
+        const entry =
+          kind === "thread" ? currentThreadUpdates() : currentBoardUpdates();
+        entry.found = entry.available;
+        entry.checked = true;
+        updateFreshUI();
+      }
+      function automaticTick() {
+        const now = Date.now() + simulatedTime;
+        const activeThread = selectedThread && visiblePane(".preview-reader");
+        const activeBoard =
+          selectedBoard !== null && visiblePane(".preview-results");
+        const paused =
+          !root.querySelector("#automatic-updates").checked ||
+          (!activeThread && !activeBoard);
+        if (paused || wasPaused) nextCheck = now + 120_000;
+        wasPaused = paused;
+        if (!paused && now >= nextCheck) {
+          nextCheck = now + 120_000;
+          if (activeThread) checkUpdates("thread");
+          if (activeBoard) checkUpdates("board");
+        }
+      }
+      function renderThreadList() {
+        const threads =
+          selectedBoard !== null && currentBoardUpdates().shown
+            ? [arrivalThread, ...sampleThreads]
+            : sampleThreads;
+        root.querySelector(".sample-thread-list").innerHTML = threads
+          .map(
+            (thread) =>
+              `<button class="sample-thread" data-thread="${thread.id}" lang="zh-Hans" aria-current="${selectedThread?.boardIndex === selectedBoard && selectedThread.id === thread.id}"><strong>${thread.title}</strong><span>${thread.excerpt}</span></button>`,
+          )
+          .join("");
+      }
+      function suppressStreamLoading() {
+        restoringStream = true;
+        const token = ++restorationToken;
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            if (token === restorationToken) restoringStream = false;
+          }),
+        );
+      }
+      const defaultWidths = { boards: 216, threads: 300, writing: 420 };
+      const preferredWidths = { ...defaultWidths };
+      let columnBounds = {};
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      function sizeColumns() {
+        suppressStreamLoading();
+        const body = root.querySelector(".preview-body");
+        const width = body.clientWidth;
+        const wide = width >= 960;
+        const middleBoards = width >= 768 && !wide && mobileView === "boards";
+        const aside =
+          width >= 1440 &&
+          !!root.querySelector(".reply-composer.expanded:not([hidden])");
+        const scroll = root.querySelector(".reader-scroll");
+        const scrollBox = scroll.getBoundingClientRect();
+        const visibleTop = scrollBox.top;
+        const anchor = [...root.querySelectorAll(".sample-post")].find(
+          (post) => {
+            const box = post.getBoundingClientRect();
+            return box.bottom > visibleTop && box.top < scrollBox.bottom;
+          },
+        );
+        const offset = anchor
+          ? anchor.getBoundingClientRect().top - visibleTop
+          : 0;
+        const minimumReader = aside ? 672 : 360;
+        const boardsMax = Math.max(
+          160,
+          Math.min(360, width - 220 - minimumReader),
+        );
+        const boardsWidth = clamp(
+          preferredWidths.boards,
+          160,
+          middleBoards ? 360 : boardsMax,
+        );
+        const threadsMax = Math.max(
+          220,
+          Math.min(520, width - (wide ? boardsWidth : 0) - minimumReader),
+        );
+        const threadsWidth = clamp(preferredWidths.threads, 220, threadsMax);
+        const writingMax = Math.max(
+          280,
+          Math.min(640, width - boardsWidth - threadsWidth - 48 - 24 - 320),
+        );
+        const writingWidth = clamp(preferredWidths.writing, 280, writingMax);
+        for (const [pane, value] of Object.entries({
+          boards: boardsWidth,
+          threads: threadsWidth,
+          writing: writingWidth,
+        }))
+          host.style.setProperty(`--${pane}-width`, `${value}px`);
+        if (anchor)
+          scroll.scrollTop +=
+            anchor.getBoundingClientRect().top -
+            scroll.getBoundingClientRect().top -
+            offset;
+        columnBounds = {
+          boards: {
+            min: 160,
+            max: middleBoards ? 360 : boardsMax,
+            value: boardsWidth,
+            visible: wide || middleBoards,
+          },
+          threads: {
+            min: 220,
+            max: threadsMax,
+            value: threadsWidth,
+            visible: width >= 768 && !middleBoards,
+          },
+          writing: {
+            min: 280,
+            max: writingMax,
+            value: writingWidth,
+            visible: aside && selectedThread !== null,
+          },
+        };
+        const bodyBox = body.getBoundingClientRect();
+        for (const grip of root.querySelectorAll("[data-resize]")) {
+          const pane = grip.dataset.resize,
+            bounds = columnBounds[pane];
+          grip.hidden = !bounds.visible;
+          grip.setAttribute("aria-valuemin", String(bounds.min));
+          grip.setAttribute("aria-valuemax", String(bounds.max));
+          grip.setAttribute("aria-valuenow", String(Math.round(bounds.value)));
+          grip.setAttribute(
+            "aria-valuetext",
+            `${Math.round(bounds.value)} pixels`,
+          );
+          if (bounds.visible) {
+            const target = root
+              .querySelector(
+                pane === "boards"
+                  ? ".boards-region"
+                  : pane === "threads"
+                    ? ".preview-results"
+                    : ".reply-composer",
+              )
+              .getBoundingClientRect();
+            const boundary = pane === "writing" ? target.left : target.right;
+            grip.style.left = `${boundary - bodyBox.left}px`;
+            grip.style.top = `${target.top - bodyBox.top}px`;
+            const bottomReserve =
+              parseFloat(
+                getComputedStyle(root.querySelector(".preview-reader"))
+                  .paddingBottom,
+              ) || 0;
+            grip.style.height = `${Math.max(0, Math.min(target.bottom, bodyBox.bottom - bottomReserve) - target.top)}px`;
+          }
+        }
+        syncReading();
+      }
+      for (const grip of root.querySelectorAll("[data-resize]")) {
+        const pane = grip.dataset.resize;
+        let drag = null;
+        grip.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          grip.focus();
+          drag = { x: event.clientX, width: columnBounds[pane].value };
+          grip.setPointerCapture(event.pointerId);
+          host.dataset.resizing = pane;
+        });
+        grip.addEventListener("pointermove", (event) => {
+          if (!drag) return;
+          const { min, max } = columnBounds[pane];
+          preferredWidths[pane] = clamp(
+            drag.width +
+              (event.clientX - drag.x) * (pane === "writing" ? -1 : 1),
+            min,
+            max,
+          );
+          sizeColumns();
+        });
+        const stop = () => {
+          drag = null;
+          delete host.dataset.resizing;
+        };
+        grip.addEventListener("pointerup", stop);
+        grip.addEventListener("pointercancel", stop);
+        grip.addEventListener("lostpointercapture", stop);
+        grip.addEventListener("keydown", (event) => {
+          if (!["ArrowLeft", "ArrowRight", "Home"].includes(event.key)) return;
+          event.preventDefault();
+          const { min, max, value } = columnBounds[pane];
+          preferredWidths[pane] =
+            event.key === "Home"
+              ? defaultWidths[pane]
+              : clamp(
+                  value +
+                    (event.key === "ArrowRight" ? 16 : -16) *
+                      (pane === "writing" ? -1 : 1),
+                  min,
+                  max,
+                );
+          sizeColumns();
+        });
+      }
+      root.querySelector("#reset-columns").addEventListener("click", () => {
+        Object.assign(preferredWidths, defaultWidths);
+        sizeColumns();
+      });
+      function fitViewport() {
+        const viewport = window.visualViewport;
+        const unzoomed = !viewport || Math.abs(viewport.scale - 1) < 0.01;
+        host.style.setProperty(
+          "--viewport-height",
+          `${unzoomed && viewport ? viewport.height : innerHeight}px`,
+        );
+        host.style.setProperty(
+          "--viewport-top",
+          `${unzoomed && viewport ? viewport.offsetTop : 0}px`,
+        );
+        sizeColumns();
+      }
+      window.addEventListener("resize", fitViewport);
+      window.visualViewport?.addEventListener("resize", fitViewport);
+      window.visualViewport?.addEventListener("scroll", fitViewport);
+      root
+        .querySelector("#safe-preview")
+        .addEventListener("change", (event) => {
+          const preset = {
+            portrait: [24, 0, 24, 0],
+            landscape: [0, 44, 24, 44],
+          }[event.target.value];
+          for (const [i, edge] of [
+            "top",
+            "right",
+            "bottom",
+            "left",
+          ].entries()) {
+            if (preset)
+              host.style.setProperty(`--safe-${edge}`, `${preset[i]}px`);
+            else host.style.removeProperty(`--safe-${edge}`);
+          }
+          sizeColumns();
+        });
+      const showView = (view) => {
+        mobileView = view;
+        host.dataset.mobileView = view;
+        root
+          .querySelectorAll("[data-pane]")
+          .forEach((button) =>
+            button.setAttribute(
+              "aria-pressed",
+              String(button.dataset.pane === view),
+            ),
+          );
+        state();
+        sizeColumns();
+        updateFreshUI();
+        nextCheck = Date.now() + simulatedTime + 120_000;
+      };
+      const state = () => {
+        host.style.setProperty(
+          "--text-scale",
+          root.querySelector("#large").checked ? "1.25" : "1",
+        );
+        root.querySelector(".preview-state").textContent =
+          `View: ${mobileView} · ${selectedBoard === null ? "Board directory" : boards[selectedBoard][0]} · ${selectedThread ? "Sample thread retained" : "No thread selected"} · ${root.querySelector("#large").checked ? "125%" : "100%"} text · Synthetic preview`;
+      };
+      root.querySelector("#large").addEventListener("change", () => {
+        state();
+        sizeColumns();
+      });
+      const dialog = root.querySelector("dialog");
+      root.querySelectorAll("[data-dialog]").forEach((button) =>
+        button.addEventListener("click", () => {
+          root.querySelector("#dialog-title").textContent =
+            button.dataset.dialog;
+          dialog.showModal();
+        }),
+      );
+      root
+        .querySelector("#close-dialog")
+        .addEventListener("click", () => dialog.close());
+      root.querySelectorAll("[data-stub]").forEach((control) =>
+        control.addEventListener("click", (event) => {
+          event.preventDefault();
+          root.querySelector(".preview-state").textContent =
+            `${control.dataset.stub}: visual preview only; no forum action performed.`;
+        }),
+      );
+      root.querySelectorAll("[data-pane]").forEach((button) =>
+        button.addEventListener("click", () => {
+          const pane = button.dataset.pane;
+          const closing =
+            mobileView === pane &&
+            (pane === "boards" || matchMedia("(max-width:767px)").matches);
+          showView(closing ? (selectedThread ? "reader" : "results") : pane);
+        }),
+      );
+      const showBoard = (index) => {
+        selectedBoard = index;
+        const category = root.querySelector("#results-category");
+        category.hidden = index === null;
+        if (index === null) {
+          category.textContent = "";
+          delete category.dataset.group;
+        } else {
+          const group = boards[index][2];
+          category.dataset.group = String(group);
+          category.textContent = groups[group];
+        }
+        renderThreadList();
+        root.querySelector("#results-title").textContent =
+          index === null ? "Boards" : boards[index][0];
+        root.querySelector("#directory-results").hidden = index !== null;
+        root.querySelector("#thread-results").hidden = index === null;
+        root.querySelector("#list-back").hidden = index === null;
+        root
+          .querySelectorAll("[data-thread]")
+          .forEach((button) => button.removeAttribute("aria-current"));
+        root.querySelector(".preview-results").scrollTop = 0;
+        showView("results");
+        root.querySelector("#results-title").focus();
+      };
+      root.querySelectorAll("[data-board]").forEach((link) =>
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          showBoard(Number(link.dataset.board));
+        }),
+      );
+      root.querySelectorAll("[data-all-boards]").forEach((link) =>
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          showBoard(null);
+        }),
+      );
+      root
+        .querySelector(".sample-thread-list")
+        .addEventListener("click", (event) => {
+          const button = event.target.closest("[data-thread]");
+          if (!button) return;
+          selectedThread = {
+            ...[...sampleThreads, arrivalThread].find(
+              (thread) => thread.id === Number(button.dataset.thread),
+            ),
+            board: boards[selectedBoard][0],
+            boardIndex: selectedBoard,
+          };
+          root
+            .querySelectorAll("[data-thread]")
+            .forEach((item) =>
+              item.setAttribute("aria-current", String(item === button)),
+            );
+          root.querySelector("#reader-title").textContent =
+            selectedThread.title;
+          root.querySelector("#reader-title").title = selectedThread.title;
+          const readerBoard = root.querySelector("#reader-board");
+          const group = boards[selectedThread.boardIndex][2];
+          readerBoard.dataset.group = String(group);
+          readerBoard.textContent = `${groups[group]} · ${selectedThread.board}`;
+          root.querySelector("#reader-empty").hidden = true;
+          root.querySelector("#reader-content").hidden = false;
+          page = 1;
+          renderPage();
+          updateReply();
+          showView("reader");
+          root.querySelector("#reader-title").focus();
+        });
+      root.querySelector("#reader-board").addEventListener("click", (event) => {
+        event.preventDefault();
+        showBoard(selectedThread.boardIndex);
+      });
+      const more = root.querySelector(".reader-more");
+      more.addEventListener("toggle", syncReaderHeader);
+      more.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          more.open = false;
+          more.querySelector("summary").focus();
+        }
+      });
+      more.querySelectorAll("button").forEach((button) =>
+        button.addEventListener("click", () => {
+          more.open = false;
+          more.querySelector("summary").focus();
+        }),
+      );
+      function syncReaderHeader() {
+        const scroll = root.querySelector(".reader-scroll");
+        const header = root.querySelector(".reader-tools");
+        if (scroll.scrollTop > 32) header.classList.add("compact");
+        else if (scroll.scrollTop <= 8) header.classList.remove("compact");
+        host.style.setProperty(
+          "--reader-reserve",
+          `${header.offsetHeight + root.querySelector(".reader-main > .fresh-status").offsetHeight + 104}px`,
+        );
+        const bottomInset =
+          parseFloat(
+            getComputedStyle(root.querySelector(".preview-reader"))
+              .paddingBottom,
+          ) || 0;
+        header.style.setProperty(
+          "--reader-menu-height",
+          `${Math.max(44, root.querySelector(".prototype-shell").getBoundingClientRect().bottom - bottomInset - root.querySelector(".reader-tool-group").getBoundingClientRect().bottom - 8)}px`,
+        );
+      }
+      function syncReading() {
+        syncReaderHeader();
+        const scroll = root.querySelector(".reader-scroll");
+        const box = scroll.getBoundingClientRect();
+        if (!box.height) return;
+        const newest = root.querySelector("#thread-newest");
+        newest.hidden = loadedHigh !== 92;
+        const posts = [...root.querySelectorAll(".sample-post")];
+        const visible = posts.find((post) => {
+          const rect = post.getBoundingClientRect();
+          return rect.bottom > box.top + 6 && rect.top < box.bottom;
+        });
+        const atEnd =
+          scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 1;
+        const actualEnd = reverse ? loadedLow === 1 : loadedHigh === 92;
+        const current = atEnd && actualEnd ? posts.at(-1) : visible;
+        if (current) page = Number(current.dataset.page);
+        root.querySelector("#page-open").textContent = `Page ${page} / 92`;
+      }
+      function jumpPage() {
+        suppressStreamLoading();
+        const scroll = root.querySelector(".reader-scroll");
+        const target = root.querySelector(`.sample-post[data-page="${page}"]`);
+        if (!target) return;
+        scroll.scrollTop +=
+          target.getBoundingClientRect().top -
+          scroll.getBoundingClientRect().top;
+        syncReading();
+      }
+      function pageMarkup(samplePage) {
+        const numbers = [1, 2, 3].map((n) => (samplePage - 1) * 3 + n);
+        if (samplePage === 92 && selectedThread) {
+          for (let n = 1; n <= currentThreadUpdates().shown; n++)
+            numbers.push(276 + n);
+        }
+        if (reverse) numbers.reverse();
+        return numbers
+          .map((n) => {
+            const paragraphs = [
+              "这是用于预览连续阅读布局的示例内容。",
+              "一起交流想法，分享最近的发现。",
+              "每篇内容长短不同，滚动时页码会跟随当前阅读位置。",
+              "这个演示中的内容与页码都是本地样本，不会向论坛发送请求。",
+            ].slice(0, 1 + (n % 4));
+            return `<article class="sample-post" data-post="${n}" data-page="${samplePage}" lang="zh-Hans"><small>demo-member · Sample post ${n} · Page ${samplePage}</small>${paragraphs.map((text) => `<p>${text}</p>`).join("")}</article>`;
+          })
+          .join("");
+      }
+      function extendStream() {
+        streamFrame = null;
+        const scroll = root.querySelector(".reader-scroll");
+        if (
+          restoringStream ||
+          !scroll.getClientRects().length ||
+          root.querySelector("dialog[open]")
+        )
+          return;
+        const before = reverse ? loadedHigh + 1 : loadedLow - 1;
+        const after = reverse ? loadedLow - 1 : loadedHigh + 1;
+        const prepend = scroll.scrollTop <= 160 && before >= 1 && before <= 92;
+        const append =
+          scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop <= 160 &&
+          after >= 1 &&
+          after <= 92;
+        if (!prepend && !append) return;
+        const scrollBox = scroll.getBoundingClientRect();
+        const anchor = [...root.querySelectorAll(".sample-post")].find(
+          (post) => {
+            const box = post.getBoundingClientRect();
+            return box.bottom > scrollBox.top && box.top < scrollBox.bottom;
+          },
+        );
+        const offset = anchor
+          ? anchor.getBoundingClientRect().top - scrollBox.top
+          : 0;
+        const incoming = prepend ? before : after;
+        suppressStreamLoading();
+        root
+          .querySelector("#sample-posts")
+          .insertAdjacentHTML(
+            prepend ? "afterbegin" : "beforeend",
+            pageMarkup(incoming),
+          );
+        loadedLow = Math.min(loadedLow, incoming);
+        loadedHigh = Math.max(loadedHigh, incoming);
+        root.querySelector("#thread-newest").hidden = loadedHigh !== 92;
+        if (anchor)
+          scroll.scrollTop +=
+            anchor.getBoundingClientRect().top -
+            scroll.getBoundingClientRect().top -
+            offset;
+        syncReading();
+      }
+      root.querySelector(".reader-scroll").addEventListener(
+        "scroll",
+        () => {
+          syncReading();
+          if (!restoringStream && streamFrame === null)
+            streamFrame = requestAnimationFrame(extendStream);
+        },
+        { passive: true },
+      );
+      const renderPage = () => {
+        suppressStreamLoading();
+        root.querySelector("#order-state").hidden = !reverse;
+        root
+          .querySelector("#reverse-order")
+          .setAttribute("aria-pressed", String(reverse));
+        loadedLow = Math.max(1, page - 1);
+        loadedHigh = Math.min(92, page + 1);
+        const pages = Array.from(
+          { length: loadedHigh - loadedLow + 1 },
+          (_, i) => loadedLow + i,
+        );
+        if (reverse) pages.reverse();
+        root.querySelector("#sample-posts").innerHTML = pages
+          .map(pageMarkup)
+          .join("");
+        const newest = root.querySelector("#thread-newest");
+        const stream = root.querySelector(".reader-scroll");
+        if (reverse) stream.prepend(newest);
+        else stream.append(newest);
+        newest.hidden = loadedHigh !== 92;
+        jumpPage();
+      };
+      root.querySelector("#reverse-order").addEventListener("click", () => {
+        reverse = !reverse;
+        renderPage();
+      });
+      const pageDialog = root.querySelector("#page-dialog");
+      const slider = root.querySelector("#page-slider");
+      const pageNumber = root.querySelector("#page-number");
+      root.querySelector("#page-open").addEventListener("click", () => {
+        slider.value = pageNumber.value = String(page);
+        root.querySelector("#page-choice").textContent = String(page);
+        pageDialog.showModal();
+        slider.focus();
+      });
+      slider.addEventListener("input", () => {
+        pageNumber.value = slider.value;
+        root.querySelector("#page-choice").textContent = slider.value;
+      });
+      pageNumber.addEventListener("input", () => {
+        if (pageNumber.checkValidity()) {
+          slider.value = pageNumber.value;
+          root.querySelector("#page-choice").textContent = pageNumber.value;
+        }
+      });
+      root
+        .querySelector("#page-cancel")
+        .addEventListener("click", () => pageDialog.close());
+      root.querySelector("#page-form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (!pageNumber.reportValidity()) return;
+        page = Number(pageNumber.value);
+        renderPage();
+        pageDialog.close();
+      });
+      root
+        .querySelector("#thread-check")
+        .addEventListener("click", () => checkUpdates("thread"));
+      root
+        .querySelector("#thread-check-menu")
+        .addEventListener("click", () => checkUpdates("thread"));
+      root
+        .querySelector("#board-check")
+        .addEventListener("click", () => checkUpdates("board"));
+      root.querySelector("#thread-reveal").addEventListener("click", () => {
+        currentThreadUpdates().shown = currentThreadUpdates().found;
+        page = 92;
+        renderPage();
+        const target = root.querySelector(
+          `[data-post="${reverse ? 276 + currentThreadUpdates().shown : 277}"]`,
+        );
+        const scroll = root.querySelector(".reader-scroll");
+        scroll.scrollTop +=
+          target.getBoundingClientRect().top -
+          scroll.getBoundingClientRect().top;
+        updateFreshUI();
+        syncReading();
+      });
+      root.querySelector("#board-reveal").addEventListener("click", () => {
+        currentBoardUpdates().shown = currentBoardUpdates().found;
+        renderThreadList();
+        updateFreshUI();
+        root.querySelector(".preview-results").scrollTop = 0;
+        root.querySelector('[data-thread="4"]').focus();
+      });
+      root.querySelector("#stage-arrivals").addEventListener("click", () => {
+        dialog.close();
+        if (selectedThread) currentThreadUpdates().available = 2;
+        if (selectedBoard !== null) currentBoardUpdates().available = 1;
+        root.querySelector(".preview-state").textContent =
+          "Simulation: staged up to 2 new posts and 1 new thread for the open contexts. Check manually or enable automatic checks and advance 2 min. Each context has one sample batch.";
+      });
+      root
+        .querySelector("#automatic-updates")
+        .addEventListener("change", () => {
+          nextCheck = Date.now() + simulatedTime + 120_000;
+          wasPaused = false;
+          root.querySelector(".preview-state").textContent = root.querySelector(
+            "#automatic-updates",
+          ).checked
+            ? "Automatic checks enabled · every 2 min · visible panes only · synthetic data"
+            : "Automatic checks disabled";
+        });
+      root.querySelector("#advance-check").addEventListener("click", () => {
+        dialog.close();
+        automaticTick();
+        simulatedTime += 120_000;
+        automaticTick();
+        root.querySelector(".preview-state").textContent =
+          "Simulation clock advanced 2 min. Automatic checks apply only when enabled and the context is visible; otherwise paused.";
+      });
+      setInterval(automaticTick, 1000);
+      document.addEventListener("visibilitychange", () => {
+        nextCheck = Date.now() + simulatedTime + 120_000;
+        automaticTick();
+      });
+      const composer = root.querySelector(".reply-composer");
+      const session = createEditorSession();
+      const view = new EditorView(root.querySelector("#reply-editor"), {
+        state: session.pmState,
+        nodeViews: Object.fromEntries(
+          Object.keys(session.pmState.schema.nodes)
+            .filter((name) => !["text", "doc"].includes(name))
+            .map((name) => [name, (node) => editorNode(node)]),
+        ),
+        markViews: { format: editorMark, literal: editorMark },
+        attributes: {
+          role: "textbox",
+          "aria-label": "Reply text",
+          "aria-multiline": "true",
+        },
+        dispatchTransaction: (transaction) => session.dispatch(transaction),
+        handleKeyDown: (editor, event) => {
+          if (
+            (event.metaKey || event.ctrlKey) &&
+            event.key.toLowerCase() === "z"
+          ) {
+            event.shiftKey ? session.redo() : session.undo();
+            return true;
+          }
+          return keydownHandler(baseKeymap)(editor, event);
+        },
+        handlePaste: (_editor, event) => {
+          event.preventDefault();
+          session.command("paste", {
+            text: event.clipboardData?.getData("text/plain") ?? "",
+          });
+          return true;
+        },
+      });
+      const formatActive = (tag) => {
+        const { doc, selection, storedMarks } = session.pmState;
+        const hasFormat = (marks) =>
+          marks.some(
+            (mark) =>
+              mark.type.name === "format" &&
+              mark.attrs.frames.some((frame) => frame.tag === tag),
+          );
+        if (selection.empty)
+          return hasFormat(storedMarks ?? selection.$from.marks());
+        const selected = [];
+        doc.nodesBetween(selection.from, selection.to, (node) => {
+          if (node.isInline) selected.push(hasFormat(node.marks));
+        });
+        return selected.length > 0 && selected.every(Boolean);
+      };
+      const syncEditor = (snapshot) => {
+        view.updateState(session.pmState);
+        root.querySelector("#reply-review").disabled =
+          !session.pmState.doc.textContent.trim();
+        root.querySelector('[data-format="undo"]').disabled = !snapshot.canUndo;
+        root.querySelector('[data-format="redo"]').disabled = !snapshot.canRedo;
+        for (const tag of ["b", "i", "u"])
+          root
+            .querySelector(`[data-format="${tag}"]`)
+            .setAttribute("aria-pressed", String(formatActive(tag)));
+        root.querySelector("#editor-message").textContent = snapshot.message;
+        root.querySelector("#editor-message").hidden = !snapshot.message;
+      };
+      session.subscribe(syncEditor);
+      syncEditor(session.state);
+      root.querySelectorAll("[data-format]").forEach((button) => {
+        button.addEventListener("mousedown", (event) => event.preventDefault());
+        button.addEventListener("click", () => {
+          if (view.composing) return;
+          const tool = button.dataset.format;
+          if (["undo", "redo"].includes(tool)) session[tool]();
+          else if (["ul", "ol"].includes(tool))
+            session.command("list", { ordered: tool === "ol" });
+          else if (["quote", "code"].includes(tool)) session.command(tool);
+          else
+            session.command("format", {
+              tag: tool,
+              remove: formatActive(tool),
+            });
+          view.focus();
+        });
+      });
+      const updateReply = () => {
+        root.querySelector("#reply-open").hidden = !!replyTarget;
+        root.querySelector("#reply-resume").hidden =
+          !replyTarget || !composer.hidden;
+        root.querySelector("#resume-target").textContent = replyTarget
+          ? `${replyTarget.board} · ${replyTarget.title}`
+          : "";
+        sizeColumns();
+        root.querySelector("#reply-mismatch").hidden =
+          !replyTarget ||
+          (replyTarget.id === selectedThread.id &&
+            replyTarget.boardIndex === selectedThread.boardIndex);
+      };
+      const openReply = () => {
+        if (!replyTarget) replyTarget = { ...selectedThread };
+        root.querySelector("#reply-target").textContent =
+          `To ${replyTarget.board} · ${replyTarget.title}`;
+        root.querySelector("#reply-target").dataset.group = String(
+          boards[replyTarget.boardIndex][2],
+        );
+        composer.hidden = false;
+        updateReply();
+        view.focus();
+      };
+      root.querySelector("#reply-open").addEventListener("click", openReply);
+      root.querySelector("#reply-resume").addEventListener("click", openReply);
+      root.querySelector("#reply-hide").addEventListener("click", () => {
+        composer.hidden = true;
+        updateReply();
+        root.querySelector("#reply-resume").focus();
+      });
+      root.querySelector("#reply-expand").addEventListener("click", (event) => {
+        const expanded = composer.classList.toggle("expanded");
+        event.currentTarget.setAttribute("aria-expanded", String(expanded));
+        event.currentTarget.setAttribute(
+          "aria-label",
+          expanded ? "Compact reply" : "Expand reply",
+        );
+        event.currentTarget.title = expanded ? "Compact reply" : "Expand reply";
+        event.currentTarget.innerHTML = icon(expanded ? "compact" : "expand");
+        sizeColumns();
+      });
+      const replyDialog = root.querySelector("#reply-dialog");
+      root.querySelector("#reply-review").addEventListener("click", () => {
+        root.querySelector("#review-target").textContent =
+          `demo-member → ${replyTarget.board} · ${replyTarget.title}`;
+        const preview = view.dom.cloneNode(true);
+        preview.contentEditable = "false";
+        preview.removeAttribute("role");
+        preview.removeAttribute("aria-label");
+        root.querySelector("#review-copy").replaceChildren(preview);
+        replyDialog.showModal();
+      });
+      root
+        .querySelector("#review-close")
+        .addEventListener("click", () => replyDialog.close());
+      const copyDialog = root.querySelector("#copy-dialog");
+      root.querySelector("#copy-url").addEventListener("click", async () => {
+        const link = new URL(location.pathname, location.origin);
+        link.search = new URLSearchParams({
+          variant: "A",
+          board: String(selectedThread.boardIndex),
+          thread: String(selectedThread.id),
+          page: String(page),
+          reverse: String(reverse),
+        }).toString();
+        try {
+          await navigator.clipboard.writeText(link.href);
+          root.querySelector(".preview-state").textContent =
+            "Preview URL copied. Production would use the public forum thread URL.";
+        } catch {
+          root.querySelector("#copy-value").value = link.href;
+          copyDialog.showModal();
+          root.querySelector("#copy-value").select();
+        }
+      });
+      root
+        .querySelector("#copy-close")
+        .addEventListener("click", () => copyDialog.close());
+      const filter = root.querySelector("#filter");
+      const filterCards = () => {
+        const cards = [...root.querySelectorAll(".board-card")];
+        const query = filter.value.trim().toLocaleLowerCase();
+        cards.forEach((card) => {
+          card.style.display = card.textContent
+            .toLocaleLowerCase()
+            .includes(query)
+            ? ""
+            : "none";
+        });
+        root.querySelector("#count").textContent =
+          `Preview boards shown: ${cards.filter((card) => card.style.display !== "none").length} / ${cards.length}`;
+      };
+      filter.addEventListener("input", filterCards);
+      filterCards();
+      showView("results");
+      const initialBoard = Number(url.searchParams.get("board"));
+      const initialThread = [...sampleThreads, arrivalThread].find(
+        (thread) => String(thread.id) === url.searchParams.get("thread"),
+      );
+      if (
+        url.searchParams.has("board") &&
+        Number.isInteger(initialBoard) &&
+        initialBoard >= 0 &&
+        initialBoard < boards.length &&
+        initialThread
+      ) {
+        if (initialThread.id === arrivalThread.id) {
+          const entry = updatesFor(boardUpdates, initialBoard);
+          entry.available = entry.found = entry.shown = 1;
+        }
+        showBoard(initialBoard);
+        root.querySelector(`[data-thread="${initialThread.id}"]`).click();
+        const initialPage = Number(url.searchParams.get("page"));
+        page =
+          Number.isInteger(initialPage) && initialPage >= 1 && initialPage <= 92
+            ? initialPage
+            : 1;
+        reverse = url.searchParams.get("reverse") === "true";
+        renderPage();
+      }
+      fitViewport();
+    </script>
+  </body>
+</html>

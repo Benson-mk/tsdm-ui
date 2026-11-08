@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -165,7 +166,7 @@ test("IM74.viewport-pan: reduced and panned scale-one viewport sizes the real sh
     "scroll",
   );
   await expect.poll(async () => (await geometry()).host.y).toBe(140);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
   const bounds = await dialog.boundingBox();
   expect(bounds!.y).toBeGreaterThanOrEqual(156);
@@ -182,7 +183,7 @@ test("IM74.viewport-pan: reduced and panned scale-one viewport sizes the real sh
   ).toBe(true);
   await expect(source).not.toBeFocused();
   await changeViewport(page, { height: 480, offsetTop: 140, scale: 1 });
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   const drawer = page.getByRole("dialog", {
     name: "Boards navigation",
@@ -326,6 +327,17 @@ test("IM74.short-history: short enlarged ordinary writing keeps actual post hist
     node.scrollTop +=
       post.getBoundingClientRect().top - node.getBoundingClientRect().top;
   });
+  await expect(page.locator(".conversation-heading")).toHaveAttribute(
+    "data-compact",
+    "true",
+  );
+  // Compaction introduces a compensating spacer. Deliberately scroll the post
+  // into the settled reader before measuring useful reading height.
+  await reader.evaluate((node) => {
+    const post = node.querySelector(".post-content")!;
+    node.scrollTop +=
+      post.getBoundingClientRect().top - node.getBoundingClientRect().top;
+  });
   await reader.scrollIntoViewIfNeeded();
   const geometry = await reader.evaluate((node) => {
     const bounds = node.getBoundingClientRect();
@@ -395,7 +407,7 @@ for (const mode of ["missing", "invalid-scale"] as const) {
     await expect
       .poll(async () => (await shell.boundingBox())!.height)
       .toBe(375);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
     const close = dialog.getByRole("button", { name: "Close", exact: true });
     await close.scrollIntoViewIfNeeded();
@@ -419,6 +431,9 @@ test("IM74.continuity: repeated viewport cycles preserve browser composition, un
   await page
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
     .click();
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Retained ");
@@ -514,6 +529,9 @@ test("IM74.extremely-short: bounded writer scrolling exposes protected source, v
   await page
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Expand writing", exact: true })
     .click();
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("[alien]Protected exact text[/alien]");

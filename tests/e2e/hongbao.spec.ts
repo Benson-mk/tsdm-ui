@@ -1,3 +1,4 @@
+import { openSettings } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -839,7 +840,7 @@ test("J7.packet-language: new packet controls follow the selected interface lang
 }) => {
   await fixture(page);
   await composePacket(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").selectOption("zh-CN");
   await page.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(page.getByLabel("红包总额", { exact: true })).toBeVisible();

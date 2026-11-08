@@ -1,4 +1,10 @@
-import { revealNavigation } from "./navigation-ui";
+import { revealWritingDetails, writingDetailAction } from "./editor-controls";
+import { clickThreadTool } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { withRedirectFixture } from "../http-redirect-fixture";
 import { readFileSync } from "node:fs";
@@ -276,12 +282,9 @@ for (const member of ["guest", "8"])
         .getByText(/Writing as Writer 7/),
     ).toBeVisible();
     current = "8";
-    await page
-      .getByRole("button", {
-        name: "Prepare text copy for current account",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Prepare text copy for current account")
+    ).click();
     await expect(
       page.getByText(
         /Replace writing from Writer 7 with a text copy for Writer 8/,
@@ -293,12 +296,9 @@ for (const member of ["guest", "8"])
     await expect(page.getByLabel("Thread price", { exact: true })).toHaveValue(
       "99",
     );
-    await page
-      .getByRole("button", {
-        name: "Prepare text copy for current account",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Prepare text copy for current account")
+    ).click();
     await page
       .getByRole("button", { name: "Replace with text copy", exact: true })
       .click();
@@ -612,12 +612,9 @@ test("J11.preparation-account: a newly observed account invalidates retained old
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   member = "8";
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(page.getByText(/Sending paused/)).toBeVisible();
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
@@ -684,7 +681,7 @@ test("J5.redirect-writing: actual document redirect and app remount retain sourc
         page.getByRole("article", { name: "Post 105", exact: true }),
       ).toHaveAttribute("data-targeted", "true");
       expect(redirects).toEqual(["fetch", "document"]);
-      await page.getByRole("button", { name: "Back", exact: true }).click();
+      await clickThreadTool(page, "Back");
       await expect(
         page.getByLabel("Complete source", { exact: true }),
       ).toHaveValue(source);
@@ -735,12 +732,9 @@ test("J11.stale-preparation: an older form cannot replace a newer observed accou
       body: form("5", "7"),
     });
   });
-  await page
-    .getByRole("button", {
-      name: "Prepare text copy for current account",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Prepare text copy for current account")
+  ).click();
   await expect.poll(() => waiting).toBe(true);
   await page.route("**/*mod=forumdisplay*", (route) =>
     route.fulfill({
@@ -920,12 +914,9 @@ test("J11.failed-replacement-account: an account-changing denied preparation pau
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   await page.goto(`${origin}/forum.php?mod=forumdisplay&fid=6`);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(page.getByText(/Sending paused/)).toHaveCount(0);
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   denied = true;
@@ -958,6 +949,10 @@ test("J5.short-window-focus: opening writing with keyboard places its focused so
   await expect(editor).toBeFocused();
   await expect(editor).toBeInViewport();
   await editor.press("Tab");
+  const details = page.locator(".writing-details > summary");
+  await expect(details).toBeFocused();
+  await details.press("Enter");
+  await details.press("Tab");
   await expect(
     page.getByRole("button", {
       name: "Check current account and form",
@@ -1002,12 +997,9 @@ for (const failure of [
               : JSON.stringify({ document: account() }),
       });
     });
-    await page
-      .getByRole("button", {
-        name: "Prepare text copy for current account",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Prepare text copy for current account")
+    ).click();
     await expect(
       page.getByText(
         failure === "network"
@@ -1251,9 +1243,7 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
   const languages = ["en", "zh-CN", "zh-TW", "en"];
   const measurements = [];
   for (let i = 0; i < sizes.length; i++) {
-    await page
-      .getByRole("button", { name: /^(Settings|设置|設定)$/, exact: true })
-      .click();
+    await openSettings(page);
     const dialog = page.getByRole("dialog", {
       name: /^(Settings|设置|設定)$/,
       exact: true,
@@ -1270,7 +1260,7 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
       })
       .check();
     await dialog.locator("#interface-language").selectOption(languages[i]!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(dialog).not.toBeVisible();
     const host = page.locator("#tsdm-workspace");
     await expect(host).toHaveAttribute(
@@ -1309,7 +1299,11 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
             .querySelectorAll("label:has(input[type=checkbox])"),
         ].map((label) => label.getBoundingClientRect().height),
         labelSpacing: parseFloat(
-          getComputedStyle(e.closest("label")!).marginBlockStart,
+          getComputedStyle(
+            e
+              .closest(".source-writing")!
+              .querySelector("label:has(input:not([type=checkbox]))")!,
+          ).marginBlockStart,
         ),
       };
     });
@@ -1317,7 +1311,7 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
     expect(Math.min(...metrics.checkboxTargets)).toBeGreaterThanOrEqual(44);
     expect(metrics.ink).toBe(metrics.hostInk);
     expect(metrics.surface).toBe(metrics.hostSurface);
-    expect(metrics.font).toBeCloseTo((18 * sizes[i]!) / 100, 1);
+    expect(metrics.font).toBeCloseTo((14 * sizes[i]!) / 100, 1);
     measurements.push(metrics);
   }
   expect(measurements[1]!.labelSpacing).toBeLessThan(
@@ -1358,14 +1352,12 @@ test("J5.writing-locale: own writing and recovery labels follow all three interf
     ["zh-TW", "完整原始碼", "標題", "返回閱讀"],
     ["en", "Complete source", "Title", "Return to reading"],
   ]) {
-    await page
-      .getByRole("button", { name: /^(Settings|设置|設定)$/, exact: true })
-      .click();
+    await openSettings(page);
     await page
       .getByRole("dialog")
       .locator("#interface-language")
       .selectOption(language!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(page.getByLabel(sourceLabel!, { exact: true })).toHaveValue(
       source,
     );
@@ -1403,7 +1395,7 @@ test("J5.legacy-section-recovery: upgrading a navigation-only record preserves p
     page.getByRole("heading", { name: "Saved", exact: true, level: 1 }),
   ).toBeVisible();
   expect(requests).toHaveLength(1);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(
     page.getByRole("link", { name: "Autumn thread", exact: true }),
   ).toBeVisible();
@@ -1454,19 +1446,19 @@ for (const [language, checkLabel, sourceLabel, message] of [
     await open(page);
     await page.getByRole("button", { name: "New thread", exact: true }).click();
     await page.getByLabel("Complete source", { exact: true }).fill(source);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page
       .getByRole("dialog")
       .locator("#interface-language")
       .selectOption(language!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await page.route("**/*mod=post*", (route) =>
       route.fulfill({
         contentType: "text/html",
         body: `${account()}<div id="messagetext">权限不足</div>`,
       }),
     );
-    await page.getByRole("button", { name: checkLabel!, exact: true }).click();
+    await (await writingDetailAction(page, checkLabel!)).click();
     await expect(page.getByText(message!, { exact: true })).toBeVisible();
     await expect(page.getByLabel(sourceLabel!, { exact: true })).toHaveValue(
       source,
@@ -1952,8 +1944,8 @@ test("J5.schema1-search-writing: prewriting Search results and edited criteria m
   ).toContainText("Keywords: autumn");
   expect(posts).toBe(1);
   expect(requests).toHaveLength(reads);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
+  await clickThreadTool(page, "Back");
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   const migrated = await page.evaluate(() =>
@@ -2049,15 +2041,14 @@ for (const member of ["guest", "8"])
             body: form("5", member),
           });
         });
-        await page
-          .getByRole("button", {
-            name:
-              action === "copy"
-                ? "Prepare text copy for current account"
-                : "Check current account and form",
-            exact: true,
-          })
-          .click();
+        await (
+          await writingDetailAction(
+            page,
+            action === "copy"
+              ? "Prepare text copy for current account"
+              : "Check current account and form",
+          )
+        ).click();
         await expect.poll(() => waiting).toBe(true);
         if (cancel) {
           await page
@@ -2163,6 +2154,7 @@ test("UX61.local-recovery: plain local status and closed revision details retain
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   await page.getByLabel("Category", { exact: true }).selectOption("3");
   await page.getByLabel("Signature", { exact: true }).uncheck();
+  await revealWritingDetails(page);
   await expect(
     page.getByText(
       "Changes here are local. Sending or saving a forum draft is a separate action.",

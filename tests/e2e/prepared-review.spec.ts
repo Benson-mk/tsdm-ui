@@ -1,6 +1,13 @@
+import { revealWritingTools } from "./editor-controls";
+import { writingTool } from "./editor-controls";
+import { clickThreadTool } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { revealNavigation } from "./navigation-ui";
 import { writingPresentationRoundTrip } from "./combined-authoring";
 const origin = "https://www.tsdm39.com";
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
@@ -259,15 +266,13 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
     node.setSelectionRange(0, 10);
     node.dispatchEvent(new Event("select", { bubbles: true }));
   });
-  await page.getByRole("button", { name: "Italic", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Italic")).click();
+  await (await writingTool(page, "Source editor")).click();
   const formatted = `[i]Integrated[/i] text\n${replyBody}`;
   await expect(source).toHaveValue(formatted);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   await expect(source).toHaveValue(unformatted);
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await (await writingTool(page, "Redo")).click();
   await expect(source).toHaveValue(formatted);
   const before = await retained(page);
   const selection = await source.evaluate((node: HTMLTextAreaElement) => [
@@ -368,20 +373,20 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
   const beforeBack = f.requests.length;
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(results.locator(".thread-row")).toHaveCount(30);
   await expect(results.getByText("Page 2", { exact: true })).toBeVisible();
   expect(await results.evaluate((node) => node.scrollTop)).toBe(boardOffset);
   expect(f.requests).toHaveLength(beforeBack);
-  await page.keyboard.press("Escape");
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();
+  // A board-only history snapshot has no conversation until writing is shown.
+  // Threads is an in-place primary pane since #82, not an Escape modal.
+  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
   await expect(review).toBeVisible();
   expect(await retained(page)).toEqual(corrected);
-  await page
-    .getByRole("button", { name: "Expand writing", exact: true })
-    .click();
+  await revealWritingTools(page);
   await capture(page, info);
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
@@ -426,9 +431,9 @@ for (const input of ["pointer", "keyboard"] as const)
     await page
       .getByLabel("Complete source", { exact: true })
       .fill("Complete ordinary writing 音樂");
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.getByLabel("Text size", { exact: true }).fill("150");
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     const review = page.getByRole("button", {
       name: "Review publication",
       exact: true,
@@ -523,9 +528,9 @@ test("UX62.disclosed-validation: enlarged drawer navigation retains a usable wri
   await page.getByLabel("Title", { exact: true }).fill(title);
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill(" \n ");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByLabel("Text size", { exact: true }).fill("150");
-  await page.keyboard.press("Escape");
+  await closeSettingsToWorkspace(page);
   const review = page.getByRole("button", {
     name: "Review publication",
     exact: true,
@@ -604,28 +609,25 @@ for (const [entry, width, height, textSize, theme, language] of [
       await page.getByLabel("Title", { exact: true }).fill(title);
       await page.getByLabel("Category", { exact: true }).selectOption("3");
     }
+    await revealWritingTools(page);
     await page.getByLabel("Signature", { exact: true }).uncheck();
     const original =
       entry === "new-thread" ? body.replace(" [attach]77[/attach]", "") : body;
     await source.fill(original);
     await source.press("ControlOrMeta+End");
     await source.press("!");
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await (await writingTool(page, "Undo")).click();
     await expect(source).toHaveValue(original);
-    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await (await writingTool(page, "Redo")).click();
     const finalSource = original + "!";
     await expect(source).toHaveValue(finalSource);
-    await page
-      .getByRole("button", { name: "Visual editor", exact: true })
-      .click();
+    await (await writingTool(page, "Visual editor")).click();
     await expect(
       page
         .getByRole("textbox", { name: "Visual post content", exact: true })
         .locator("table"),
     ).toHaveCount(1);
-    await page
-      .getByRole("button", { name: "Source editor", exact: true })
-      .click();
+    await (await writingTool(page, "Source editor")).click();
     await expect(source).toHaveValue(finalSource);
     await source.evaluate((node: HTMLTextAreaElement) => {
       node.setSelectionRange(3, 11);
@@ -634,11 +636,11 @@ for (const [entry, width, height, textSize, theme, language] of [
     const before = await retained(page),
       requestCount = f.requests.length;
     await writingPresentationRoundTrip(page, info);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.getByLabel("Text size", { exact: true }).fill(String(textSize));
     await page.locator(`input[name="theme"][value="${theme}"]`).check();
     await page.locator("#interface-language").selectOption(language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     const geometries = [];
     for (const viewport of [
       { width: 390, height: 844 },
@@ -646,6 +648,14 @@ for (const [entry, width, height, textSize, theme, language] of [
       { width: 1440, height: 900 },
     ]) {
       await page.setViewportSize(viewport);
+      // The resize event and Vue docking settle on browser frames, after the
+      // browser viewport command itself has completed.
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
       const geometry = await page.locator(".workspace").evaluate((node) => ({
         width: node.clientWidth,
         scroll: node.scrollWidth,
@@ -665,11 +675,9 @@ for (const [entry, width, height, textSize, theme, language] of [
         node.selectionEnd,
       ]),
     ).toEqual([3, 11]);
-    await page
-      .getByRole("button", { name: /^(Settings|设置|設定)$/, exact: true })
-      .click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption("en");
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     expect(f.requests).toHaveLength(requestCount);
     await page
       .getByText("Advanced authoring tools", { exact: true })
@@ -771,6 +779,7 @@ test("UX59.frozen-new-thread: review exact content settings references and inert
   await page.getByLabel("Title", { exact: true }).fill(title);
   await page.getByLabel("Complete source", { exact: true }).fill(body);
   await page.getByLabel("Category", { exact: true }).selectOption("3");
+  await revealWritingTools(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await page
     .getByRole("button", { name: "Review publication", exact: true })
@@ -854,6 +863,7 @@ for (const entry of [
     await page.getByLabel("Complete source", { exact: true }).fill(body);
     if (entry === "edit-opening")
       await page.getByLabel("Title", { exact: true }).fill(title);
+    await revealWritingTools(page);
     await page.getByLabel("Signature", { exact: true }).uncheck();
     await page
       .getByRole("button", {
@@ -959,9 +969,9 @@ test("UX59.cancel-preservation: inspect source keyboard disclosure cancel and re
   await expect(source).toBeFocused();
   expect((await retained(page)).source).toBe(body + "!");
   expect((await retained(page)).revision).toBe(before.revision);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   await expect(source).toHaveValue(body);
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await (await writingTool(page, "Redo")).click();
   await expect(source).toHaveValue(body + "!");
   await page
     .getByRole("button", { name: "Review publication", exact: true })
@@ -1002,8 +1012,10 @@ for (const change of ["source", "title", "category", "option"] as const) {
       await page.getByLabel("Title", { exact: true }).fill(title + " later");
     if (change === "category")
       await page.getByLabel("Category", { exact: true }).selectOption("3");
-    if (change === "option")
+    if (change === "option") {
+      await revealWritingTools(page);
       await page.getByLabel("Signature", { exact: true }).uncheck();
+    }
     await expect(review).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Publish thread", exact: true }),
@@ -1331,9 +1343,7 @@ for (const entry of [
         await page.getByLabel("Title", { exact: true }).fill("Retained title");
       await page.getByLabel("Complete source", { exact: true }).fill("  \n ");
       if (mode === "visual")
-        await page
-          .getByRole("button", { name: "Visual editor", exact: true })
-          .click();
+        await (await writingTool(page, "Visual editor")).click();
       const before = await retained(page),
         requests = f.requests.length;
       await page
@@ -1543,7 +1553,7 @@ test("UX60.language-composition: language updates field errors without source/hi
   await expect(titleInput).toBeFocused();
   const before = await retained(page),
     requests = f.requests.length;
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").focus();
   await page.locator("#interface-language").selectOption("zh-CN");
   await expect(
@@ -1681,9 +1691,7 @@ for (const mode of ["source", "visual"] as const)
     await page.getByLabel("Title", { exact: true }).fill("Retained title 完整");
     await page.getByLabel("Complete source", { exact: true }).fill(" \n ");
     if (mode === "visual")
-      await page
-        .getByRole("button", { name: "Visual editor", exact: true })
-        .click();
+      await (await writingTool(page, "Visual editor")).click();
     const before = await retained(page),
       requests = f.requests.length;
     await page

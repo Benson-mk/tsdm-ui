@@ -1,3 +1,5 @@
+import { writingDetailAction, writingTool } from "./editor-controls";
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { applyFormatting, revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -127,37 +129,29 @@ test("J5.editor-preservation: visual/source inspection and editing retain exact 
   const original =
     "[B]known[/B] [unknown=v3]完整來源[/unknown] [attach]99[/attach]";
   await page.getByLabel("Complete source", { exact: true }).fill(original);
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   const visual = page.getByRole("textbox", {
     name: "Visual post content",
     exact: true,
   });
   await expect(visual).toBeVisible();
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Source editor")).click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     original,
   );
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   await visual.press("Meta+ArrowLeft");
   await visual.press("ArrowRight");
   await visual.press("X");
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Source editor")).click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "[B]kXnown[/B] [unknown=v3]完整來源[/unknown] [attach]99[/attach]",
   );
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     original,
   );
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await (await writingTool(page, "Redo")).click();
   await page.getByLabel("Title", { exact: true }).fill("Visual preservation");
   await page
     .getByRole("button", { name: "Review publication", exact: true })
@@ -219,17 +213,13 @@ test("J5.editor-tools: ordinary controls preserve selected text and generate for
     ["emoticon", "{:4_118:}", "{:4_118:}"],
   ];
   for (const [tool, argument, expected] of cases) {
-    await page
-      .getByRole("button", { name: "Source editor", exact: true })
-      .click();
+    await (await writingTool(page, "Source editor")).click();
     const source = page.getByLabel("Complete source", { exact: true });
     await source.fill("words");
     await source.selectText();
     await source.dispatchEvent("select");
     await applyFormatting(page, tool!, argument!);
-    await page
-      .getByRole("button", { name: "Source editor", exact: true })
-      .click();
+    await (await writingTool(page, "Source editor")).click();
     await expect(source, tool).toHaveValue(expected!);
   }
   const combined = cases.map((item) => item[2]).join("\n");
@@ -278,9 +268,7 @@ test("J5.editor-fallback: unfamiliar and malformed syntax stay inert; pasted BBC
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("[B]retained[/B]");
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   const visual = page.getByRole("textbox", { name: "Visual post content" });
   await visual.press("Meta+ArrowRight");
   await visual.pressSequentially(" [b]literal[/b]");
@@ -353,9 +341,7 @@ test("J5.editor-lifecycle: source, selection and history survive view replacemen
   const content =
     "[size=4][size=4]Nested[/size][/size] [unknown]kept[/unknown]";
   await page.getByLabel("Complete source", { exact: true }).fill(content);
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   const visual = page.getByRole("textbox", { name: "Visual post content" });
   const at100 = await visual
     .locator("span")
@@ -363,15 +349,13 @@ test("J5.editor-lifecycle: source, selection and history survive view replacemen
     .first()
     .evaluate((el) => getComputedStyle(el).fontSize);
   expect(at100).toBe("19px");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByLabel("Text size", { exact: true }).fill("90");
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect(
     visual.locator("span").filter({ hasText: "Nested" }).first(),
   ).toHaveCSS("font-size", "17.1px");
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Source editor")).click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     content,
   );
@@ -384,11 +368,11 @@ test("J5.editor-lifecycle: source, selection and history survive view replacemen
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     content,
   );
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await (await writingTool(page, "Undo")).click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "",
   );
-  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await (await writingTool(page, "Redo")).click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     content,
   );
@@ -405,9 +389,7 @@ test("J5.editor-recovery-selection: visual caret maps to source recovery without
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("[b]words[/b]");
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   const visual = page.getByRole("textbox", { name: "Visual post content" });
   await visual.press("Meta+ArrowLeft");
   await visual.press("ArrowRight");
@@ -448,16 +430,10 @@ test("J5.editor-opaque: malformed, deep, referenced and executable-looking fragm
     "[quote=Writer,42]original attribution[/quote]\n[size=4][size=4]Nested[/size][/size]",
   ];
   for (const content of sources) {
-    await page
-      .getByRole("button", { name: "Source editor", exact: true })
-      .click();
+    await (await writingTool(page, "Source editor")).click();
     await page.getByLabel("Complete source", { exact: true }).fill(content);
-    await page
-      .getByRole("button", { name: "Visual editor", exact: true })
-      .click();
-    await page
-      .getByRole("button", { name: "Source editor", exact: true })
-      .click();
+    await (await writingTool(page, "Visual editor")).click();
+    await (await writingTool(page, "Source editor")).click();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue(content);
@@ -482,9 +458,7 @@ test("J5.editor-clipboard: non-text paste cannot erase selection and copying ret
   await page
     .getByLabel("Complete source", { exact: true })
     .dispatchEvent("select");
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   const visual = page.getByRole("textbox", { name: "Visual post content" });
   const copied = await visual.evaluate((el) => {
     const data = new DataTransfer();
@@ -513,9 +487,7 @@ test("J5.editor-clipboard: non-text paste cannot erase selection and copying ret
       }),
     );
   });
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Source editor")).click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "keep [img]https://example.test/a.png[/img]",
   );
@@ -531,9 +503,7 @@ test("J5.editor-font: multiword font names render without altering their source"
   await fixture(page);
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("[font=Times New Roman]words[/font]");
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   await expect(
     page
       .getByRole("textbox", { name: "Visual post content" })
@@ -551,9 +521,7 @@ test("J5.editor-account-copy: uncertain visual interpretation follows deliberate
 }, info) => {
   const server = await fixture(page);
   await page.getByLabel("Complete source", { exact: true }).fill("words");
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   await page
     .getByRole("textbox", { name: "Visual post content" })
     .pressSequentially(" [b]literal[/b]");
@@ -561,12 +529,9 @@ test("J5.editor-account-copy: uncertain visual interpretation follows deliberate
     page.getByText(/Some visual input has no unambiguous/),
   ).toBeVisible();
   server.member = "8";
-  await page
-    .getByRole("button", {
-      name: "Prepare text copy for current account",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Prepare text copy for current account")
+  ).click();
   await page
     .getByRole("button", { name: "Replace with text copy", exact: true })
     .click();
@@ -597,12 +562,8 @@ test("J5.editor-line-endings: untouched CRLF survives visual inspection and a so
     ),
   );
   server.sourceChange = (body) => body.replaceAll("\r", "&#13;");
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
+  await (await writingTool(page, "Source editor")).click();
   expect(
     await page.evaluate(
       () =>
@@ -700,9 +661,9 @@ for (const locale of editorLocales) {
       page,
     }, info) => {
       const server = await fixture(page);
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page.locator("#interface-language").selectOption(locale.language);
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
       const source = page.getByLabel(locale.source, { exact: true });
       const retained = "[unknown]原文[/unknown] words";
       await source.fill(retained);
@@ -737,9 +698,9 @@ for (const locale of editorLocales) {
     page,
   }, info) => {
     const server = await fixture(page);
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(locale.language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     const source = page.getByLabel(locale.source, { exact: true });
     await source.fill("retained");
     await page
@@ -789,16 +750,14 @@ test("J5.editor-diagnostic-language-change: an existing refusal follows language
     .fill("[unknown]原文[/unknown] unchanged");
   await applyFormatting(page, "emoticon", "invalid");
   for (const locale of [editorLocales[1], editorLocales[2], editorLocales[0]]) {
-    await page.getByRole("button", { name: /^(Settings|设置|設定)$/ }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(locale.language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(
       page.getByText(locale.emoticon, { exact: true }),
     ).toBeVisible();
   }
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Source editor")).click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "[unknown]原文[/unknown] unchanged",
   );
@@ -884,7 +843,7 @@ for (const profile of toolProfiles58)
         width: profile.width,
         height: profile.height,
       });
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page
         .getByLabel("Text size", { exact: true })
         .fill(String(profile.size));
@@ -892,7 +851,7 @@ for (const profile of toolProfiles58)
         .locator(`input[name="theme"][value="${profile.theme}"]`)
         .check();
       await page.locator("#interface-language").selectOption(profile.language);
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
       const source = page.getByLabel(profile.source, { exact: true });
       const original = "[unknown=x]保留[/unknown] words [attach]99[/attach]";
       await source.fill(original);
@@ -990,6 +949,12 @@ for (const profile of toolProfiles58)
         width: profile.width,
         height: profile.height,
       });
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
       const geometry = await page.locator(".post-editor").evaluate((el) => ({
         width: el.clientWidth,
         scroll: el.scrollWidth,
@@ -1062,9 +1027,10 @@ test("UX58.advanced-disclosure: named advanced groups show only applicable argum
   await expect(page.getByLabel("Font", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Link URL", { exact: true })).toBeVisible();
   await expect(source).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Source editor", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(await writingTool(page, "Source editor")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   expect(
     await page.evaluate(
       () =>
@@ -1094,11 +1060,9 @@ test("UX58.argument-lifetime: choosing a command without arguments closes the pr
   await revealAdvanced(page);
   await page.getByRole("button", { name: "Font", exact: true }).click();
   await expect(page.getByLabel("Font", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Bold", exact: true }).click();
+  await (await writingTool(page, "Bold")).click();
   await expect(page.getByLabel("Font", { exact: true })).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await (await writingTool(page, "Source editor")).click();
   await expect(source).toHaveValue("[b]words[/b]");
   expect(server.posts).toHaveLength(0);
   await info.attach("argument-lifetime.png", {
@@ -1127,10 +1091,8 @@ for (const editorMode of ["source", "visual"] as const)
       field.dispatchEvent(new Event("select", { bubbles: true }));
     });
     if (editorMode === "visual")
-      await page
-        .getByRole("button", { name: "Visual editor", exact: true })
-        .click();
-    const bold = page.getByRole("button", { name: "Bold", exact: true });
+      await (await writingTool(page, "Visual editor")).click();
+    const bold = await writingTool(page, "Bold");
     await bold.scrollIntoViewIfNeeded();
     await info.attach("direct-toolbar.png", {
       body: await page.screenshot(),
@@ -1151,13 +1113,11 @@ for (const editorMode of ["source", "visual"] as const)
       );
     expect((await stored()).source).toBe(expected);
     expect((await stored()).source.match(/\r\n/g)).toHaveLength(2);
-    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await (await writingTool(page, "Undo")).click();
     expect((await stored()).source).toBe(original);
-    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await (await writingTool(page, "Redo")).click();
     expect((await stored()).source).toBe(expected);
-    await page
-      .getByRole("button", { name: "Source editor", exact: true })
-      .click();
+    await (await writingTool(page, "Source editor")).click();
     await expect(source).toHaveValue(expected.replaceAll("\r\n", "\n"));
     expect(server.requests).toHaveLength(requests);
     expect(server.posts).toHaveLength(0);

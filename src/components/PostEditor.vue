@@ -415,7 +415,7 @@ onBeforeUnmount(() => {
 </script>
 <template>
   <div class="post-editor">
-    <div class="writing-actions">
+    <div v-show="expanded" class="writing-actions">
       <button
         v-if="!plain"
         :aria-pressed="state.mode === 'visual'"
@@ -445,6 +445,7 @@ onBeforeUnmount(() => {
     </div>
     <div
       v-if="!plain"
+      v-show="expanded"
       class="editor-tools common-formatting"
       role="group"
       :aria-label="t('Common formatting')"
@@ -459,7 +460,7 @@ onBeforeUnmount(() => {
         {{ t(item[1]!) }}
       </button>
     </div>
-    <details v-if="!plain" class="advanced-authoring">
+    <details v-if="!plain" v-show="expanded" class="advanced-authoring">
       <summary>{{ t("Advanced authoring tools") }}</summary>
       <fieldset
         v-for="group in advancedGroups"

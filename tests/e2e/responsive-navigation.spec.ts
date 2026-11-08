@@ -1,3 +1,5 @@
+import { clickThreadTool } from "./navigation-ui";
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -81,7 +83,7 @@ test("UX53.result-context: direct arrival has useful list navigation while popul
     `${origin}/forum.php?mod=forumdisplay&fid=5&filter=typeid&typeid=3&page=3`,
   );
   const count = requests.length;
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(results.locator(".thread-row")).toHaveCount(30);
   await info.attach("result-context-return-geometry.json", {
     body: JSON.stringify({
@@ -133,6 +135,12 @@ for (const deferredSettings of [false, true]) {
       "[unknown=v2]Retained writing 中文[/unknown] [attach]321[/attach]",
     );
     const original = await editor.elementHandle();
+    if (deferredSettings) {
+      await page.setViewportSize({ width: 1280, height: 844 });
+      await expect(
+        page.getByRole("button", { name: "Settings", exact: true }),
+      ).toBeVisible();
+    }
     await editor.focus();
     await editor.dispatchEvent("compositionstart", { data: "中" });
     if (deferredSettings)
@@ -173,7 +181,7 @@ for (const deferredSettings of [false, true]) {
   });
 }
 
-for (const [language, boardsLabel, threadsLabel, settings] of [
+for (const [language, boardsLabel, threadsLabel] of [
   ["en", "Boards pane", "Threads pane", "Settings"],
   ["zh-CN", "版块面板", "主题面板", "设置"],
   ["zh-TW", "版塊面板", "主題面板", "設定"],
@@ -204,10 +212,10 @@ for (const [language, boardsLabel, threadsLabel, settings] of [
       [100, "alias"],
       [100, "light"],
     ] as const) {
-      await page.getByRole("button", { name: settings, exact: true }).click();
+      await openSettings(page);
       await page.locator("#text-size").fill(String(size));
       await page.locator(`input[type=radio][value="${theme}"]`).check();
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
       for (const width of [
         375, 559, 560, 767, 768, 959, 960, 1199, 1200, 1280, 1440, 1920,
       ]) {
@@ -241,11 +249,31 @@ for (const [language, boardsLabel, threadsLabel, settings] of [
           await page.keyboard.press("Escape");
           await expect(boards).toBeFocused();
         }
-        expect(
-          await page
-            .locator(".workspace")
-            .evaluate((node) => node.scrollWidth <= node.clientWidth),
-        ).toBe(true);
+        const fits = await page
+          .locator(".workspace")
+          .evaluate((node) => node.scrollWidth <= node.clientWidth);
+        if (!fits)
+          await info.attach("overflow-geometry.json", {
+            body: JSON.stringify({
+              width,
+              size,
+              theme,
+              nodes: await page
+                .locator(
+                  ".workspace > header, .workspace > header > *, .header-navigation > *, .workspace-body > *",
+                )
+                .evaluateAll((nodes) =>
+                  nodes.map((n) => ({
+                    tag: n.tagName,
+                    text: n.textContent?.slice(0, 80),
+                    bounds: n.getBoundingClientRect().toJSON(),
+                    scrollWidth: n.scrollWidth,
+                  })),
+                ),
+            }),
+            contentType: "application/json",
+          });
+        expect(fits, `${language} ${size}% at ${width}px`).toBe(true);
       }
       await info.attach(`${theme}-${size}.png`, {
         body: await page.screenshot(),

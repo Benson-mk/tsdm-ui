@@ -236,7 +236,7 @@ for (const theme of ["light", "alias", "mono", "dark"]) {
   });
 }
 
-test("IM65.directory-collapse: hidden list leaves no track and board browsing reveals it", async ({
+test("UI82.directory-retained: Threads keeps useful browsing when no reader exists", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -248,7 +248,7 @@ test("IM65.directory-collapse: hidden list leaves no track and board browsing re
   await expect(overview).toBeVisible();
   const before = ledger.length;
   await page.getByRole("button", { name: "Threads pane", exact: true }).click();
-  await expect(overview).toBeHidden();
+  await expect(overview).toBeVisible();
   expect(ledger).toHaveLength(before);
   await page
     .locator(".boards-navigation")

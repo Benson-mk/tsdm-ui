@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -163,9 +164,15 @@ async function open(
     await expect(page.locator(".workspace")).toBeVisible();
     return state;
   }
-  await page
-    .getByRole("button", { name: "Load private conversation", exact: true })
-    .click();
+  const load = page.getByRole("button", {
+    name: "Load private conversation",
+    exact: true,
+  });
+  if (!(await load.isVisible()))
+    await page
+      .getByRole("button", { name: "Threads pane", exact: true })
+      .click();
+  await load.click();
   await expect(
     page.getByRole("region", {
       name: "Private conversation with Listener Nine",
@@ -817,12 +824,10 @@ test("J77.private-language-layout: the sole private editor and review follow lan
       "Settings",
     ],
   ]) {
-    await page
-      .getByRole("button", { name: /^(Settings|设置|設定)$/, exact: true })
-      .click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(language!);
     await page.locator('input[type=radio][value="dark"]').check();
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     const editor = page.getByRole("textbox", {
       name: editorLabel!,
       exact: true,
@@ -834,9 +839,11 @@ test("J77.private-language-layout: the sole private editor and review follow lan
     await expect(
       page.getByRole("button", { name: sendLabel!, exact: true }),
     ).toBeVisible();
+    await openSettings(page);
     await expect(
-      page.getByRole("button", { name: settingsLabel!, exact: true }),
+      page.getByRole("dialog", { name: settingsLabel!, exact: true }),
     ).toBeVisible();
+    await closeSettingsToWorkspace(page);
     const geometry = await page.locator(".source-writing").evaluate((node) => ({
       width: node.clientWidth,
       scroll: node.scrollWidth,
@@ -1350,7 +1357,7 @@ test("F79.private-domain-recovery: guarded public/private writing, reading arriv
     "Mixed controlled private source 中文\nRetain this exact recipient and text.";
   await editor.fill(source);
   const handle = await editor.elementHandle();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator('input[name="theme"][value="dark"]').check();
   await page.getByRole("slider").fill("150");
   await page.getByRole("button", { name: "Close", exact: true }).click();

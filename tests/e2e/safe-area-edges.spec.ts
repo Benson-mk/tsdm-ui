@@ -1,3 +1,4 @@
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -117,11 +118,12 @@ test("IM73.edges: exposed surfaces protect top, lateral and stable bottom edges 
   const top = await padding(".workspace > header");
   expect(top.x).toBe(0);
   expect(top.width).toBe(1280);
-  expect(top.top).toBe(28);
+  expect(top.top).toBe(32); // 24px safe top + the prototype's 8px content inset.
   expect(top.left).toBe(42);
   expect(top.right).toBe(36);
   expect(top.background).not.toBe("rgba(0, 0, 0, 0)");
-  expect((await padding(".boards-region")).left).toBe(42);
+  expect((await padding(".navigation-body")).left).toBe(42);
+  expect((await padding(".navigation-footer")).left).toBe(42);
   expect((await padding(".reading-pane")).left).toBe(24);
   expect((await padding(".reading-pane")).right).toBe(36);
   expect((await padding(".source-writing")).bottom).toBe(52);
@@ -160,7 +162,7 @@ test("IM73.edges: exposed surfaces protect top, lateral and stable bottom edges 
   });
   expect((await padding(".source-writing")).bottom).toBe(40);
   await browser.send("Emulation.setSafeAreaInsetsOverride", { insets: {} });
-  expect((await padding(".workspace > header")).top).toBe(4);
+  expect((await padding(".workspace > header")).top).toBe(8);
   expect((await padding(".source-writing")).bottom).toBe(12);
   expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
   await expect(source).toHaveValue("Exact retained [quote]safe edges[/quote]");
@@ -173,7 +175,7 @@ test("IM73.edges: exposed surfaces protect top, lateral and stable bottom edges 
   await browser.detach();
 });
 
-test("IM73.drawer: modal owns its top inset once and reveals the final list row above the bottom reserve", async ({
+test("IM73.drawer: Boards owns its top inset once and reveals the final navigation action above the fixed footer", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -182,8 +184,9 @@ test("IM73.drawer: modal owns its top inset once and reveals the final list row 
     insets: { top: 28, left: 38, right: 30, bottom: 14, bottomMax: 36 },
   });
   await open(page);
+  await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   const drawer = page.getByRole("dialog", {
-    name: "Thread results",
+    name: "Boards navigation",
     exact: true,
   });
   await expect(drawer).toBeVisible();
@@ -207,14 +210,13 @@ test("IM73.drawer: modal owns its top inset once and reveals the final list row 
   expect(geometry.headingTop).toBe(40);
   expect(geometry.headingLeft).toBe(38);
   expect(geometry.bottom).toBe(36);
-  const last = drawer.getByRole("link", {
-    name: "Complete listening title 29 音樂",
-    exact: true,
-  });
+  const last = drawer.locator(".navigation-body").locator("a, button").last();
   await last.scrollIntoViewIfNeeded();
   const item = await last.boundingBox();
   expect(item!.x).toBeGreaterThanOrEqual(38);
-  expect(item!.y + item!.height).toBeLessThanOrEqual(808);
+  const footer = (await drawer.locator(".navigation-footer").boundingBox())!;
+  expect(item!.y + item!.height).toBeLessThanOrEqual(footer.y);
+  expect(footer.y + footer.height).toBeLessThanOrEqual(808);
   await expect(
     drawer.getByRole("button", { name: "Close", exact: true }),
   ).toBeInViewport();
@@ -230,7 +232,6 @@ test("IM73.dialogs: settings stay inside the safe rectangle with equal geometry 
     insets: { top: 28, left: 38, right: 30, bottom: 14, bottomMax: 36 },
   });
   await open(page, threadURL);
-  const settings = page.getByRole("button", { name: "Settings", exact: true });
   const observations: {
     bounds: { x: number; y: number; width: number; height: number };
     background: string;
@@ -238,7 +239,7 @@ test("IM73.dialogs: settings stay inside the safe rectangle with equal geometry 
     shadow: boolean;
   }[] = [];
   for (const theme of ["light", "alias", "mono", "dark"]) {
-    await settings.click();
+    await openSettings(page);
     const dialog = page.getByRole("dialog", { name: "Settings", exact: true });
     await dialog
       .getByRole("radio", {
@@ -267,7 +268,7 @@ test("IM73.dialogs: settings stay inside the safe rectangle with equal geometry 
     await expect(
       dialog.getByRole("button", { name: "Close", exact: true }),
     ).toBeInViewport();
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
   }
   for (const observation of observations)
     expect(observation.bounds).toEqual(observations[0]!.bounds);
@@ -305,10 +306,10 @@ for (const declaration of ["missing", "single", "duplicates"] as const)
     if (declaration !== "missing")
       expect(active).toContain("interactive-widget=resizes-content");
     await expect(theme).toHaveAttribute("content", "rgb(255, 255, 255)");
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.getByRole("radio", { name: "Dark", exact: true }).check();
     await expect(theme).toHaveAttribute("content", "rgb(0, 0, 0)");
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await page.evaluate(() => {
       window.addEventListener(
         "pagehide",
@@ -438,7 +439,7 @@ test("IM73.portrait-fallback: portrait edges and unavailable VisualViewport reta
   const topPadding = await page
     .locator(".workspace > header")
     .evaluate((node) => getComputedStyle(node).paddingTop);
-  expect(topPadding).toBe("48px");
+  expect(topPadding).toBe("52px"); // 44px safe top + 8px content inset.
   await expect(source).toHaveValue("Portrait complete source");
   expect(ledger.every((request) => request.startsWith("GET "))).toBe(true);
   await info.attach("portrait-no-visualviewport.json", {
@@ -470,6 +471,24 @@ for (const mode of [
           ? boardURL
           : threadURL,
     );
+    if (mode === "placeholder") {
+      await expect(page.locator(".reader-placeholder")).toBeHidden();
+      const results = page.locator(".results-pane");
+      const last = results.getByRole("link", {
+        name: "Complete listening title 29 音樂",
+        exact: true,
+      });
+      await last.scrollIntoViewIfNeeded();
+      await results.evaluate((node) => (node.scrollTop = node.scrollHeight));
+      const action = (await last.boundingBox())!;
+      expect(action.y + action.height).toBeLessThanOrEqual(860);
+      await info.attach("browse-only-bottom.json", {
+        body: JSON.stringify({ action, bounds: await results.boundingBox() }),
+        contentType: "application/json",
+      });
+      await browser.detach();
+      return;
+    }
     if (mode === "private")
       await page
         .getByRole("button", { name: "Load private conversation", exact: true })
@@ -491,11 +510,7 @@ for (const mode of [
       await expect(source).toBeHidden();
     }
     const reader = page.locator(
-      mode === "placeholder"
-        ? ".reader-placeholder"
-        : mode === "private"
-          ? ".private-reading-pane"
-          : ".reading-pane",
+      mode === "private" ? ".private-reading-pane" : ".reading-pane",
     );
     await expect(reader).toBeVisible();
     const last =
@@ -506,9 +521,10 @@ for (const mode of [
               .getByRole("button", { name: "Reply to this post", exact: true })
               .last()
           : mode === "hidden-writing"
-            ? page
-                .getByRole("region", { name: "Retained writing", exact: true })
-                .locator("summary")
+            ? page.getByRole("button", {
+                name: "Return to writing",
+                exact: true,
+              })
             : reader.locator("p");
     await last.scrollIntoViewIfNeeded();
     await page.locator(".conversation-region").evaluate((node) => {

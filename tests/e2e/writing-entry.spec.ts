@@ -1,3 +1,9 @@
+import {
+  revealWritingDetails,
+  revealWritingTools,
+  writingDetailAction,
+  writingTool,
+} from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { revealNavigation } from "./navigation-ui";
@@ -230,20 +236,22 @@ for (const [
     await expect(identity).toContainText("42");
     await expect(identity).toContainText("Other author");
     await expect(identity).toContainText("101");
-    await expect(identity).toContainText(
+    await revealWritingDetails(page);
+    await expect(page.locator(".writing-details")).toContainText(
       language === "en"
         ? "No quoted text is inserted"
         : language === "zh-CN"
           ? "不会自动插入引用文字"
           : "不會自動插入引用文字",
     );
-    await expect(identity).toContainText(
+    await expect(page.locator(".writing-details")).toContainText(
       language === "en"
         ? "notification delivery is unverified"
         : language === "zh-CN"
           ? "无法保证通知送达"
           : "無法保證通知送達",
     );
+    await revealWritingTools(page);
     const review = page.getByRole("group", {
       name: reviewDestination,
       exact: true,
@@ -291,6 +299,7 @@ for (const entry of [
     const editor = page.getByLabel("Complete source", { exact: true });
     await expect(editor).toBeFocused();
     await editor.fill(retained);
+    await revealWritingDetails(page);
     await page.getByLabel("Signature", { exact: true }).uncheck();
     if (entry === "new-thread" || entry === "edit-opening") {
       await page
@@ -301,9 +310,7 @@ for (const entry of [
     if (entry === "edit-reply")
       await expect(page.getByLabel("Title", { exact: true })).toHaveCount(0);
     if (entry === "reply" || entry === "edit-reply") {
-      await page
-        .getByRole("button", { name: "Visual editor", exact: true })
-        .click();
+      await (await writingTool(page, "Visual editor")).click();
       const visual = page.getByRole("textbox", {
         name: "Visual post content",
         exact: true,
@@ -571,18 +578,13 @@ test("UX56.explicit-mode-during-check: deliberate visible editor mode focus rema
       release = resolve;
     }),
   };
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(
     page.getByText("Preparing current form…", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Visual editor", exact: true })
-    .click();
+  await (await writingTool(page, "Visual editor")).click();
   await expect(
     page.getByRole("textbox", { name: "Visual post content", exact: true }),
   ).toBeFocused();

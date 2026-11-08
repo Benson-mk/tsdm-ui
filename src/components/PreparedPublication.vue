@@ -9,11 +9,13 @@ import type { Preferences } from "../workspace/preferences";
 import { strings, description } from "../layouts/strings";
 import { reviewText } from "./review-text";
 import { attachmentFieldLabel } from "./attachment-text";
+import type { CategoryRole } from "../layouts/board-groups";
 import WritingDestination from "./WritingDestination.vue";
 import InertSourcePreview from "./InertSourcePreview.vue";
 const props = defineProps<{
   publication: DeepReadonly<ThreadPublication>;
   language: Preferences["language"];
+  category?: CategoryRole;
 }>();
 const writing = computed(() => props.publication.submission.writing);
 const sourceReferences = computed(() =>
@@ -48,7 +50,12 @@ function optionValue(option: DeepReadonly<WritingOption>) {
   >
     <h2>{{ t("Prepared publication review") }}</h2>
     <p>{{ t("Prepared revision") }} {{ publication.submission.revision }}</p>
-    <WritingDestination :writing="writing" :language="language" review />
+    <WritingDestination
+      :writing="writing"
+      :language="language"
+      :category="category ?? 'neutral'"
+      review
+    />
     <dl class="prepared-fields">
       <template v-if="!writing.replyTarget && writing.titleAvailable !== false">
         <dt>{{ text.writingTitle }}</dt>

@@ -4,11 +4,13 @@ import { computed, type DeepReadonly } from "vue";
 import type { PreparedWriting, PreparedPrivateWriting } from "../forum-client";
 import type { Preferences } from "../workspace/preferences";
 import { strings, insert } from "../layouts/strings";
+import type { CategoryRole } from "../layouts/board-groups";
 const props = defineProps<{
   writing: DeepReadonly<PreparedWriting | PreparedPrivateWriting>;
   language: Preferences["language"];
   review?: boolean;
   compact?: boolean;
+  category?: CategoryRole;
 }>();
 const text = computed(() => strings(props.language));
 const addressedURL = computed(() => {
@@ -41,10 +43,12 @@ const action = computed(() =>
 <template>
   <div
     class="writing-destination"
+    :class="{ 'writing-destination-compact': compact }"
+    :data-category="compact ? category : undefined"
     role="group"
     :aria-label="review ? text.reviewDestination : text.writingDestination"
   >
-    <p>
+    <p :class="{ 'sr-only': compact }">
       <strong>{{ action }}</strong> ·
       {{ insert(text.writingAs, writing.account.name) }} ({{
         writing.account.id
@@ -61,7 +65,13 @@ const action = computed(() =>
     </p>
     <template v-else>
       <p>
-        {{ writing.board.label }} ·
+        <span
+          v-if="category"
+          class="category-label"
+          :data-category="category"
+          >{{ writing.board.label }}</span
+        >
+        <template v-else>{{ writing.board.label }}</template> ·
         {{ insert(text.writingBoard, writing.board.id)
         }}<template v-if="writing.replyTarget || writing.editTarget">
           ·

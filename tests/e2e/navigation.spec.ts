@@ -1,4 +1,9 @@
-import { revealNavigation } from "./navigation-ui";
+import { clickThreadTool } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -111,7 +116,7 @@ test("J2.boards-returned-context: navigate populated groups, subboards, categori
     page.getByRole("navigation", { name: "Boards navigation" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Listening and creating", { exact: true }),
+    page.getByRole("heading", { name: "Listening and creating", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("link", { name: "Music discussion", exact: true })
@@ -173,7 +178,7 @@ test("J2.sidebar-short-window: populated board navigation stays vertical and its
   const links = navigation.getByRole("link");
   await expect(links).toHaveCount(37);
   const initial = await navigation.evaluate((element) => {
-    const owner = element.closest(".boards-region") ?? element;
+    const owner = element.closest(".navigation-body") ?? element;
     const pane = owner.getBoundingClientRect();
     return {
       left: pane.left,
@@ -218,14 +223,14 @@ test("J2.sidebar-short-window: populated board navigation stays vertical and its
     )
     .toBe(true);
   await links.first().focus();
-  for (let index = 0; index < 36; index++) await page.keyboard.press("Tab");
+  for (let index = 0; index < 37; index++) await page.keyboard.press("Tab");
   const lastChoice = navigation.getByRole("link", {
     name: "Extended listening and recording discussion",
     exact: true,
   });
   await expect(lastChoice).toBeFocused();
   const focused = await lastChoice.evaluate((element) => {
-    const pane = element.closest(".boards-region") ?? element.closest("nav")!;
+    const pane = element.closest(".navigation-body") ?? element.closest("nav")!;
     const bounds = pane.getBoundingClientRect();
     const rect = element.getBoundingClientRect();
     return {
@@ -860,9 +865,7 @@ for (const scenario of [
     expect(requests).toHaveLength(2);
     refreshing = true;
     await revealNavigation(page);
-    await page
-      .getByRole("button", { name: "Refresh thread", exact: true })
-      .click();
+    await clickThreadTool(page, "Refresh thread");
     await expect(
       page.getByText(scenario.message, { exact: true }),
     ).toBeVisible();
@@ -1037,7 +1040,7 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(reading).toBeVisible();
   await expect(results).not.toBeVisible();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(results).toBeVisible();
   await expect(reading).not.toBeVisible();
   await expect(selected).toHaveAttribute("aria-current", "true");
@@ -1166,7 +1169,7 @@ test("J2.directory-pages: returned group pages remain navigable and are not repl
     .getByRole("link", { name: "2", exact: true })
     .click();
   await expect(
-    page.getByText("Second returned group", { exact: true }),
+    page.getByRole("heading", { name: "Second returned group", exact: true }),
   ).toBeVisible();
   expect(requests).toHaveLength(2);
   expect(requests[1]).toContain("gid=2");
@@ -1278,9 +1281,9 @@ test("J5.appearance-pinned-locales: generated row labels translate while returne
     ["zh-TW", "置頂"],
     ["en", "Pinned"],
   ]) {
-    await page.getByRole("button", { name: /^(Settings|设置|設定)$/ }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(locale!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(page.getByText(label!, { exact: true })).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Board guide", exact: true }),
@@ -1455,7 +1458,7 @@ for (const representation of ["html", "json"] as const) {
     expect(requests.map(clean)).toEqual([boardURL, categoryURL, secondURL]);
     const before = requests.length;
     await revealNavigation(page);
-    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await clickThreadTool(page, "Back");
     await expect(page.getByText("Page 1", { exact: true })).toBeVisible();
     await expect(choice).toHaveAttribute("href", categoryURL);
     expect(requests).toHaveLength(before);
@@ -1524,6 +1527,10 @@ for (const appearance of [
     const requests = await open(page, directoryURL, (url) =>
       url.searchParams.get("mod") === "forumdisplay"
         ? board()
+            .replace(
+              '</table><div class="pg">',
+              `${Array.from({ length: 12 }, (_, i) => threadRow(500 + i, `Additional returned thread ${i}`)).join("")}</table><div class="pg">`,
+            )
             .replace("Live recordings", longName)
             .replaceAll(
               "Listening notes",

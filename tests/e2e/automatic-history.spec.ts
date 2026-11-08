@@ -1,3 +1,5 @@
+import { confirmThreadPage, openThreadPages } from "./navigation-ui";
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -128,7 +130,7 @@ test("IM69.boundaries: entering the 160px edges loads each adjacent page once an
     node.scrollTop = 160;
   });
   await expect(
-    page.getByRole("button", { name: "Loading history…", exact: true }),
+    page.getByText("Loading history…", { exact: true }),
   ).toBeVisible();
   await pane.evaluate((node) => {
     node.scrollTop = 159;
@@ -140,8 +142,12 @@ test("IM69.boundaries: entering the 160px edges loads each adjacent page once an
     page.getByText("Beginning of thread", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Load later", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeVisible();
+  await page.keyboard.press("Escape");
   await pane.evaluate((node) => {
     node.scrollTop = node.scrollHeight - node.clientHeight - 160;
   });
@@ -178,14 +184,14 @@ test("IM69.modal-pause: a boundary event beneath Settings does not fetch or queu
   page,
 }) => {
   const requests = await open(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.locator(".reading-pane").evaluate((node) => {
     node.scrollTop = node.scrollHeight;
   });
   await page.waitForTimeout(250);
   expect(requests).toHaveLength(1);
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await closeSettingsToWorkspace(page, "button");
   await page.waitForTimeout(250);
   expect(requests).toHaveLength(1);
 });
@@ -275,15 +281,18 @@ test("IM69.stale-navigation: a delayed adjacent page cannot replace an explicit 
   });
   await incoming;
   await expect(
-    page.getByRole("button", { name: "Loading history…", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("button", { name: "Load earlier", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load earlier",
+      exact: true,
+    }),
   ).toBeDisabled();
-  await page
-    .getByRole("navigation", { name: "Thread pages (top)", exact: true })
-    .getByRole("link", { name: "1", exact: true })
-    .click();
+  await confirmThreadPage(page, 1);
   await expect(page.locator("#pid101")).toBeVisible();
   release?.();
   await expect(page.locator("#pid107")).toHaveCount(0);
@@ -341,7 +350,10 @@ test("IM69.preparation-priority: a delayed history result never interrupts delib
     .click();
   await expect(page.locator(".reading-pane article")).toHaveCount(3);
   await expect(
-    page.getByRole("button", { name: "Load later", exact: true }),
+    (await openThreadPages(page)).getByRole("button", {
+      name: "Load later",
+      exact: true,
+    }),
   ).toBeEnabled();
   expect(requests).toHaveLength(3);
   expect(requests.every((value) => value.startsWith("GET "))).toBe(true);
@@ -407,12 +419,12 @@ test("IM69.pane-reflow: presentation restoration beside an unloaded boundary doe
   page,
 }) => {
   const requests = await open(page);
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator(".reading-pane").evaluate((node) => {
     node.scrollTop = node.scrollHeight;
   });
   await page.waitForTimeout(100);
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await closeSettingsToWorkspace(page, "button");
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await page.waitForTimeout(250);
   expect(requests).toHaveLength(1);
@@ -699,25 +711,36 @@ test("IM69.near-both-edges: a known beginning does not mask the unloaded later e
 });
 
 for (const paneName of ["Boards pane", "Threads pane"] as const) {
-  test(`IM69.drawer-pause-${paneName}: real modal drawer scroll and close do not trigger background history`, async ({
+  test(`IM69.drawer-pause-${paneName}: covered or hidden reader scroll and return do not trigger background history`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const requests = await open(page);
     await page.getByRole("button", { name: paneName, exact: true }).click();
-    await expect(page.getByRole("dialog")).toBeVisible();
+    if (paneName === "Boards pane")
+      await expect(page.getByRole("dialog")).toBeVisible();
+    else await expect(page.locator(".reading-pane")).toBeHidden();
     await page.locator(".reading-pane").evaluate((node) => {
       node.scrollTop = node.scrollHeight;
     });
     await page.waitForTimeout(250);
     expect(requests).toHaveLength(1);
-    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page
+      .getByRole("button", {
+        name: paneName === "Boards pane" ? "Close" : "Threads pane",
+        exact: true,
+      })
+      .click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.locator(".reading-pane")).toBeVisible();
     await page.waitForTimeout(250);
     expect(requests).toHaveLength(1);
-    await page.locator(".reading-pane").evaluate((node) => {
-      node.scrollTop -= 1;
-    });
+    await page.locator(".reading-pane").evaluate((node, paneName) => {
+      node.scrollTop =
+        paneName === "Boards pane"
+          ? node.scrollTop - 1
+          : node.scrollHeight - node.clientHeight - 1;
+    }, paneName);
     await expect(page.locator(".reading-pane article")).toHaveCount(5);
     expect(
       requests.map((request) =>

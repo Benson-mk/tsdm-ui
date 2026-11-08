@@ -1,4 +1,5 @@
-import { revealNavigation } from "./navigation-ui";
+import { clickThreadTool } from "./navigation-ui";
+import { openSettings, revealNavigation } from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -205,12 +206,11 @@ for (const kind of ["thread", "forum"] as const)
     page,
   }, info) => {
     const server = await mutationFixture(page, kind);
-    await page
-      .getByRole("button", {
-        name: kind === "thread" ? "Save thread" : "Save board",
-        exact: true,
-      })
-      .click();
+    if (kind === "thread") await clickThreadTool(page, "Save thread");
+    else
+      await page
+        .getByRole("button", { name: "Save board", exact: true })
+        .click();
     await expect(
       page.getByRole("button", {
         name: "Confirm favorite action",
@@ -258,7 +258,7 @@ test("J9.favorite-uncertain: lost response permits check without replay and reta
 }, info) => {
   const server = await mutationFixture(page, "thread");
   server.lost = true;
-  await page.getByRole("button", { name: "Save thread", exact: true }).click();
+  await clickThreadTool(page, "Save thread");
   await page
     .getByRole("button", { name: "Confirm favorite action", exact: true })
     .click();
@@ -280,7 +280,7 @@ test("J9.favorite-recovery: reload retains unknown attempt without tokens or aut
 }, info) => {
   const server = await mutationFixture(page, "thread");
   server.lost = true;
-  await page.getByRole("button", { name: "Save thread", exact: true }).click();
+  await clickThreadTool(page, "Save thread");
   await page
     .getByRole("button", { name: "Confirm favorite action", exact: true })
     .click();
@@ -310,7 +310,7 @@ test("J9.favorite-resend: inconclusive check requires a warned new attempt and p
 }, info) => {
   const server = await mutationFixture(page, "thread");
   server.lost = true;
-  await page.getByRole("button", { name: "Save thread", exact: true }).click();
+  await clickThreadTool(page, "Save thread");
   await page
     .getByRole("button", { name: "Confirm favorite action", exact: true })
     .click();
@@ -352,7 +352,7 @@ test("J9.favorite-account-race: changed account before send refuses action and r
   page,
 }, info) => {
   const server = await mutationFixture(page, "thread");
-  await page.getByRole("button", { name: "Save thread", exact: true }).click();
+  await clickThreadTool(page, "Save thread");
   await expect(
     page.getByRole("button", { name: "Confirm favorite action", exact: true }),
   ).toBeVisible();
@@ -369,7 +369,7 @@ test("J9.favorite-already: observed existing membership is named without a new w
 }, info) => {
   const server = await mutationFixture(page, "thread");
   server.present = true;
-  await page.getByRole("button", { name: "Save thread", exact: true }).click();
+  await clickThreadTool(page, "Save thread");
   await expect(page.getByText("Already saved.", { exact: true })).toBeVisible();
   expect(server.writes).toEqual([]);
   await artifact(page, info, server);
@@ -498,15 +498,13 @@ test("J9.favorite-inflight-account: account change during a held write preserves
   server.gate = new Promise((resolve) => {
     release = resolve;
   });
-  await page.getByRole("button", { name: "Save thread", exact: true }).click();
+  await clickThreadTool(page, "Save thread");
   await page
     .getByRole("button", { name: "Confirm favorite action", exact: true })
     .click();
   await expect.poll(() => server.writes.length).toBe(1);
   server.member = "8";
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByText("Signed in as Reader 8", { exact: true }),
   ).toBeVisible();
@@ -532,7 +530,7 @@ test("J9.favorite-pending-reload: persisted pending action becomes uncertain wit
   server.gate = new Promise((resolve) => {
     release = resolve;
   });
-  await page.getByRole("button", { name: "Save thread", exact: true }).click();
+  await clickThreadTool(page, "Save thread");
   await page
     .getByRole("button", { name: "Confirm favorite action", exact: true })
     .click();
@@ -540,8 +538,11 @@ test("J9.favorite-pending-reload: persisted pending action becomes uncertain wit
   await page.reload();
   release();
   await expect(
-    page.getByText(/recovered a pending favorite action/i),
+    page.getByText(/recovered a pending favorite action|response was lost/i),
   ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Favorite action", exact: true }),
+  ).toContainText("uncertain");
   expect(server.writes).toHaveLength(1);
   await page
     .getByRole("button", { name: "Check favorite result", exact: true })
@@ -556,10 +557,11 @@ test("J9.favorite-language: Simplified Chinese review and confirmation follow th
   page,
 }, info) => {
   const server = await mutationFixture(page, "thread");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.locator("#interface-language").selectOption("zh-CN");
   await page.getByRole("button", { name: "关闭", exact: true }).click();
-  await page.getByRole("button", { name: "收藏主题", exact: true }).click();
+  await page.getByRole("button", { name: "更多主题选项", exact: true }).click();
+  await page.getByRole("menuitem", { name: "收藏主题", exact: true }).click();
   await expect(page.getByText(/确认.*主题 42.*账号 7/)).toBeVisible();
   await page.getByRole("button", { name: "确认收藏操作", exact: true }).click();
   await expect(
@@ -679,7 +681,7 @@ test("J9.favorite-recovery-quota: unacknowledged pending recovery blocks a new f
     };
   });
   const server = await mutationFixture(page, "thread");
-  await page.getByRole("button", { name: "Save thread", exact: true }).click();
+  await clickThreadTool(page, "Save thread");
   await page
     .getByRole("button", { name: "Confirm favorite action", exact: true })
     .click();

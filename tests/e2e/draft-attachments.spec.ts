@@ -1,3 +1,5 @@
+import { writingDetailAction } from "./editor-controls";
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { publishSavedDraft } from "./draft-review-controls";
 import { combinedSource, richRoundTrip } from "./combined-authoring";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
@@ -706,12 +708,9 @@ for (const stage of ["selected", "uploaded", "pending-save"] as const)
         page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
       ).toBeVisible();
       state.files.delete("88");
-      await page
-        .getByRole("button", {
-          name: "Check current account and form",
-          exact: true,
-        })
-        .click();
+      await (
+        await writingDetailAction(page, "Check current account and form")
+      ).click();
       await save(page);
       await expect(
         page.getByText(/current attachment references changed/),
@@ -1156,9 +1155,9 @@ for (const language of ["zh-CN", "zh-TW"] as const)
         page.getByText(/attachment associations unconfirmed/).first(),
       ).toBeVisible();
       const effects = state.commands.length;
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page.locator("#interface-language").selectOption(language);
-      await page.keyboard.press("Escape");
+      await closeSettingsToWorkspace(page);
       const expected =
         outcome === "draft"
           ? language === "zh-CN"

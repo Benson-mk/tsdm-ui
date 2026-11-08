@@ -1,7 +1,11 @@
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
-import { revealNavigation } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const conversation = (peer = "9", page?: string) =>
@@ -703,9 +707,9 @@ test("J76.private-locales: private recipient, read effects and manual controls r
       "All known messages loaded",
     ],
   ]) {
-    await page.getByRole("button", { name: /^(Settings|设置|設定)$/ }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(language!);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await expect(
       page.getByRole("region", { name: title!, exact: true }),
     ).toBeVisible();
@@ -902,7 +906,7 @@ test("J76.private-local-target-list: local exact targets preserve the currently 
     page.locator(".board-card").filter({ hasText: "Music discussion" }),
   ).toBeVisible();
   const native = page
-    .getByRole("navigation", { name: "Thread actions", exact: true })
+    .getByRole("banner")
     .getByRole("link", { name: "Continue in native forum", exact: true });
   const destination = await native.getAttribute("href");
   const before = ledger.length;
@@ -940,10 +944,10 @@ test("J76.private-drawer: selecting a peer closes the narrow list drawer and reo
     `${origin}/forum.php`,
     peers.replace("Preview 9", "Authored long preview. ".repeat(100)),
   );
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Close", exact: true })
-    .click();
+  await expect(
+    page.getByRole("region", { name: "Boards overview", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await loadPeers(page);
   const list = page.locator(".messages-pane");

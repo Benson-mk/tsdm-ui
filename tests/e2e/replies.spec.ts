@@ -1,3 +1,7 @@
+import { revealWritingTools, revealWritingDetails } from "./editor-controls";
+import { writingTool } from "./editor-controls";
+import { clickThreadTool } from "./navigation-ui";
+import { openSettings } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -123,6 +127,7 @@ test("J4.reply-current: preserve complete source/current options and open indepe
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await revealWritingTools(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await page
     .getByRole("button", { name: "Review publication", exact: true })
@@ -263,9 +268,10 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   expect(state.posts[0]!.get("message")).toBe(
     "Literal @Other author stays literal. @\u2063Other author\u2063 ",
   );
+  await revealWritingDetails(page);
   await expect(
     page
-      .getByRole("group", { name: "Writing destination", exact: true })
+      .locator(".writing-details")
       .getByText(/notification delivery is unverified/),
   ).toBeVisible();
   await info.attach("mentions.png", {
@@ -463,7 +469,10 @@ test("J5.reply-pending: reload retains uncertainty then explicit exact-post chec
   await page.reload();
   release();
   await expect(
-    page.getByText(/Pending publication restored as uncertain/),
+    page.getByText(
+      "The response was lost. The forum may have accepted this attempt. Check result; no send was repeated.",
+      { exact: true },
+    ),
   ).toBeVisible();
   await page
     .getByLabel("Candidate thread URL", { exact: true })
@@ -660,15 +669,21 @@ for (const mutation of [
     await expect(
       page.getByText(/Recovery acknowledged for revision/),
     ).toBeVisible();
-    await page.evaluate((mutation) => {
+    const rejected = await page.evaluate((mutation) => {
       const key = "tsdm.workspace.recovery",
         record = JSON.parse(sessionStorage.getItem(key)!);
       const writing = record.writing;
       if (mutation === "new-thread-with-reply") writing.action = "new-thread";
       if (mutation === "reply-with-post") writing.replyTarget.postId = "101";
       if (mutation === "quote-without-post") writing.action = "quick-quote";
-      sessionStorage.setItem(key, JSON.stringify(record));
+      return JSON.stringify(record);
     }, mutation);
+    // Install the authored corrupt record after pagehide has saved the old
+    // document, before the next application boot can read browser storage.
+    await page.addInitScript(
+      (raw) => sessionStorage.setItem("tsdm.workspace.recovery", raw),
+      rejected,
+    );
     await page.reload();
     await expect(
       page
@@ -678,6 +693,11 @@ for (const mutation of [
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveCount(0);
+    expect(
+      await page.evaluate(() =>
+        sessionStorage.getItem("tsdm.workspace.recovery"),
+      ),
+    ).toBe(rejected);
     await info.attach("action-binding.png", {
       body: await page.screenshot(),
       contentType: "image/png",
@@ -783,7 +803,7 @@ for (const mutation of [
     await expect(
       page.getByLabel("Complete source before sending", { exact: true }),
     ).toHaveValue(state.priorSource);
-    await page.evaluate((mutation) => {
+    const rejected = await page.evaluate((mutation) => {
       const key = "tsdm.workspace.recovery",
         record = JSON.parse(sessionStorage.getItem(key)!);
       const attempt = record.writing.attempts[0];
@@ -796,14 +816,25 @@ for (const mutation of [
       if (mutation === "baseline-thread")
         attempt.publication.replyBefore.pageURL =
           attempt.publication.replyBefore.pageURL.replace("tid=42", "tid=43");
-      sessionStorage.setItem(key, JSON.stringify(record));
+      return JSON.stringify(record);
     }, mutation);
+    // Install the authored corrupt record after pagehide has saved the old
+    // document, before the next application boot can read browser storage.
+    await page.addInitScript(
+      (raw) => sessionStorage.setItem("tsdm.workspace.recovery", raw),
+      rejected,
+    );
     await page.reload();
     await expect(page.getByText(/incompatible/i).first()).toBeVisible();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
+    expect(
+      await page.evaluate(() =>
+        sessionStorage.getItem("tsdm.workspace.recovery"),
+      ),
+    ).toBe(rejected);
     await info.attach("comparison-binding.png", {
       body: await page.screenshot(),
       contentType: "image/png",
@@ -828,7 +859,7 @@ for (const [
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(language);
     await page.getByRole("button", { name: closeLabel, exact: true }).click();
     await page.getByLabel(sourceLabel, { exact: true }).fill(source);
@@ -1239,7 +1270,7 @@ for (const locale of [
         await page
           .getByRole("button", { name: "Reply to thread", exact: true })
           .click();
-      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await openSettings(page);
       await page.locator("#interface-language").selectOption(locale.language);
       await page
         .getByRole("button", { name: locale.close, exact: true })
@@ -1291,15 +1322,13 @@ for (const addressed of [false, true])
       field.setSelectionRange(field.value.length - 9, field.value.length);
       field.dispatchEvent(new Event("select", { bubbles: true }));
     });
-    await page.getByRole("button", { name: "Bold", exact: true }).click();
+    await (await writingTool(page, "Bold")).click();
     await expect(
       page
         .getByRole("textbox", { name: "Visual post content", exact: true })
         .getByText("formatted", { exact: true }),
     ).toHaveCSS("font-weight", "700");
-    await page
-      .getByRole("button", { name: "Source editor", exact: true })
-      .click();
+    await (await writingTool(page, "Source editor")).click();
     const expected = source + " [b]formatted[/b]";
     await expect(complete).toHaveValue(expected);
     await page
@@ -1354,9 +1383,7 @@ for (const attempted of [false, true]) {
         "<p>Existing opening source</p>",
         '<p>Existing opening source</p><ignore_js_op><img id="aimg_88" aid="88" file="forum.php?mod=attachment&amp;aid=image-token&amp;noupdate=yes" zoomfile="forum.php?mod=attachment&amp;aid=image-token&amp;noupdate=yes&amp;nothumb=yes" alt="Recovery image"><div id="aimg_88_menu"><p><strong>fixture.png</strong></p><a href="forum.php?mod=attachment&amp;aid=image-token&amp;nothumb=yes">Download attachment</a></div></ignore_js_op>',
       );
-    await page
-      .getByRole("button", { name: "Refresh thread", exact: true })
-      .click();
+    await clickThreadTool(page, "Refresh thread");
     await expect(
       page.getByRole("img", { name: "Recovery image", exact: true }),
     ).toHaveAttribute("src", /noupdate=yes/);
@@ -1536,9 +1563,12 @@ for (const mutation of [
           { ...sentinel },
         ];
       const raw = JSON.stringify(record);
-      sessionStorage.setItem(key, raw);
       return raw;
     }, mutation);
+    await page.addInitScript(
+      (raw) => sessionStorage.setItem("tsdm.workspace.recovery", raw),
+      rejected,
+    );
     const count = state.requests.length;
     await page.reload();
     await expect(

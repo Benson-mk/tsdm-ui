@@ -1,4 +1,9 @@
-import { revealNavigation } from "./navigation-ui";
+import { clickThreadTool } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
@@ -431,9 +436,7 @@ test("J8.download-stale-inflight: refresh to changed account invalidates a pendi
     .click();
   await expect.poll(() => requests.includes(attachmentURL)).toBe(true);
   changed = true;
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByText("Signed in as Reader Eight", { exact: true }),
   ).toBeVisible();
@@ -617,15 +620,13 @@ test("J8.download-passive-return-cancels: Back while access is being checked can
     .getByRole("button", { name: `Download ${filename}`, exact: true })
     .click();
   await expect.poll(() => requests.length).toBe(3);
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await clickThreadTool(page, "Back");
   await expect(page.getByText(/Restored snapshot/)).toBeVisible();
   release();
   await expect(page.getByRole("region", { name: "File download" })).toHaveCount(
     0,
   );
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect
     .poll(
       () =>
@@ -824,7 +825,7 @@ for (const [width, section] of [
     ).toEqual([]);
     expect(downloads).toEqual([]);
     if (width === 375) await revealNavigation(page);
-    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await clickThreadTool(page, "Back");
     await expect(
       page.getByRole("heading", {
         name: "Attachment listening notes",
@@ -886,13 +887,13 @@ for (const [
     await expect(
       page.getByText("File ready to save", { exact: true }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#text-size").fill(paid ? "150" : "70");
     await page
       .getByRole("radio", { name: paid ? "Dark" : "Mono", exact: true })
       .check();
     await page.locator("#interface-language").selectOption(language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     if (paid) await page.setViewportSize({ width: 375, height: 900 });
     await expect(
       page.getByRole("button", {
@@ -945,15 +946,8 @@ for (const [
       body: await page.screenshot(),
       contentType: "image/png",
     });
-    if (paid) {
-      await revealNavigation(page);
-      await page
-        .getByRole("combobox", { name: "主要導覽", exact: true })
-        .selectOption("saved");
-    } else
-      await page
-        .getByRole("button", { name: sectionLabel, exact: true })
-        .click();
+    if (paid) await revealNavigation(page);
+    await page.getByRole("button", { name: sectionLabel, exact: true }).click();
     await page.goBack();
     await expect(
       page.getByRole("heading", {
@@ -982,9 +976,9 @@ for (const [language, downloadLabel, forbidden, message] of [
         body: Buffer.from("<p>permission refused</p>"),
       },
     });
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await page.locator("#interface-language").selectOption(language);
-    await page.keyboard.press("Escape");
+    await closeSettingsToWorkspace(page);
     await page
       .getByRole("button", {
         name: `${downloadLabel} ${filename}`,
