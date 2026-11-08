@@ -1,7 +1,8 @@
 # Thread browsing feedback and approval MVP — 2026-11-09
 
-Branch: `feat/improve-ui-ux`. Capture all seven browser comments for later GitHub
-tickets. No ticket publication or production implementation is requested yet.
+Branch: `feat/improve-ui-ux`. Status: owner approved the first MVP direction for
+comments 1–3 on 2026-11-09. Capture all seven browser comments for later GitHub
+tickets. Production implementation and ticket publication remain later work.
 The earlier compact Boards-filter suggestion remains pending, not approved by
 these new comments.
 
@@ -9,7 +10,7 @@ these new comments.
 
 | #   | Owner feedback                                                                   | Intended outcome and evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | --- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | “Layout look un-natural when only the thread list is without thread opened”      | The supplied screenshot shows compact thread-row content stretched across the whole browsing region. Preview a stable thread-list column and a calm reader placeholder before selection. This is a proposal, not an approved replacement for the earlier browse-only layout.                                                                                                                                                                                                          |
+| 1   | “Layout look un-natural when only the thread list is without thread opened”      | The supplied screenshot shows compact thread-row content stretched across the whole browsing region. Preview a stable thread-list column and a calm reader placeholder before selection. The owner approved this direction on 2026-11-09 for board thread lists, replacing the earlier full-width browse-only direction in this context.                                                                                                                                              |
 | 2   | “it show who is the last reply, current display is meaningless”                  | Replace repeated “Last reply to [thread title]” with latest replier and time, retaining the latest-post destination. `ThreadRow` currently carries `lastPost: ForumLink`, but no explicit last-author field; `read-board.ts` reads the last-post link from the last `td.by > em`. Production needs source-backed latest-author metadata; do not substitute the thread author or invent a name.                                                                                        |
 | 3   | “The thread list did not hold in same place when switching”                      | Preserve the list's visible row and offset when opening/switching threads or returning to the list. The screenshot records the symptom; the precise triggering sequence and production root cause are not yet reproduced. The preview demonstrates intended stability without claiming a production fix.                                                                                                                                                                              |
 | 4   | “Any meaning for user?” about “Manual refresh / Beginning of thread”             | Manual refresh describes automatic checking being off; Beginning of thread describes a confirmed history boundary. They carry meaning, but the observed 86.8px block makes passive state too prominent. Proposed later reader MVP: put refresh mode in thread options; show useful loading, failure/retry and new-reply actions inline; show boundary context where the posts begin/end. Preserve truthful unknown and failure states.                                                |
@@ -93,8 +94,8 @@ follows completed preview inspection.
       narrow/enlarged return behavior; retain repeatable artifacts.
 - [x] Complete the designated advisor review and record distinct trade-offs.
 
-These criteria concern feedback capture and preview delivery. Owner approval of
-the layout and production acceptance remain pending.
+These criteria concern feedback capture and preview delivery. The first MVP
+layout direction is now owner-approved; production acceptance remains pending.
 
 ## Run and inspect
 
@@ -153,5 +154,27 @@ source facts, preview isolation, seven screenshots, both observation sets and th
 comments 1–3 approval MVP, with no evidence-backed blocker, egregious technical
 decision or additional distinct trade-off. It verified source/evidence rather
 than independently repeating the live-page inspection or browser interactions.
-All four preview-delivery criteria are verified. Owner design approval and
-production implementation remain pending.
+All four preview-delivery criteria are verified. This review preceded the owner
+approval recorded below; production implementation remains pending.
+
+## Owner approval — 2026-11-09
+
+The owner replied “ok” to “Does this fixed-column direction feel right for
+comments 1–3?” after reviewing the MVP captured in commit `09d30ec`. Record this
+as approval of that preview direction:
+
+- A stable 300px desktop thread-list column with a reader placeholder before
+  selection, using the displayed flat-row presentation.
+- Latest-replier name and time, with an explicit unavailable fallback. Production
+  values must come from the forum source.
+- Preserve the visible list position while opening, switching and closing threads,
+  including return to the narrow list after reflow.
+
+The shared right-click/⋯ post menu including Reply remains approved separately.
+Reader previews for comments 4–7 and the older compact Boards-filter suggestion
+remain pending. This approval records the visual/interaction direction; it does
+not establish a production fix, installed qualification or immediate ticket
+publication. No new technical decision or trade-off is introduced.
+
+The existing evidence package remains the historical capture of the reviewed
+`09d30ec` preview; its pre-approval documentation is intentionally unchanged.
