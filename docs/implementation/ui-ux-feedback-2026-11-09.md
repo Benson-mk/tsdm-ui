@@ -178,3 +178,12 @@ publication. No new technical decision or trade-off is introduced.
 
 The existing evidence package remains the historical capture of the reviewed
 `09d30ec` preview; its pre-approval documentation is intentionally unchanged.
+
+## Reader MVP continuation — comments 4–7
+
+The owner requested the next approval unit. Its proposal, failure inventory,
+actual trade-offs and verification are recorded in
+[Reader controls approval MVP — comments 4–7](reader-feedback-mvp-2026-11-09.md).
+It extends the same prototype via `?unit=reader`; comments 1–3 remain approved.
+Comments 4–7 await visual/interaction approval. The shared ⋯ menu fallback remains
+approved; limiting double-click Reply to empty post space is a pending assumption.

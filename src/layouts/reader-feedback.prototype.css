@@ -1,0 +1,325 @@
+/* Throwaway reader approval unit; injected alongside shared CSS in the ShadowRoot. */
+.rf-reader {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  position: relative;
+  font-size: calc(14px * var(--text-scale));
+}
+.rf-reader button,
+.rf-menu-item {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: inherit;
+}
+.rf-header {
+  display: block;
+  flex: none;
+  padding: 12px 24px 8px;
+  border-bottom: 1px solid var(--separator);
+}
+.rf-heading-top,
+.rf-toolbar,
+.rf-post header,
+.rf-post-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rf-heading-top {
+  justify-content: space-between;
+}
+.rf-header h2 {
+  font-size: calc(24px * var(--text-scale));
+  line-height: 1.35;
+  margin: 4px 0 8px;
+  overflow-wrap: anywhere;
+}
+.rf-toolbar {
+  flex-wrap: wrap;
+}
+.rf-page {
+  font-variant-numeric: tabular-nums;
+  background: var(--soft);
+  padding: 8px 12px;
+}
+.rf-thread-options {
+  margin-left: auto;
+}
+.rf-filter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rf-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  overflow-anchor: none;
+  padding: 0 24px;
+}
+.rf-status {
+  flex: none;
+  padding-inline: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--separator);
+  min-height: 52px;
+}
+.rf-status button {
+  text-decoration: underline;
+}
+.rf-post {
+  padding: 20px 0 0;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow-wrap: anywhere;
+}
+.rf-post + .rf-post {
+  border-top: 1px solid var(--separator);
+}
+.rf-post[data-targeted="true"] {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+  padding-inline: 12px;
+}
+.rf-post header {
+  justify-content: space-between;
+  margin: 0 0 12px;
+}
+.rf-author {
+  min-width: 0;
+}
+.rf-author strong,
+.rf-author small {
+  display: block;
+}
+.rf-author small {
+  color: var(--muted);
+  margin-top: 4px;
+  font-size: calc(12px * var(--text-scale));
+}
+.rf-post-controls {
+  gap: 0;
+  flex: none;
+}
+.rf-number {
+  color: var(--muted);
+}
+.rf-post-text {
+  line-height: 1.75;
+}
+.rf-post-text p {
+  margin: 10px 0;
+}
+.rf-sample-link {
+  font-size: calc(12px * var(--text-scale));
+  color: var(--muted);
+}
+.rf-sample-link a {
+  text-decoration: underline;
+}
+.rf-reply-space {
+  user-select: none;
+  height: 32px;
+}
+.rf-end {
+  font-size: calc(12px * var(--text-scale));
+  color: var(--muted);
+  padding: 16px 0;
+  border-top: 1px solid var(--separator);
+}
+.rf-menu {
+  z-index: 40;
+  min-width: 240px;
+  max-width: calc(100vw - 24px);
+  max-height: var(--reka-popper-available-height);
+  overflow: auto;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--floating-shadow);
+  border: 1px solid var(--separator);
+  border-radius: 8px;
+  padding: 4px;
+  font-size: calc(14px * var(--text-scale));
+}
+.rf-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 4px;
+  outline: 0;
+  cursor: default;
+  overflow-wrap: anywhere;
+}
+.rf-menu-item[data-highlighted] {
+  background: var(--soft);
+}
+.rf-menu-note {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 8px 12px;
+  margin: 0;
+}
+.rf-composer {
+  flex: none;
+  padding: 8px 24px;
+  border-top: 1px solid var(--separator);
+  background: var(--surface);
+  max-height: 45%;
+  overflow: auto;
+}
+.rf-composer > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rf-composer p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.rf-composer textarea {
+  width: 100%;
+  min-height: 72px;
+  max-height: 120px;
+  resize: vertical;
+  padding: 8px;
+  font: inherit;
+}
+.rf-demo {
+  flex: none;
+  font-size: 12px;
+  border-top: 1px solid var(--separator);
+  background: var(--soft);
+  max-height: 36%;
+  overflow: auto;
+}
+.rf-demo summary {
+  cursor: pointer;
+  padding: 12px 24px;
+  min-height: 44px;
+}
+.rf-demo > div {
+  padding: 0 24px 12px;
+  display: flex;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+}
+.rf-demo label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.rf-demo select,
+.rf-dialog select {
+  min-height: 44px;
+  font: inherit;
+  padding: 8px;
+}
+.rf-demo input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ink);
+}
+.rf-demo p {
+  flex-basis: 100%;
+  margin: 0;
+  line-height: 1.5;
+}
+.rf-toast {
+  position: absolute;
+  bottom: 52px;
+  left: 24px;
+  right: 24px;
+  z-index: 50;
+  pointer-events: none;
+}
+.rf-toast span {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  background: var(--ink);
+  color: var(--surface);
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: var(--floating-shadow);
+}
+.rf-dialog {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--separator);
+  border-radius: 12px;
+  padding: 24px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  font-size: calc(14px * var(--text-scale));
+}
+.rf-dialog::backdrop {
+  background: rgb(0 0 0 / 30%);
+}
+.rf-dialog h2 {
+  margin-top: 0;
+  font-size: calc(20px * var(--text-scale));
+}
+.rf-dialog p {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.rf-dialog input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  font: inherit;
+}
+.rf-dialog label {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.rf-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+.rf-dialog .rf-primary {
+  background: var(--ink);
+  color: var(--surface);
+}
+@media (max-width: 767px) {
+  .rf-header {
+    padding-inline: 16px;
+  }
+  .rf-header h2 {
+    font-size: calc(21px * var(--text-scale));
+  }
+  .rf-scroll {
+    padding-inline: 16px;
+  }
+  .rf-composer {
+    padding-inline: 16px;
+  }
+  .rf-demo summary {
+    padding-inline: 16px;
+  }
+  .rf-demo > div {
+    padding-inline: 16px;
+  }
+}
+
+.rf-clipboard-check {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
