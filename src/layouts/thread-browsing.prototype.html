@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Thread browsing — approval MVP</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      #preview {
+        display: block;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="preview"></div>
+    <script type="module">
+      // Throwaway approval MVP: stable thread-list width, last-replier metadata and position.
+      // Synthetic data and stub navigation; no forum requests or persistence.
+      // Run: npm run dev -- --port 5173
+      import workspaceStyles from "../styles.css?inline";
+      import brandMark from "./tsdm-brand.prototype.svg?raw";
+
+      const host = document.querySelector("#preview");
+      const root = host.attachShadow({ mode: "open" });
+      const paths = {
+        boards:
+          '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+        messages:
+          '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/>',
+        search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+        saved: '<path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4z"/>',
+        notices:
+          '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+        drafts: '<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h8M8 16h6"/>',
+        settings:
+          '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--surface)"/><circle cx="15" cy="17" r="3" fill="var(--surface)"/>',
+        threads: '<path d="M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"/>',
+        external: '<path d="M14 3h7v7M21 3l-10 10M10 5H4v15h15v-6"/>',
+        refresh: '<path d="M20 7a9 9 0 1 0 1 8M20 3v5h-5"/>',
+      };
+      const icon = (name) =>
+        `<svg class="workspace-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
+
+      const titles = [
+        "聊聊最近的手錶保養",
+        "最近有什麼值得分享的新發現？",
+        "本週交流與提問",
+        "一起整理實用的生活資料",
+        "週末去公園走走，拍到了很漂亮的夕陽",
+        "關於音樂收藏和整理的一些心得，歡迎一起補充",
+        "今天也想分享一件小事",
+        "新朋友的第一次打招呼",
+      ];
+      const names = [
+        "日光旅人",
+        "青空",
+        "小雨",
+        "這是一個比較長的示例會員名稱",
+      ];
+      const threads = Array.from({ length: 24 }, (_, i) => ({
+        id: String(910001 + i),
+        title:
+          titles[i % titles.length] +
+          (i > 7 ? ` · ${Math.floor(i / 8) + 1}` : ""),
+        author: names[i % names.length],
+        latestAuthor: i % 7 === 6 ? null : names[(i + 1) % names.length],
+        latestTime: i % 7 === 6 ? null : `${i + 2} min ago`,
+        replies: 2,
+        views: 90 + i * 13,
+        category: i < 2 ? "Pinned" : i % 3 === 0 ? "生活" : "閒聊",
+      }));
+      let selected = null,
+        target = "first",
+        savedListScroll = 0,
+        savedAnchor = null;
+      root.innerHTML = `<style>${workspaceStyles}</style><style>
+        :host { --safe-left:0px; --safe-right:0px; --safe-top:0px; --safe-bottom:0px; --text-scale:1; }
+        [hidden] { display:none !important; }
+        .prototype-shell { height:100dvh; display:grid; grid-template-rows:minmax(0,1fr) auto; }
+        .workspace { height:100%; min-height:0; }
+        .workspace > header { min-height:60px; padding:8px 16px; }
+        .brand { display:flex; align-items:center; min-height:44px; }
+        .brand svg { width:44px; height:44px; }
+        .preview-body { display:grid; grid-template-columns:216px 300px minmax(0,1fr); flex:1; min-height:0; width:100%; max-width:none; padding:0; margin:0; overflow:hidden; }
+        .preview-sidebar { display:flex; flex-direction:column; min-height:0; box-shadow:4px 0 16px rgb(0 0 0 / 6%); z-index:2; }
+        .navigation-body { min-height:0; overflow:auto; flex:1; padding:12px; }
+        .main-destinations { display:grid; gap:4px; padding:0; border:0; margin:0 0 24px; background:var(--surface); }
+        .main-destinations button { font-size:14px; gap:8px; }
+        .preview-taxonomy { font:12px ui-monospace,monospace; margin:4px 4px 12px; }
+        .sample-board { width:100%; text-align:left; font-size:14px; margin-top:4px; }
+        .sample-board.active { background:var(--accent); color:#000; }
+        .navigation-footer { padding-bottom:12px; }
+        .list-pane { min-width:0; overflow:auto; padding:24px 16px; box-shadow:4px 0 16px rgb(0 0 0 / 6%); z-index:1; overflow-anchor:none; }
+        .list-pane h1 { font-size:calc(24px * var(--text-scale)); font-weight:600; margin-top:0; }
+        .list-intro { font-size:calc(14px * var(--text-scale)); margin:8px 0 24px; }
+        .sample-row { padding:16px 0; border-bottom:1px solid var(--separator); overflow-wrap:anywhere; }
+        .sample-row:first-child { border-top:1px solid var(--separator); }
+        .sample-row .category { display:block; font-size:calc(12px * var(--text-scale)); margin-bottom:4px; }
+        .sample-row .subject { display:block; width:100%; text-align:left; font-size:calc(16px * var(--text-scale)); font-weight:600; line-height:1.45; padding:4px 8px; margin:0 -8px; border-radius:8px; }
+        .sample-row .subject[aria-current="true"] { background:var(--ink); color:var(--surface); }
+        .sample-row .subject[aria-current="true"]:hover { background:var(--ink); color:var(--surface); }
+        .row-meta { display:flex; flex-wrap:wrap; gap:0 8px; margin:6px 0 0; font-size:calc(12px * var(--text-scale)); color:var(--muted); }
+        .latest { display:flex; align-items:start; flex-direction:column; width:100%; padding:6px 8px; margin:2px -8px 0; text-align:left; border-radius:8px; line-height:1.5; font-size:calc(12px * var(--text-scale)); }
+        .latest span { display:block; }
+        .latest .latest-person { font-weight:540; }
+        .preview-reader { display:flex; flex-direction:column; min-height:0; min-width:0; }
+        .reader-placeholder { display:flex; flex:1; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center; }
+        .reader-placeholder svg { width:40px; height:40px; }
+        .reader-placeholder h2 { font-size:calc(24px * var(--text-scale)); margin:16px 0 8px; }
+        .reader-placeholder p { max-width:32em; color:var(--muted); font-size:calc(14px * var(--text-scale)); margin:0; }
+        .reader-view { display:flex; flex:1; min-height:0; flex-direction:column; }
+        .reader-header { display:flex; flex-wrap:wrap; gap:8px; padding:16px 24px; flex:none; box-shadow:var(--floating-shadow); }
+        .reader-header > div { flex:1; min-width:0; }
+        .reader-header h2 { font-size:calc(24px * var(--text-scale)); overflow-wrap:anywhere; margin:8px 0; }
+        .reader-header .category-label { font-size:12px; }
+        .reader-header button { align-self:flex-start; font-size:14px; }
+        .reader-posts { overflow:auto; min-height:0; flex:1; padding:0 24px; }
+        .reader-posts article { margin:0; padding:24px 0; border-radius:0; box-shadow:none; max-width:48em; }
+        .reader-posts article + article { border-top:1px solid var(--separator); }
+        .reader-posts article:target { outline:0; }
+        .reader-posts article[data-targeted="true"] { outline:2px solid var(--ink); outline-offset:-2px; padding-inline:12px; }
+        .reader-posts article header { font-size:calc(14px * var(--text-scale)); display:flex; justify-content:space-between; margin:0 0 16px; }
+        .reader-posts article p { line-height:1.65; overflow-wrap:anywhere; }
+        .reader-posts article .sample-note { font-size:12px; color:var(--muted); }
+        .prototype-tools { background:var(--surface); border-top:1px solid var(--separator); padding:8px 12px calc(8px + env(safe-area-inset-bottom)); display:flex; flex-wrap:wrap; gap:4px 16px; align-items:center; font-size:12px; }
+        .prototype-tools button { font-size:12px; min-height:44px; }
+        .prototype-tools label { display:flex; gap:8px; align-items:center; min-height:44px; }
+        .prototype-tools input { width:18px; height:18px; accent-color:var(--ink); }
+        #preview-state { flex-basis:100%; margin:0; overflow-wrap:anywhere; }
+        @media(max-width:959px) { .preview-sidebar { display:none; } .preview-body { grid-template-columns:300px minmax(0,1fr); } }
+        @media(max-width:767px) {
+          .preview-body { grid-template-columns:minmax(0,1fr); }
+          .preview-body:not([data-reading="true"]) .preview-reader { display:none; }
+          .preview-body[data-reading="true"] .list-pane { display:none; }
+          .reader-header { padding:12px 16px; }
+          .reader-posts { padding:0 16px; }
+          .reader-header h2 { font-size:calc(21px * var(--text-scale)); }
+        }
+      </style><div class="prototype-shell"><div class="workspace">
+        <header><span class="brand">${brandMark} TSDM</span><div class="header-navigation">
+          <button class="header-action" data-stub="Boards pane" aria-label="Boards pane">${icon("boards")}<span class="header-action-label">Boards</span></button>
+          <button id="threads-toggle" class="header-action" aria-label="Back to thread list">${icon("threads")}<span class="header-action-label">Threads pane</span></button>
+          <button class="header-action" data-stub="Native forum" aria-label="Continue in native forum">${icon("external")}<span class="header-action-label">Continue in native forum</span></button>
+        </div></header>
+        <main class="preview-body" data-reading="false">
+          <aside class="preview-sidebar" aria-label="Sample navigation"><div class="navigation-body">
+            <p class="preview-taxonomy">MAIN DESTINATIONS</p>
+            <nav class="main-destinations" aria-label="Sample destinations">${["Boards", "Messages", "Search", "Saved", "Notices", "Drafts"].map((name) => `<button data-stub="${name}" ${name === "Boards" ? 'aria-current="page"' : ""}>${icon(name.toLowerCase())}${name}</button>`).join("")}</nav>
+            <p class="preview-taxonomy">BROWSE BOARDS</p>
+            <button data-stub="All boards" class="sample-board">All boards</button>
+            <button data-stub="若闲小阁" class="sample-board active">若闲小阁</button>
+            <button data-stub="动漫游戏新闻" class="sample-board">动漫游戏新闻</button>
+            <button data-stub="音乐" class="sample-board">音乐</button>
+          </div><div class="navigation-footer"><div class="navigation-account"><small>Sample account</small><strong>Preview member</strong></div><button data-stub="Settings" aria-label="Settings">${icon("settings")}</button></div></aside>
+          <section class="list-pane" aria-label="Sample thread list" tabindex="-1">
+            <span class="category-label" data-category="community">天使·后花园</span><h1>若闲小阁</h1><p class="list-intro">24 sample threads · Page 1</p>
+            <div id="sample-threads">${threads
+              .map(
+                (
+                  row,
+                ) => `<div class="sample-row" id="row-${row.id}" data-thread="${row.id}">
+              <span class="category">${row.category}</span><button class="subject" data-open="${row.id}">${row.title}</button>
+              <p class="row-meta"><span>${row.author}</span><span>${row.replies} replies · ${row.views} views</span></p>
+              <button class="latest" data-latest="${row.id}" aria-label="Open latest reply to ${row.title}">${row.latestAuthor ? `<span class="latest-person">Latest: ${row.latestAuthor}</span><span>${row.latestTime}</span>` : "<span>Open latest reply</span><span>Author and time unavailable</span>"}</button>
+            </div>`,
+              )
+              .join("")}</div>
+          </section>
+          <section class="preview-reader" aria-label="Sample reader">
+            <div class="reader-placeholder">${icon("threads")}<h2>Choose a thread</h2><p>Open a thread from the list to start reading.</p></div>
+            <div class="reader-view" hidden><header class="reader-header"><div><span class="category-label" data-category="community">若闲小阁</span><h2 id="reader-title"></h2></div><button id="close-reader">Back to threads</button></header><div class="reader-posts" tabindex="-1"></div></div>
+          </section>
+        </main></div>
+        <footer class="prototype-tools"><strong>MVP 1 · Comments 1–3 · Fictional data</strong><button id="reset-reader">Close reader</button><button id="sample-scroll">Try a scrolled list</button><label><input type="checkbox" id="larger-text" />125% text</label><p id="preview-state" role="status"></p></footer>
+      </div>`;
+      const list = root.querySelector(".list-pane");
+      const frame = root.querySelector(".preview-body");
+      const posts = root.querySelector(".reader-posts");
+      const narrow = matchMedia("(max-width:767px)");
+      function captureListPosition() {
+        if (!list.getClientRects().length) return;
+        savedListScroll = list.scrollTop;
+        const top = list.getBoundingClientRect().top;
+        const row = [...root.querySelectorAll(".sample-row")].find(
+          (item) => item.getBoundingClientRect().bottom > top,
+        );
+        savedAnchor = row
+          ? { id: row.id, offset: row.getBoundingClientRect().top - top }
+          : null;
+      }
+      function state(note = "") {
+        root.querySelector("#preview-state").textContent =
+          `${selected ? "Reading sample " + selected.id : "No thread open"} · List offset ${Math.round(list.getClientRects().length ? list.scrollTop : savedListScroll)}px · Target ${target} · ${root.querySelector("#larger-text").checked ? "125%" : "100%"} text. ${note || "Sample names, times and posts; no forum requests."}`;
+      }
+      function openThread(id, latest = false) {
+        captureListPosition();
+        selected = threads.find((row) => row.id === id);
+        target = latest ? "latest" : "first";
+        for (const button of root.querySelectorAll("[data-open]"))
+          button.setAttribute(
+            "aria-current",
+            String(button.dataset.open === id),
+          );
+        root.querySelector(".reader-placeholder").hidden = true;
+        root.querySelector(".reader-view").hidden = false;
+        root.querySelector("#reader-title").textContent = selected.title;
+        posts.innerHTML = [
+          [
+            selected.author,
+            "1",
+            "最近重新開始整理一些生活中的小物件，也想聽聽大家的經驗。",
+            "有沒有你一直保留、偶爾拿出來還是很喜歡的東西？",
+          ],
+          [
+            "小雨",
+            "2",
+            "我也喜歡把用得順手的東西留久一點。",
+            "分享不同的經驗，就是討論最有趣的地方。",
+          ],
+          [
+            selected.latestAuthor ?? "Sample member",
+            "3",
+            "謝謝大家的分享！這些建議很實用。",
+            "這是最後一則示例回覆。",
+          ],
+        ]
+          .map(
+            ([author, floor, a, b]) =>
+              `<article id="sample-post-${floor}" data-targeted="${latest && floor === "3"}"><header><strong>${author}</strong><span>Floor ${floor}#</span></header><p>${a}</p><p>${b}</p><p class="sample-note">Fictional post for layout approval.</p></article>`,
+          )
+          .join("");
+        frame.dataset.reading = "true";
+        posts.scrollTop = latest ? posts.scrollHeight : 0;
+        if (narrow.matches)
+          root.querySelector("#close-reader").focus({ preventScroll: true });
+        state();
+      }
+      function closeReader() {
+        const wasHidden = !list.getClientRects().length;
+        frame.dataset.reading = "false";
+        root.querySelector(".reader-placeholder").hidden = false;
+        root.querySelector(".reader-view").hidden = true;
+        const prior = selected;
+        selected = null;
+        for (const button of root.querySelectorAll("[data-open]"))
+          button.setAttribute("aria-current", "false");
+        if (wasHidden) {
+          list.scrollTop = savedListScroll;
+          if (savedAnchor)
+            list.scrollTop +=
+              root.getElementById(savedAnchor.id).getBoundingClientRect().top -
+              list.getBoundingClientRect().top -
+              savedAnchor.offset;
+        }
+        if (prior)
+          root
+            .querySelector(`[data-open="${prior.id}"]`)
+            .focus({ preventScroll: true });
+        state();
+      }
+      root.addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (button?.dataset.open) openThread(button.dataset.open);
+        else if (button?.dataset.latest)
+          openThread(button.dataset.latest, true);
+        else if (button?.dataset.stub)
+          state(`${button.dataset.stub}: illustrative control.`);
+      });
+      root
+        .querySelector("#close-reader")
+        .addEventListener("click", closeReader);
+      root
+        .querySelector("#reset-reader")
+        .addEventListener("click", closeReader);
+      root
+        .querySelector("#threads-toggle")
+        .addEventListener("click", closeReader);
+      root.querySelector("#sample-scroll").addEventListener("click", () => {
+        closeReader();
+        list.scrollTop =
+          root.querySelector("#row-910009").offsetTop - list.offsetTop - 16;
+        captureListPosition();
+        state("Open any visible title; watch this list stay in place.");
+      });
+      list.addEventListener("scroll", () => {
+        if (list.getClientRects().length) {
+          captureListPosition();
+          state();
+        }
+      });
+      root.querySelector("#larger-text").addEventListener("change", (event) => {
+        const first = [...root.querySelectorAll(".sample-row")].find(
+          (row) =>
+            row.getBoundingClientRect().bottom >
+            list.getBoundingClientRect().top,
+        );
+        const offset =
+          first?.getBoundingClientRect().top - list.getBoundingClientRect().top;
+        host.style.setProperty(
+          "--text-scale",
+          event.target.checked ? "1.25" : "1",
+        );
+        if (first && list.getClientRects().length)
+          list.scrollTop +=
+            first.getBoundingClientRect().top -
+            list.getBoundingClientRect().top -
+            offset;
+        captureListPosition();
+        state();
+      });
+      state();
+    </script>
+  </body>
+</html>
