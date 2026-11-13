@@ -26,6 +26,7 @@
       // Synthetic data and stub navigation; no forum requests or persistence.
       // Run: npm run dev -- --port 5173
       import { createApp } from "vue";
+      import { mountBoardDensity } from "./board-density.prototype.js";
       import ReaderFeedback from "./ReaderFeedback.prototype.vue";
       import readerStyles from "./reader-feedback.prototype.css?inline";
       import workspaceStyles from "../styles.css?inline";
@@ -183,7 +184,9 @@
         savedListScroll = list.scrollTop;
         const top = list.getBoundingClientRect().top;
         const row = [...root.querySelectorAll(".sample-row")].find(
-          (item) => item.getBoundingClientRect().bottom > top,
+          (item) =>
+            item.getClientRects().length &&
+            item.getBoundingClientRect().bottom > top,
         );
         savedAnchor = row
           ? { id: row.id, offset: row.getBoundingClientRect().top - top }
@@ -233,10 +236,12 @@
               list.getBoundingClientRect().top -
               savedAnchor.offset;
         }
-        if (prior)
-          root
-            .querySelector(`[data-open="${prior.id}"]`)
-            .focus({ preventScroll: true });
+        if (prior) {
+          const priorButton = root.querySelector(`[data-open="${prior.id}"]`);
+          (priorButton?.getClientRects().length ? priorButton : list).focus({
+            preventScroll: true,
+          });
+        }
         state();
       }
       root.addEventListener("click", (event) => {
@@ -269,8 +274,9 @@
       root.querySelector("#larger-text").addEventListener("change", (event) => {
         const first = [...root.querySelectorAll(".sample-row")].find(
           (row) =>
+            row.getClientRects().length &&
             row.getBoundingClientRect().bottom >
-            list.getBoundingClientRect().top,
+              list.getBoundingClientRect().top,
         );
         const offset =
           first?.getBoundingClientRect().top - list.getBoundingClientRect().top;
@@ -288,6 +294,8 @@
       });
       state();
       const params = new URL(location.href).searchParams;
+      if (params.get("unit") === "board")
+        mountBoardDensity(root, threads, state);
       if (params.get("unit") === "reader") {
         const id = threads.some((row) => row.id === params.get("thread"))
           ? params.get("thread")
