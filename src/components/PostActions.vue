@@ -10,6 +10,7 @@ import {
 import type { Workspace } from "../workspace";
 import type { Post } from "../forum-client";
 import { strings, insert } from "../layouts/strings";
+import RatingDialog from "./RatingDialog.vue";
 import WorkspaceIcon from "./WorkspaceIcon.vue";
 const props = defineProps<{
   workspace: Workspace;
@@ -41,6 +42,18 @@ function openMenu(event: MouseEvent) {
     return;
   event.preventDefault();
   open.value = true;
+}
+function rate() {
+  const reading = props.workspace.state.value.reading;
+  if (!props.post.rateURL || reading?.account.kind !== "member") return;
+  void props.workspace.openRating({
+    url: props.post.rateURL,
+    threadURL: reading.thread.url,
+    threadId: props.threadId,
+    postId: props.post.id,
+    author: props.post.author,
+    accountId: reading.account.id,
+  });
 }
 function reply() {
   if (!props.boardId) return;
@@ -121,7 +134,15 @@ defineExpose({ openMenu, emptyDoubleClick });
           >{{ text.onlyPostAuthor }} ·
           {{ text.postFilterUnavailable }}</DropdownMenuItem
         >
-        <DropdownMenuItem disabled
+        <DropdownMenuItem
+          v-if="
+            post.rateURL &&
+            workspace.state.value.reading?.account.kind === 'member'
+          "
+          @select="rate"
+          >{{ text.postRate }}</DropdownMenuItem
+        >
+        <DropdownMenuItem v-else disabled
           >{{ text.postRate }} ·
           {{ text.postActionUnavailable }}</DropdownMenuItem
         >
@@ -132,4 +153,15 @@ defineExpose({ openMenu, emptyDoubleClick });
       </DropdownMenuContent>
     </DropdownMenuPortal>
   </DropdownMenuRoot>
+  <RatingDialog
+    :workspace="workspace"
+    :portal="portal"
+    :post-id="post.id"
+    @close-auto-focus="
+      (event) => {
+        event.preventDefault();
+        trigger?.$el.focus({ preventScroll: true });
+      }
+    "
+  />
 </template>

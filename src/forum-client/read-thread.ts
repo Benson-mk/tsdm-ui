@@ -23,6 +23,43 @@ import type {
   ThreadHistory,
   Thread,
 } from "./types.js";
+function nativeRateURL(
+  wrapper: Node,
+  body: Node,
+  base: string,
+  tid: string,
+  pid: string,
+): string | undefined {
+  const authored = new Set([body, ...descendants(body, () => true)]);
+  const controls = descendants(
+    wrapper,
+    (n) => hasClass(n, "pob") && !authored.has(n),
+  );
+  const urls = controls.flatMap((control) =>
+    descendants(control, (n) => n.tagName === "a").flatMap((a) => {
+      const match =
+        /^showWindow\('rate',\s*'([^']+)',\s*'get',\s*-1\);return false;?$/.exec(
+          attr(a, "onclick"),
+        );
+      const value = match && safeURL(match[1]!, base);
+      if (!value) return [];
+      const u = new URL(value);
+      return u.origin === new URL(base).origin &&
+        u.pathname === "/forum.php" &&
+        u.searchParams.get("mod") === "misc" &&
+        u.searchParams.get("action") === "rate" &&
+        u.searchParams.get("tid") === tid &&
+        u.searchParams.get("pid") === pid &&
+        [...u.searchParams.keys()].length === 4 &&
+        [...u.searchParams.keys()].every((key) =>
+          ["mod", "action", "tid", "pid"].includes(key),
+        )
+        ? [u.href]
+        : [];
+    }),
+  );
+  return urls.length === 1 ? urls[0] : undefined;
+}
 const positive = (value: string | null): value is string =>
   value !== null && /^[1-9]\d*$/.test(value);
 function outsidePosts(node: Node): boolean {
@@ -493,9 +530,17 @@ export function decodeThread(
     const authorURL = author
       ? safeURL(attr(author, "href"), response.url)
       : null;
+    const rateURL = nativeRateURL(
+      wrapper,
+      body,
+      response.url,
+      requested.searchParams.get("tid")!,
+      id,
+    );
     return {
       id,
       attachments: profile.attachments,
+      ...(rateURL ? { rateURL } : {}),
       ...(descendants(
         body,
         (n) =>

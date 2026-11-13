@@ -122,6 +122,7 @@ export type ContentNode =
       children: readonly ContentNode[];
     };
 export interface Post {
+  rateURL?: string;
   redPacketThreadId?: string;
   id: string;
   author: string;
@@ -427,6 +428,8 @@ export type AttachmentRemovalResult = {
   latest?: PreparedWriting;
 };
 export interface ForumClient {
+  prepareRating(target: RatingTarget): Promise<RatingPreparation>;
+  submitRating(form: RatingForm, intent: RatingIntent): Promise<RatingResult>;
   sendPrivateMessage(
     review: PrivateReview,
     attempt: PrivateAttempt,
@@ -868,3 +871,43 @@ export type FavoritePreparation =
   | { kind: "ready"; command: FavoriteCommand }
   | { kind: "already"; message: string; pages: Favorites[] }
   | { kind: "unavailable"; message: string };
+
+/** Current native rating controls; opaque authority is kept inside the client. */
+export interface RatingTarget {
+  url: string;
+  threadURL: string;
+  threadId: string;
+  postId: string;
+  author: string;
+  accountId: string;
+}
+export interface RatingForm {
+  reasons: string[];
+  id: string;
+  target: RatingTarget;
+  scores: {
+    name: string;
+    label: string;
+    minimum: number;
+    maximum: number;
+    remaining: number;
+  }[];
+  notify: boolean;
+  notice: string;
+  generation: number;
+}
+export type RatingPreparation =
+  | { kind: "ready"; form: RatingForm }
+  | { kind: "unavailable"; message: string };
+
+export interface RatingIntent {
+  scores: Record<string, number>;
+  reason: string;
+  notify: boolean;
+}
+export interface RatingResult {
+  kind: "confirmed" | "rejected" | "uncertain" | "not-sent";
+  message: string;
+  intent: RatingIntent;
+  target: RatingTarget;
+}

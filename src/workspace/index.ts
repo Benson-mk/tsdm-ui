@@ -11,6 +11,10 @@ import {
   type ForumClient,
   type ReadResult,
   type DraftListResult,
+  type RatingTarget,
+  type RatingIntent,
+  type RatingResult,
+  type RatingPreparation,
 } from "../forum-client";
 import type {
   NavigationEntry,
@@ -69,6 +73,35 @@ export function createWorkspace(
   preferenceHost: PreferenceHost,
   downloads?: DownloadHost,
 ) {
+  const rating = shallowRef<{
+    target: RatingTarget;
+    loading: boolean;
+    preparation: RatingPreparation | null;
+    result: RatingResult | null;
+  } | null>(null);
+  let ratingSequence = 0;
+  async function openRating(target: RatingTarget) {
+    const current = ++ratingSequence;
+    rating.value = { target, loading: true, preparation: null, result: null };
+    const preparation = await client.prepareRating(target);
+    if (current === ratingSequence)
+      rating.value = { target, loading: false, preparation, result: null };
+  }
+  async function submitRating(intent: RatingIntent) {
+    const prior = rating.value;
+    if (
+      !prior ||
+      prior.loading ||
+      prior.result ||
+      prior.preparation?.kind !== "ready"
+    )
+      return;
+    rating.value = { ...prior, loading: true };
+    const current = ratingSequence;
+    const result = await client.submitRating(prior.preparation.form, intent);
+    if (current === ratingSequence)
+      rating.value = { ...prior, loading: false, result };
+  }
   const preferences = createPreferences(preferenceHost);
   // Latest accepted account observation, distinct from retained public results.
   // Null means no fresh observation yet (e.g. restored page-session state).
@@ -1678,6 +1711,15 @@ export function createWorkspace(
     void persist();
   }
   return {
+    rating: readonly(rating),
+    openRating,
+    submitRating,
+    closeRating: () => {
+      if (rating.value?.loading && rating.value.preparation?.kind === "ready")
+        return;
+      ratingSequence++;
+      rating.value = null;
+    },
     preferences,
     saveReadingPosition: () => {
       if (

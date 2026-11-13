@@ -1,5 +1,22 @@
 import type { Preferences } from "../workspace/preferences";
 const english = {
+  ratingTitle: "Rate post {value}",
+  ratingDescription:
+    "{author} · Thread {thread} · Post {post}. Rating changes this post’s forum scores and uses your daily rating allowance.",
+  ratingActor: "Rating as member {value}",
+  ratingChecking: "Checking current rating choices…",
+  ratingSubmitting: "Submitting this rating once…",
+  ratingReason: "Reason (optional)",
+  ratingSuggested: "Suggested reason",
+  ratingChoose: "Choose a suggested reason",
+  ratingNotify: "Notify the post author",
+  ratingSubmit: "Submit rating",
+  ratingRange: "{min} to {max}; {remaining} remaining today",
+  ratingConfirmed: "Rating confirmed by a fresh forum rating log.",
+  ratingUncertain:
+    "Rating result uncertain. The forum may have applied it. Check the native rating log; this rating will not be retried.",
+  ratingRejected: "Rating rejected: ",
+
   moreThreadOptions: "More thread options",
   threadOptions: "Thread options",
   pageAndOptions: "Page and thread options",
@@ -508,6 +525,23 @@ const english = {
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
+  ratingTitle: "为帖子 {value} 评分",
+  ratingDescription:
+    "{author} · 主题 {thread} · 帖子 {post}。评分将修改帖子的论坛积分并使用今日评分额度。",
+  ratingActor: "评分账户：{value}",
+  ratingChecking: "正在检查当前评分选项…",
+  ratingSubmitting: "正在提交本次评分，不会重复发送…",
+  ratingReason: "理由（可选）",
+  ratingSuggested: "可选评分理由",
+  ratingChoose: "选择评分理由",
+  ratingNotify: "通知帖子作者",
+  ratingSubmit: "提交评分",
+  ratingRange: "{min} 至 {max}；今日剩余 {remaining}",
+  ratingConfirmed: "已通过最新论坛评分记录确认评分。",
+  ratingUncertain:
+    "评分结果不确定，论坛可能已接受。请查看原版评分记录；本次评分不会重试。",
+  ratingRejected: "评分被拒绝：",
+
   moreThreadOptions: "更多主题选项",
   threadOptions: "主题选项",
   pageAndOptions: "分页和主题选项",
@@ -986,6 +1020,23 @@ const simplified: Strings = {
     "无法读取浏览器页面会话存储。当前内容仍可使用；刷新恢复不可用。",
 };
 const traditional: Strings = {
+  ratingTitle: "為帖子 {value} 評分",
+  ratingDescription:
+    "{author} · 主題 {thread} · 帖子 {post}。評分將修改帖子的論壇積分並使用今日評分額度。",
+  ratingActor: "評分帳戶：{value}",
+  ratingChecking: "正在檢查目前評分選項…",
+  ratingSubmitting: "正在提交本次評分，不會重複發送…",
+  ratingReason: "理由（可選）",
+  ratingSuggested: "可選評分理由",
+  ratingChoose: "選擇評分理由",
+  ratingNotify: "通知帖子作者",
+  ratingSubmit: "提交評分",
+  ratingRange: "{min} 至 {max}；今日剩餘 {remaining}",
+  ratingConfirmed: "已透過最新論壇評分記錄確認評分。",
+  ratingUncertain:
+    "評分結果不確定，論壇可能已接受。請查看原版評分記錄；本次評分不會重試。",
+  ratingRejected: "評分被拒絕：",
+
   moreThreadOptions: "更多主題選項",
   threadOptions: "主題選項",
   pageAndOptions: "分頁與主題選項",
