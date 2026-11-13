@@ -391,7 +391,10 @@ test("UI85.native-escape: native document handling cannot strand Page or More an
   await page.keyboard.press("Escape");
   await expect(page.getByRole("menu", { name: "Thread options" })).toBeHidden();
   await expect(more).toBeFocused();
-  const pager = page.getByRole("button", { name: "Page 1", exact: true });
+  const pager = page.getByRole("button", {
+    name: "Page 1 / unknown",
+    exact: true,
+  });
   await pager.click();
   await page.keyboard.press("Escape");
   await expect(
@@ -733,3 +736,37 @@ for (const revision of ["changed-text", "missing-post"]) {
     expect(requests.every((r) => r.startsWith("GET "))).toBe(true);
   });
 }
+
+test("UX100.writing: pending page choices and explicit Go preserve the real editor without publishing", async ({
+  page,
+}, info) => {
+  const requests = await open(page);
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill("Preserve page jump 中文 [b]writing[/b]");
+  const before = await source.inputValue();
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  const trigger = page.locator(".reader-page-trigger");
+  const dialog = page.getByRole("dialog", {
+    name: "Thread pages",
+    exact: true,
+  });
+  await trigger.click();
+  await dialog.getByRole("spinbutton").fill("2");
+  expect(requests).toHaveLength(2);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(trigger).toBeFocused();
+  await expect(source).toHaveValue(before);
+  await trigger.click();
+  await dialog.getByRole("spinbutton").fill("2");
+  await dialog.getByRole("button", { name: "Go", exact: true }).click();
+  await expect(trigger).toHaveText("Page 2 / unknown");
+  await expect(source).toHaveValue(before);
+  expect(requests).toHaveLength(3);
+  expect(requests.every((request) => request.startsWith("GET "))).toBe(true);
+  await artifact(page, info, requests);
+});

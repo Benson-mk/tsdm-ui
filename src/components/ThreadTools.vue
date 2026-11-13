@@ -50,6 +50,10 @@ const currentPage = computed(
 const currentURL = computed(() => props.position?.url ?? props.thread.url);
 const history = props.workspace.threadHistory.state;
 const jump = computed(() => props.thread.pageJump);
+const pageLabel = computed(
+  () =>
+    `${text.value.page} ${currentPage.value} / ${jump.value?.total ?? text.value.unknown}`,
+);
 const pageTargets = computed(() => {
   const source = new URL(props.thread.url);
   const targets = new Map<number, string>();
@@ -175,10 +179,10 @@ function overlayClick() {
           class="reader-page-trigger"
           :aria-label="
             position?.terminal
-              ? `${text.page} ${currentPage} · ${text.threadTerminal}`
+              ? `${pageLabel} · ${text.threadTerminal}`
               : undefined
           "
-          >{{ text.page }} {{ currentPage }}</DialogTrigger
+          >{{ pageLabel }}</DialogTrigger
         >
         <DialogPortal :to="portal">
           <DialogOverlay
@@ -198,7 +202,7 @@ function overlayClick() {
           >
             <DialogTitle>{{ text.threadPages }}</DialogTitle>
             <DialogDescription>{{ text.supportedPages }}</DialogDescription>
-            <p>{{ text.page }} {{ currentPage }}</p>
+            <p>{{ pageLabel }}</p>
             <form @submit.prevent="confirmPage">
               <label
                 >{{ text.page }}

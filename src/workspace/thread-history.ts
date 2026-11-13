@@ -386,11 +386,23 @@ export function createThreadHistory(
     for (const post of incoming)
       if (direction === "later" || !postPages.has(post.id))
         postPages.set(post.id, result.thread.url);
+    const loadedThread = {
+      ...prior.thread,
+      posts: sourceOrdered(posts, prior),
+    };
+    if (
+      result.thread.pageJump &&
+      [...membership.keys()].every(
+        (page) => Number(page) <= (result.thread.pageJump?.total ?? 0),
+      )
+    )
+      loadedThread.pageJump = result.thread.pageJump;
+    else delete loadedThread.pageJump;
     state.value = {
       ...state.value,
       result: {
         ...prior,
-        thread: { ...prior.thread, posts: sourceOrdered(posts, prior) },
+        thread: loadedThread,
       },
       [direction]: boundary(result.thread.history, direction),
       latest: result.thread.history?.latest?.url ?? state.value.latest,
@@ -658,10 +670,12 @@ export function createThreadHistory(
       posts: sourceOrdered(posts, prior),
     };
     // Bounds are observations, not permanent properties of a loaded range.
-    // A shrinking thread that no longer contains its entry page fails closed.
+    // A shrinking thread that no longer contains every retained source page fails closed.
     if (
       result.thread.pageJump &&
-      result.thread.pageJump.total >= Number(prior.thread.pages.current)
+      [...membership.keys()].every(
+        (page) => Number(page) <= (result.thread.pageJump?.total ?? 0),
+      )
     )
       refreshedThread.pageJump = result.thread.pageJump;
     else delete refreshedThread.pageJump;
