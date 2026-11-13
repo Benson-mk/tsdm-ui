@@ -9,6 +9,8 @@ import {
   watch,
 } from "vue";
 import ComposerEditor from "./ComposerEditor.prototype.vue";
+import ComposerIcon from "./ComposerIcon.prototype.vue";
+import WorkspaceIcon from "../components/WorkspaceIcon.vue";
 import {
   copy,
   emptyDraft,
@@ -508,7 +510,7 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
         :aria-label="`Reply · ${item.status}`"
       >
         <small v-if="item.draft.target"
-          >↳ {{ item.draft.target.author }} · #{{
+          ><ComposerIcon name="reply" /> {{ item.draft.target.author }} · #{{
             item.draft.target.floor
           }}</small
         >
@@ -547,6 +549,7 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
       ><button @click="returnToDraft">Back to draft</button>
     </div>
     <div v-if="draft.target" class="cf-target">
+      <ComposerIcon name="reply" />
       <div>
         <strong
           >Reply to {{ draft.target.author }} · #{{
@@ -561,14 +564,14 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
         :disabled="composing"
         @click="quoteTarget"
       >
-        ❞
+        <ComposerIcon name="quote" />
       </button>
       <button
         aria-label="Remove reply target"
         :disabled="composing"
         @click="removeTarget"
       >
-        ×
+        <ComposerIcon name="close" />
       </button>
     </div>
     <div v-if="conflicts.length > 1" class="cf-notice cf-warning">
@@ -592,9 +595,7 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
           'cf-file-unavailable': !file.available || file.owner !== account,
         }"
       >
-        <span class="cf-file-icon" aria-hidden="true">{{
-          file.kind === "photo" ? "▧" : "▤"
-        }}</span>
+        <ComposerIcon :name="file.kind === 'photo' ? 'image' : 'attachment'" />
         <div>
           <strong>{{ file.name }}</strong
           ><small v-if="!file.available || file.owner !== account"
@@ -611,7 +612,7 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
           :aria-label="`Remove ${file.name}`"
           @click="removeAttachment(file.id)"
         >
-          ×
+          <ComposerIcon name="close" />
         </button>
       </div>
     </div>
@@ -630,6 +631,7 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
         <button
           class="cf-expand"
           :aria-label="expanded ? 'Collapse composer' : 'Expand composer'"
+          :aria-expanded="expanded"
           :title="expanded ? 'Collapse' : 'Expand'"
           :disabled="composing"
           @click="
@@ -637,7 +639,7 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
             focus();
           "
         >
-          {{ expanded ? "↙" : "↗" }}
+          <WorkspaceIcon :name="expanded ? 'compact' : 'expand'" />
         </button>
       </div>
       <div class="cf-actions">
@@ -649,7 +651,7 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
             :disabled="composing"
             @click="toolsOpen = !toolsOpen"
           >
-            ＋
+            <ComposerIcon name="plus" />
           </button>
           <div
             v-if="toolsOpen"
@@ -662,15 +664,21 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
             "
           >
             <button @click="tool('attachments')">
-              ▧ <span>Image or attachment</span>
+              <ComposerIcon name="attachment" /><span>Image or attachment</span>
             </button>
-            <button @click="tool('emoji')">☺ <span>Emoji</span></button>
-            <button @click="tool('format')">Aa <span>Formatting</span></button>
+            <button @click="tool('emoji')">
+              <ComposerIcon name="emoji" /><span>Emoji</span>
+            </button>
+            <button @click="tool('format')">
+              <ComposerIcon name="format" /><span>Formatting</span>
+            </button>
             <button @click="tool('source')">
-              &lt;/&gt;
+              <ComposerIcon name="source" />
               <span>{{ sourceMode ? "Visual editor" : "BBCode source" }}</span>
             </button>
-            <button @click="tool('preview')">◉ <span>Preview</span></button>
+            <button @click="tool('preview')">
+              <ComposerIcon name="preview" /><span>Preview</span>
+            </button>
           </div>
         </div>
         <span class="cf-key-hint">{{
@@ -684,7 +692,7 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
           aria-label="Send reply"
           @click="send"
         >
-          Send <span aria-hidden="true">↑</span>
+          Send <ComposerIcon name="send" />
         </button>
       </div>
     </div>
@@ -701,7 +709,9 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
   >
     <header>
       <h2 id="cf-sheet-title">{{ sheetTitles[sheetKind] }}</h2>
-      <button aria-label="Close composer dialog" @click="closeSheet">×</button>
+      <button aria-label="Close composer dialog" @click="closeSheet">
+        <ComposerIcon name="close" />
+      </button>
     </header>
     <template v-if="sheetKind === 'preview'"
       ><p v-if="draft.target">

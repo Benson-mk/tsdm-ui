@@ -1,8 +1,10 @@
 /* Throwaway composer unit; no production selectors or behavior overrides. */
 .cf-composer {
   flex: none;
-  padding: 12px 24px 16px;
-  border-top: 1px solid var(--separator);
+  padding: 12px 24px;
+  box-shadow: 0 -4px 16px rgb(0 0 0 / 6%);
+  position: relative;
+  z-index: 1;
   background: var(--surface);
   max-height: 65%;
   display: flex;
@@ -16,37 +18,37 @@
   font: inherit;
 }
 .cf-input-shell {
-  border: 1px solid var(--separator);
-  border-radius: 14px;
-  background: var(--soft);
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
-.cf-input-shell:focus-within {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 1px var(--ink);
-}
 .cf-input-body {
+  border: 1px solid var(--boundary);
+  border-radius: 8px;
+  background: var(--surface);
   display: flex;
   min-height: 0;
   align-items: flex-start;
+}
+.cf-input-body:has(.ProseMirror:focus, textarea:focus) {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
 }
 .cf-input-body > .cf-editor {
   flex: 1;
   min-width: 0;
   overflow: auto;
   max-height: 148px;
-  padding: 12px 8px 0 14px;
+  padding: 12px 8px 12px 14px;
 }
 .cf-expand {
   flex: none;
   margin: 4px 4px 0 0;
   color: var(--muted);
-  font-size: 21px !important;
 }
 .cf-editor .ProseMirror {
   outline: none;
+  box-shadow: none;
   min-height: 26px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -81,6 +83,7 @@
   padding: 0;
   border: 0;
   outline: none;
+  box-shadow: none;
   border-radius: 0;
   background: transparent;
   color: inherit;
@@ -107,46 +110,39 @@
 .cf-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 6px 6px;
+  gap: 8px;
+  padding: 8px 0 0;
 }
 .cf-plus-wrap {
   position: relative;
 }
 .cf-plus {
-  font-size: 24px !important;
+  padding: 12px;
 }
 .cf-key-hint {
   flex: 1;
   color: var(--muted);
-  font-size: 11px;
+  font-size: calc(12px * var(--text-scale));
   line-height: 1.4;
-  padding-inline: 4px;
 }
 .cf-send {
-  border-radius: 10px;
-  padding: 8px 12px;
+  border-radius: 50px;
+  padding: 10px 20px;
   background: var(--ink);
   color: var(--surface);
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.cf-send:disabled {
-  opacity: 0.38;
-}
-.cf-send span {
-  font-size: 20px;
-}
 .cf-tools {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 0;
-  width: 238px;
+  width: 256px;
   max-width: calc(100vw - 48px);
   border: 1px solid var(--separator);
-  padding: 6px;
-  border-radius: 12px;
+  padding: 4px;
+  border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--floating-shadow);
   z-index: 50;
@@ -158,24 +154,27 @@
   width: 100%;
   text-align: left;
   padding: 8px 12px;
+  border-radius: 4px;
 }
 .cf-target {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 10px;
-  border-left: 3px solid var(--ink);
-  padding-left: 12px;
+  gap: 8px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  padding: 4px 4px 4px 12px;
+  background: var(--group-surface, var(--accent));
 }
 .cf-target > div {
   min-width: 0;
   flex: 1;
 }
 .cf-target strong {
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale));
+  font-weight: 540;
 }
 .cf-target p {
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale));
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -208,7 +207,7 @@
   text-decoration: underline;
 }
 .cf-warning {
-  color: #8b420e;
+  color: var(--ink);
   font-size: 12px;
 }
 .cf-inline-status {
@@ -221,7 +220,7 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  padding-bottom: 10px;
+  padding-bottom: 12px;
   max-height: 116px;
   overflow: auto;
   flex: none;
@@ -231,10 +230,10 @@
   align-items: center;
   gap: 8px;
   border: 1px solid var(--separator);
-  border-radius: 10px;
-  padding: 4px 4px 4px 10px;
+  border-radius: 8px;
+  padding: 4px 4px 4px 12px;
   max-width: 100%;
-  background: var(--soft);
+  background: var(--surface);
 }
 .cf-file > div {
   min-width: 0;
@@ -249,14 +248,12 @@
   color: var(--muted);
   font-size: 11px;
 }
-.cf-file-icon {
-  font-size: 22px;
-}
 .cf-file-unavailable {
-  border-color: #b46b27;
+  border-color: var(--boundary);
+  border-style: dashed;
 }
 .cf-file-unavailable small {
-  color: #8b420e;
+  color: var(--ink);
 }
 .cf-file button {
   font-size: 12px;
@@ -265,19 +262,24 @@
   padding: 4px 0 20px;
 }
 .cf-attempt {
-  padding: 16px;
-  margin: 12px 0 12px 24px;
-  border: 1px solid var(--separator);
-  border-radius: 14px 14px 4px 14px;
-  background: var(--soft);
+  padding: 16px 0;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--separator);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--surface);
   overflow-wrap: anywhere;
 }
 .cf-attempt[data-status="failed"],
 .cf-attempt[data-status="unknown"] {
-  border-color: #b46b27;
+  border-bottom-color: var(--boundary);
+  border-bottom-style: dashed;
 }
 .cf-attempt > small {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
   color: var(--muted);
 }
@@ -302,15 +304,16 @@
   width: min(480px, calc(100vw - 32px));
   max-height: calc(100dvh - 40px);
   overflow: auto;
-  border: 1px solid var(--separator);
-  border-radius: 16px;
-  padding: 20px;
+  border: 0;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--modal-shadow);
   color: var(--ink);
   background: var(--surface);
   font-size: calc(14px * var(--text-scale));
 }
 .cf-sheet::backdrop {
-  background: rgb(0 0 0 / 25%);
+  background: rgb(0 0 0 / 60%);
 }
 .cf-sheet > header {
   display: flex;
@@ -327,7 +330,7 @@
   line-height: 1.6;
 }
 .cf-sheet button {
-  border-radius: 8px;
+  border-radius: 50px;
   padding: 8px 12px;
 }
 .cf-caption {
@@ -348,7 +351,11 @@
 }
 .cf-format-tools input {
   min-height: 44px;
-  padding: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--boundary);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--surface);
   font: inherit;
   max-width: 100%;
 }
@@ -402,8 +409,8 @@
   color: var(--surface);
 }
 .cf-draft-tag {
-  color: #96501f;
-  font-weight: 600;
+  color: var(--muted);
+  font-weight: 540;
 }
 .composer-unit #preview-state {
   display: none;
@@ -417,10 +424,7 @@
 }
 @media (max-width: 767px) {
   .cf-composer {
-    padding: 10px 12px 12px;
-  }
-  .cf-key-hint {
-    font-size: 10px;
+    padding: 12px;
   }
   .cf-expanded .cf-input-body > .cf-editor,
   .cf-expanded .cf-editor textarea {
@@ -430,9 +434,6 @@
   .cf-sheet {
     padding: 16px;
   }
-  .cf-attempt {
-    margin-left: 12px;
-  }
   .composer-unit .prototype-tools strong {
     flex-basis: 100%;
     font-size: 11px;
@@ -441,9 +442,6 @@
 .cf-composer .cf-send:not(:disabled) {
   background: var(--ink);
   color: var(--surface);
-}
-.cf-composer .cf-send:disabled {
-  opacity: 0.4;
 }
 .cf-composer .cf-expand {
   padding: 8px;
@@ -456,7 +454,4 @@
   right: 0;
   top: 16px;
   font-size: 12px;
-}
-.cf-key-hint {
-  font-size: calc(11px * var(--text-scale));
 }

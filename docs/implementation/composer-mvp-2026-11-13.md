@@ -5,6 +5,10 @@ Branch: `feat/improve-ui-ux`. The owner confirmed the consolidated
 interactive unit for visual approval; production integration and GitHub ticket
 publication remain later work.
 
+The owner subsequently rejected the visual match with the existing forum IM.
+See [the visual correction and its evidence](composer-style-feedback-2026-11-13.md).
+The revised MVP still awaits owner visual approval.
+
 ## Plan and feasibility before implementation
 
 Use the prototype skill's existing-page UI approach at
