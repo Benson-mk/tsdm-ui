@@ -110,3 +110,9 @@ const sourcedDirectoryGroup: Frontier.Directory["groups"][number] = { title: "So
 const optionalSourceId: string | undefined = legacyDirectoryGroup.sourceId;
 const optionalSourceURL: string | undefined = sourcedDirectoryGroup.sourceURL;
 void [optionalSourceId, optionalSourceURL];
+
+import type { ReportTarget, ReportForm, ReportPreparation, ReportIntent, ReportResult } from '@tsdm/forum-client';
+const prepareReport: (target: ReportTarget) => Promise<ReportPreparation> = client.prepareReport;
+const submitReport: (form: ReportForm, intent: ReportIntent) => Promise<ReportResult> = client.submitReport;
+const reportOutcomes: Record<ReportResult['kind'], string> = { rejected: 'refused', uncertain: 'unknown', 'not-sent': 'no request' };
+void [prepareReport, submitReport, reportOutcomes];

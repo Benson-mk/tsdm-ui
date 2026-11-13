@@ -3176,3 +3176,42 @@ input {
   width: 20px;
   height: 20px;
 }
+
+.report-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.report-dialog fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.report-dialog label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  margin-block: 8px;
+}
+.report-dialog input[type="radio"] {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+}
+.report-dialog label:has(textarea) {
+  display: grid;
+}
+.report-dialog textarea {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  min-height: 100px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--boundary);
+  border-radius: 8px;
+  padding: 8px;
+}

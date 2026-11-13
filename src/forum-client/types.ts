@@ -123,6 +123,7 @@ export type ContentNode =
     };
 export interface Post {
   rateURL?: string;
+  reportURL?: string;
   redPacketThreadId?: string;
   id: string;
   author: string;
@@ -428,6 +429,8 @@ export type AttachmentRemovalResult = {
   latest?: PreparedWriting;
 };
 export interface ForumClient {
+  prepareReport(target: ReportTarget): Promise<ReportPreparation>;
+  submitReport(form: ReportForm, intent: ReportIntent): Promise<ReportResult>;
   prepareRating(target: RatingTarget): Promise<RatingPreparation>;
   submitRating(form: RatingForm, intent: RatingIntent): Promise<RatingResult>;
   sendPrivateMessage(
@@ -910,4 +913,37 @@ export interface RatingResult {
   message: string;
   intent: RatingIntent;
   target: RatingTarget;
+}
+
+/** Source-qualified post reporting; authority tokens remain inside the client. */
+export interface ReportTarget {
+  url: string;
+  threadURL: string;
+  threadId: string;
+  postId: string;
+  boardId: string;
+  author: string;
+  accountId: string;
+}
+export interface ReportForm {
+  id: string;
+  target: ReportTarget;
+  reasons: string[];
+  maximum: number;
+  generation: number;
+}
+export type ReportPreparation =
+  | { kind: "ready"; form: ReportForm }
+  | { kind: "unavailable"; message: string };
+
+export interface ReportIntent {
+  reason: string;
+  message: string;
+}
+/** No confirmed variant until an independent report-status source is qualified. */
+export interface ReportResult {
+  kind: "rejected" | "uncertain" | "not-sent";
+  message: string;
+  intent: ReportIntent;
+  target: ReportTarget;
 }

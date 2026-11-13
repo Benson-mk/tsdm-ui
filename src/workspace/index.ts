@@ -11,6 +11,10 @@ import {
   type ForumClient,
   type ReadResult,
   type DraftListResult,
+  type ReportIntent,
+  type ReportResult,
+  type ReportTarget,
+  type ReportPreparation,
   type RatingTarget,
   type RatingIntent,
   type RatingResult,
@@ -73,6 +77,35 @@ export function createWorkspace(
   preferenceHost: PreferenceHost,
   downloads?: DownloadHost,
 ) {
+  const report = shallowRef<{
+    target: ReportTarget;
+    loading: boolean;
+    preparation: ReportPreparation | null;
+    result: ReportResult | null;
+  } | null>(null);
+  let reportSequence = 0;
+  async function openReport(target: ReportTarget) {
+    const current = ++reportSequence;
+    report.value = { target, loading: true, preparation: null, result: null };
+    const preparation = await client.prepareReport(target);
+    if (current === reportSequence)
+      report.value = { target, loading: false, preparation, result: null };
+  }
+  async function submitReport(intent: ReportIntent) {
+    const prior = report.value;
+    if (
+      !prior ||
+      prior.loading ||
+      prior.result ||
+      prior.preparation?.kind !== "ready"
+    )
+      return;
+    report.value = { ...prior, loading: true };
+    const current = reportSequence;
+    const result = await client.submitReport(prior.preparation.form, intent);
+    if (current === reportSequence)
+      report.value = { ...prior, loading: false, result };
+  }
   const rating = shallowRef<{
     target: RatingTarget;
     loading: boolean;
@@ -1711,6 +1744,15 @@ export function createWorkspace(
     void persist();
   }
   return {
+    report: readonly(report),
+    openReport,
+    submitReport,
+    closeReport: () => {
+      if (report.value?.loading && report.value.preparation?.kind === "ready")
+        return;
+      reportSequence++;
+      report.value = null;
+    },
     rating: readonly(rating),
     openRating,
     submitRating,

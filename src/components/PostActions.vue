@@ -10,6 +10,7 @@ import {
 import type { Workspace } from "../workspace";
 import type { Post } from "../forum-client";
 import { strings, insert } from "../layouts/strings";
+import ReportDialog from "./ReportDialog.vue";
 import RatingDialog from "./RatingDialog.vue";
 import WorkspaceIcon from "./WorkspaceIcon.vue";
 const props = defineProps<{
@@ -42,6 +43,24 @@ function openMenu(event: MouseEvent) {
     return;
   event.preventDefault();
   open.value = true;
+}
+function report() {
+  const reading = props.workspace.state.value.reading;
+  if (
+    !props.post.reportURL ||
+    reading?.account.kind !== "member" ||
+    !props.boardId
+  )
+    return;
+  void props.workspace.openReport({
+    url: props.post.reportURL,
+    threadURL: reading.thread.url,
+    threadId: props.threadId,
+    postId: props.post.id,
+    boardId: props.boardId,
+    author: props.post.author,
+    accountId: reading.account.id,
+  });
 }
 function rate() {
   const reading = props.workspace.state.value.reading;
@@ -146,13 +165,33 @@ defineExpose({ openMenu, emptyDoubleClick });
           >{{ text.postRate }} ·
           {{ text.postActionUnavailable }}</DropdownMenuItem
         >
-        <DropdownMenuItem disabled
+        <DropdownMenuItem
+          v-if="
+            post.reportURL &&
+            boardId &&
+            workspace.state.value.reading?.account.kind === 'member'
+          "
+          @select="report"
+          >{{ text.postReport }}</DropdownMenuItem
+        >
+        <DropdownMenuItem v-else disabled
           >{{ text.postReport }} ·
-          {{ text.postActionUnavailable }}</DropdownMenuItem
+          {{ text.postReportUnverified }}</DropdownMenuItem
         >
       </DropdownMenuContent>
     </DropdownMenuPortal>
   </DropdownMenuRoot>
+  <ReportDialog
+    :workspace="workspace"
+    :portal="portal"
+    :post-id="post.id"
+    @close-auto-focus="
+      (event) => {
+        event.preventDefault();
+        trigger?.$el.focus({ preventScroll: true });
+      }
+    "
+  />
   <RatingDialog
     :workspace="workspace"
     :portal="portal"

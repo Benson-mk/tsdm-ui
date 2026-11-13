@@ -101,7 +101,7 @@ try {
   const source =
     `import assert from 'node:assert/strict';
 import { createForumClient, FORUM_CLIENT_VERSION, unresolvedWritingAttachments } from '@tsdm/forum-client';
-assert.equal(FORUM_CLIENT_VERSION, '0.23.0');
+assert.equal(FORUM_CLIENT_VERSION, '0.24.0');
 const origin = 'https://fixture.example';
 const threadURL = origin + '/forum.php?mod=viewthread&tid=42';
 const attachmentURL = origin + '/forum.php?mod=attachment&aid=authored-token';
@@ -322,9 +322,9 @@ void [cancellation, transfer, removal];
       "utf8",
     ),
   );
-  if (installed.version !== "0.23.0")
+  if (installed.version !== "0.24.0")
     throw new Error(
-      "Expected the native board-controls public package version 0.23.0.",
+      "Expected the qualified report public package version 0.24.0.",
     );
   if (
     Object.keys(installed.dependencies ?? {}).length ||

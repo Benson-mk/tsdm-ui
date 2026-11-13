@@ -60,6 +60,45 @@ function nativeRateURL(
   );
   return urls.length === 1 ? urls[0] : undefined;
 }
+function nativeReportURL(
+  wrapper: Node,
+  body: Node,
+  base: string,
+  tid: string,
+  pid: string,
+): string | undefined {
+  const authored = new Set([body, ...descendants(body, () => true)]);
+  const controls = descendants(
+    wrapper,
+    (n) => hasClass(n, "pob") && !authored.has(n),
+  );
+  const urls = controls.flatMap((control) =>
+    descendants(control, (n) => n.tagName === "a").flatMap((a) => {
+      const match =
+        /^showWindow\('miscreport\d+',\s*'([^']+)',\s*'get',\s*-1\);return false;?$/.exec(
+          attr(a, "onclick"),
+        );
+      const value = match && safeURL(match[1]!, base);
+      if (!value) return [];
+      const u = new URL(value);
+      return u.origin === new URL(base).origin &&
+        u.pathname === "/misc.php" &&
+        u.searchParams.get("mod") === "report" &&
+        u.searchParams.get("rtype") === "post" &&
+        u.searchParams.get("tid") === tid &&
+        u.searchParams.get("rid") === pid &&
+        /^[1-9]\d*$/.test(u.searchParams.get("fid") ?? "") &&
+        attr(a, "onclick").startsWith(`showWindow('miscreport${pid}',`) &&
+        [...u.searchParams.keys()].length === 5 &&
+        [...u.searchParams.keys()].every((key) =>
+          ["mod", "rtype", "tid", "rid", "fid"].includes(key),
+        )
+        ? [u.href]
+        : [];
+    }),
+  );
+  return urls.length === 1 ? urls[0] : undefined;
+}
 const positive = (value: string | null): value is string =>
   value !== null && /^[1-9]\d*$/.test(value);
 function outsidePosts(node: Node): boolean {
@@ -537,8 +576,16 @@ export function decodeThread(
       requested.searchParams.get("tid")!,
       id,
     );
+    const reportURL = nativeReportURL(
+      wrapper,
+      body,
+      response.url,
+      requested.searchParams.get("tid")!,
+      id,
+    );
     return {
       id,
+      ...(reportURL ? { reportURL } : {}),
       attachments: profile.attachments,
       ...(rateURL ? { rateURL } : {}),
       ...(descendants(

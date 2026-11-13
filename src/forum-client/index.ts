@@ -1,3 +1,4 @@
+import { createReport } from "./report.js";
 import { createRating } from "./rating.js";
 import { decodePrivateConversation } from "./private-conversation.js";
 import {
@@ -57,7 +58,7 @@ export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
 import { createPrivateWriting } from "./private-writing.js";
-export const FORUM_CLIENT_VERSION = "0.23.0";
+export const FORUM_CLIENT_VERSION = "0.24.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -132,7 +133,19 @@ export function createForumClient(options: {
       }
     },
   });
+  const report = createReport({
+    ...options,
+    generation: () => generation,
+    observe: (observed) => {
+      if (actor(observed) !== actor(account)) {
+        account = observed;
+        generation++;
+      }
+    },
+  });
   return {
+    prepareReport: report.prepare,
+    submitReport: report.submit,
     prepareRating: rating.prepare,
     submitRating: rating.submit,
     sendPrivateMessage: privateWriting.send,

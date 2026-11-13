@@ -1,5 +1,16 @@
 import type { Preferences } from "../workspace/preferences";
 const english = {
+  reportSubmit: "Submit report",
+  reportSubmitting: "Submitting this report once…",
+  reportUncertain:
+    "Report result uncertain. Independent report status is unavailable. The forum may have received it; it will not be retried.",
+  reportRejected: "Report rejected: ",
+  postReportUnverified: "Availability not verified",
+  reportTitle: "Report post {value}",
+  reportDescription: "A report sends this post to forum moderators.",
+  reportChecking: "Checking current report choices…",
+  reportActor: "Reporting as member {value}",
+  reportContent: "Report content",
   ratingTitle: "Rate post {value}",
   ratingDescription:
     "{author} · Thread {thread} · Post {post}. Rating changes this post’s forum scores and uses your daily rating allowance.",
@@ -525,6 +536,17 @@ const english = {
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
+  reportSubmit: "提交举报",
+  reportSubmitting: "正在提交本次举报，不会重复发送…",
+  reportUncertain:
+    "举报结果不确定。无法独立查询举报状态，论坛可能已收到举报；不会重复发送。",
+  reportRejected: "举报被拒绝：",
+  postReportUnverified: "尚未确认举报可用性",
+  reportTitle: "举报帖子 {value}",
+  reportDescription: "举报会将此帖发送给论坛版主。",
+  reportChecking: "正在检查当前举报选项…",
+  reportActor: "举报账户：{value}",
+  reportContent: "举报内容",
   ratingTitle: "为帖子 {value} 评分",
   ratingDescription:
     "{author} · 主题 {thread} · 帖子 {post}。评分将修改帖子的论坛积分并使用今日评分额度。",
@@ -1020,6 +1042,17 @@ const simplified: Strings = {
     "无法读取浏览器页面会话存储。当前内容仍可使用；刷新恢复不可用。",
 };
 const traditional: Strings = {
+  reportSubmit: "提交舉報",
+  reportSubmitting: "正在提交本次舉報，不會重複發送…",
+  reportUncertain:
+    "舉報結果不確定。無法獨立查詢舉報狀態，論壇可能已收到舉報；不會重複發送。",
+  reportRejected: "舉報被拒絕：",
+  postReportUnverified: "尚未確認舉報可用性",
+  reportTitle: "舉報帖子 {value}",
+  reportDescription: "舉報會將此帖發送給論壇版主。",
+  reportChecking: "正在檢查目前舉報選項…",
+  reportActor: "舉報帳戶：{value}",
+  reportContent: "舉報內容",
   ratingTitle: "為帖子 {value} 評分",
   ratingDescription:
     "{author} · 主題 {thread} · 帖子 {post}。評分將修改帖子的論壇積分並使用今日評分額度。",
