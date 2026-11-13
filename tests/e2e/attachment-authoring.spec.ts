@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { writingDetailAction, writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
@@ -261,6 +262,7 @@ async function fixture(
       exact: true,
     })
     .click();
+  await selectSourceEditor(page);
   return state;
 }
 test("J8.edit-text: upload selected bytes, insert source, independently confirm saved association and preserve on resave", async ({

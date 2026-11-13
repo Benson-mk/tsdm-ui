@@ -5,6 +5,8 @@ import { computed, ref, watch, nextTick, type DeepReadonly } from "vue";
 import { attachmentText, attachmentFieldLabel } from "./attachment-text";
 import PrivateWritingContent from "./PrivateWritingContent.vue";
 import PostEditor from "./PostEditor.vue";
+import InertSourcePreview from "./InertSourcePreview.vue";
+import { editorText } from "./editor-strings";
 import WorkspaceIcon from "./WorkspaceIcon.vue";
 import WritingDestination from "./WritingDestination.vue";
 import PreparedPublication from "./PreparedPublication.vue";
@@ -23,6 +25,29 @@ const props = defineProps<{
 const emit = defineEmits<{ resize: [expanded: boolean] }>();
 const editor = ref<InstanceType<typeof PostEditor> | null>(null);
 const detailsOpen = ref(false);
+const toolsOpen = ref(false);
+const previewOpen = ref(false);
+const ordinaryReply = computed(() =>
+  ["reply", "quick-quote"].includes(ownerState.value.context?.action ?? ""),
+);
+const replyText = (value: string) =>
+  editorText(value, props.workspace.preferences.state.value.language);
+function toggleTools() {
+  if (props.workspace.writing.deferViewChange(toggleTools)) return;
+  if (props.expanded) {
+    editor.value?.focusTools();
+    return;
+  }
+  toolsOpen.value = !toolsOpen.value;
+  if (toolsOpen.value) editor.value?.focusTools();
+}
+function closeTools(event: KeyboardEvent) {
+  if (!ordinaryReply.value || !toolsOpen.value || event.key !== "Escape")
+    return;
+  event.preventDefault();
+  toolsOpen.value = false;
+  editor.value?.focus();
+}
 watch(
   () => props.expanded,
   () => editor.value?.focus(true),
@@ -320,16 +345,21 @@ function updateOption(option: WritingOption, event: Event) {
   <section
     v-if="ownerState.context"
     class="source-writing"
-    :class="{ 'writing-expanded': expanded }"
+    :class="{
+      'writing-expanded': expanded,
+      'reply-composer': ordinaryReply,
+      'reply-tools-open': toolsOpen,
+    }"
     :aria-label="text.writingContext"
     @keydown.capture="reviewShortcut"
+    @keydown="closeTools"
     @compositionstart="workspace.writing.startComposition()"
     @compositionend="workspace.writing.endComposition()"
   >
     <p v-if="state.compositionDeferred" role="status">
       {{ text.finishComposition }}
     </p>
-    <div class="writing-presentation-actions">
+    <div v-if="!ordinaryReply" class="writing-presentation-actions">
       <strong class="composer-caption"
         >{{
           ownerState.context.action === "private-message"
@@ -365,6 +395,7 @@ function updateOption(option: WritingOption, event: Event) {
     </div>
     <WritingDestination
       v-if="state.context"
+      :class="{ 'sr-only': ordinaryReply && !elsewhere }"
       :writing="state.context"
       :language="workspace.preferences.state.value.language"
       :category="category ?? 'neutral'"
@@ -372,12 +403,15 @@ function updateOption(option: WritingOption, event: Event) {
     />
     <div
       v-if="state.context?.replyTarget?.postId"
+      :data-category="category ?? 'neutral'"
       class="reply-target-strip"
       role="group"
       :aria-label="text.replyTarget"
     >
       <div>
-        <strong>{{ state.context.replyTarget.author }}</strong>
+        <strong :title="state.context.replyTarget.author">{{
+          state.context.replyTarget.author
+        }}</strong>
         <p>{{ replyExcerpt || text.replyExcerptUnavailable }}</p>
       </div>
       <button
@@ -385,9 +419,11 @@ function updateOption(option: WritingOption, event: Event) {
           !replyPost || state.preparing || state.publishing || state.composing
         "
         :title="text.quotePostExplanation"
+        :aria-label="text.insertQuotedPost"
+        class="reply-insert-quote"
         @click="insertReplyQuote"
       >
-        {{ text.insertQuotedPost }}
+        <WorkspaceIcon name="quote" />
       </button>
       <button
         :aria-label="text.removeReplyTarget"
@@ -408,7 +444,7 @@ function updateOption(option: WritingOption, event: Event) {
     </div>
     <div v-if="state.context" class="writing-content">
       <PrivateAttemptHistory :workspace="workspace" />
-      <h1 v-if="expanded">
+      <h1 v-if="expanded && !ordinaryReply">
         {{
           state.context.action === "edit-post"
             ? insert(text.editPost, state.context.editTarget?.postId ?? "")
@@ -423,7 +459,17 @@ function updateOption(option: WritingOption, event: Event) {
       <p v-if="state.context.draft">
         {{ insert(text.draftIdentity, state.context.draft.threadId) }}
       </p>
-      <section class="writing-recovery" :aria-label="text.writingRecovery">
+      <section
+        v-show="
+          !ordinaryReply ||
+          expanded ||
+          toolsOpen ||
+          state.recoveryAvailable === false ||
+          workspace.state.value.recoveryProblem
+        "
+        class="writing-recovery"
+        :aria-label="text.writingRecovery"
+      >
         <p :role="state.recoveryAvailable === false ? 'alert' : 'status'">
           {{ recoverySummary }}
         </p>
@@ -528,8 +574,91 @@ function updateOption(option: WritingOption, event: Event) {
         :key="state.context.id"
         :workspace="workspace"
         :expanded="expanded"
-      />
+        :reply="ordinaryReply"
+        :tools-open="toolsOpen"
+      >
+        <template v-if="ordinaryReply" #leading>
+          <button
+            class="icon-button reply-plus"
+            :aria-label="replyText('Reply tools')"
+            :title="replyText('Reply tools')"
+            :aria-expanded="expanded || toolsOpen"
+            :disabled="state.composing"
+            @click="toggleTools"
+          >
+            <WorkspaceIcon name="plus" />
+          </button>
+        </template>
+        <template v-if="ordinaryReply" #expansion>
+          <button
+            class="icon-button reply-expansion"
+            :aria-label="expanded ? text.compactWriting : text.expandWriting"
+            :title="expanded ? text.compactWriting : text.expandWriting"
+            :aria-expanded="expanded"
+            @click="emit('resize', !expanded)"
+          >
+            <WorkspaceIcon :name="expanded ? 'compact' : 'expand'" />
+          </button>
+        </template>
+        <template v-if="ordinaryReply" #trailing>
+          <button
+            class="primary-action reply-review"
+            :aria-label="text.reviewPublication"
+            :title="text.reviewPublication"
+            :disabled="state.preparing || state.publishing || state.composing"
+            @click="requestReview(true)"
+          >
+            <WorkspaceIcon name="review" /><span>{{
+              replyText("Review")
+            }}</span>
+          </button>
+        </template>
+        <template v-if="ordinaryReply" #tools>
+          <div class="writing-actions">
+            <button
+              :aria-expanded="previewOpen"
+              @click="previewOpen = !previewOpen"
+            >
+              {{ replyText("Preview") }}
+            </button>
+            <button @click="workspace.writing.hide()">
+              {{ text.returnReading }}
+            </button>
+          </div>
+          <p class="composer-help">{{ text.writingShortcut }}</p>
+        </template>
+      </PostEditor>
+      <section
+        v-if="ordinaryReply && previewOpen"
+        class="reply-preview"
+        :aria-label="replyText('Preview')"
+      >
+        <button @click="previewOpen = false">
+          {{ replyText("Close preview") }}
+        </button>
+        <p>
+          {{
+            reviewText(
+              "This read-only preview does not guarantee native rendering, notification delivery or publication. Links, images and attachment references are inert. Protected or unsupported markup is retained literally; inspect the complete source.",
+              workspace.preferences.state.value.language,
+            )
+          }}
+        </p>
+        <pre
+          v-if="
+            state.context.options.some(
+              (option) => option.name === 'bbcodeoff' && option.checked,
+            )
+          "
+          >{{ state.context.source }}</pre>
+        <InertSourcePreview
+          v-else
+          :source="state.context.source"
+          :language="workspace.preferences.state.value.language"
+        />
+      </section>
       <details
+        v-show="!ordinaryReply || expanded || toolsOpen"
         class="writing-details"
         @toggle="detailsOpen = ($event.target as HTMLDetailsElement).open"
       >
@@ -1060,7 +1189,7 @@ function updateOption(option: WritingOption, event: Event) {
         </section>
       </section>
       <WritingDestination
-        v-if="expanded && !state.publication"
+        v-if="expanded && !state.publication && !ordinaryReply"
         :category="category ?? 'neutral'"
         :writing="state.context"
         :language="workspace.preferences.state.value.language"
@@ -1192,7 +1321,10 @@ function updateOption(option: WritingOption, event: Event) {
           </button>
         </PreparedPublication>
       </div>
-      <section :aria-label="attachment('Attachment authoring')">
+      <section
+        class="writing-attachments"
+        :aria-label="attachment('Attachment authoring')"
+      >
         <div v-if="removeUpload" role="alert">
           <p>
             {{
@@ -1213,7 +1345,7 @@ function updateOption(option: WritingOption, event: Event) {
             {{ attachment("Keep server file") }}
           </button>
         </div>
-        <label v-show="expanded || detailsOpen"
+        <label v-show="expanded || detailsOpen || toolsOpen"
           >{{ attachment("Select attachments")
           }}<input
             type="file"
@@ -1348,6 +1480,7 @@ function updateOption(option: WritingOption, event: Event) {
       <fieldset
         v-show="
           expanded ||
+          toolsOpen ||
           detailsOpen ||
           state.validationIssues.some((issue) => issue.field === 'option')
         "
@@ -1411,7 +1544,7 @@ function updateOption(option: WritingOption, event: Event) {
         </label>
       </fieldset>
     </div>
-    <div class="composer-submit-row">
+    <div v-if="!ordinaryReply" class="composer-submit-row">
       <span v-if="expanded" class="composer-help">{{
         text.writingShortcut
       }}</span>

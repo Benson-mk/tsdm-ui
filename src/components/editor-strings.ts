@@ -1,5 +1,9 @@
 import type { Preferences } from "../workspace/preferences";
 const translations: Record<string, [string, string]> = {
+  "Reply tools": ["回覆工具", "回覆工具"],
+  Preview: ["预览", "預覽"],
+  "Close preview": ["关闭预览", "關閉預覽"],
+  Review: ["审阅", "審閱"],
   "This attribute cannot be represented safely.": [
     "无法安全表示此属性。",
     "無法安全表示此屬性。",

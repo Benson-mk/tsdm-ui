@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { readableLines, expectPreservedReadingLine } from "./readable-lines";
 import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
@@ -85,7 +86,7 @@ async function open(
   ).toBeVisible();
   return state;
 }
-async function enter(page: Page, entry: Entry) {
+async function enter(page: Page, entry: Entry, sourceMode = true) {
   if (entry === "new-thread") {
     await revealNavigation(page);
     await page.getByRole("button", { name: "New thread", exact: true }).click();
@@ -102,6 +103,7 @@ async function enter(page: Page, entry: Entry) {
       })
       .first()
       .click();
+  if (sourceMode) await selectSourceEditor(page);
 }
 async function stored(page: Page) {
   return page.evaluate(
@@ -160,6 +162,8 @@ test("UI87.compact: concise destination and input lead to Review while expansion
   await page.setViewportSize({ width: 1000, height: 900 });
   const server = await open(page, false, true);
   await enter(page, "addressed");
+  await selectSourceEditor(page);
+  await page.getByRole("button", { name: "Reply tools", exact: true }).click();
   const writer = page.getByRole("region", {
     name: "Writing context",
     exact: true,
@@ -184,7 +188,10 @@ test("UI87.compact: concise destination and input lead to Review while expansion
   await expect(
     writer.getByText("Advanced authoring tools", { exact: true }),
   ).toBeHidden();
+  await expect(writer.getByText("Details", { exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "Reply tools", exact: true }).click();
   await expect(writer.getByText("Details", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Reply tools", exact: true }).click();
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Concise reply 中文");
   await expect(
@@ -321,6 +328,7 @@ for (const profile of profiles)
           exact: true,
         })
         .click();
+      await selectSourceEditor(page);
       const source = page.getByLabel(profile.body, { exact: true });
       await expect(source).toBeFocused();
       await source.fill(retained);
@@ -352,7 +360,7 @@ for (const profile of profiles)
         const geometry = await source.evaluate((node: HTMLTextAreaElement) => {
           const style = getComputedStyle(node);
           const pane = node.closest(".source-writing")!;
-          const strip = pane.querySelector(".writing-presentation-actions")!;
+          const row = pane.querySelector(".reply-input-row")!;
           const lineTop =
             node.getBoundingClientRect().top +
             parseFloat(style.borderTopWidth) +
@@ -362,7 +370,12 @@ for (const profile of profiles)
             sourceTop: node.getBoundingClientRect().top,
             lineTop,
             lineBottom: lineTop + parseFloat(style.lineHeight),
-            stripBottom: strip.getBoundingClientRect().bottom,
+            visibleTop: Math.max(
+              pane.getBoundingClientRect().top,
+              pane.querySelector(".writing-content")!.getBoundingClientRect()
+                .top,
+              row.getBoundingClientRect().top,
+            ),
             paneBottom: pane.getBoundingClientRect().bottom,
             selectionStart: node.selectionStart,
             selectionEnd: node.selectionEnd,
@@ -374,9 +387,7 @@ for (const profile of profiles)
         });
         expect(geometry.selectionStart).toBe(0);
         expect(geometry.selectionEnd).toBe(1);
-        expect(geometry.lineTop).toBeGreaterThanOrEqual(
-          geometry.stripBottom + 1,
-        );
+        expect(geometry.lineTop).toBeGreaterThanOrEqual(geometry.visibleTop);
         expect(geometry.lineBottom).toBeLessThanOrEqual(geometry.paneBottom);
       };
       const expand = page.getByRole("button", {
@@ -878,7 +889,7 @@ for (const size of [
     );
     expect(compact.writer.height).toBeLessThanOrEqual(size.height * 0.46 + 1);
     expect(compact.reader.height).toBeGreaterThanOrEqual(96);
-    expect(compact.fieldMinimum).toBe(64);
+    expect(compact.fieldMinimum).toBe(44);
     await page
       .getByRole("button", { name: "Expand writing", exact: true })
       .click();
@@ -891,18 +902,12 @@ for (const size of [
       body: await page.screenshot(),
       contentType: "image/png",
     });
-    if (size.width < 1440)
-      expect(expanded.writer.top).toBeGreaterThanOrEqual(
-        expanded.reader.bottom - 1,
-      );
-    else expect(expanded.writer.top).toBeLessThan(expanded.reader.bottom);
+    expect(expanded.writer.top).toBeGreaterThanOrEqual(
+      expanded.reader.bottom - 1,
+    );
     expect(expanded.reader.height).toBeGreaterThanOrEqual(96);
-    if (size.width < 1440)
-      expect(expanded.writer.height).toBeLessThanOrEqual(
-        size.height * 0.46 + 1,
-      );
-    else expect(expanded.writer.height).toBeGreaterThan(size.height * 0.46);
-    expect(expanded.fieldMinimum).toBe(size.width < 560 ? 100 : 140);
+    expect(expanded.writer.height).toBeLessThanOrEqual(size.height * 0.46 + 1);
+    expect(expanded.fieldMinimum).toBe(140);
     expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
     expect(await stored(page)).toEqual(before);
     expect(server.requests).toHaveLength(requests);
@@ -1114,6 +1119,7 @@ test("IM72.short-enlarged: a short enlarged conversation retains history and a r
   );
   const server = await open(page);
   await page.getByRole("button", { name: "回覆主題", exact: true }).click();
+  await selectSourceEditor(page);
   const source = page.getByLabel("完整原始碼", { exact: true });
   await source.fill("短視窗保留內容");
   const geometry = await page.locator(".source-writing").evaluate((writer) => {
@@ -1126,9 +1132,9 @@ test("IM72.short-enlarged: a short enlarged conversation retains history and a r
       writer: rect(writer),
       content: rect(writer.querySelector(".writing-content")!),
       reader: rect(root.querySelector(".reading-pane")!),
-      actions: [
-        ...writer.querySelectorAll(".writing-presentation-actions button"),
-      ].map(rect),
+      actions: [...writer.querySelectorAll(".reply-input-row button")].map(
+        rect,
+      ),
     };
   });
   await info.attach("short-enlarged-geometry.json", {
@@ -1137,7 +1143,8 @@ test("IM72.short-enlarged: a short enlarged conversation retains history and a r
   });
   expect(geometry.writer.height).toBeLessThanOrEqual(360 * 0.46 + 1);
   expect(geometry.reader.height).toBeGreaterThanOrEqual(96);
-  expect(geometry.content.height).toBeGreaterThanOrEqual(64);
+  expect(geometry.content.height).toBeGreaterThanOrEqual(44);
+  expect(geometry.actions).toHaveLength(3);
   expect(geometry.actions.every((rect) => rect.height >= 44)).toBe(true);
   await page.getByRole("button", { name: "展開寫作", exact: true }).click();
   await expect(source).toBeFocused();
@@ -1293,12 +1300,16 @@ test("UI87.bottom-resume: minimizing releases the writer and fixes original dest
 });
 
 for (const width of [1439, 1440, 1706])
-  test(`UI87.wide-${width}: expanded writing uses a protected reader and preferred 420px aside only when qualified`, async ({
+  test(`UI87.wide-${width}: expanded ordinary writing stays in the reader column across wide and narrow views`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width, height: 900 });
     const server = await open(page);
     await enter(page, "reply");
+    await selectSourceEditor(page);
+    await page
+      .getByRole("button", { name: "Reply tools", exact: true })
+      .click();
     const source = page.getByLabel("Complete source", { exact: true });
     await source.fill("Selected original source");
     await source.evaluate((node: HTMLTextAreaElement) =>
@@ -1329,13 +1340,10 @@ for (const width of [1439, 1440, 1706])
         };
       });
     const wide = await geometry();
-    if (width >= 1440) {
-      expect(wide.writer.left).toBeGreaterThanOrEqual(wide.reader.right - 1);
-      expect(wide.writer.width).toBe(420);
-      expect(wide.reader.width).toBeGreaterThanOrEqual(320);
-      expect(wide.writer.height).toBeGreaterThan(500);
-    } else
-      expect(wide.writer.top).toBeGreaterThanOrEqual(wide.reader.bottom - 1);
+    expect(wide.writer.top).toBeGreaterThanOrEqual(wide.reader.bottom - 1);
+    expect(wide.writer.left).toBe(wide.reader.left);
+    expect(wide.writer.width).toBe(wide.reader.width);
+    expect(wide.reader.height).toBeGreaterThanOrEqual(96);
     await page.setViewportSize({ width: 1000, height: 900 });
     await expect
       .poll(async () => {
@@ -1413,7 +1421,7 @@ test("UI87.reading-anchor: expansion into and out of the aside preserves a genui
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const server = await open(page, false, true, true);
-  await enter(page, "reply");
+  await enter(page, "reply", false);
   const pane = page.locator(".reading-pane");
   await pane.evaluate((node) => (node.scrollTop = 650));
   const before = await readableLines(page);
@@ -1498,6 +1506,7 @@ test("UI87.short-restored: focused writing retains at least96px of actually visi
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();
   await page.reload();
+  await selectSourceEditor(page);
   await expect(source).toHaveValue("Retained short reply");
   await source.focus();
   const lines = await readableLines(page);

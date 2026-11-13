@@ -396,7 +396,11 @@ export function createWriting(
           });
         },
       });
-      editorSession.setMode("source");
+      if (
+        !["reply", "quick-quote"].includes(context.action) ||
+        context.editorUnresolved
+      )
+        editorSession.setMode("source");
       editorSession.setSourceSelection(
         context.selection.start,
         context.selection.end,

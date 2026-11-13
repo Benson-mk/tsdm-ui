@@ -3236,3 +3236,170 @@ input {
   border-radius: 8px;
   padding: 8px;
 }
+
+/* Ordinary replies retain one editor in the reader column. */
+:host .conversation-region > .reply-composer {
+  height: auto;
+  min-height: 0;
+  padding-top: 8px;
+}
+.reply-composer > .writing-content {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+.reply-composer .reply-input-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+.reply-input-shell {
+  position: relative;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--boundary);
+  border-radius: 8px;
+  padding-right: 44px;
+}
+.reply-input-shell:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.reply-composer .reply-input-shell .ProseMirror,
+.reply-composer .reply-input-shell textarea {
+  height: auto;
+  min-height: 44px;
+  max-height: 140px;
+  border: 0;
+  outline: 0;
+  padding: 10px;
+  margin: 0;
+  resize: none;
+  font-size: calc(1rem * var(--text-scale, 1));
+  line-height: 1.5;
+  background: transparent;
+}
+.reply-composer .reply-input-shell textarea {
+  field-sizing: content;
+}
+.reply-composer.writing-expanded .reply-input-shell .ProseMirror,
+.reply-composer.writing-expanded .reply-input-shell textarea {
+  min-height: 140px;
+  max-height: 240px;
+}
+.reply-composer .reply-source-label {
+  margin: 0;
+  font-size: 0;
+}
+.reply-composer .icon-button {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  justify-content: center;
+}
+.reply-composer .reply-expansion {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+.reply-composer .reply-review {
+  min-height: 44px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.reply-review svg {
+  width: 20px;
+  height: 20px;
+}
+.reply-composer .editor-controls {
+  max-height: min(220px, 25dvh);
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--soft);
+  padding: 8px;
+}
+.reply-composer .writing-recovery {
+  font-size: calc(0.75rem * var(--text-scale, 1));
+}
+.reply-composer .writing-recovery > p {
+  margin: 4px 0;
+}
+.reply-composer .writing-actions:empty,
+.reply-composer section > ul:empty {
+  display: none;
+}
+.reply-composer .reply-preview {
+  overflow-wrap: anywhere;
+}
+.reply-composer .reply-preview pre {
+  white-space: pre-wrap;
+}
+.reply-composer .reply-target-strip {
+  flex: none;
+}
+@media (max-width: 559px) {
+  .reply-composer .reply-input-row {
+    gap: 4px;
+  }
+  .reply-composer .reply-review {
+    padding: 10px 12px;
+  }
+  .reply-composer .reply-review span {
+    display: none;
+  }
+}
+
+.reply-composer .reply-target-strip {
+  background: var(--category-fill);
+  color: var(--category-ink);
+  align-items: start;
+}
+.reply-composer .reply-target-strip strong,
+.reply-composer .reply-target-strip p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+  line-height: 1.4;
+}
+.reply-insert-quote {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+}
+.reply-composer .writing-recovery {
+  overflow-wrap: anywhere;
+}
+
+.reply-composer .writing-attachments > ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.reply-composer .writing-attachments li {
+  min-width: 0;
+  max-width: 100%;
+}
+.reply-composer .writing-attachments li > p {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--soft);
+  overflow-wrap: anywhere;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+}
+.reply-composer:not(.writing-expanded):not(.reply-tools-open)
+  .writing-attachments
+  li
+  > button {
+  display: none;
+}
+.reply-composer .writing-attachments li > p:empty {
+  display: none;
+}

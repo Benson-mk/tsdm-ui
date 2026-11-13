@@ -94,3 +94,27 @@ export async function applyFormatting(
       .click();
   }
 }
+
+// Legacy source-specific journeys explicitly choose their mode now that ordinary
+// replies start visual. This drives public controls and leaves tools available.
+export async function selectSourceEditor(page: Page) {
+  await page.locator(".source-writing").waitFor({ state: "visible" });
+  const plus = page.getByRole("button", {
+    name: /^(Reply tools|回覆工具)$/,
+    exact: true,
+  });
+  if (await plus.count()) {
+    if ((await plus.getAttribute("aria-expanded")) === "false")
+      await plus.click();
+    await page
+      .getByRole("button", {
+        name: /^(Source editor|源码编辑|原始碼編輯)$/,
+        exact: true,
+      })
+      .click();
+  }
+  return page.getByRole("textbox", {
+    name: /^(Complete source|完整源码|完整原始碼)$/,
+    exact: true,
+  });
+}

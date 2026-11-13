@@ -958,7 +958,10 @@ const threadsResizable = computed(
 );
 const columnBounds = computed(() => {
   const writingMinimum =
-    writing.value.visible && writingExpanded.value && paneWidth.value >= 1440
+    !["reply", "quick-quote"].includes(writing.value.context?.action ?? "") &&
+    writing.value.visible &&
+    writingExpanded.value &&
+    paneWidth.value >= 1440
       ? 280
       : 0;
   const remainingMinimum = conversationVisible.value
@@ -1039,6 +1042,7 @@ function resetColumns() {
 }
 const writingWide = computed(
   () =>
+    !["reply", "quick-quote"].includes(writing.value.context?.action ?? "") &&
     writing.value.visible &&
     writingExpanded.value &&
     paneWidth.value >= 1440 &&

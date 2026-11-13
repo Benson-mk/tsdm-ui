@@ -1,4 +1,4 @@
-import { revealWritingTools } from "./editor-controls";
+import { revealWritingTools, selectSourceEditor } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 
@@ -134,5 +134,6 @@ export async function richRoundTrip(page: Page, source: string) {
     .click();
   await expect(editor).toHaveValue(source);
   await page.reload();
+  await selectSourceEditor(page);
   await expect(editor).toHaveValue(source);
 }

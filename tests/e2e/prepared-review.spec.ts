@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { revealWritingTools } from "./editor-controls";
 import { writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
@@ -152,6 +153,7 @@ async function fixture(
       })
       .first()
       .click();
+  await selectSourceEditor(page);
   await expect(
     page.getByLabel(/^(Complete source|完整源码|完整原始碼)$/, { exact: true }),
   ).toBeVisible();
@@ -265,6 +267,7 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
     .locator("#pid101")
     .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
+  await selectSourceEditor(page);
   const source = page.getByLabel("Complete source", { exact: true });
   const replyBody = body.replace(" [attach]77[/attach]", "");
   const unformatted = `Integrated text\n${replyBody}`;

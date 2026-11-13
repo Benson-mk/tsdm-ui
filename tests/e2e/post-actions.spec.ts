@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -137,10 +138,7 @@ test("UX101.menu: pointer and keyboard share truthful menu with native filter co
     ),
   ).toEqual([]);
   await actions.getByRole("menuitem", { name: "Reply", exact: true }).click();
-  const editor = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const editor = await selectSourceEditor(page);
   await editor.fill("Preserve writing through the native author filter");
   await menu(page);
   await actions
@@ -161,7 +159,12 @@ test("UX101.menu: pointer and keyboard share truthful menu with native filter co
       }),
     )
     .toBe(true);
-  await expect(editor).toHaveValue(
+  // The native filter performs a document navigation; the recovered session
+  // starts visual, while the complete retained source remains available.
+  await expect(
+    page.getByRole("textbox", { name: "Visual post content", exact: true }),
+  ).toHaveText("Preserve writing through the native author filter");
+  await expect(await selectSourceEditor(page)).toHaveValue(
     "Preserve writing through the native author filter",
   );
   await expect(
@@ -179,10 +182,7 @@ test("UX101.retarget: same-thread target and removal preserve authored quotes an
   )
     .getByRole("menuitem", { name: "Reply", exact: true })
     .click();
-  const editor = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const editor = await selectSourceEditor(page);
   await expect(editor).toBeVisible();
   await editor.fill(
     "My authored text\n[quote=Literal author]Keep this exact literal quote[/quote]",
@@ -231,10 +231,7 @@ test("UX101.quote: explicit quote appends visible post text without changing rep
   )
     .getByRole("menuitem", { name: "Reply", exact: true })
     .click();
-  const editor = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const editor = await selectSourceEditor(page);
   await editor.fill("Authored\n[quote=Literal]Keep exactly[/quote]");
   const original = await editor.inputValue();
   const strip = page.getByRole("group", { name: "Reply target", exact: true });
@@ -278,8 +275,8 @@ test("UX101.gestures: text double-click selects while empty post space addresses
     page.getByRole("group", { name: "Reply target", exact: true }),
   ).toContainText("Writer Seven");
   await expect(
-    page.getByRole("textbox", { name: "Complete source", exact: true }),
-  ).toHaveValue("");
+    page.getByRole("textbox", { name: "Visual post content", exact: true }),
+  ).toHaveText("");
   expect(
     state.requests.filter(
       (r) => new URL(r.url).searchParams.get("reppost") === "202",
@@ -339,10 +336,7 @@ test("UX101.race: newer target and general reply win over held preparation while
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  const editor = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const editor = await selectSourceEditor(page);
   await editor.fill("Before waiting");
   await page.locator(".writing-details > summary").click();
   await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
@@ -415,10 +409,7 @@ for (const fault of ["permission", "account", "mismatched-target"] as const) {
     )
       .getByRole("menuitem", { name: "Reply", exact: true })
       .click();
-    const editor = page.getByRole("textbox", {
-      name: "Complete source",
-      exact: true,
-    });
+    const editor = await selectSourceEditor(page);
     await editor.fill("Keep my authored writing");
     if (fault === "permission") state.refused = true;
     if (fault === "account") state.member = "9";
@@ -494,10 +485,7 @@ test("UX101.review-race: retarget immediately revokes review and late review pre
   )
     .getByRole("menuitem", { name: "Reply", exact: true })
     .click();
-  const editor = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const editor = await selectSourceEditor(page);
   await editor.fill("Authored source for review");
   const review = page.getByRole("button", {
     name: "Review publication",
@@ -575,10 +563,7 @@ test("UX101.literal-quote: BBCode-looking visible text stays literal and cannot 
   )
     .getByRole("menuitem", { name: "Reply", exact: true })
     .click();
-  const editor = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const editor = await selectSourceEditor(page);
   await editor.fill("Keep the existing body");
   await page
     .getByRole("button", { name: "Insert quoted post text", exact: true })
@@ -630,7 +615,7 @@ test("UX101.keyboard: arrow activation prepares reply, outside dismissal and con
   ).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(
-    page.getByRole("textbox", { name: "Complete source", exact: true }),
+    page.getByRole("textbox", { name: "Visual post content", exact: true }),
   ).toBeFocused();
   await expect(
     page.getByRole("group", { name: "Reply target", exact: true }),
@@ -647,10 +632,7 @@ test("UX101.editor: retarget preserves source selection, undo and active visual 
   )
     .getByRole("menuitem", { name: "Reply", exact: true })
     .click();
-  const editor = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const editor = await selectSourceEditor(page);
   await editor.fill("First authored revision");
   await editor.fill("Second authored revision");
   await editor.press("ControlOrMeta+End");
