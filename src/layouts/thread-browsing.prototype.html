@@ -23,15 +23,18 @@
     <div id="preview"></div>
     <script type="module">
       // Throwaway approval MVP: stable thread-list width, last-replier metadata and position.
-      // Synthetic data and stub navigation; no forum requests or persistence.
+      // Synthetic data and stub navigation; no forum requests. Composer unit uses separate scratch storage.
       // Run: npm run dev -- --port 5173
       import { createApp } from "vue";
       import { mountBoardDensity } from "./board-density.prototype.js";
       import ReaderFeedback from "./ReaderFeedback.prototype.vue";
       import readerStyles from "./reader-feedback.prototype.css?inline";
+      import composerStyles from "./composer-feedback.prototype.css?inline";
       import workspaceStyles from "../styles.css?inline";
       import brandMark from "./tsdm-brand.prototype.svg?raw";
 
+      const params = new URL(location.href).searchParams;
+      const composerUnit = params.get("unit") === "composer";
       const host = document.querySelector("#preview");
       const root = host.attachShadow({ mode: "open" });
       const paths = {
@@ -85,7 +88,7 @@
         target = "first",
         savedListScroll = 0,
         savedAnchor = null;
-      root.innerHTML = `<style>${workspaceStyles}</style><style>${readerStyles}</style><style>
+      root.innerHTML = `<style>${workspaceStyles}</style><style>${readerStyles}</style><style>${composerStyles}</style><style>
         :host { --safe-left:0px; --safe-right:0px; --safe-top:0px; --safe-bottom:0px; --text-scale:1; }
         [hidden] { display:none !important; }
         .prototype-shell { height:100dvh; display:grid; grid-template-rows:minmax(0,1fr) auto; }
@@ -175,6 +178,18 @@
       root.append(portal);
       const reader = createApp(ReaderFeedback, {
         portal,
+        composerMvp: composerUnit,
+        onDrafts: (ids) => {
+          for (const row of root.querySelectorAll(".sample-row")) {
+            row.querySelector(".cf-draft-tag")?.remove();
+            if (ids.includes(row.dataset.thread)) {
+              const tag = document.createElement("span");
+              tag.className = "cf-draft-tag";
+              tag.textContent = "Draft";
+              row.querySelector(".row-meta").prepend(tag);
+            }
+          }
+        },
         onBack: closeReader,
         onState: state,
       }).mount(root.querySelector(".reader-view"));
@@ -203,6 +218,7 @@
         postId = "",
         withNewReplies = false,
       ) {
+        if (composerUnit && !reader.canNavigate()) return;
         captureListPosition();
         selected = threads.find((row) => row.id === id);
         target = latest ? "latest" : "first";
@@ -220,6 +236,7 @@
         state();
       }
       function closeReader() {
+        if (composerUnit && !reader.canNavigate()) return;
         const wasHidden = !list.getClientRects().length;
         frame.dataset.reading = "false";
         root.querySelector(".reader-placeholder").hidden = false;
@@ -293,10 +310,22 @@
         state();
       });
       state();
-      const params = new URL(location.href).searchParams;
+      if (composerUnit) {
+        document.title = "Reply composer — approval MVP";
+        root.querySelector(".prototype-shell").classList.add("composer-unit");
+        root.querySelector(".prototype-tools strong").textContent =
+          "Composer MVP · Local simulation";
+        root.querySelector("#sample-scroll").hidden = true;
+        const controls = document.createElement("button");
+        controls.textContent = "Preview controls";
+        controls.addEventListener("click", () => reader.composerScenarios());
+        root
+          .querySelector(".prototype-tools")
+          .insertBefore(controls, root.querySelector("#reset-reader"));
+      }
       if (params.get("unit") === "board")
         mountBoardDensity(root, threads, state);
-      if (params.get("unit") === "reader") {
+      if (params.get("unit") === "reader" || composerUnit) {
         const id = threads.some((row) => row.id === params.get("thread"))
           ? params.get("thread")
           : threads[0].id;

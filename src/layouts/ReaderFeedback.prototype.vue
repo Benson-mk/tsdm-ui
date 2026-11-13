@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Throwaway comments 4–7 approval MVP. Synthetic data, no forum operations.
 import { computed, nextTick, ref, watch } from "vue";
+import ComposerFeedback from "./ComposerFeedback.prototype.vue";
 import {
   ContextMenuRoot,
   ContextMenuTrigger,
@@ -13,8 +14,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "reka-ui";
-const props = defineProps<{ portal: HTMLElement }>();
-const emit = defineEmits<{ back: []; state: [note: string] }>();
+const props = defineProps<{ portal: HTMLElement; composerMvp?: boolean }>();
+const modernComposer = ref<InstanceType<typeof ComposerFeedback>>();
+const emit = defineEmits<{
+  back: [];
+  state: [note: string];
+  drafts: [ids: string[]];
+}>();
 type Thread = {
   id: string;
   title: string;
@@ -170,6 +176,10 @@ async function filterAuthor(value: string) {
   scroller.value!.scrollTop = 0;
 }
 async function reply(post: Post) {
+  if (props.composerMvp) {
+    modernComposer.value?.address(post);
+    return;
+  }
   if (composer.value && writing.value && composer.value.post.id !== post.id) {
     notify(
       "Your reply is still open. Discard it before replying to another post.",
@@ -235,7 +245,12 @@ async function copyPost(post: Post) {
     copying.value = false;
   }
 }
-defineExpose({ open });
+defineExpose({
+  open,
+  composerScenarios: () => modernComposer.value?.scenarios(),
+  canNavigate: () =>
+    !props.composerMvp || modernComposer.value?.canNavigate() !== false,
+});
 </script>
 
 <template>
@@ -401,8 +416,15 @@ defineExpose({ open });
         >
       </p>
     </div>
+    <ComposerFeedback
+      v-if="props.composerMvp"
+      ref="modernComposer"
+      :thread="thread"
+      :scroller="scroller"
+      @drafts="emit('drafts', $event)"
+    />
     <section
-      v-if="composer"
+      v-if="composer && !props.composerMvp"
       class="rf-composer"
       aria-label="Local reply preview"
     >
@@ -429,7 +451,7 @@ defineExpose({ open });
         placeholder="Write a sample reply…"
       ></textarea>
     </section>
-    <details class="rf-demo">
+    <details v-if="!props.composerMvp" class="rf-demo">
       <summary>Preview scenarios · Comments 4–7</summary>
       <div>
         <label

@@ -2,7 +2,7 @@
 
 Branch: `feat/improve-ui-ux`. Capture the owner's writing-interface feedback for
 later GitHub tickets and a single approval MVP. The individual choices below are
-accepted; confirmation of the consolidated design is still pending. This note
+accepted; the owner confirmed the consolidated design with “yes” after Q15. This note
 does not deliver or approve a composer MVP, change production, publish a ticket,
 or approve the earlier board and reader previews.
 
@@ -166,7 +166,8 @@ research and affected ADR/spec references, running Prettier on this note, and
 inspecting its complete content and Git scope. No runtime tests apply to this
 documentation-only capture; the proposed interactions have not yet been exercised.
 
-Next step: present the consolidated design for the owner's shared-understanding
-confirmation, then build one isolated interactive composer MVP for visual approval.
+The owner confirmed the consolidated design after this capture commit. The next
+step is one isolated interactive composer MVP for visual approval, tracked in
+[the delivery record](composer-mvp-2026-11-13.md).
 Real posting, production integration and ticket publication are not delivered by
 this capture task.
