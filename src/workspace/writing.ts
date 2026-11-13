@@ -143,6 +143,190 @@ export function createWriting(
     fundedDraftReview: null,
     draftResend: null,
   });
+  const retainedReplies = shallowRef<Record<string, PublicWritingContext>>({});
+  let selectedReplyThread: string | null = null;
+  function canDeactivate() {
+    const context = state.value.context;
+    return (
+      !state.value.publishing &&
+      !uploadControllers.size &&
+      !context?.uploads?.some((upload) =>
+        ["uploading", "removing"].includes(upload.status),
+      )
+    );
+  }
+  function canSelectThread() {
+    const context = state.value.context;
+    return (!context || isOrdinaryReply(context)) && canDeactivate();
+  }
+  function selectThread(threadId: string, replace = false) {
+    if (!canDeactivate() || (!replace && !canSelectThread())) return false;
+    const current = state.value.context;
+    const destination = retainedReplies.value[threadId];
+    if (replace && current && !isOrdinaryReply(current) && destination) {
+      const observation = (value: unknown) =>
+        JSON.stringify(value, (_key, part: unknown) =>
+          object(part)
+            ? Object.fromEntries(
+                Object.entries(part).sort(([left], [right]) =>
+                  left.localeCompare(right),
+                ),
+              )
+            : part,
+        );
+      const incompatible = (
+        ["attempts", "draftAttempts", "privateAttempts"] as const
+      ).some((family) =>
+        current[family]?.some((attempt) => {
+          const retained = destination[family]?.find(
+            (item) => item.id === attempt.id,
+          );
+          return retained && observation(retained) !== observation(attempt);
+        }),
+      );
+      if (incompatible) {
+        state.value = {
+          ...state.value,
+          visible: true,
+          preparing: false,
+          replacement: null,
+          message:
+            "Different observations of the same earlier operation are retained in these writing contexts. Both are kept; replacement is paused. Check the original outcome or continue in the native forum before replacing writing.",
+        };
+        return false;
+      }
+    }
+    if (
+      !replace &&
+      selectedReplyThread === threadId &&
+      (!current || current.replyTarget?.threadId === threadId)
+    )
+      return;
+    selectedReplyThread = threadId;
+    ++sequence;
+    ++mentionSequence;
+    if (current?.replyTarget?.threadId === threadId) return;
+    const retained = { ...retainedReplies.value };
+    if (current && isOrdinaryReply(current))
+      retained[current.replyTarget!.threadId] = current;
+    let next = retained[threadId] ?? null;
+    if (next && replace && current && !isOrdinaryReply(current)) {
+      const history = <T extends { id: string }>(left?: T[], right?: T[]) =>
+        left?.length || right?.length
+          ? [
+              ...new Map(
+                [...(left ?? []), ...(right ?? [])].map((attempt) => [
+                  attempt.id,
+                  attempt,
+                ]),
+              ).values(),
+            ]
+          : undefined;
+      const attempts = history(current.attempts, next.attempts);
+      const draftAttempts = history(current.draftAttempts, next.draftAttempts);
+      const privateAttempts = history(
+        current.privateAttempts,
+        next.privateAttempts,
+      );
+      next = {
+        ...next,
+        ...(attempts ? { attempts } : {}),
+        ...(draftAttempts ? { draftAttempts } : {}),
+        ...(privateAttempts ? { privateAttempts } : {}),
+      };
+    }
+    delete retained[threadId];
+    editorSession?.dispose();
+    editorSession = null;
+    editorContext = "";
+    retainedReplies.value = retained;
+    state.value = {
+      ...state.value,
+      context: next,
+      visible: next !== null,
+      preparing: false,
+      publication: null,
+      privateReview: null,
+      privateReviewConsumed: false,
+      copy: null,
+      resend: null,
+      draftResend: null,
+      fundedDraftReview: null,
+      replacement: null,
+      editReplacement: null,
+      draftReplacement: null,
+      privateReplacement: null,
+      conflict: null,
+      reloadWarning: false,
+      overwriteWarning: false,
+      validationIssues: [],
+      message: "",
+      acknowledged: 0,
+      accountVerified: false,
+      mentionPeople: [],
+      mentionGeneration: -1,
+      findingMention: false,
+    };
+    observe(state.value.accountObservation, observedAccountVerified);
+    void changed();
+    return true;
+  }
+  function replyMeaning(context: PreparedWriting) {
+    return JSON.stringify({
+      source: context.source,
+      thread: context.replyTarget?.threadId,
+      post: context.replyTarget?.postId,
+      options: context.options
+        .filter((option) => !option.disabled)
+        .map((option) => [option.name, option.value, option.checked])
+        .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
+      references: [...context.uploadedReferences].sort(),
+      fields: (context.attachmentFields ?? [])
+        .filter((field) => !field.disabled)
+        .map((field) => [field.name, field.value])
+        .sort((left, right) => left[0]!.localeCompare(right[0]!)),
+      uploads: (context.uploads ?? [])
+        .filter((upload) => upload.status !== "removed")
+        .map((upload) => [
+          upload.key,
+          upload.name,
+          upload.type,
+          upload.size,
+          upload.serverId ?? null,
+        ])
+        .sort((left, right) => String(left[0]).localeCompare(String(right[0]))),
+    });
+  }
+  const localReplyThreads = computed(() => {
+    const contexts = [
+      state.value.context,
+      ...Object.values(retainedReplies.value),
+    ];
+    return contexts
+      .filter((context) => {
+        if (
+          !context ||
+          !isOrdinaryReply(context) ||
+          !(
+            context.source.length > 0 ||
+            context.replyTarget?.postId ||
+            context.uploadedReferences.length > 0 ||
+            context.uploads?.some((upload) => upload.status !== "removed")
+          )
+        )
+          return false;
+        return !context.attempts?.some(
+          (attempt) =>
+            attempt.status === "confirmed" &&
+            attempt.publication.submission.contextId === context.id &&
+            attempt.publication.submission.writing.account.id ===
+              context.account.id &&
+            replyMeaning(attempt.publication.submission.writing) ===
+              replyMeaning(context),
+        );
+      })
+      .map((context) => context!.replyTarget!.threadId);
+  });
   const uploadBytes = new Map<string, import("../forum-client").UploadFile>();
   const uploadControllers = new Map<string, AbortController>();
   function updateUpload(
@@ -372,7 +556,7 @@ export function createWriting(
           const unresolved =
             current?.action !== "private-message" &&
             (recoveredInterpretation || !snapshot.readiness.ready);
-          if (!current) return;
+          if (!current || current.id !== context.id) return;
           const range = editorSession?.recoverySelection;
           edit({
             source: snapshot.source,
@@ -706,6 +890,12 @@ export function createWriting(
         message:
           "Publication or result checking is pending. Keep this context until it settles.",
       };
+      return;
+    }
+    if (replace && replyTarget && retainedReplies.value[replyTarget.threadId]) {
+      if (!canDeactivate()) return;
+      if (!selectThread(replyTarget.threadId, true)) return;
+      await prepare(boardId, false, replyTarget, redPacket);
       return;
     }
     const current = ++sequence;
@@ -2169,7 +2359,9 @@ export function createWriting(
     });
     state.value = { ...state.value, mentionPeople: [] };
   }
+  let observedAccountVerified = false;
   function observe(account: Account, verified = true) {
+    observedAccountVerified = verified;
     const privateReview = state.value.privateReview;
     if (
       privateReview &&
@@ -2319,7 +2511,90 @@ export function createWriting(
     };
     changed();
   }
+  function recoverContext(
+    context: WritingContext | null,
+  ): WritingContext | null {
+    if (context?.privateAttempts)
+      context = {
+        ...context,
+        privateAttempts: context.privateAttempts.map((a) =>
+          a.status === "pending"
+            ? {
+                ...a,
+                status: "uncertain",
+                checked: false,
+                message:
+                  "Pending private message restored as uncertain. Nothing was replayed; check the original attempt.",
+              }
+            : a,
+        ),
+      };
+    if (context?.uploads)
+      context = {
+        ...context,
+        uploads: context.uploads.map((u) =>
+          u.status === "selected"
+            ? {
+                ...u,
+                status: "reselect",
+                message:
+                  "File bytes are not retained across refresh. Select the file again.",
+              }
+            : u.status === "removing"
+              ? {
+                  ...u,
+                  status: "removal-uncertain",
+                  message:
+                    "Removal may have happened. Check result; nothing was replayed.",
+                }
+              : u.status === "uploading"
+                ? {
+                    ...u,
+                    status: "uncertain",
+                    message:
+                      "Upload may already be stored. No upload was replayed.",
+                  }
+                : u,
+        ),
+      };
+    if (context?.draftAttempts)
+      context = {
+        ...context,
+        draftAttempts: context.draftAttempts.map((attempt) =>
+          attempt.status === "pending"
+            ? {
+                ...attempt,
+                status: "uncertain",
+                message:
+                  attempt.operation === "publish"
+                    ? "Pending draft publication restored as uncertain. Nothing was replayed."
+                    : "Pending draft save restored as uncertain. Nothing was replayed.",
+                checked: false,
+              }
+            : attempt,
+        ),
+      };
+    if (context?.attempts)
+      context = {
+        ...context,
+        attempts: context.attempts.map((attempt) =>
+          attempt.status === "pending"
+            ? {
+                ...attempt,
+                status: "uncertain",
+                checked: false,
+                message:
+                  "Pending publication restored as uncertain. Nothing has been replayed; check the original attempt.",
+              }
+            : attempt,
+        ),
+      };
+    return context;
+  }
   return {
+    canSelectThread,
+    selectThread,
+    localReplyThreads,
     prepareEdit,
     warnReload: () => {
       state.value = {
@@ -2419,95 +2694,39 @@ export function createWriting(
       state.value = { ...state.value, copy: null };
     },
     snapshot: () => state.value.context,
-    restore: (context: WritingContext | null) => {
+    retainedSnapshot: () => Object.values(retainedReplies.value),
+    restore: (
+      context: WritingContext | null,
+      retained: PublicWritingContext[] = [],
+    ) => {
       state.value = {
         ...state.value,
         privateReview: null,
         privateReviewConsumed: false,
         privateReplacement: null,
       };
-      const privatePending = context?.privateAttempts?.some(
-        (a) => a.status === "pending",
-      );
       uploadBytes.clear();
-      if (context?.privateAttempts)
-        context = {
-          ...context,
-          privateAttempts: context.privateAttempts.map((a) =>
-            a.status === "pending"
-              ? {
-                  ...a,
-                  status: "uncertain",
-                  checked: false,
-                  message:
-                    "Pending private message restored as uncertain. Nothing was replayed; check the original attempt.",
-                }
-              : a,
+      const all = [context, ...retained];
+      const pending = all.some(
+        (item) =>
+          item?.attempts?.some((attempt) => attempt.status === "pending") ||
+          item?.draftAttempts?.some(
+            (attempt) => attempt.status === "pending",
+          ) ||
+          item?.privateAttempts?.some(
+            (attempt) => attempt.status === "pending",
           ),
-        };
-      if (context?.uploads)
-        context = {
-          ...context,
-          uploads: context.uploads.map((u) =>
-            u.status === "selected"
-              ? {
-                  ...u,
-                  status: "reselect",
-                  message:
-                    "File bytes are not retained across refresh. Select the file again.",
-                }
-              : u.status === "removing"
-                ? {
-                    ...u,
-                    status: "removal-uncertain",
-                    message:
-                      "Removal may have happened. Check result; nothing was replayed.",
-                  }
-                : u.status === "uploading"
-                  ? {
-                      ...u,
-                      status: "uncertain",
-                      message:
-                        "Upload may already be stored. No upload was replayed.",
-                    }
-                  : u,
-          ),
-        };
-      if (context?.draftAttempts)
-        context = {
-          ...context,
-          draftAttempts: context.draftAttempts.map((attempt) =>
-            attempt.status === "pending"
-              ? {
-                  ...attempt,
-                  status: "uncertain",
-                  message:
-                    attempt.operation === "publish"
-                      ? "Pending draft publication restored as uncertain. Nothing was replayed."
-                      : "Pending draft save restored as uncertain. Nothing was replayed.",
-                  checked: false,
-                }
-              : attempt,
-          ),
-        };
-      const pending = context?.attempts?.some(
-        (attempt) => attempt.status === "pending",
       );
-      if (context?.attempts)
-        context = {
-          ...context,
-          attempts: context.attempts.map((attempt) =>
-            attempt.status === "pending"
-              ? {
-                  ...attempt,
-                  status: "uncertain",
-                  checked: false,
-                  message:
-                    "Pending publication restored as uncertain. Nothing has been replayed; check the original attempt.",
-                }
-              : attempt,
-          ),
-        };
+      context = recoverContext(context);
+      retainedReplies.value = Object.fromEntries(
+        retained.map((item) => {
+          const recovered = recoverContext(item);
+          if (!recovered || !isOrdinaryReply(recovered))
+            throw new Error("Invalid retained reply.");
+          return [recovered.replyTarget!.threadId, recovered];
+        }),
+      );
+      selectedReplyThread = context?.replyTarget?.threadId ?? null;
       state.value = {
         ...state.value,
         context,
@@ -2526,7 +2745,7 @@ export function createWriting(
         resend: null,
         draftResend: null,
       };
-      if (pending || privatePending) void changed();
+      return pending;
     },
     acknowledge: (id: string | null, revision: number, available: boolean) => {
       state.value = {
@@ -2755,6 +2974,18 @@ export function createWriting(
       }
     },
   };
+}
+
+export function isOrdinaryReply(
+  context: WritingContext,
+): context is PublicWritingContext {
+  return (
+    ["reply", "quick-quote"].includes(context.action) &&
+    !!context.replyTarget &&
+    !context.draft &&
+    !context.editTarget &&
+    !context.redPacket
+  );
 }
 
 const object = (value: unknown): value is Record<string, unknown> =>

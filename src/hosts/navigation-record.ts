@@ -1,4 +1,4 @@
-import { isWritingContext } from "../workspace/writing";
+import { isWritingContext, isOrdinaryReply } from "../workspace/writing";
 import { describeDestination } from "../forum-client";
 import type { NavigationRecord } from "../workspace/navigation";
 
@@ -478,7 +478,7 @@ function result(value: unknown): boolean {
 export function isNavigationRecord(value: unknown): value is NavigationRecord {
   if (
     !object(value) ||
-    (value.schema !== 2 && value.schema !== 3) ||
+    (value.schema !== 2 && value.schema !== 3 && value.schema !== 4) ||
     !object(value.entries)
   )
     return false;
@@ -491,6 +491,27 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
     return false;
   if (!(value.writing === null || isWritingContext(value.writing)))
     return false;
+  if (value.schema === 4) {
+    if (!Array.isArray(value.retainedReplies)) return false;
+    const threads = new Set<string>();
+    const identities = new Set<string>();
+    if (value.writing && isWritingContext(value.writing)) {
+      identities.add(value.writing.id);
+      if (isOrdinaryReply(value.writing))
+        threads.add(value.writing.replyTarget!.threadId);
+    }
+    for (const reply of value.retainedReplies) {
+      if (
+        !isWritingContext(reply) ||
+        !isOrdinaryReply(reply) ||
+        threads.has(reply.replyTarget!.threadId) ||
+        identities.has(reply.id)
+      )
+        return false;
+      threads.add(reply.replyTarget!.threadId);
+      identities.add(reply.id);
+    }
+  } else if (value.retainedReplies !== undefined) return false;
   if (
     value.favoriteAttempts !== undefined &&
     !list(value.favoriteAttempts, (attempt) => {

@@ -36,6 +36,10 @@ _Avoid_: Unfinished writing, unsent reply
 A composition in progress together with its authoring action, destination, content and options.
 _Avoid_: Forum draft
 
+**Local reply draft**:
+Unfinished ordinary reply content retained for a thread, including its destination, options and attachment intent.
+_Avoid_: Forum draft
+
 **Thread price**:
 The forum-credit charge set by an author for access to a thread's paid content.
 

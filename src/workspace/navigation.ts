@@ -34,9 +34,10 @@ export interface NavigationEntry {
   documentNavigations: number;
 }
 export interface NavigationRecord {
-  schema: 2 | 3;
+  schema: 2 | 3 | 4;
   favoriteAttempts?: import("../forum-client").FavoriteAttempt[];
   writing: WritingContext | null;
+  retainedReplies?: import("./writing").PublicWritingContext[];
   entries: Record<string, NavigationEntry>;
   pending: { entryKey: string; destination: string } | null;
 }

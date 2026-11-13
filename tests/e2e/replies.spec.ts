@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
@@ -126,6 +127,7 @@ test("J4.reply-current: preserve complete source/current options and open indepe
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   await revealWritingTools(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
@@ -186,6 +188,7 @@ test("J4.quote-target: authored quote blocks survive general and addressed retar
   await expect(
     page.getByText("Addressed to Other author · Post 101", { exact: true }),
   ).toBeVisible();
+  await selectSourceEditor(page);
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
@@ -249,6 +252,7 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("Literal @Other author stays literal. ");
@@ -298,6 +302,7 @@ async function readyReply(page: Page) {
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   await page.getByLabel("Complete source", { exact: true }).fill(source);
   await page
     .getByRole("button", { name: "Review publication", exact: true })

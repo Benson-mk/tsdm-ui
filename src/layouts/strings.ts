@@ -298,6 +298,7 @@ const english = {
 
   criteria: "Effective criteria",
   page: "Page",
+  localReplyDraft: "Local draft",
   pinned: "Pinned",
   pinnedThreads: "Pinned threads",
   moved: "Moved",
@@ -823,6 +824,7 @@ const simplified: Strings = {
 
   criteria: "当前有效条件",
   page: "第",
+  localReplyDraft: "本地草稿",
   pinned: "置顶",
   pinnedThreads: "置顶主题",
   moved: "已移动",
@@ -1333,6 +1335,7 @@ const traditional: Strings = {
 
   criteria: "目前有效條件",
   page: "第",
+  localReplyDraft: "本機草稿",
   pinned: "置頂",
   pinnedThreads: "置頂主題",
   moved: "已移動",

@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -309,7 +310,7 @@ test("J77.private-send: separate approval sends one exact recipient-bound revisi
   expect(server.posts).toHaveLength(1);
   expect(server.pendingRecords).toHaveLength(1);
   const acknowledged = JSON.parse(server.pendingRecords[0]!);
-  expect(acknowledged.schema).toBe(3);
+  expect(acknowledged.schema).toBe(4);
   expect(acknowledged.writing.privateAttempts[0]).toMatchObject({
     status: "pending",
     before: ["101"],
@@ -371,7 +372,7 @@ test("J77.private-send: separate approval sends one exact recipient-bound revisi
   ).toHaveCount(0);
 });
 
-test("J77.private-schema: private writing uses explicitly incompatible schema3 without replacing legacy public compatibility or persisting credentials", async ({
+test("J77.private-schema: private writing shares explicitly incompatible schema4 without replacing legacy public compatibility or persisting credentials", async ({
   page,
 }) => {
   await open(page);
@@ -384,7 +385,8 @@ test("J77.private-schema: private writing uses explicitly incompatible schema3 w
   const record = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery") ?? "null"),
   );
-  expect(record.schema).toBe(3);
+  expect(record.schema).toBe(4);
+  expect(record.retainedReplies).toEqual([]);
   expect(record.writing.action).toBe("private-message");
   expect(record.writing.recipient.id).toBe("9");
   expect(Object.keys(record.writing)).not.toContain("board");
@@ -956,7 +958,7 @@ test("J77.private-peer-guard: reading another peer keeps the original writing an
       () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
     ),
   );
-  expect(replacement.schema).toBe(3);
+  expect(replacement.schema).toBe(4);
   expect(replacement.writing.id).not.toBe(original.id);
   expect(replacement.writing.privateAttempts).toEqual(original.privateAttempts);
   await expect(attempt(page)).toContainText("Listener Nine");
@@ -1053,6 +1055,7 @@ test("J77.public-private-history: explicit private replacement keeps the origina
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   await page
     .getByRole("textbox", { name: "Complete source", exact: true })
     .fill("Original public reply remains identifiable");
@@ -1088,12 +1091,12 @@ test("J77.public-private-history: explicit private replacement keeps the origina
       exact: true,
     })
     .click();
-  await page
-    .getByRole("button", {
+  await expect(
+    page.getByRole("button", {
       name: "Keep writing and read private conversation",
       exact: true,
-    })
-    .click();
+    }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Write private message", exact: true })
     .click();
@@ -1129,7 +1132,7 @@ test("J77.public-private-history: explicit private replacement keeps the origina
       () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
     ),
   );
-  expect(after.schema).toBe(3);
+  expect(after.schema).toBe(4);
   expect(after.writing.attempts[0]).toEqual(original);
   await page.reload();
   await page.addScriptTag({
@@ -1311,6 +1314,7 @@ test("F79.private-domain-recovery: guarded public/private writing, reading arriv
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   await page
     .getByRole("textbox", { name: "Complete source", exact: true })
     .fill("Original public source stays public");
@@ -1327,12 +1331,12 @@ test("F79.private-domain-recovery: guarded public/private writing, reading arriv
       exact: true,
     })
     .click();
-  await page
-    .getByRole("button", {
+  await expect(
+    page.getByRole("button", {
       name: "Keep writing and read private conversation",
       exact: true,
-    })
-    .click();
+    }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();
@@ -1424,5 +1428,5 @@ test("F79.private-domain-recovery: guarded public/private writing, reading arriv
   );
   expect(saved).not.toContain("Independently arrived private text.");
   expect(saved).not.toContain("AUTHORED_PRIVATE_TOKEN");
-  expect(JSON.parse(saved).schema).toBe(3);
+  expect(JSON.parse(saved).schema).toBe(4);
 });

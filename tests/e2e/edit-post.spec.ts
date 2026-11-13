@@ -418,7 +418,7 @@ test("J4.edit-result-single-navigation: one confirmed-result click returns from 
   const beforeBoard = state.reads.length;
   const boardHistoryBefore = await page.evaluate(() => history.length);
   await page
-    .getByRole("region", { name: "Thread reading", exact: true })
+    .getByRole("navigation", { name: "Boards navigation", exact: true })
     .getByRole("link", { name: "Music", exact: true })
     .click();
   await expect(
@@ -1006,7 +1006,7 @@ for (const scenario of [
         .getByRole("button", { name: "Return to reading", exact: true })
         .click();
       await page
-        .getByRole("region", { name: "Thread reading", exact: true })
+        .getByRole("navigation", { name: "Boards navigation", exact: true })
         .getByRole("link", { name: "Music", exact: true })
         .click();
       await expect(

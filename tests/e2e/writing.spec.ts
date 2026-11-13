@@ -895,7 +895,7 @@ test("J5.legacy-navigation: navigation-only recovery migrates without losing cac
   const stored = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
   );
-  expect(stored.schema).toBe(2);
+  expect(stored.schema).toBe(4);
   expect(stored.writing.account.id).toBe("7");
   expect(Object.keys(stored.entries)).toHaveLength(1);
 });

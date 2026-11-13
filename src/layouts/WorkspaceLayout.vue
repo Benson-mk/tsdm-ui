@@ -3428,7 +3428,11 @@ function boardIdFrom(url: string) {
           class="thread-row"
           :data-thread-id="row.id"
         >
-          <span v-if="row.pinned">{{ text.pinned }}</span
+          <span
+            v-if="workspace.writing.localReplyThreads.value.includes(row.id)"
+            class="local-reply-indicator"
+            >{{ text.localReplyDraft }}</span
+          ><span v-if="row.pinned">{{ text.pinned }}</span
           ><span v-if="row.moved">{{ text.moved }}</span
           ><span>{{ row.category }}</span
           ><a

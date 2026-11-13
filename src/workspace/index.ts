@@ -180,7 +180,9 @@ export function createWorkspace(
   const writing = createWriting(
     client,
     () => {
+      record.schema = 4;
       record.writing = writing.snapshot();
+      record.retainedReplies = writing.retainedSnapshot();
       return persist();
     },
     (account) => {
@@ -685,8 +687,9 @@ export function createWorkspace(
   }
   async function persist() {
     if (
-      record.writing?.action === "private-message" ||
-      record.writing?.privateAttempts?.length
+      record.schema !== 4 &&
+      (record.writing?.action === "private-message" ||
+        record.writing?.privateAttempts?.length)
     )
       record.schema = 3;
     record.favoriteAttempts = JSON.parse(
@@ -823,6 +826,8 @@ export function createWorkspace(
       documentNavigation: null,
       origin: originContext(entry),
     };
+    if (state.value.reading)
+      writing.selectThread(state.value.reading.thread.id);
     void nextTick().then(() => {
       view?.restore(
         entry.position,
@@ -1112,6 +1117,8 @@ export function createWorkspace(
         restored: false,
         destination: entry.destination,
       };
+      if (state.value.reading)
+        writing.selectThread(state.value.reading.thread.id);
       void nextTick().then(() => {
         view?.restore(
           entry.position,
@@ -1176,6 +1183,7 @@ export function createWorkspace(
       requested?.url.searchParams.get("tid");
     if (
       context &&
+      !writing.canSelectThread() &&
       context.id !== retainedContextId &&
       (((requested?.kind === "thread" || requested?.kind === "redirect") &&
         requestedThread !== state.value.reading?.thread.id) ||
@@ -1203,7 +1211,10 @@ export function createWorkspace(
       updateAnchor(requested.url.hash);
       return;
     }
-    if (["thread", "redirect"].includes(requested?.kind ?? "")) writing.hide();
+    if (["thread", "redirect"].includes(requested?.kind ?? "")) {
+      writing.hide();
+      if (requestedThread) writing.selectThread(requestedThread);
+    }
     capture();
     const previous = entryFor(state.value.key);
     if (previous && selection) previous.selection = selection;
@@ -1552,7 +1563,13 @@ export function createWorkspace(
     state.value = { ...state.value, recoveryProblem: host.recoveryProblem() };
     if (recovered) {
       record = recovered;
-      writing.restore(recovered.writing);
+      const normalizedWriting = writing.restore(
+        recovered.writing,
+        recovered.retainedReplies,
+      );
+      record.writing = writing.snapshot();
+      if (record.schema === 4)
+        record.retainedReplies = writing.retainedSnapshot();
       const attempts = (recovered.favoriteAttempts ?? []).map((attempt) =>
         attempt.status === "pending"
           ? {
@@ -1569,6 +1586,7 @@ export function createWorkspace(
         attempts,
         message: attempts.at(-1)?.message ?? "",
       };
+      if (normalizedWriting) void persist();
     }
     // Initial document traversal must not save an empty provisional record.
     // Read the current key after loading; earlier history events need no replay.
