@@ -219,6 +219,8 @@ export interface ThreadRow extends ForumLink {
   replies: string;
   views: string;
   lastPost: ForumLink | null;
+  /** Native latest-reply cell metadata; absent on legacy or unsupported sources. */
+  latestReply?: { author: string | null; time: string | null };
 }
 /** Native source-menu provenance; semantics never inferred from link labels. */
 export interface BoardFilterGroup {

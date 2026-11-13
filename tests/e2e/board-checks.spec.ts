@@ -454,7 +454,7 @@ for (const [width, language, size] of [
 ] as const)
   test(`UI90.presentation-${width}-${language}-${size}: status and count preserve row geometry and named actions`, async ({
     page,
-  }) => {
+  }, info) => {
     const { openSettings, closeSettingsToWorkspace } =
       await import("./navigation-ui");
     await page.setViewportSize({ width, height: 800 });
@@ -476,21 +476,49 @@ for (const [width, language, size] of [
             .getBoundingClientRect().bottom,
       );
     expect(statusHeight).toBeLessThanOrEqual(140);
+    const pane = page.locator(".results-pane");
+    const setupScroll = await pane.evaluate((node) => node.scrollTop);
+    const check = page.getByRole("button", {
+      name: language === "en" ? "Check for new threads" : "检查新主题",
+      exact: true,
+    });
+    // Establish a visible control before measuring; locator.click would otherwise
+    // scroll a header hidden by Settings focus restoration during the measurement.
+    await check.scrollIntoViewIfNeeded();
+    const target = (await check.boundingBox())!;
+    const bounds = (await pane.boundingBox())!;
+    expect(target.y).toBeGreaterThanOrEqual(bounds.y);
+    expect(target.y + target.height).toBeLessThanOrEqual(
+      bounds.y + bounds.height,
+    );
+    const beforeScroll = await pane.evaluate((node) => node.scrollTop);
     const before = await rows(page);
     ids = [45, 42, 43];
-    await page
-      .getByRole("button", {
-        name: language === "en" ? "Check for new threads" : "检查新主题",
-        exact: true,
-      })
-      .click();
+    await page.mouse.click(
+      target.x + target.width / 2,
+      target.y + target.height / 2,
+    );
     await expect(
       page.getByRole("button", {
         name: language === "en" ? "Show 1 new thread" : "显示 1 个新主题",
         exact: true,
       }),
     ).toBeVisible();
-    expect(await rows(page)).toEqual(before);
+    const after = await rows(page);
+    const afterScroll = await pane.evaluate((node) => node.scrollTop);
+    await info.attach("visible-refresh-geometry.json", {
+      body: JSON.stringify({
+        setupScroll,
+        beforeScroll,
+        afterScroll,
+        before,
+        after,
+        target,
+        bounds,
+      }),
+      contentType: "application/json",
+    });
+    expect(after).toEqual(before);
   });
 
 test("UI90.writing-recovery: reveal retains source node, selection and reading; acknowledged reload retains revealed rows and writing", async ({

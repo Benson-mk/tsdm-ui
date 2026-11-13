@@ -633,10 +633,10 @@ test("J11.preparation-account: a newly observed account invalidates retained old
 test("J5.redirect-writing: actual document redirect and app remount retain source and exact return navigation", async ({
   browser,
 }, info) => {
-  const threadURL = `${origin}/forum.php?mod=viewthread&tid=42&page=3#pid105`;
+  const threadURL = `${origin}/forum.php?mod=viewthread&tid=43&page=3#pid105`;
   const boardWithRedirect = board().replace(
     "</table>",
-    '<tbody id="normalthread_43"><tr><th><a class="xst" href="forum.php?mod=viewthread&tid=43">Redirect guide</a></th><td class="by"></td><td class="num"></td><td class="by"><em><a href="forum.php?mod=redirect&goto=findpost&ptid=42&pid=105">Exact post</a></em></td></tr></tbody></table>',
+    '<tbody id="normalthread_43"><tr><th><a class="xst" href="forum.php?mod=viewthread&tid=43">Redirect guide</a></th><td class="by"></td><td class="num"></td><td class="by"><em><a href="forum.php?mod=redirect&goto=findpost&ptid=43&pid=105">Exact post</a></em></td></tr></tbody></table>',
   );
   await withRedirectFixture(
     browser,
@@ -661,7 +661,7 @@ test("J5.redirect-writing: actual document redirect and app remount retain sourc
         .click();
       await page
         .getByRole("link", {
-          name: "Last reply to Redirect guide",
+          name: "Latest reply: Replier unavailable · Exact post",
           exact: true,
         })
         .click();

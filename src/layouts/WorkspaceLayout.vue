@@ -3110,9 +3110,14 @@ function boardIdFrom(url: string) {
           ><span
             >{{ row.replies }} {{ text.replies }} · {{ row.views }}
             {{ text.views }}</span
-          ><a v-if="row.lastPost" :href="row.lastPost.url">{{
-            insert(text.lastReply, row.label)
-          }}</a>
+          ><component
+            :is="row.lastPost ? 'a' : 'span'"
+            :href="row.lastPost?.url"
+            class="latest-reply"
+            >{{ text.lastReply }}:
+            {{ row.latestReply?.author || text.latestAuthorUnavailable }} ·
+            {{ row.latestReply?.time || text.latestTimeUnavailable }}</component
+          >
         </div>
         <p v-if="!boardContext.threads.length">{{ boardContext.empty }}</p>
         <nav :aria-label="text.boardPages">

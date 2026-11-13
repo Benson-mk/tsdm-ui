@@ -400,7 +400,12 @@ function result(value: unknown): boolean {
           string(row.date) &&
           string(row.replies) &&
           string(row.views) &&
-          (row.lastPost === null || link(row.lastPost)),
+          (row.lastPost === null || link(row.lastPost)) &&
+          (row.latestReply === undefined ||
+            (object(row.latestReply) &&
+              (row.latestReply.author === null ||
+                string(row.latestReply.author)) &&
+              (row.latestReply.time === null || string(row.latestReply.time)))),
       ) &&
       list(b.filters, link) &&
       (b.filterGroups === undefined ||

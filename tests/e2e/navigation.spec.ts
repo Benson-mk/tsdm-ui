@@ -622,8 +622,9 @@ test("J2.session-refusal: actual browser quota refusal requires explicit loss wa
     });
   });
   await page
+    .locator('[data-thread-id="42"]')
     .getByRole("link", {
-      name: "Last reply to Autumn listening — page 1",
+      name: "Latest reply: Listener Ten · Last reply",
       exact: true,
     })
     .click();
@@ -1311,8 +1312,9 @@ test("J2.session-redirect: real 302 remount retains canonical PID and populated 
       await page.goto(secondURL);
       await expect(page.getByText("Page 2", { exact: true })).toBeVisible();
       await page
+        .locator('[data-thread-id="42"]')
         .getByRole("link", {
-          name: "Last reply to Autumn listening — page 2",
+          name: "Latest reply: Listener Ten · Last reply",
           exact: true,
         })
         .click();

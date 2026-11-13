@@ -46,6 +46,34 @@ export function link(
   const url = safeURL(attr(node, "href"), base);
   return url && label(node) ? { url: cleanURL(url), label: label(node) } : null;
 }
+function latestPost(
+  cell: Element | undefined,
+  base: string,
+  threadId: string,
+): ForumLink | null {
+  if (!cell) return null;
+  const anchor = descendants(cell, (n) => n.tagName === "em").flatMap((n) =>
+    descendants(n, (p) => p.tagName === "a"),
+  )[0];
+  const url = anchor && safeURL(attr(anchor, "href"), base);
+  const route = url && routeFor(url);
+  if (!route || route.url.origin !== new URL(base).origin) return null;
+  const query = route.url.searchParams;
+  // A native exact-PID redirect may omit thread identity. Preserve it, but
+  // never override an explicitly conflicting identity with the row ID.
+  const sameThread = ["tid", "ptid"].every((key) =>
+    query.getAll(key).every((value) => value === threadId),
+  );
+  const exactDestination =
+    route.kind === "redirect" ||
+    (route.kind === "thread" &&
+      (query.has("page") ||
+        query.has("pid") ||
+        /^#(?:pid[1-9]\d*|lastpost)$/.test(route.url.hash)));
+  return sameThread && exactDestination
+    ? { url: cleanURL(route.url.href), label: label(anchor) }
+    : null;
+}
 function groupProvenance(
   node: Element,
   heading: Element | undefined,
@@ -344,10 +372,28 @@ export function decodeBoard(
     if (rowId !== id && !moved) return null;
     const by = descendants(row, (n) => n.tagName === "td" && hasClass(n, "by")),
       num = descendants(row, (n) => hasClass(n, "num"))[0];
+    const latestCell = by.length > 1 ? by.at(-1) : undefined;
+    const latestTime =
+      latestCell && descendants(latestCell, (n) => n.tagName === "em")[0];
+    const timestamp =
+      latestTime && descendants(latestTime, (n) => !!attr(n, "title"))[0];
     return {
       ...item,
       id,
       rowId,
+      ...(latestCell
+        ? {
+            latestReply: {
+              author:
+                label(
+                  descendants(latestCell, (n) => n.tagName === "cite")[0],
+                ) || null,
+              time:
+                (timestamp ? attr(timestamp, "title") : label(latestTime)) ||
+                null,
+            },
+          }
+        : {}),
       moved,
       pinned: touch
         ? hasClass(row, "list_top")
@@ -373,13 +419,7 @@ export function decodeBoard(
           : num && descendants(num, (n) => n.tagName === "a")[0],
       ),
       views: label(num && descendants(num, (n) => n.tagName === "em")[0]),
-      lastPost: link(
-        by.at(-1) &&
-          descendants(by.at(-1)!, (n) => n.tagName === "em").flatMap((n) =>
-            descendants(n, (p) => p.tagName === "a"),
-          )[0],
-        url,
-      ),
+      lastPost: latestPost(latestCell, url, id),
     };
   });
   const empty = container
