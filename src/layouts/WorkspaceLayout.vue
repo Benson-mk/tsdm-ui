@@ -19,6 +19,7 @@ import {
 } from "reka-ui";
 import ColumnSeparator from "../components/ColumnSeparator.vue";
 import PostActions from "../components/PostActions.vue";
+import PostPermalink from "../components/PostPermalink.vue";
 import ThreadTools from "../components/ThreadTools.vue";
 import ThreadHistoryBoundary from "../components/ThreadHistoryBoundary.vue";
 import WorkspaceIcon from "../components/WorkspaceIcon.vue";
@@ -3720,9 +3721,14 @@ function boardIdFrom(url: string) {
                     >
                   </div>
                 </div>
-                <a class="post-number" :href="post.url"
-                  >{{ text.post }} {{ post.id }}</a
-                >
+                <PostPermalink
+                  :workspace="workspace"
+                  :portal="portal"
+                  :post-id="post.id"
+                  :url="post.url"
+                  :thread-id="reading.thread.id"
+                  :thread-url="reading.thread.url"
+                />
                 <PostActions
                   :ref="
                     (value) => {

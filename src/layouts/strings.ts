@@ -1,5 +1,8 @@
 import type { Preferences } from "../workspace/preferences";
 const english = {
+  postURL: "Post URL",
+  copyPostPermalink: "Copy permalink for post {value}",
+  postPermalinkReload: "Refresh thread to verify this post permalink",
   reportSubmit: "Submit report",
   reportSubmitting: "Submitting this report once…",
   reportUncertain:
@@ -536,6 +539,9 @@ const english = {
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
+  postURL: "帖子链接",
+  copyPostPermalink: "复制帖子 {value} 的永久链接",
+  postPermalinkReload: "请刷新主题以确认帖子永久链接",
   reportSubmit: "提交举报",
   reportSubmitting: "正在提交本次举报，不会重复发送…",
   reportUncertain:
@@ -1042,6 +1048,9 @@ const simplified: Strings = {
     "无法读取浏览器页面会话存储。当前内容仍可使用；刷新恢复不可用。",
 };
 const traditional: Strings = {
+  postURL: "貼文連結",
+  copyPostPermalink: "複製貼文 {value} 的永久連結",
+  postPermalinkReload: "請重新整理主題以確認貼文永久連結",
   reportSubmit: "提交舉報",
   reportSubmitting: "正在提交本次舉報，不會重複發送…",
   reportUncertain:

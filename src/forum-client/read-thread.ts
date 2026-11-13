@@ -615,9 +615,9 @@ export function decodeThread(
           ? descendants(wrapper, (n) => hasClass(n, "mtime"))[0]
           : byId(wrapper, `authorposton${id}`),
       ),
-      url:
-        link(byId(wrapper, `postnum${id}`), response.url)?.url ??
-        `${cleanURL(response.url).split("#")[0]}#pid${id}`,
+      // Thread and unique native wrapper identities are qualified above. Native
+      // post-number hrefs can be thread-only, malformed or referral-bearing.
+      url: `${requested.origin}/forum.php?mod=redirect&goto=findpost&ptid=${requested.searchParams.get("tid")!}&pid=${id}`,
       content: [
         ...bodyContent,
         ...descendants(

@@ -1987,7 +1987,28 @@ select {
   flex: 1;
   min-width: 0;
 }
+.post-permalink {
+  position: relative;
+  margin-left: auto;
+  flex: none;
+}
+.post-copy-status {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  background: var(--surface);
+  font-size: calc(0.75rem * var(--text-scale, 1));
+}
+.post-permalink-dialog input {
+  min-height: 44px;
+  font: inherit;
+}
 .post-number {
+  min-width: 44px;
+  min-height: 44px;
   flex: none;
   margin-left: auto;
   font-size: calc(0.875rem * var(--text-scale, 1));

@@ -58,7 +58,7 @@ export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
 import { createPrivateWriting } from "./private-writing.js";
-export const FORUM_CLIENT_VERSION = "0.24.0";
+export const FORUM_CLIENT_VERSION = "0.24.1";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
