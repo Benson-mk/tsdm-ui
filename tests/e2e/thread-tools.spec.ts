@@ -522,6 +522,27 @@ for (const rich of [false, true])
     await page.setViewportSize({ width: 375, height: 420 });
     await frames(page);
     const after = await measure();
+    await info.attach("resize-first-content.json", {
+      body: JSON.stringify(
+        await pane.evaluate((e) => {
+          const content = e.querySelector(".post-content")!;
+          const walker = document.createTreeWalker(
+            content,
+            NodeFilter.SHOW_TEXT,
+          );
+          const text = walker.nextNode()!;
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          return {
+            content: content.getBoundingClientRect().toJSON(),
+            rects: [...range.getClientRects()]
+              .slice(0, 8)
+              .map((r) => r.toJSON()),
+          };
+        }),
+      ),
+      contentType: "application/json",
+    });
     await info.attach("resize-lines.json", {
       body: JSON.stringify({ before, after }),
       contentType: "application/json",

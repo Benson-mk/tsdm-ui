@@ -19,6 +19,7 @@ import {
 } from "reka-ui";
 import ColumnSeparator from "../components/ColumnSeparator.vue";
 import ThreadTools from "../components/ThreadTools.vue";
+import ThreadHistoryBoundary from "../components/ThreadHistoryBoundary.vue";
 import WorkspaceIcon from "../components/WorkspaceIcon.vue";
 import WorkspaceBrand from "../components/WorkspaceBrand.vue";
 import SearchView from "../components/SearchView.vue";
@@ -657,6 +658,7 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
     ).getBoundingClientRect();
     const anchorTop = anchorRect.top;
     let target = offset + (relativeToPane ? bounds.top - paneTop : 0);
+    let bottomLimit: number | undefined;
     if (
       range?.startContainer.isConnected &&
       pane.classList.contains("reading-pane")
@@ -666,6 +668,7 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
         .getBoundingClientRect();
       const top = Math.max(0, bounds.top, outer.top);
       const bottom = Math.min(window.innerHeight, bounds.bottom, outer.bottom);
+      bottomLimit = bottom;
       // Keep the screen coordinate only while the complete glyph still fits.
       // Growing headings can cover that coordinate; preserve the original
       // reader-relative offset instead, bounded by the actual visible region.
@@ -676,8 +679,72 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
         );
     }
     pane.scrollTop += anchorTop - target;
+    // Integer scrollTop rounding must not clip the final fraction of a glyph
+    // when a shorter reader places it against the bottom edge.
+    if (bottomLimit !== undefined && range?.startContainer.isConnected) {
+      const clipped = range.getBoundingClientRect().bottom - bottomLimit;
+      if (clipped > 0 && clipped < 1) pane.scrollTop += Math.ceil(clipped);
+    }
   }
 }
+function closeCheckDetails(event: KeyboardEvent) {
+  const details = event.currentTarget as HTMLDetailsElement;
+  details.open = false;
+  details.querySelector("summary")?.focus({ preventScroll: true });
+}
+
+// Status changes may reflow content above the viewport. Keep a mid-scroll
+// anchor, but leave the top at zero so new status is discoverable there.
+watch(
+  () => [
+    boardChecks.value.checking,
+    boardChecks.value.failure,
+    boardChecks.value.arrivals.length,
+    props.workspace.boardChecks.canCheck(),
+    history.value.checking,
+    history.value.refreshFailure,
+    history.value.arrivals.length,
+    history.value.earlier.status,
+    history.value.later.status,
+  ],
+  () => {
+    const revision = readingRestoreRevision;
+    const context = state.value.key;
+    const title = titlePosition;
+    const positions = capturePositions().filter(
+      ({ pane, scrollTop }) =>
+        (pane.classList.contains("board-thread-list") ||
+          pane.classList.contains("reading-pane")) &&
+        scrollTop > 0,
+    );
+    void nextTick().then(() => {
+      // Workspace restoration/follow owns a changed result or navigation.
+      if (revision !== readingRestoreRevision || context !== state.value.key)
+        return;
+      const displaced = positions.filter(
+        ({ anchor, range, offset }) =>
+          anchor.isConnected &&
+          Math.abs(
+            (range?.startContainer.isConnected
+              ? range
+              : anchor
+            ).getBoundingClientRect().top - offset,
+          ) > 0.5,
+      );
+      if (displaced.length) {
+        const retainTitle =
+          title &&
+          title === titlePosition &&
+          title.scroll === title.pane.scrollTop;
+        restorePositions(displaced);
+        // Compaction records the original user scroll intent. A status-only
+        // compensation must not reclassify its distance from the newest post.
+        if (retainTitle) title.scroll = title.pane.scrollTop;
+      }
+    });
+  },
+);
+
 function resize() {
   const viewport = window.visualViewport;
   const magnified =
@@ -2025,8 +2092,30 @@ onMounted(() => {
       }
     },
     capture: () => capturePane(pane()),
-    captureReading: () =>
-      capturePane(root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")),
+    captureReading: () => {
+      const position = capturePane(
+        root.shadowRoot?.querySelector<HTMLElement>(".reading-pane"),
+      );
+      // At the top a check exposes its status. Preserve zero instead of
+      // anchoring the first post below a changing status row; history loads
+      // still retain their post anchor when prepending earlier content.
+      if (history.value.checking) {
+        if (position.scrollTop === 0) position.anchor = null;
+        else {
+          // A pinned opener's trailing box may still intersect the viewport
+          // while the reader is actually on a later post. Anchor that text's
+          // post before new replies can be inserted between the two.
+          const character = readingCharacters.get(position);
+          const post =
+            character && root.shadowRoot?.getElementById(character.post);
+          if (post) {
+            position.anchor = post.id;
+            position.offset = post.getBoundingClientRect().top;
+          }
+        }
+      }
+      return position;
+    },
     restoreReading(position) {
       suppressAutomaticHistory();
       stopReadingImageRestore?.();
@@ -3211,7 +3300,16 @@ function boardIdFrom(url: string) {
             <WorkspaceIcon name="refresh" />
           </button>
         </div>
-        <div class="board-check-status" aria-live="polite">
+        <div
+          v-if="
+            boardChecks.checking ||
+            boardChecks.failure ||
+            boardChecks.arrivals.length ||
+            !workspace.boardChecks.canCheck()
+          "
+          class="board-check-status"
+          aria-live="polite"
+        >
           <span>{{
             boardChecks.checking
               ? text.boardChecking
@@ -3219,15 +3317,20 @@ function boardIdFrom(url: string) {
                 ? text.boardCheckFailed
                 : !workspace.boardChecks.canCheck()
                   ? text.boardCheckUnavailable
-                  : boardChecks.baseline
-                    ? text.boardBaseline
-                    : boardChecks.automatic && boardChecks.paused
-                      ? text.refreshPaused
-                      : boardChecks.checkedAt
-                        ? text.boardChecked
-                        : text.boardCheckHelp
+                  : ""
           }}</span>
           <div class="board-check-actions">
+            <button
+              v-if="boardChecks.failure"
+              :disabled="
+                boardChecks.checking ||
+                boardChecks.retryMinutes > 0 ||
+                !workspace.boardChecks.canCheck()
+              "
+              @click="workspace.boardChecks.check()"
+            >
+              {{ text.retryCheck }}
+            </button>
             <button
               v-if="boardChecks.arrivals.length"
               @click="workspace.boardChecks.reveal()"
@@ -3244,10 +3347,9 @@ function boardIdFrom(url: string) {
               }}
             </button>
             <details
+              v-if="boardChecks.failure"
               class="board-check-details"
-              :style="{
-                visibility: boardChecks.failure ? 'visible' : 'hidden',
-              }"
+              @keydown.esc.stop="closeCheckDetails"
             >
               <summary
                 :aria-label="text.checkDetails"
@@ -3487,7 +3589,25 @@ function boardIdFrom(url: string) {
           >
             {{ notice }}
           </p>
+        </div>
+        <section
+          v-if="reading"
+          class="reading-pane pane"
+          data-scroll-pane="reading"
+          :aria-label="text.threadReading"
+          @scroll.passive="readingScroll"
+        >
           <div
+            class="thread-heading-spacer"
+            aria-hidden="true"
+            :style="{ height: titleSpace + 'px' }"
+          />
+          <div
+            v-if="
+              history.checking ||
+              history.refreshFailure ||
+              history.arrivals.length
+            "
             class="history-controls public-history-controls"
             :aria-label="text.threadHistory"
           >
@@ -3500,16 +3620,21 @@ function boardIdFrom(url: string) {
                       ? history.retryMinutes
                         ? insert(text.checkCooldown, history.retryMinutes)
                         : text.checkFailed
-                      : history.automatic
-                        ? history.paused
-                          ? text.refreshPaused
-                          : text.refreshEnabled
-                        : history.baselineEstablished
-                          ? text.newestBaseline
-                          : text.refreshManual
+                      : ""
                 }}
               </p>
               <div class="public-check-actions">
+                <button
+                  v-if="history.refreshFailure"
+                  :disabled="
+                    history.checking ||
+                    history.retryMinutes > 0 ||
+                    !workspace.threadHistory.canCheck()
+                  "
+                  @click="workspace.threadHistory.checkNewest()"
+                >
+                  {{ text.retryCheck }}
+                </button>
                 <button
                   v-if="history.arrivals.length"
                   @click="workspace.threadHistory.revealArrivals()"
@@ -3521,6 +3646,7 @@ function boardIdFrom(url: string) {
                     history.refreshFailure &&
                     'message' in history.refreshFailure
                   "
+                  @keydown.esc.stop="closeCheckDetails"
                 >
                   <summary
                     :aria-label="text.checkDetails"
@@ -3540,116 +3666,18 @@ function boardIdFrom(url: string) {
                 </details>
               </div>
             </div>
-            <span class="public-check-time">
-              <time
-                v-if="history.checkedAt"
-                tabindex="0"
-                :datetime="new Date(history.checkedAt).toISOString()"
-                :title="
-                  new Date(history.checkedAt).toLocaleString(
-                    workspace.preferences.state.value.language,
-                  )
-                "
-                :aria-label="
-                  insert(
-                    text.lastSuccessfulCheck,
-                    new Date(history.checkedAt).toLocaleString(
-                      workspace.preferences.state.value.language,
-                    ),
-                  )
-                "
-              >
-                {{
-                  insert(
-                    text.lastSuccessfulCheck,
-                    new Date(history.checkedAt).toLocaleString(
-                      workspace.preferences.state.value.language,
-                      {
-                        month: "numeric",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      },
-                    ),
-                  )
-                }}
-              </time>
-            </span>
-            <div
-              class="public-history-boundaries"
-              :data-reserve="`${text.historyEarlierUnknown}   ${text.historyLaterUnknown}`"
-            >
-              <div class="public-history-boundary-content">
-                <template
-                  v-for="direction in ['earlier', 'later'] as const"
-                  :key="direction"
-                >
-                  <span
-                    v-if="history[direction].status === 'loading'"
-                    role="status"
-                    >{{ text.historyLoading }}</span
-                  >
-                  <button
-                    v-if="
-                      history[direction].url &&
-                      history[direction].status === 'failed'
-                    "
-                    :disabled="
-                      history.checking ||
-                      history.earlier.status === 'loading' ||
-                      history.later.status === 'loading'
-                    "
-                    @click="workspace.threadHistory.load(direction)"
-                  >
-                    {{
-                      direction === "earlier"
-                        ? text.retryEarlier
-                        : text.retryLater
-                    }}
-                  </button>
-                  <span v-else-if="!history[direction].url">{{
-                    history[direction].status === "end"
-                      ? direction === "earlier"
-                        ? text.historyBeginning
-                        : text.historyEnd
-                      : direction === "earlier"
-                        ? text.historyEarlierUnknown
-                        : text.historyLaterUnknown
-                  }}</span>
-                </template>
-                <p
-                  v-for="direction in ['earlier', 'later'] as const"
-                  v-show="history[direction].failure"
-                  :key="`failure-${direction}`"
-                  role="status"
-                >
-                  {{
-                    history[direction].failure &&
-                    "message" in history[direction].failure
-                      ? description(
-                          history[direction].failure.message,
-                          workspace.preferences.state.value.language,
-                        )
-                      : ""
-                  }}
-                </p>
-              </div>
-            </div>
           </div>
-        </div>
-        <section
-          v-if="reading"
-          class="reading-pane pane"
-          data-scroll-pane="reading"
-          :aria-label="text.threadReading"
-          @scroll.passive="readingScroll"
-        >
-          <div
-            class="thread-heading-spacer"
-            aria-hidden="true"
-            :style="{ height: titleSpace + 'px' }"
+          <ThreadHistoryBoundary
+            v-if="!reverseReading"
+            :workspace="workspace"
+            direction="earlier"
           />
           <template v-for="post in visiblePosts" :key="post.id">
+            <ThreadHistoryBoundary
+              v-if="reverseReading && post.id === newestReplyId"
+              :workspace="workspace"
+              direction="later"
+            />
             <button
               v-if="
                 reverseReading &&
@@ -3793,6 +3821,10 @@ function boardIdFrom(url: string) {
               </ul>
             </article>
           </template>
+          <ThreadHistoryBoundary
+            :workspace="workspace"
+            :direction="reverseReading ? 'earlier' : 'later'"
+          />
           <button
             v-if="!reverseReading && history.later.status === 'end'"
             class="newest-check"

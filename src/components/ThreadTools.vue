@@ -18,7 +18,7 @@ import {
 import type { Workspace } from "../workspace";
 import type { ReadResult } from "../forum-client";
 import { writeClipboardText } from "../hosts/clipboard";
-import { strings } from "../layouts/strings";
+import { strings, insert } from "../layouts/strings";
 import { favoriteText } from "./favorite-labels";
 import WorkspaceIcon from "./WorkspaceIcon.vue";
 const props = defineProps<{
@@ -307,6 +307,58 @@ function overlayClick() {
               }
             "
           >
+            <div class="thread-check-mode">
+              <p>
+                {{
+                  history.automatic
+                    ? history.paused
+                      ? text.refreshPaused
+                      : text.refreshEnabled
+                    : text.refreshManual
+                }}
+              </p>
+              <p v-if="!workspace.threadHistory.canCheck()">
+                {{ text.threadCheckUnavailable }}
+              </p>
+              <p v-if="history.baselineEstablished">
+                {{ text.newestBaseline }}
+              </p>
+              <span class="public-check-time">
+                <time
+                  v-if="history.checkedAt"
+                  tabindex="0"
+                  :datetime="new Date(history.checkedAt).toISOString()"
+                  :title="
+                    new Date(history.checkedAt).toLocaleString(
+                      workspace.preferences.state.value.language,
+                    )
+                  "
+                  :aria-label="
+                    insert(
+                      text.lastSuccessfulCheck,
+                      new Date(history.checkedAt).toLocaleString(
+                        workspace.preferences.state.value.language,
+                      ),
+                    )
+                  "
+                >
+                  {{
+                    insert(
+                      text.lastSuccessfulCheck,
+                      new Date(history.checkedAt).toLocaleString(
+                        workspace.preferences.state.value.language,
+                        {
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        },
+                      ),
+                    )
+                  }}
+                </time>
+              </span>
+            </div>
             <DropdownMenuItem
               v-if="workspace.state.value.canBack"
               as-child

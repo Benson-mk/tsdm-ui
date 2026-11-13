@@ -1,3 +1,4 @@
+import { expectThreadCheckMode, openThreadMore } from "./navigation-ui";
 import { setAutomaticChecks } from "./navigation-ui";
 import { openThreadPages, loadThreadRange } from "./navigation-ui";
 import { clickThreadTool } from "./navigation-ui";
@@ -322,7 +323,7 @@ test("IM71.auto-policy: opt-in checks wait120seconds, pause for visible modal an
 }) => {
   test.setTimeout(290_000);
   const requests = await open(page, undefined, route(3));
-  await expect(page.getByText("Manual refresh", { exact: true })).toBeVisible();
+  await expectThreadCheckMode(page, "Manual refresh");
   await openSettings(page);
   const toggle = page.getByRole("dialog").getByRole("checkbox", {
     name: "Check every 2 minutes while active",
@@ -334,14 +335,12 @@ test("IM71.auto-policy: opt-in checks wait120seconds, pause for visible modal an
   await page.waitForTimeout(121_000);
   expect(requests).toHaveLength(1);
   await closeSettingsToWorkspace(page, "button");
-  await expect(
-    page.getByText("Checks enabled · every 2 minutes", { exact: true }),
-  ).toBeVisible();
+  await expectThreadCheckMode(page, "Checks enabled · every 2 minutes");
   await page.waitForTimeout(118_000);
   expect(requests).toHaveLength(1);
   await expect.poll(() => requests.length, { timeout: 5000 }).toBe(2);
   await setAutomaticChecks(page, false);
-  await expect(page.getByText("Manual refresh", { exact: true })).toBeVisible();
+  await expectThreadCheckMode(page, "Manual refresh");
 });
 
 test("IM71.current-position: a reader moving away during a delayed refresh keeps the current anchor", async ({
@@ -675,7 +674,7 @@ test("IM71.returned-later: refreshed latest page can reveal a real next boundary
   await expect(page.getByRole("button", { name: /New replies/ })).toHaveCount(
     0,
   );
-  await expect(page.getByText("Checks paused", { exact: true })).toBeVisible();
+  // Passive mode is in options; the open page dialog itself remains modal.
   await page.keyboard.press("Escape");
   await openSettings(page);
   const toggle = page.getByRole("dialog").getByRole("checkbox", {
@@ -686,7 +685,7 @@ test("IM71.returned-later: refreshed latest page can reveal a real next boundary
   await toggle.uncheck();
   await expect(toggle).not.toBeChecked();
   await closeSettingsToWorkspace(page);
-  await expect(page.getByText("Manual refresh", { exact: true })).toBeVisible();
+  await expectThreadCheckMode(page, "Manual refresh");
   expect(requests).toHaveLength(2);
 });
 
@@ -730,9 +729,11 @@ test("IM71.cached-range: explicit page navigation and Back preserve arrival memb
   await expect(
     page.getByRole("button", { name: "New replies (1)", exact: true }),
   ).toBeVisible();
+  await openThreadMore(page);
   const priorChecked = await page
     .locator(".public-check-time time")
     .getAttribute("datetime");
+  await page.keyboard.press("Escape");
   await (
     await openThreadPages(page)
   )
@@ -743,6 +744,7 @@ test("IM71.cached-range: explicit page navigation and Back preserve arrival memb
   await expect(page.locator("#pid108")).toHaveCount(1);
   await expect(page.locator("#pid107")).toHaveCount(0);
   await expect(page.locator("#pid103")).toHaveCount(1);
+  await openThreadMore(page);
   await expect(page.locator(".public-check-time time")).toHaveAttribute(
     "datetime",
     priorChecked!,
@@ -751,6 +753,7 @@ test("IM71.cached-range: explicit page navigation and Back preserve arrival memb
     "aria-label",
     new RegExp(String(new Date(priorChecked!).getFullYear())),
   );
+  await page.keyboard.press("Escape");
   await openSettings(page);
   await expect(
     page.getByRole("checkbox", {
@@ -852,7 +855,7 @@ test("IM71.overlap-source: a post retained only by an earlier page keeps that ac
   ).toEqual(["3", "2", "3", "2"]);
 });
 
-test("IM71.top-anchor: a top reader stays at the existing first post and receives the local arrival action", async ({
+test("IM71.top-anchor: a top reader stays at scroll zero and exposes the local arrival action", async ({
   page,
 }) => {
   let changed = false;
@@ -861,19 +864,20 @@ test("IM71.top-anchor: a top reader stays at the existing first post and receive
     (number) => ({ body: changed ? arrival(number) : fixture(number) }),
     route(3),
   );
-  const before = await page
-    .locator("#pid105")
-    .evaluate((post) => post.getBoundingClientRect().top);
+  expect(
+    await page.locator(".reading-pane").evaluate((pane) => pane.scrollTop),
+  ).toBe(0);
   changed = true;
   await clickThreadTool(page, "Refresh thread");
   await expect(
     page.getByRole("button", { name: "New replies (1)", exact: true }),
   ).toBeVisible();
   expect(
-    await page
-      .locator("#pid105")
-      .evaluate((post) => post.getBoundingClientRect().top),
-  ).toBeCloseTo(before, 0);
+    await page.locator(".reading-pane").evaluate((pane) => pane.scrollTop),
+  ).toBe(0);
+  await expect(
+    page.getByRole("button", { name: "New replies (1)", exact: true }),
+  ).toBeInViewport();
 });
 
 test("IM71.new-later-page: a refresh exposing unloaded later content does not follow an intermediate loaded end", async ({
@@ -935,6 +939,7 @@ test("IM71.last-success: a local successful-check time stays visible through a l
   );
   await expect(page.getByText(/^Last successful check:/)).toHaveCount(0);
   await clickThreadTool(page, "Refresh thread");
+  await openThreadMore(page);
   const checked = page.getByText(/^Last successful check:/);
   await expect(checked).toBeVisible();
   const last = await checked.textContent();
@@ -946,6 +951,7 @@ test("IM71.last-success: a local successful-check time stays visible through a l
   fail = true;
   await clickThreadTool(page, "Refresh thread");
   await expect(page.getByText(/Check failed · wait 2 min/)).toBeVisible();
+  await openThreadMore(page);
   await expect(checked).toHaveText(last!);
   expect(requests).toHaveLength(3);
 });
@@ -1298,7 +1304,9 @@ test("F79.public-first-timestamp: first successful refresh preserves the real vi
   });
   const before = await readableLines(page);
   await clickThreadTool(page, "Refresh thread");
+  await openThreadMore(page);
   await expect(page.getByText(/Last successful check/)).toBeVisible();
+  await page.keyboard.press("Escape");
   const after = await readableLines(page);
   await info.attach("public-timestamp-lines.json", {
     body: JSON.stringify({ before, after }),
