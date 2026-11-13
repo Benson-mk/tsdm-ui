@@ -1419,6 +1419,21 @@ select {
   font-size: calc(1rem * var(--text-scale, 1));
   line-height: 1.45;
 }
+.board-thread-list .thread-row {
+  padding: 16px 8px;
+  margin-bottom: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--boundary);
+  box-shadow: none;
+  overflow-wrap: anywhere;
+}
+.conversation-region > .reader-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--muted);
+}
 .workspace > header {
   min-height: 56px;
   padding: 4px 16px;

@@ -10,6 +10,7 @@ export interface ViewPosition {
   readingPaneTop?: number;
   readingRegionScrollTop?: number;
   resultsScrollTop?: number;
+  resultsPaneTop?: number;
 }
 export interface ReadingMarker {
   savedAt: number;

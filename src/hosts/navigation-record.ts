@@ -648,6 +648,8 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
         position.scrollTop >= 0 &&
         (position.readingPaneTop === undefined ||
           finite(position.readingPaneTop)) &&
+        (position.resultsPaneTop === undefined ||
+          finite(position.resultsPaneTop)) &&
         (position.readingRegionScrollTop === undefined ||
           (finite(position.readingRegionScrollTop) &&
             position.readingRegionScrollTop >= 0)) &&

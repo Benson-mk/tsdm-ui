@@ -103,7 +103,11 @@ const resultsVisible = computed(() =>
     ? !threadsCollapsed.value || !hasConversation.value
     : !hasConversation.value || narrowBrowsing.value,
 );
-const browseOnly = computed(() => !hasConversation.value);
+const browseOnly = computed(
+  () =>
+    !hasConversation.value &&
+    !(threadsDocked.value && state.value.result?.kind === "board"),
+);
 const conversationVisible = computed(
   () => !browseOnly.value && (threadsDocked.value || !resultsVisible.value),
 );
@@ -117,21 +121,45 @@ const contextTools = computed(() => boardContextTools.value);
 const boardsTrigger = ref<HTMLButtonElement | null>(null);
 const threadsTrigger = ref<HTMLButtonElement | null>(null);
 const paneScroll = new Map<HTMLElement, number>();
+const paneRows = new Map<HTMLElement, { row: HTMLElement; offset: number }>();
 let drawerReturnFocus: HTMLButtonElement | null = null;
 function rememberPaneScroll() {
   for (const pane of workspaceHost().shadowRoot?.querySelectorAll<HTMLElement>(
     ".pane",
   ) ?? [])
-    if (pane.getClientRects().length) paneScroll.set(pane, pane.scrollTop);
+    if (pane.getClientRects().length) {
+      paneScroll.set(pane, pane.scrollTop);
+      const top = pane.getBoundingClientRect().top;
+      const row = pane.classList.contains("board-thread-list")
+        ? [...pane.querySelectorAll<HTMLElement>("[data-thread-id]")].find(
+            (row) => row.getBoundingClientRect().bottom > top + 1,
+          )
+        : undefined;
+      if (row)
+        paneRows.set(pane, {
+          row,
+          offset: row.getBoundingClientRect().top - top,
+        });
+      else paneRows.delete(pane);
+    }
 }
 function restorePaneScroll() {
   for (const [pane, top] of paneScroll) {
-    if (!pane.isConnected) paneScroll.delete(pane);
-    else if (
+    if (!pane.isConnected) {
+      paneScroll.delete(pane);
+      paneRows.delete(pane);
+    } else if (
       pane.getClientRects().length &&
       !pane.classList.contains("reading-pane")
-    )
+    ) {
       pane.scrollTop = top;
+      const anchor = paneRows.get(pane);
+      if (anchor?.row.isConnected && pane.contains(anchor.row))
+        pane.scrollTop +=
+          anchor.row.getBoundingClientRect().top -
+          pane.getBoundingClientRect().top -
+          anchor.offset;
+    }
   }
 }
 function changeDrawer(next: DrawerPane | null) {
@@ -1678,6 +1706,9 @@ onMounted(() => {
         root.shadowRoot?.querySelector<HTMLElement>(
           ".results-pane, .messages-pane",
         )?.scrollTop ?? 0,
+      ...(container?.classList.contains("board-thread-list")
+        ? { resultsPaneTop: container.getBoundingClientRect().top }
+        : {}),
     };
     if (container === reader && reader && reading.value) {
       const range = visibleReadingRange(reader);
@@ -1910,7 +1941,13 @@ onMounted(() => {
       )
         container.scrollTop +=
           node.getBoundingClientRect().top -
-          (position.offset + (container === reader ? viewportShift : 0));
+          (position.offset +
+            (container === reader
+              ? viewportShift
+              : position.resultsPaneTop !== undefined
+                ? container.getBoundingClientRect().top -
+                  position.resultsPaneTop
+                : 0));
       if (node && target && (!position || position.readingScrollTop === 0))
         node.scrollIntoView({ block: "start" });
       if (
@@ -1932,8 +1969,11 @@ onMounted(() => {
             ?.getElementById(`row-${selection}`)
             ?.querySelector<HTMLElement>(".subject"))
         : null;
+      const focusTarget = container?.classList.contains("board-thread-list")
+        ? (selected ?? node?.querySelector<HTMLElement>(".subject"))
+        : (node ?? selected);
       if (!writing.value.visible && !writing.value.composing)
-        (node ?? selected)?.focus({ preventScroll: true });
+        focusTarget?.focus({ preventScroll: true });
       if (container && node)
         followPendingReadingImages(
           container,
@@ -2908,7 +2948,10 @@ function boardIdFrom(url: string) {
         "
         id="thread-list-pane"
         class="results-pane pane"
-        :class="{ 'secondary-results': state.result?.kind === 'thread' }"
+        :class="{
+          'secondary-results': state.result?.kind === 'thread',
+          'board-thread-list': true,
+        }"
         data-scroll-pane="results"
         :aria-label="text.threadResults"
       >
