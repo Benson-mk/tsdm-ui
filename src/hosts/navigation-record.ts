@@ -384,6 +384,17 @@ function result(value: unknown): boolean {
       object(b) &&
       id(b.id) &&
       string(b.title) &&
+      (b.statistics === undefined || string(b.statistics)) &&
+      (b.clearFilter === undefined || link(b.clearFilter)) &&
+      (b.filterChoices === undefined ||
+        list(
+          b.filterChoices,
+          (choice) =>
+            object(choice) &&
+            destination(choice.url) &&
+            list(choice.criteria, link) &&
+            list(choice.removed, link),
+        )) &&
       destination(b.url) &&
       list(b.boards, boardLink) &&
       list(

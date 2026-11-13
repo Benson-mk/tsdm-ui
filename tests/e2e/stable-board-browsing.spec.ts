@@ -266,3 +266,98 @@ for (const back of [false, true])
       });
     }
   });
+
+test("B1.clipped-resize: shrinking a heavily clipped row retains the next complete row through a narrow round trip", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 905, height: 900 });
+  const requests = await open(page);
+  const list = page.locator("#thread-list-pane");
+  const observed = [];
+  try {
+    await list.evaluate((node) =>
+      (
+        (node.getRootNode() as ShadowRoot).host as HTMLElement
+      ).style.setProperty("--text-scale", "1.25"),
+    );
+    await list.locator('[data-thread-id="42"] .subject').click();
+    await expect(
+      page.getByRole("heading", { name: "閱讀 42", exact: true }),
+    ).toBeVisible();
+    await list.evaluate((pane) => {
+      const row = pane.querySelector<HTMLElement>('[data-thread-id="45"]')!;
+      pane.scrollTop +=
+        row.getBoundingClientRect().top -
+        pane.getBoundingClientRect().top +
+        row.getBoundingClientRect().height -
+        20;
+    });
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    const geometry = () =>
+      list.evaluate((pane) => {
+        const rect = pane.getBoundingClientRect();
+        return {
+          width: rect.width,
+          scrollTop: pane.scrollTop,
+          rows: ["45", "46"].map((id) => {
+            const row = pane.querySelector<HTMLElement>(
+              `[data-thread-id="${id}"]`,
+            )!;
+            const box = row.getBoundingClientRect();
+            return { id, offset: box.top - rect.top, height: box.height };
+          }),
+        };
+      });
+    const before = await geometry();
+    observed.push(before);
+    expect(before.rows[1]!.offset).toBeCloseTo(20, 0);
+    await info.attach("clipped-before.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page
+      .getByRole("button", { name: "Threads pane", exact: true })
+      .click();
+    await expect(list).toBeVisible();
+    const narrow = await geometry();
+    observed.push(narrow);
+    expect(before.rows[0]!.height - narrow.rows[0]!.height).toBeGreaterThan(20);
+    await expect
+      .poll(async () =>
+        Math.abs((await geometry()).rows[1]!.offset - before.rows[1]!.offset),
+      )
+      .toBeLessThanOrEqual(1);
+    await page.setViewportSize({ width: 905, height: 900 });
+    await expect(list).toBeVisible();
+    await expect
+      .poll(async () =>
+        Math.abs((await geometry()).rows[1]!.offset - before.rows[1]!.offset),
+      )
+      .toBeLessThanOrEqual(1);
+    observed.push(await geometry());
+    expect(
+      requests.filter(
+        (r) => new URL(r.url).searchParams.get("mod") === "forumdisplay",
+      ),
+    ).toHaveLength(1);
+  } finally {
+    await info.attach("clipped-geometry.json", {
+      body: JSON.stringify(observed),
+      contentType: "application/json",
+    });
+    await info.attach("clipped-final.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("requests.json", {
+      body: JSON.stringify(requests),
+      contentType: "application/json",
+    });
+  }
+});

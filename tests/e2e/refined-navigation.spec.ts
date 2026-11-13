@@ -172,7 +172,7 @@ test("UI82.header: named SVG controls, supplied brand and native escape share on
   });
 });
 
-test("UI82.browse-first: fresh results fill the browsing surface and narrow Threads retains reader and cross-board context", async ({
+test("UI82.browse-first: fresh results use compact desktop width and narrow Threads retains reader and cross-board context", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 375, height: 844 });
@@ -211,7 +211,7 @@ test("UI82.browse-first: fresh results fill the browsing surface and narrow Thre
     await expect(results).toBeVisible();
     await expect
       .poll(async () => (await results.boundingBox())?.width)
-      .toBe(width < 960 ? width : width - 216);
+      .toBe(width < 768 ? width : 300);
     const bounds = (await results.boundingBox())!;
     frames.push({ width, results: bounds });
   }

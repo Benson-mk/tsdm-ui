@@ -121,7 +121,14 @@ const contextTools = computed(() => boardContextTools.value);
 const boardsTrigger = ref<HTMLButtonElement | null>(null);
 const threadsTrigger = ref<HTMLButtonElement | null>(null);
 const paneScroll = new Map<HTMLElement, number>();
-const paneRows = new Map<HTMLElement, { row: HTMLElement; offset: number }>();
+const paneRows = new Map<
+  HTMLElement,
+  {
+    row: HTMLElement;
+    offset: number;
+    fallback?: { row: HTMLElement; offset: number };
+  }
+>();
 let drawerReturnFocus: HTMLButtonElement | null = null;
 function rememberPaneScroll() {
   for (const pane of workspaceHost().shadowRoot?.querySelectorAll<HTMLElement>(
@@ -153,12 +160,30 @@ function restorePaneScroll() {
       !pane.classList.contains("reading-pane")
     ) {
       pane.scrollTop = top;
-      const anchor = paneRows.get(pane);
+      let anchor = paneRows.get(pane);
+      let promoted: PanePosition | undefined;
+      if (
+        anchor?.fallback?.row.isConnected &&
+        anchor.row.getBoundingClientRect().height + anchor.offset <= 1
+      ) {
+        // A heavily clipped row may shrink entirely above the viewport. Keep
+        // the previously complete row in place instead of saving an invisible
+        // anchor and drifting on the return resize.
+        anchor = anchor.fallback;
+        paneRows.set(pane, anchor);
+        promoted = viewportPositions.find((position) => position.pane === pane);
+        if (promoted) {
+          promoted.anchor = anchor.row;
+          promoted.offset = anchor.offset + promoted.paneTop;
+          delete promoted.fallback;
+        }
+      }
       if (anchor?.row.isConnected && pane.contains(anchor.row))
         pane.scrollTop +=
           anchor.row.getBoundingClientRect().top -
           pane.getBoundingClientRect().top -
           anchor.offset;
+      if (promoted) promoted.scrollTop = pane.scrollTop;
     }
   }
 }
@@ -448,6 +473,7 @@ function chooseSection(event: Event) {
     selectSection(event.target.value as Section);
 }
 type PanePosition = {
+  fallback?: { anchor: HTMLElement; offset: number };
   range?: Range | undefined;
   pane: HTMLElement;
   anchor: HTMLElement;
@@ -552,11 +578,36 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
       // rendered body as the fallback anchor rather than losing div/text-only
       // content when the reader is temporarily hidden.
       [...pane.querySelectorAll<HTMLElement>(".post-content")].find(visible);
+    const completeRow = pane.classList.contains("board-thread-list")
+      ? [...pane.querySelectorAll<HTMLElement>("[data-thread-id]")].find(
+          (row) => {
+            const rect = row.getBoundingClientRect();
+            return (
+              rect.height > 0 &&
+              rect.top >= bounds.top &&
+              rect.bottom <= bounds.bottom
+            );
+          },
+        )
+      : undefined;
     return anchor
       ? [
           {
             pane,
             anchor,
+            ...(anchor.classList.contains("thread-row") &&
+            completeRow &&
+            completeRow !== anchor
+              ? {
+                  fallback: {
+                    anchor: completeRow,
+                    offset:
+                      completeRow.getBoundingClientRect().top -
+                      bounds.top +
+                      (previous?.paneTop ?? bounds.top),
+                  },
+                }
+              : {}),
             range,
             offset:
               previous?.offset ?? (range ?? anchor).getBoundingClientRect().top,
@@ -663,6 +714,23 @@ function resize() {
   const revision = readingRestoreRevision;
   appearanceAnchors = [];
   rememberPaneScroll();
+  // Carry the pre-reflow row through a responsive hide/show as well as a
+  // visible resize. The fallback is considered only if that row disappears.
+  for (const position of positions) {
+    if (position.pane.classList.contains("board-thread-list"))
+      paneRows.set(position.pane, {
+        row: position.anchor,
+        offset: position.offset - position.paneTop,
+        ...(position.fallback
+          ? {
+              fallback: {
+                row: position.fallback.anchor,
+                offset: position.fallback.offset - position.paneTop,
+              },
+            }
+          : {}),
+      });
+  }
   paneWidth.value = window.innerWidth;
   if (
     drawer.value &&
@@ -672,12 +740,19 @@ function resize() {
   void nextTick().then(() => {
     // A later history restoration owns the reader; stale resize work must not
     // replace its position with the newly mounted reader's pre-restore line.
+    restorePaneScroll();
     if (revision === readingRestoreRevision)
+      // The browser has already reflowed CSS when resize fires. Its fresh pane
+      // measurement cannot recover the old row offset; use the last observed
+      // visible board anchor, just as the reader uses its pre-resize position.
       restorePositions(
-        positions.filter(({ pane }) => pane.classList.contains("reading-pane")),
+        positions.filter(
+          ({ pane }) =>
+            pane.classList.contains("reading-pane") ||
+            pane.classList.contains("board-thread-list"),
+        ),
         true,
       );
-    restorePaneScroll();
     // A restored scroll event must keep the exact character across successive
     // widths. Recapturing the start of its newly wrapped line drifts on return.
     viewportPositions = positions.map((position) => ({
@@ -996,6 +1071,16 @@ const boardContext = computed(() =>
         ? state.value.origin.board
         : null,
 );
+const pinsExpanded = ref(false);
+const pinnedRows = computed(
+  () => boardContext.value?.threads.filter((row) => row.pinned) ?? [],
+);
+watch(
+  () => boardContext.value?.url,
+  () => {
+    pinsExpanded.value = false;
+  },
+);
 const boardFilterGroups = computed(() => {
   const board = boardContext.value;
   if (!board) return [];
@@ -1014,6 +1099,9 @@ const boardFilterGroups = computed(() => {
     ...group,
     label:
       group.sourceLabel ||
+      (group.sourceId === "filter_reward_menu"
+        ? text.value.filterReward
+        : undefined) ||
       {
         category: text.value.filterCategory,
         order: text.value.filterOrder,
@@ -1023,6 +1111,53 @@ const boardFilterGroups = computed(() => {
       }[group.kind],
   }));
 });
+const filtersOpen = ref(false);
+const filterTrigger = ref<HTMLButtonElement | null>(null);
+const pendingFilterURL = ref<string | null>(null);
+const pendingFilterName = ref("");
+function chooseFilter(url: string, name: string) {
+  pendingFilterURL.value = url;
+  pendingFilterName.value = name;
+}
+const pendingFilter = computed(() =>
+  boardContext.value?.filterChoices?.find(
+    (choice) => choice.url === pendingFilterURL.value,
+  ),
+);
+function openFilters() {
+  pendingFilterURL.value = null;
+  pendingFilterName.value = "";
+  filtersOpen.value = true;
+}
+function returnFilterFocus() {
+  const target = filterTrigger.value?.getClientRects().length
+    ? filterTrigger.value
+    : threadsTrigger.value;
+  target?.focus({ preventScroll: true });
+}
+function filterEscape(event: KeyboardEvent) {
+  if (event.defaultPrevented) return;
+  // Handle within the shadow dialog before the native body's Escape veto.
+  event.preventDefault();
+  event.stopPropagation();
+  if (event.isComposing || event.keyCode === 229 || writing.value.composing)
+    return;
+  filtersOpen.value = false;
+}
+async function applyFilter() {
+  const choice = pendingFilter.value;
+  if (!choice) return;
+  filtersOpen.value = false;
+  await props.workspace.openThread(choice.url);
+  await nextTick();
+  returnFilterFocus();
+}
+watch(
+  () => boardContext.value?.url,
+  () => {
+    filtersOpen.value = false;
+  },
+);
 const searchContext = computed(() =>
   state.value.section !== "search"
     ? null
@@ -2036,6 +2171,100 @@ function boardIdFrom(url: string) {
 </script>
 <template>
   <div class="workspace" @click="navigate">
+    <DialogRoot :open="filtersOpen" @update:open="filtersOpen = $event">
+      <DialogPortal :to="portal">
+        <DialogOverlay class="dialog-overlay" />
+        <DialogContent
+          class="dialog-content board-filter-dialog"
+          @keydown.esc="filterEscape"
+          @close-auto-focus.prevent="returnFilterFocus"
+        >
+          <DialogTitle>{{ text.boardFilters }}</DialogTitle>
+          <DialogDescription>{{ text.filterHelp }}</DialogDescription>
+          <nav class="board-filters" :aria-label="text.boardFilters">
+            <div
+              v-for="(group, index) in boardFilterGroups"
+              :key="`${group.sourceId}:${index}`"
+              role="group"
+              :aria-label="group.label"
+              class="board-filter-group"
+            >
+              <h2>{{ group.label }}</h2>
+              <div class="board-filter-links">
+                <button
+                  v-for="filter in group.links"
+                  :key="filter.url"
+                  :aria-pressed="pendingFilterURL === filter.url"
+                  :disabled="
+                    !boardContext?.filterChoices?.some(
+                      (choice) => choice.url === filter.url,
+                    )
+                  "
+                  :data-category="
+                    group.kind === 'category' ? listCategory.role : undefined
+                  "
+                  @click="
+                    chooseFilter(filter.url, `${group.label} · ${filter.label}`)
+                  "
+                >
+                  {{ filter.label }}
+                </button>
+              </div>
+            </div>
+          </nav>
+
+          <p v-if="!boardContext?.filterChoices" role="status">
+            {{ text.filterUnavailable }}
+          </p>
+          <div v-if="pendingFilter" aria-live="polite" class="filter-preview">
+            <p>
+              <strong>{{ pendingFilterName }}</strong>
+            </p>
+            <p>{{ text.filterNext }}</p>
+            <ul class="filter-proposed">
+              <li
+                v-for="criterion in pendingFilter.criteria"
+                :key="criterion.label"
+              >
+                {{ criterion.label }}
+              </li>
+              <li v-if="!pendingFilter.criteria.length">
+                {{ text.filterAll }}
+              </li>
+            </ul>
+            <template v-if="pendingFilter.removed.length"
+              ><p>{{ text.filterReplaces }}</p>
+              <ul class="filter-removed">
+                <li
+                  v-for="criterion in pendingFilter.removed"
+                  :key="criterion.label"
+                >
+                  {{ criterion.label }}
+                </li>
+              </ul></template
+            >
+          </div>
+          <div class="filter-dialog-actions">
+            <button
+              :disabled="!boardContext?.clearFilter"
+              @click="
+                boardContext?.clearFilter &&
+                chooseFilter(boardContext.clearFilter.url, text.filterClear)
+              "
+            >
+              {{ text.filterClear }}
+            </button>
+            <button @click="filtersOpen = false">
+              {{ text.filterCancel }}
+            </button>
+            <button :disabled="!pendingFilter" @click="applyFilter">
+              {{ text.filterApply }}
+            </button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+
     <DialogRoot
       :open="workspace.pendingThread.value !== null"
       @update:open="
@@ -2962,7 +3191,12 @@ function boardIdFrom(url: string) {
           >{{ listCategory.label }}</span
         >
         <div class="board-heading">
-          <h1>{{ boardContext.title }}</h1>
+          <div>
+            <h1>{{ boardContext.title }}</h1>
+            <p v-if="boardContext.statistics" class="board-statistics">
+              {{ boardContext.statistics }}
+            </p>
+          </div>
           <button
             class="icon-button"
             :aria-label="text.checkNewThreads"
@@ -3054,40 +3288,32 @@ function boardIdFrom(url: string) {
             >
           </div>
         </section>
-        <nav
-          v-if="boardFilterGroups.length"
-          class="board-filters"
-          :aria-label="text.boardFilters"
+        <button
+          ref="filterTrigger"
+          class="filter-trigger"
+          :aria-expanded="filtersOpen"
+          @click="openFilters"
         >
-          <div
-            v-for="(group, index) in boardFilterGroups"
-            :key="`${group.sourceId}:${index}`"
-            role="group"
-            :aria-label="group.label"
-            class="board-filter-group"
-          >
-            <h2>{{ group.label }}</h2>
-            <div class="board-filter-links">
-              <a
-                v-for="filter in group.links"
-                :key="filter.url"
-                :href="filter.url"
-                :data-category="
-                  group.kind === 'category' ? listCategory.role : undefined
-                "
-                >{{ filter.label }}</a
-              >
-            </div>
-          </div>
-        </nav>
+          {{ text.boardFilters }} · {{ boardContext.criteria.length }}
+        </button>
         <ul :aria-label="text.criteria">
           <li v-for="criterion in boardContext.criteria" :key="criterion.label">
             {{ criterion.label }}
           </li>
         </ul>
         <p>{{ text.page }} {{ boardContext.pages.current }}</p>
+        <button
+          v-if="pinnedRows.length"
+          class="pin-disclosure"
+          :aria-expanded="pinsExpanded"
+          :aria-controls="pinnedRows.map((row) => `row-${row.rowId}`).join(' ')"
+          @click="pinsExpanded = !pinsExpanded"
+        >
+          {{ text.pinnedThreads }} · {{ pinnedRows.length }}
+        </button>
         <div
           v-for="row in boardContext.threads"
+          v-show="!row.pinned || pinsExpanded"
           :id="`row-${row.rowId}`"
           :key="row.rowId"
           class="thread-row"

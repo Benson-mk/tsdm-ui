@@ -530,47 +530,130 @@ export function decodeBoard(
     dateline: "time",
     specialtype: "type",
   };
-  const criteria = [...actual.url.searchParams]
-    .filter(
-      ([key]) =>
-        Object.hasOwn(criterionNames, key) &&
-        !(
-          key === "filter" &&
-          ["typeid", "orderby", "digest", "specialtype"].some((name) =>
-            actual.url.searchParams.has(name),
-          )
-        ),
-    )
-    .map(([key, value]) => {
-      // A matching parameter can be carried context for another choice.
-      // Require its explicit selector or non-conflicting known menu provenance.
-      const returned = filterGroups.flatMap((group) =>
-        group.links.filter((item) => {
-          const parameters = new URL(item.url).searchParams;
-          if (parameters.get(key) !== value) return false;
-          const selector = parameters.get("filter");
-          return selector
-            ? selector === key
-            : group.kind === criterionKinds[key];
-        }),
-      )[0];
-      return {
-        label: `${criterionNames[key]}: ${returned?.label ?? value}`,
-        url,
-      };
-    });
+  // Discuz turns the selected category's link into a Clear destination. Its
+  // native selected LI, not the changed href or translated text, names the
+  // category in the actual response. Ambiguous selected nodes stay unqualified.
+  const categoryMenu = byId(doc, "thread_types");
+  const selectedCategories = categoryMenu
+    ? descendants(
+        categoryMenu,
+        (node) =>
+          node.tagName === "li" && hasClass(node, "a") && hasClass(node, "xw1"),
+      )
+        .flatMap((node) => links(node, url, () => true))
+        .filter(
+          (item) =>
+            routeFor(item.url)?.kind === "board" &&
+            new URL(item.url).origin === actual.url.origin &&
+            new URL(item.url).searchParams.get("fid") ===
+              actual.url.searchParams.get("fid"),
+        )
+    : [];
+  const selectedCategory =
+    selectedCategories.length === 1 ? selectedCategories[0]?.label : undefined;
+  const criteriaFor = (destination: string) => {
+    const parameters = new URL(destination).searchParams;
+    return [...parameters]
+      .filter(
+        ([key]) =>
+          Object.hasOwn(criterionNames, key) &&
+          !(key === "filter" && parameters.has(parameters.get("filter") ?? "")),
+      )
+      .map(([key, value]) => {
+        // A matching parameter can be carried context for another choice.
+        // Require its explicit selector or non-conflicting known menu provenance.
+        const returned = filterGroups.flatMap((group) =>
+          group.links.filter((item) => {
+            const parameters = new URL(item.url).searchParams;
+            if (parameters.get(key) !== value) return false;
+            // Reward links carry specialtype=reward as context; their labels
+            // describe reward status, not the thread-type choice.
+            if (group.sourceId === "filter_reward_menu")
+              return key === "rewardtype";
+            const selector = parameters.get("filter");
+            return selector
+              ? selector === key
+              : group.kind === criterionKinds[key];
+          }),
+        )[0];
+        return {
+          label: `${criterionNames[key]}: ${key === "typeid" && value === actual.url.searchParams.get("typeid") && selectedCategory ? selectedCategory : (returned?.label ?? value)}`,
+          url: destination,
+        };
+      });
+  };
+  const criteria = criteriaFor(url);
   const heading = touch
       ? descendants(doc, (n) => hasClass(n, "header"))[0]
       : byId(doc, "ct"),
     titleNode =
       heading &&
       descendants(heading, (n) => n.tagName === (touch ? "h2" : "h1"))[0];
+  const headingLink =
+    titleNode &&
+    children(titleNode)
+      .filter(element)
+      .filter((node) => node.tagName === "a")
+      .map((node) => link(node, url))
+      .find(
+        (item) =>
+          item &&
+          routeFor(item.url)?.kind === "board" &&
+          new URL(item.url).origin === actual.url.origin &&
+          new URL(item.url).searchParams.get("fid") ===
+            actual.url.searchParams.get("fid"),
+      );
+  const statistics =
+    headingLink && titleNode
+      ? children(titleNode)
+          .filter(element)
+          .filter(
+            (node) =>
+              node.tagName === "span" &&
+              hasClass(node, "xs1") &&
+              hasClass(node, "xw0"),
+          )
+          .map((node) => label(node))
+          .filter(Boolean)
+          .join(" ")
+      : "";
+  const clearFilter =
+    headingLink && criteriaFor(headingLink.url).length === 0
+      ? headingLink
+      : undefined;
+  const filterChoices = [
+    ...new Map(
+      [...filters, ...(clearFilter ? [clearFilter] : [])]
+        .filter(
+          (item) =>
+            new URL(item.url).origin === actual.url.origin &&
+            new URL(item.url).searchParams.get("fid") ===
+              actual.url.searchParams.get("fid"),
+        )
+        .map((item) => [item.url, item]),
+    ).values(),
+  ].map((item) => {
+    const next = new URL(item.url).searchParams;
+    return {
+      url: item.url,
+      criteria: criteriaFor(item.url),
+      removed: criteria.filter((criterion) => {
+        const key = Object.keys(criterionNames).find((key) =>
+          criterion.label.startsWith(`${criterionNames[key]}:`),
+        );
+        return key && actual.url.searchParams.get(key) !== next.get(key);
+      }),
+    };
+  });
   return {
     ...common,
     kind: "board",
     board: {
       id: actual.url.searchParams.get("fid")!,
-      title: label(titleNode) || "Board threads",
+      title: headingLink?.label || label(titleNode) || "Board threads",
+      ...(statistics ? { statistics } : {}),
+      ...(clearFilter ? { clearFilter } : {}),
+      filterChoices,
       url,
       boards: subboards,
       threads: threads.filter((n) => n !== null),

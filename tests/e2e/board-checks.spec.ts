@@ -181,7 +181,11 @@ test("UI90.stale-context: a delayed original board check cannot stage into anoth
   await expect(
     page.getByText("Checking board…", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Music category", exact: true }).click();
+  await page.getByRole("button", { name: /^Board filters ·/ }).click();
+  await page
+    .getByRole("button", { name: "Music category", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
   await expect(page.locator('[data-thread-id="70"]')).toBeVisible();
   release();
   await page.waitForTimeout(100);

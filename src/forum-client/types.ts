@@ -233,6 +233,16 @@ export interface BoardFilterGroup {
 export interface Board {
   id: string;
   title: string;
+  /** Native heading statistics, separate from its board-name anchor. */
+  statistics?: string;
+  /** Same-board native heading destination, only when it clears criteria. */
+  clearFilter?: ForumLink;
+  /** Exact returned destinations and their complete criteria; never compose URLs. */
+  filterChoices?: {
+    url: string;
+    criteria: ForumLink[];
+    removed: ForumLink[];
+  }[];
   url: string;
   boards: BoardLink[];
   threads: ThreadRow[];
