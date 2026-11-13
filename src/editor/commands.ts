@@ -278,6 +278,27 @@ export function editorCommand(
   const n = state.schema.nodes;
   if (name === "format") return format(state, data);
   if (name === "paste") return paste(state, data.text);
+  if (name === "appendQuote") {
+    const text = `${data.author ?? ""}\n${data.text ?? ""}`;
+    const marks = resemblesBBCode(text)
+      ? [
+          state.schema.marks.literal!.create({
+            id: sourceId(),
+            status: "literal",
+          }),
+        ]
+      : [];
+    const lines = text
+      .split(/\r\n|\r|\n/)
+      .map((line) =>
+        n.paragraph!.create(
+          { syntax: newSyntax("") },
+          line ? state.schema.text(line, marks) : undefined,
+        ),
+      );
+    const quote = n.blockquote!.create({ syntax: newSyntax("quote") }, lines);
+    return state.tr.insert(state.doc.content.size, quote);
+  }
   if (name === "emoticon") {
     if (!/^\{:\d{1,3}_\d{1,5}:\}$/.test(String(data.code)))
       throw new Error("Choose a valid emoticon token.");

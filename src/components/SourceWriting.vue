@@ -12,7 +12,7 @@ import { reviewText } from "./review-text";
 import { validationText } from "./validation-text";
 import type { Workspace } from "../workspace";
 import { strings, insert, description } from "../layouts/strings";
-import type { WritingOption } from "../forum-client";
+import type { ContentNode, WritingOption } from "../forum-client";
 import type { CategoryRole } from "../layouts/board-groups";
 const props = defineProps<{
   workspace: Workspace;
@@ -35,6 +35,61 @@ const state = computed(() => ({
       ? null
       : ownerState.value.context,
 }));
+const replyPost = computed(() => {
+  const target = state.value.context?.replyTarget;
+  const reading =
+    props.workspace.threadHistory.state.value.result ??
+    props.workspace.state.value.reading;
+  return target && reading?.thread.id === target.threadId
+    ? reading.thread.posts.find((post) => post.id === target.postId)
+    : undefined;
+});
+function postText(nodes: readonly ContentNode[]): string {
+  return nodes
+    .map((node) =>
+      node.kind === "text"
+        ? node.text
+        : postText(node.children) +
+          (node.kind === "element" &&
+          ["p", "div", "br", "li"].includes(node.tag)
+            ? "\n"
+            : ""),
+    )
+    .join("");
+}
+const replyExcerpt = computed(() =>
+  replyPost.value
+    ? postText(replyPost.value.content)
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 180)
+    : "",
+);
+function insertReplyQuote() {
+  const post = replyPost.value;
+  if (
+    !post ||
+    state.value.preparing ||
+    state.value.publishing ||
+    state.value.composing
+  )
+    return;
+  props.workspace.writing.editor().command("appendQuote", {
+    author: post.author,
+    text: postText(post.content).trim(),
+  });
+  editor.value?.focus();
+}
+function removeReplyTarget() {
+  const context = state.value.context;
+  if (!context?.replyTarget) return;
+  void props.workspace.writing.prepareReply(context.board.id, {
+    threadId: context.replyTarget.threadId,
+    postId: null,
+    author: "",
+    authorId: null,
+  });
+}
 const titleInput = ref<HTMLInputElement | null>(null);
 const categoryInput = ref<HTMLSelectElement | null>(null);
 const optionFields = ref<HTMLElement | null>(null);
@@ -315,6 +370,33 @@ function updateOption(option: WritingOption, event: Event) {
       :category="category ?? 'neutral'"
       compact
     />
+    <div
+      v-if="state.context?.replyTarget?.postId"
+      class="reply-target-strip"
+      role="group"
+      :aria-label="text.replyTarget"
+    >
+      <div>
+        <strong>{{ state.context.replyTarget.author }}</strong>
+        <p>{{ replyExcerpt || text.replyExcerptUnavailable }}</p>
+      </div>
+      <button
+        :disabled="
+          !replyPost || state.preparing || state.publishing || state.composing
+        "
+        :title="text.quotePostExplanation"
+        @click="insertReplyQuote"
+      >
+        {{ text.insertQuotedPost }}
+      </button>
+      <button
+        :aria-label="text.removeReplyTarget"
+        :disabled="state.publishing"
+        @click="removeReplyTarget"
+      >
+        ×
+      </button>
+    </div>
     <p v-if="elsewhere" class="writing-mismatch" role="status">
       {{ text.writingElsewhere }}
     </p>

@@ -404,7 +404,7 @@ test("UX56.latest-intent: delayed addressed preparation cannot replace a newer o
   expect(state.requests.every((r) => r.method === "GET")).toBe(true);
 });
 
-test("UX56.cancel-pending: return to retained writing invalidates delayed replacement without losing context or focus", async ({
+test("UX56.cancel-pending: return to retained writing invalidates delayed retarget without losing context or focus", async ({
   page,
 }) => {
   const state = await open(page);
@@ -418,7 +418,6 @@ test("UX56.cancel-pending: return to retained writing invalidates delayed replac
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
-  await enter(page, "addressed");
   let release!: () => void;
   state.gate = {
     action: "reply",
@@ -427,12 +426,7 @@ test("UX56.cancel-pending: return to retained writing invalidates delayed replac
       release = resolve;
     }),
   };
-  await page
-    .getByRole("button", {
-      name: "Discard local changes and prepare",
-      exact: true,
-    })
-    .click();
+  await enter(page, "addressed");
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
@@ -535,7 +529,9 @@ test("UX56.latest-guard: newer entry replaces the old replacement guard before a
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
-  await enter(page, "addressed");
+  // #101 allows same-thread retargeting; retain this replacement-guard case
+  // at the unrelated new-thread boundary instead.
+  await enter(page, "new-thread");
   const reads = state.requests.length;
   await enter(page, "edit-reply");
   await expect(

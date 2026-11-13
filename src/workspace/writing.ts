@@ -417,6 +417,7 @@ export function createWriting(
     edit({ editorUnresolved: !session.state.readiness.ready });
   }
   let sequence = 0;
+  let mentionSequence = 0;
   let deferred: (() => void) | null = null;
   function deferViewChange(action: () => void) {
     if (!state.value.composing) return false;
@@ -687,6 +688,14 @@ export function createWriting(
       existing?.board.id === boardId &&
       Boolean(existing?.redPacket) === redPacket &&
       JSON.stringify(existing?.replyTarget) === JSON.stringify(replyTarget);
+    const retarget =
+      !replace &&
+      !!replyTarget &&
+      existing?.action !== "private-message" &&
+      existing?.action !== "edit-post" &&
+      existing?.board.id === boardId &&
+      existing?.replyTarget?.threadId === replyTarget.threadId &&
+      !sameAction;
     if (state.value.publishing && (replace || !sameAction)) {
       state.value = {
         ...state.value,
@@ -703,7 +712,7 @@ export function createWriting(
         ? { replacement: null, editReplacement: null, draftReplacement: null }
         : {}),
     };
-    if (existing && !replace) {
+    if (existing && !replace && !retarget) {
       if (sameAction) {
         state.value = { ...state.value, visible: true, replacement: null };
         return;
@@ -718,7 +727,23 @@ export function createWriting(
       };
       return;
     }
-    state.value = { ...state.value, preparing: true, message: "" };
+    if (retarget) ++mentionSequence;
+    state.value = {
+      ...state.value,
+      preparing: true,
+      message: "",
+      ...(retarget && existing
+        ? {
+            // Revoke the old submitted revision before waiting for a fresh target.
+            context: { ...existing, revision: existing.revision + 1 },
+            publication: null,
+            copy: null,
+            mentionPeople: [],
+            mentionGeneration: -1,
+            findingMention: false,
+          }
+        : {}),
+    };
     const result = await (replyTarget
       ? client.prepareReply(boardId, replyTarget)
       : client.prepareNewThread(boardId, redPacket));
@@ -733,6 +758,42 @@ export function createWriting(
         preparing: false,
         message: result.message,
       };
+      return;
+    }
+    if (retarget && existing && replyTarget) {
+      const latest = state.value.context;
+      if (
+        !latest ||
+        latest.id !== existing.id ||
+        latest.action === "private-message" ||
+        result.prepared.account.id !== latest.account.id ||
+        !state.value.accountVerified
+      ) {
+        state.value = {
+          ...state.value,
+          preparing: false,
+          message:
+            "The writing context or account changed. The reply target was not changed.",
+        };
+        return;
+      }
+      state.value = {
+        ...state.value,
+        context: {
+          ...latest,
+          action: result.prepared.action,
+          replyTarget,
+          revision: latest.revision + 1,
+        },
+        preparing: false,
+        visible: true,
+        replacement: null,
+        publication: null,
+        copy: null,
+        validationIssues: [],
+        message: "",
+      };
+      void changed();
       return;
     }
     if (
@@ -1926,6 +1987,7 @@ export function createWriting(
       };
       return;
     }
+    const preparation = ++sequence;
     state.value = {
       ...state.value,
       preparing: true,
@@ -1936,6 +1998,7 @@ export function createWriting(
       context.action === "edit-post"
         ? await client.prepareEditPublication(submission(context))
         : await client.prepareThreadPublication(submission(context));
+    if (preparation !== sequence) return;
     const local =
       "validation" in result && result.validation?.source === "local";
     if (!local) {
@@ -2042,6 +2105,7 @@ export function createWriting(
       state.value.findingMention
     )
       return;
+    const request = ++mentionSequence;
     state.value = {
       ...state.value,
       findingMention: true,
@@ -2049,9 +2113,10 @@ export function createWriting(
       message: "",
     };
     const found = await client.findMention(submission(context).writing, query);
+    if (request !== mentionSequence || state.value.context?.id !== context.id)
+      return;
     accountObserved(found.account);
     observe(found.account, found.kind === "people");
-    if (state.value.context?.id !== context.id) return;
     state.value = {
       ...state.value,
       findingMention: false,

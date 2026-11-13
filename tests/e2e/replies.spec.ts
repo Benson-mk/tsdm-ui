@@ -175,7 +175,7 @@ test("J4.reply-current: preserve complete source/current options and open indepe
   });
 });
 
-test("J4.quote-target: one addressed target survives extra source quote blocks and replacement guard", async ({
+test("J4.quote-target: authored quote blocks survive general and addressed retargeting", async ({
   page,
 }, info) => {
   const state = await fixture(page);
@@ -194,14 +194,18 @@ test("J4.quote-target: one addressed target survives extra source quote blocks a
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await expect(
-    page.getByRole("button", {
-      name: "Discard local changes and prepare",
-      exact: true,
-    }),
-  ).toBeVisible();
+    page.getByRole("group", { name: "Reply target", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    source,
+  );
   await page
-    .getByRole("button", { name: "Return to writing", exact: true })
+    .getByRole("article", { name: "Post 101", exact: true })
+    .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
+  await expect(
+    page.getByRole("group", { name: "Reply target", exact: true }),
+  ).toContainText("Other author");
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     source,
   );
@@ -875,7 +879,7 @@ for (const [
     });
   });
 
-test("J4.reply-mention-context: replacing writing while lookup is pending clears transient lookup and ignores old people", async ({
+test("J4.reply-mention-context: retargeting writing while lookup is pending clears transient lookup and ignores old people", async ({
   page,
 }, info) => {
   const state = await fixture(page);
@@ -901,12 +905,7 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
     .getByRole("article", { name: "Post 101", exact: true })
     .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
-  await page
-    .getByRole("button", {
-      name: "Discard local changes and prepare",
-      exact: true,
-    })
-    .click();
+
   await expect(
     page.getByText("Addressed to Other author · Post 101", { exact: true }),
   ).toBeVisible();

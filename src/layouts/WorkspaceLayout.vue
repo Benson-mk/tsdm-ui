@@ -18,6 +18,7 @@ import {
   DialogDescription,
 } from "reka-ui";
 import ColumnSeparator from "../components/ColumnSeparator.vue";
+import PostActions from "../components/PostActions.vue";
 import ThreadTools from "../components/ThreadTools.vue";
 import ThreadHistoryBoundary from "../components/ThreadHistoryBoundary.vue";
 import WorkspaceIcon from "../components/WorkspaceIcon.vue";
@@ -87,6 +88,7 @@ const newestReplyId = computed(() => {
       : posts[0]
   )?.id;
 });
+const postMenus = new Map<string, InstanceType<typeof PostActions>>();
 const boardsCollapsed = ref(false);
 const threadsCollapsed = ref(false);
 const paneWidth = ref(window.innerWidth);
@@ -3699,6 +3701,8 @@ function boardIdFrom(url: string) {
               :aria-label="`${text.post} ${post.id}`"
               :data-targeted="reading.thread.target === post.id"
               tabindex="-1"
+              @contextmenu="postMenus.get(post.id)?.openMenu($event)"
+              @dblclick="postMenus.get(post.id)?.emptyDoubleClick($event)"
             >
               <header class="post-header">
                 <span
@@ -3719,6 +3723,28 @@ function boardIdFrom(url: string) {
                 <a class="post-number" :href="post.url"
                   >{{ text.post }} {{ post.id }}</a
                 >
+                <PostActions
+                  :ref="
+                    (value) => {
+                      if (value)
+                        postMenus.set(
+                          post.id,
+                          value as InstanceType<typeof PostActions>,
+                        );
+                      else postMenus.delete(post.id);
+                    }
+                  "
+                  :workspace="workspace"
+                  :portal="portal"
+                  :post="post"
+                  :thread-id="reading.thread.id"
+                  :board-id="
+                    reading.thread.parent
+                      ? boardIdFrom(reading.thread.parent.url)
+                      : null
+                  "
+                  :filters="threadFilters"
+                />
               </header>
               <ContentView
                 :nodes="post.content"

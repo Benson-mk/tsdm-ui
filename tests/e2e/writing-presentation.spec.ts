@@ -309,7 +309,18 @@ for (const profile of profiles)
         profile,
       );
       const state = await open(page);
-      await page.locator("#pid101").getByRole("button").first().click();
+      await page
+        .locator("#pid101")
+        .getByRole("button", {
+          name:
+            profile.language === "zh-CN"
+              ? "回复这篇帖子"
+              : profile.language === "zh-TW"
+                ? "回覆這篇帖子"
+                : "Reply to this post",
+          exact: true,
+        })
+        .click();
       const source = page.getByLabel(profile.body, { exact: true });
       await expect(source).toBeFocused();
       await source.fill(retained);
@@ -952,7 +963,7 @@ for (const entry of ["reply", "addressed", "new-thread", "edit-reply"] as const)
     });
   });
 
-test("IM72.addressed-return: blank addressed source names the exact post and guarded ordinary reply never silently transfers quotes", async ({
+test("IM72.addressed-return: blank addressed source names the exact post and ordinary retarget preserves authored quotes", async ({
   page,
 }, info) => {
   const server = await open(page);
@@ -984,14 +995,16 @@ test("IM72.addressed-return: blank addressed source names the exact post and gua
     .getByRole("button", { name: "Start an ordinary reply", exact: true })
     .click();
   await expect(
-    page.getByRole("button", {
-      name: "Return",
-      exact: true,
-    }),
-  ).toBeVisible();
-  expect(await stored(page)).toEqual(before);
-  expect(server.requests).toHaveLength(requests);
-  await page.getByRole("button", { name: "Return", exact: true }).click();
+    page.getByRole("group", { name: "Reply target", exact: true }),
+  ).toHaveCount(0);
+  await expect
+    .poll(async () => (await stored(page)).replyTarget.postId)
+    .toBeNull();
+  expect((await stored(page)).id).toBe(before.id);
+  expect(server.requests).toHaveLength(requests + 1);
+  expect(server.requests.every((request) => request.method === "GET")).toBe(
+    true,
+  );
   await expect(source).toHaveValue(before.source);
   await info.attach("addressed-retained.json", {
     body: JSON.stringify({
@@ -1417,6 +1430,10 @@ test("UI87.reading-anchor: expansion into and out of the aside preserves a genui
     .getByRole("button", { name: "Compact writing", exact: true })
     .click();
   const after = await readableLines(page);
+  await info.attach("compact-reader-anchor.json", {
+    body: JSON.stringify({ before, wide, after }),
+    contentType: "application/json",
+  });
   expectPreservedReadingLine(wide, after);
   expect(server.requests.every((request) => request.method === "GET")).toBe(
     true,

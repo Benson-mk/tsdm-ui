@@ -226,11 +226,18 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
   await page.locator(".overview .board-card").press("Enter");
   const results = page.locator(".results-pane");
   await expect(results.locator(".thread-row")).toHaveCount(30);
-  const category = page
-    .getByRole("navigation", { name: "Board filters", exact: true })
-    .getByRole("link", { name: "Listening", exact: true });
+  await page.getByRole("button", { name: /^Board filters ·/ }).click();
+  const filters = page.getByRole("dialog", {
+    name: "Board filters",
+    exact: true,
+  });
+  const category = filters.getByRole("button", {
+    name: "Listening",
+    exact: true,
+  });
   await category.focus();
   await category.press("Enter");
+  await filters.getByRole("button", { name: "Apply", exact: true }).click();
   await results
     .getByRole("navigation", { name: "Board pages", exact: true })
     .getByRole("link", { name: "2", exact: true })
@@ -1061,7 +1068,7 @@ test("UX59.invalidate-account: observing another actor removes approval and reta
   expect((await retained(page)).source).toBe(body);
   expect(f.posts).toHaveLength(0);
 });
-test("UX59.invalidate-target: guarded replacement clears approval before preparing an addressed target", async ({
+test("UX59.invalidate-target: same-thread retarget clears approval before preparing an addressed target", async ({
   page,
 }) => {
   const f = await fixture(page, "reply");
@@ -1081,12 +1088,9 @@ test("UX59.invalidate-target: guarded replacement clears approval before prepari
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  await page
-    .getByRole("button", {
-      name: "Discard local changes and prepare",
-      exact: true,
-    })
-    .click();
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    body,
+  );
   await expect(review).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),

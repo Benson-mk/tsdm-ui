@@ -3108,3 +3108,28 @@ input {
 .board-filter-dialog .board-filter-group {
   flex: 0 0 auto;
 }
+
+.reply-target-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  border-radius: 8px;
+  background: var(--soft);
+  min-width: 0;
+}
+.reply-target-strip > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.reply-target-strip p {
+  margin: 4px 0 0;
+}
+.reply-target-strip button,
+.post-menu-trigger {
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+}
