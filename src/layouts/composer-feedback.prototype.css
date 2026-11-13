@@ -19,10 +19,15 @@
 }
 .cf-input-shell {
   min-height: 0;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  grid-template-areas: "tools input send";
+  gap: 8px;
+  align-items: end;
 }
 .cf-input-body {
+  grid-area: input;
+  min-width: 0;
   border: 1px solid var(--boundary);
   border-radius: 8px;
   background: var(--surface);
@@ -78,7 +83,7 @@
 .cf-editor textarea {
   display: block;
   width: 100%;
-  min-height: 48px;
+  min-height: 26px;
   max-height: 148px;
   padding: 0;
   border: 0;
@@ -107,32 +112,41 @@
   border: 1px solid var(--separator);
   overflow-wrap: anywhere;
 }
-.cf-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 0 0;
-}
 .cf-plus-wrap {
+  grid-area: tools;
   position: relative;
 }
 .cf-plus {
   padding: 12px;
 }
 .cf-key-hint {
-  flex: 1;
+  grid-area: hint;
   color: var(--muted);
   font-size: calc(12px * var(--text-scale));
   line-height: 1.4;
 }
+.cf-composer:not(.cf-expanded) .cf-key-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .cf-send {
+  grid-area: send;
   border-radius: 50px;
-  padding: 10px 20px;
+  padding: 12px;
   background: var(--ink);
   color: var(--surface);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+}
+.cf-send-label {
+  display: none;
 }
 .cf-tools {
   position: absolute;
@@ -155,6 +169,49 @@
   text-align: left;
   padding: 8px 12px;
   border-radius: 4px;
+}
+.cf-tools-hint {
+  margin: 4px 8px 8px;
+  border-top: 1px solid var(--separator);
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: calc(12px * var(--text-scale));
+  line-height: 1.5;
+}
+.cf-expanded .cf-input-shell {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(64px, 1fr) auto;
+  grid-template-areas: "tools tools" "input input" "hint send";
+  align-items: center;
+}
+.cf-expanded .cf-tools {
+  position: static;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: auto;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.cf-expanded .cf-tools button {
+  width: auto;
+  padding: 12px;
+  border-radius: 50px;
+}
+.cf-expanded .cf-tools span {
+  display: none;
+}
+.cf-expanded .cf-input-body {
+  height: 100%;
+}
+.cf-expanded .cf-send {
+  padding: 10px 20px;
+}
+.cf-expanded .cf-send-label {
+  display: inline;
 }
 .cf-target {
   display: flex;
@@ -185,12 +242,13 @@
   flex: none;
 }
 .cf-expanded .cf-input-body > .cf-editor {
-  min-height: 190px;
-  max-height: 290px;
+  min-height: 0;
+  height: 190px;
+  max-height: 100%;
 }
 .cf-expanded .cf-editor textarea {
-  min-height: 190px;
-  max-height: 290px;
+  min-height: 164px;
+  max-height: none;
 }
 .cf-notice {
   display: flex;
@@ -426,10 +484,11 @@
   .cf-composer {
     padding: 12px;
   }
-  .cf-expanded .cf-input-body > .cf-editor,
+  .cf-expanded .cf-input-body > .cf-editor {
+    height: 150px;
+  }
   .cf-expanded .cf-editor textarea {
-    min-height: 150px;
-    max-height: 220px;
+    min-height: 124px;
   }
   .cf-sheet {
     padding: 16px;
@@ -439,7 +498,8 @@
     font-size: 11px;
   }
 }
-.cf-composer .cf-send:not(:disabled) {
+.cf-composer .cf-send:not(:disabled),
+.cf-composer .cf-send:not(:disabled):hover {
   background: var(--ink);
   color: var(--surface);
 }

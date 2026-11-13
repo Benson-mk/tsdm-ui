@@ -6,6 +6,7 @@ import {
   onBeforeUnmount,
   onMounted,
   ref,
+  useId,
   watch,
 } from "vue";
 import ComposerEditor from "./ComposerEditor.prototype.vue";
@@ -44,6 +45,12 @@ const expanded = ref(false),
   toolsOpen = ref(false),
   ready = ref(true),
   composing = ref(false);
+const hintId = useId();
+const keyboardHint = computed(() =>
+  sourceMode.value
+    ? "BBCode · Ctrl/⌘ Enter to send"
+    : "Enter to send · Shift Enter for a new line",
+);
 const account = ref("Sample account A");
 const refuseStorage = ref(false),
   pauseUpdates = ref(false);
@@ -617,12 +624,80 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
       </div>
     </div>
     <div class="cf-input-shell">
+      <div class="cf-plus-wrap">
+        <button
+          v-show="!expanded"
+          class="cf-plus"
+          aria-label="Writing tools"
+          :aria-expanded="toolsOpen"
+          :disabled="composing"
+          @click="toolsOpen = !toolsOpen"
+        >
+          <ComposerIcon name="plus" />
+        </button>
+        <div
+          v-if="toolsOpen || expanded"
+          class="cf-tools"
+          role="group"
+          :aria-label="
+            expanded ? 'Expanded writing tools' : 'Writing tools menu'
+          "
+          @keydown.esc="
+            toolsOpen = false;
+            focus();
+          "
+        >
+          <button
+            aria-label="Image or attachment"
+            title="Image or attachment"
+            :disabled="composing"
+            @click="tool('attachments')"
+          >
+            <ComposerIcon name="attachment" /><span>Image or attachment</span>
+          </button>
+          <button
+            aria-label="Emoji"
+            title="Emoji"
+            :disabled="composing"
+            @click="tool('emoji')"
+          >
+            <ComposerIcon name="emoji" /><span>Emoji</span>
+          </button>
+          <button
+            aria-label="Formatting"
+            title="Formatting"
+            :disabled="composing"
+            @click="tool('format')"
+          >
+            <ComposerIcon name="format" /><span>Formatting</span>
+          </button>
+          <button
+            :aria-label="sourceMode ? 'Visual editor' : 'BBCode source'"
+            :title="sourceMode ? 'Visual editor' : 'BBCode source'"
+            :disabled="composing"
+            @click="tool('source')"
+          >
+            <ComposerIcon name="source" />
+            <span>{{ sourceMode ? "Visual editor" : "BBCode source" }}</span>
+          </button>
+          <button
+            aria-label="Preview"
+            title="Preview"
+            :disabled="composing"
+            @click="tool('preview')"
+          >
+            <ComposerIcon name="preview" /><span>Preview</span>
+          </button>
+          <p v-if="!expanded" class="cf-tools-hint">{{ keyboardHint }}</p>
+        </div>
+      </div>
       <div class="cf-input-body">
         <ComposerEditor
           :key="context"
           ref="editor"
           :model-value="draft.source"
           :source-mode="sourceMode"
+          :description-id="hintId"
           @update:model-value="update"
           @send="send"
           @ready="ready = $event"
@@ -636,65 +711,23 @@ defineExpose({ address, canNavigate, scenarios: () => show("scenarios") });
           :disabled="composing"
           @click="
             expanded = !expanded;
+            toolsOpen = false;
             focus();
           "
         >
           <WorkspaceIcon :name="expanded ? 'compact' : 'expand'" />
         </button>
       </div>
-      <div class="cf-actions">
-        <div class="cf-plus-wrap">
-          <button
-            class="cf-plus"
-            aria-label="Writing tools"
-            :aria-expanded="toolsOpen"
-            :disabled="composing"
-            @click="toolsOpen = !toolsOpen"
-          >
-            <ComposerIcon name="plus" />
-          </button>
-          <div
-            v-if="toolsOpen"
-            class="cf-tools"
-            role="group"
-            aria-label="Writing tools menu"
-            @keydown.esc="
-              toolsOpen = false;
-              focus();
-            "
-          >
-            <button @click="tool('attachments')">
-              <ComposerIcon name="attachment" /><span>Image or attachment</span>
-            </button>
-            <button @click="tool('emoji')">
-              <ComposerIcon name="emoji" /><span>Emoji</span>
-            </button>
-            <button @click="tool('format')">
-              <ComposerIcon name="format" /><span>Formatting</span>
-            </button>
-            <button @click="tool('source')">
-              <ComposerIcon name="source" />
-              <span>{{ sourceMode ? "Visual editor" : "BBCode source" }}</span>
-            </button>
-            <button @click="tool('preview')">
-              <ComposerIcon name="preview" /><span>Preview</span>
-            </button>
-          </div>
-        </div>
-        <span class="cf-key-hint">{{
-          sourceMode
-            ? "BBCode · Ctrl/⌘ Enter to send"
-            : "Enter to send · Shift Enter for a new line"
-        }}</span>
-        <button
-          class="cf-send"
-          :disabled="sendDisabled"
-          aria-label="Send reply"
-          @click="send"
-        >
-          Send <ComposerIcon name="send" />
-        </button>
-      </div>
+      <span :id="hintId" class="cf-key-hint">{{ keyboardHint }}</span>
+      <button
+        class="cf-send"
+        :disabled="sendDisabled"
+        aria-label="Send reply"
+        title="Send reply"
+        @click="send"
+      >
+        <span class="cf-send-label">Send</span><ComposerIcon name="send" />
+      </button>
     </div>
     <p v-if="pending" class="cf-inline-status" role="status">
       You can keep writing. Waiting for the previous reply’s result.

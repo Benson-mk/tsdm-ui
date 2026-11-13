@@ -5,6 +5,9 @@ style.” Continue the single approval MVP on `feat/improve-ui-ux`; preserve the
 approved Q1–Q15 behavior. Visual approval remains pending. No ticket publication
 or production integration is part of this correction.
 
+Subsequent owner feedback requests a single compact row with full expanded tools.
+See [the next MVP revision](composer-inline-feedback-2026-11-13.md).
+
 ## Premises and plan before implementation
 
 Compare the actual preview and the current forum at the same 794×871 viewport,

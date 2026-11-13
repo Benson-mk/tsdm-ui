@@ -19,8 +19,9 @@ const props = withDefaults(
     modelValue: string;
     sourceMode?: boolean;
     readOnly?: boolean;
+    descriptionId?: string;
   }>(),
-  { sourceMode: false, readOnly: false },
+  { sourceMode: false, readOnly: false, descriptionId: "" },
 );
 const emit = defineEmits<{
   "update:modelValue": [value: string];
@@ -147,6 +148,9 @@ onMounted(() => {
       "aria-label": props.readOnly ? "Formatted reply" : "Reply text",
       "aria-multiline": "true",
       "data-placeholder": "Write a reply…",
+      ...(props.descriptionId
+        ? { "aria-describedby": props.descriptionId }
+        : {}),
     },
     nodeViews: Object.fromEntries(
       Object.keys(session.pmState.schema.nodes)
@@ -211,7 +215,8 @@ defineExpose({ focus, format, insert });
       :value="snapshot.display"
       :readonly="readOnly"
       aria-label="BBCode reply"
-      rows="2"
+      :aria-describedby="descriptionId || undefined"
+      rows="1"
       @input="input"
       @select="selection"
       @keyup="selection"
