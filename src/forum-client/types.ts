@@ -66,6 +66,8 @@ export interface WritingUpload {
     | "removing"
     | "removal-uncertain"
     | "removed";
+  /** Captured uploader provenance; null is explicitly unknown, absence is legacy. */
+  ownerId?: string | null;
   serverId?: string;
   referenceKind?: "attach" | "attachimg";
   originalSha256?: string;
@@ -87,6 +89,13 @@ export type UploadResult =
       message: string;
       id?: string;
     };
+export interface ReplyAttachmentCheck {
+  account: Account;
+  generation: number;
+  accountVerified: boolean;
+  usableKeys: string[];
+  message: string;
+}
 export interface ForumTransport {
   upload?(
     url: string,
@@ -458,6 +467,9 @@ export interface ForumClient {
     checkOnly?: boolean,
     guard?: EffectGuard,
   ): Promise<AttachmentRemovalResult>;
+  checkReplyAttachments?(
+    writing: PreparedWriting,
+  ): Promise<ReplyAttachmentCheck>;
   uploadAttachment(
     writing: PreparedWriting,
     file: UploadFile,

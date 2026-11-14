@@ -304,7 +304,7 @@ test("UX106.late: delayed preparation cannot replace another selected thread or 
   );
 });
 
-test("UX106.account: automatic account changes retain one thread slot; deliberate text-copy keeps its existing disclosure", async ({
+test("UX106.account: automatic account changes share one thread slot and keep immutable original attempts", async ({
   page,
   context,
 }) => {
@@ -335,7 +335,7 @@ test("UX106.account: automatic account changes retain one thread slot; deliberat
   );
   await expect(
     page.getByText(/current account differs from Writer 7/),
-  ).toBeVisible();
+  ).toHaveCount(0);
   state.member = "7";
   await page.reload();
   await expect(await selectSourceEditor(page)).toHaveValue(
@@ -356,16 +356,16 @@ test("UX106.account: automatic account changes retain one thread slot; deliberat
   await revealWritingDetails(page);
   await page
     .getByRole("button", {
-      name: "Prepare text copy for current account",
+      name: "Check current account and form",
       exact: true,
     })
     .click();
   await expect(
-    page.getByText(/uploads and ownership are not transferred/i),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Replace with text copy", exact: true })
-    .click();
+    page.getByRole("button", {
+      name: "Prepare text copy for current account",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await expect(await selectSourceEditor(page)).toHaveValue(
     "Original A content without silent B replacement",
   );
@@ -424,7 +424,7 @@ test("UX106.account: automatic account changes retain one thread slot; deliberat
     () =>
       JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
   );
-  expect(recovered.account.id).toBe("8");
+  expect(recovered.account.id).toBe("7");
   expect(recovered.attempts).toHaveLength(1);
   expect(recovered.attempts[0].publication.submission.writing.account.id).toBe(
     "7",
@@ -433,7 +433,7 @@ test("UX106.account: automatic account changes retain one thread slot; deliberat
   expect(
     state.requests.filter((request) => request.method === "POST"),
   ).toHaveLength(1);
-  await test.info().attach("deliberate-copy-recovery.json", {
+  await test.info().attach("shared-account-recovery.json", {
     body: JSON.stringify(recovered),
     contentType: "application/json",
   });
@@ -859,7 +859,7 @@ test("UX106.attachments: selected bytes survive switching, upload/removal keep o
   releaseRemoval();
   await expect(
     page.getByRole("button", {
-      name: "Remove local selection intent.txt",
+      name: "Remove intent.txt",
       exact: true,
     }),
   ).toBeVisible();
@@ -927,8 +927,17 @@ test("UX106.pending-recovery: inactive pending snapshots recover as uncertain wi
     page.getByText(/Pending publication restored as uncertain/),
   ).toBeVisible();
   await expect(
-    page.getByText(/Original writing remains bound to Writer 7/),
-  ).toBeVisible();
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Check current account and form");
+  const recovered = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+  expect(recovered.account.id).toBe("7");
+  expect(recovered.attempts[0].status).toBe("uncertain");
+  expect(recovered.attempts[0].publication.submission.writing.account.id).toBe(
+    "7",
+  );
   expect(
     state.requests.filter((request) => request.method === "POST"),
   ).toHaveLength(1);
@@ -2921,7 +2930,7 @@ test("UX107.stale-control: a stale enabled attachment control cannot mutate paus
   ).toBeVisible();
   await revealWritingTools(other);
   const remove = other.getByRole("button", {
-    name: "Remove local selection paused-intent.txt",
+    name: "Remove paused-intent.txt",
     exact: true,
   });
   await expect(remove).toBeDisabled();
@@ -2930,9 +2939,13 @@ test("UX107.stale-control: a stale enabled attachment control cannot mutate paus
   });
   await remove.click();
   await expect(remove).toHaveCount(1);
+  await expect(editor).toHaveValue("Paused attachment branch");
+  await expect(
+    other.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toBeVisible();
   await expect(
     other.getByText(
-      "Local selection removed. No remote file was deleted; an interrupted upload may remain on the forum.",
+      "Unavailable attachment intent and its exact references removed locally. No server file was deleted.",
       { exact: true },
     ),
   ).toHaveCount(0);

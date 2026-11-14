@@ -127,8 +127,7 @@ test("J4.reply-current: preserve complete source/current options and open indepe
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await selectSourceEditor(page);
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await (await selectSourceEditor(page)).fill(source);
   await revealWritingTools(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await page
@@ -188,8 +187,7 @@ test("J4.quote-target: authored quote blocks survive general and addressed retar
   await expect(
     page.getByText("Addressed to Other author · Post 101", { exact: true }),
   ).toBeVisible();
-  await selectSourceEditor(page);
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await (await selectSourceEditor(page)).fill(source);
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
@@ -252,10 +250,9 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await selectSourceEditor(page);
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Literal @Other author stays literal. ");
+  await (
+    await selectSourceEditor(page)
+  ).fill("Literal @Other author stays literal. ");
   await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
@@ -302,8 +299,7 @@ async function readyReply(page: Page) {
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await selectSourceEditor(page);
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await (await selectSourceEditor(page)).fill(source);
   await page
     .getByRole("button", { name: "Review publication", exact: true })
     .click();
@@ -358,9 +354,7 @@ test("J4.reply-later-edit: older confirmation preserves later source while retur
       ),
     )
     .toBe(true);
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Later unsent revision");
+  await (await selectSourceEditor(page)).fill("Later unsent revision");
   release();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
@@ -396,9 +390,7 @@ test("J4.reply-result-single-navigation: one confirmed-result click reads once a
       ),
     )
     .toBe(true);
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Later unsent revision");
+  await (await selectSourceEditor(page)).fill("Later unsent revision");
   release();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   const before = state.requests.length;
@@ -673,10 +665,12 @@ for (const mutation of [
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page.getByLabel("Complete source", { exact: true }).fill(source);
+    await (await selectSourceEditor(page)).fill(source);
     await page.getByText("Recovery details", { exact: true }).click();
     await expect(
-      page.getByText(/Recovery acknowledged for revision/),
+      page.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
     ).toBeVisible();
     const rejected = await page.evaluate((mutation) => {
       const key = "tsdm.workspace.recovery",
@@ -721,7 +715,7 @@ test("J4.reply-merged-comparison: preserve known complete before and full observ
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await (await selectSourceEditor(page)).fill(source);
   await page
     .getByRole("button", { name: "Review publication", exact: true })
     .click();
@@ -771,7 +765,7 @@ test("J4.reply-prior-drift: known existing source changed after review prevents 
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await (await selectSourceEditor(page)).fill(source);
   await page
     .getByRole("button", { name: "Review publication", exact: true })
     .click();
@@ -804,7 +798,7 @@ for (const mutation of [
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page.getByLabel("Complete source", { exact: true }).fill(source);
+    await (await selectSourceEditor(page)).fill(source);
     await page
       .getByRole("button", { name: "Review publication", exact: true })
       .click();
@@ -868,6 +862,7 @@ for (const [
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
+    await selectSourceEditor(page);
     await openSettings(page);
     await page.locator("#interface-language").selectOption(language);
     await page.getByRole("button", { name: closeLabel, exact: true }).click();
@@ -958,9 +953,9 @@ async function readySupplement(page: Page) {
     .getByRole("article", { name: "Post 101", exact: true })
     .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("[quote]Additional own source[/quote]\nLiteral @Writer 7 stays. ");
+  await (
+    await selectSourceEditor(page)
+  ).fill("[quote]Additional own source[/quote]\nLiteral @Writer 7 stays. ");
   await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
@@ -996,9 +991,7 @@ test("J4.reply-native-supplement: reload original uncertainty then GET-only comp
       JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
         .attempts[0],
   );
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Newer unsent writing");
+  await (await selectSourceEditor(page)).fill("Newer unsent writing");
   await page.reload();
   const requestsBefore = state.requests.length;
   await page
@@ -1158,9 +1151,7 @@ for (const suffix of [
     page,
   }, info) => {
     const state = await readySupplement(page);
-    await page
-      .getByLabel("Complete source", { exact: true })
-      .fill(supplementSubmitted + suffix);
+    await (await selectSourceEditor(page)).fill(supplementSubmitted + suffix);
     await page
       .getByRole("button", { name: "Review publication", exact: true })
       .click();
@@ -1194,9 +1185,7 @@ test("J4.reply-native-person-link: a new reply preserves complete source with se
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Literal @Writer 7. ");
+  await (await selectSourceEditor(page)).fill("Literal @Writer 7. ");
   await revealAdvanced(page);
   await page
     .getByLabel("Find a person to mention", { exact: true })
@@ -1274,6 +1263,7 @@ for (const locale of [
         await page
           .getByRole("button", { name: "Reply to thread", exact: true })
           .click();
+      await selectSourceEditor(page);
       await openSettings(page);
       await page.locator("#interface-language").selectOption(locale.language);
       await page
@@ -1319,7 +1309,7 @@ for (const addressed of [false, true])
       await page
         .getByRole("button", { name: "Reply to thread", exact: true })
         .click();
-    const complete = page.getByLabel("Complete source", { exact: true });
+    const complete = await selectSourceEditor(page);
     await complete.fill(source + " formatted");
     await complete.evaluate((element) => {
       const field = element as HTMLTextAreaElement;
@@ -1327,6 +1317,7 @@ for (const addressed of [false, true])
       field.dispatchEvent(new Event("select", { bubbles: true }));
     });
     await (await writingTool(page, "Bold")).click();
+    await (await writingTool(page, "Visual editor")).click();
     await expect(
       page
         .getByRole("textbox", { name: "Visual post content", exact: true })
@@ -1394,7 +1385,7 @@ for (const attempted of [false, true]) {
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page.getByLabel("Complete source", { exact: true }).fill(source);
+    await (await selectSourceEditor(page)).fill(source);
     if (attempted) {
       await page
         .getByRole("button", { name: "Review publication", exact: true })
@@ -1463,7 +1454,7 @@ async function dormantSnapshotJourney(page: Page, merged: boolean) {
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await (await selectSourceEditor(page)).fill(source);
   await page
     .getByRole("button", { name: "Review publication", exact: true })
     .click();
@@ -1737,9 +1728,9 @@ test("J5.reply-quote-supplement-recovery: recheck the same uncertain attempt aft
       JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
         .attempts[0],
   );
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Later local writing remains untouched.");
+  await (
+    await selectSourceEditor(page)
+  ).fill("Later local writing remains untouched.");
   await page.reload();
   const requestsBefore = state.requests.length;
   await page

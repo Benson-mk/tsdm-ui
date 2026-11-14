@@ -66,3 +66,27 @@ permission or weaker fallback is requested. The alternatives, advisor refinement
 crash boundaries and all actual trade-offs are recorded once in the
 [#107 implementation ledger](../implementation/ui-ux-107.md). Qualification evidence
 is separate from this decision and retains Chrome's owner-approved #112 deferral.
+
+
+## Account-shared intent and legacy provenance — #108
+
+For ordinary replies, supersede original-account eligibility/copy requirements with
+stable provenance and transient verified current-actor operations as in ADR0001.
+Keep IDB version1/row schema1 and strict raw canonical validation. Session writes
+advance to schema6; schemas1–5 remain readable. A schema6 current ordinary server-ID
+row must contain known or explicit-null owner provenance. Missing current ownership
+is incompatible/raw-preserved; null never becomes the current actor.
+
+Materialize genuine legacy top-level ownership only at host recovery/exposure
+boundaries, from stable original composition provenance. Historical nested attempts
+and raw conflict rows are unchanged. A bounded fingerprint-input projection omits
+only redundant current top-level owner equal to stable provenance. This preserves
+actual #107 checkpoint hashes and prevents migration-only heads without recomputing
+old checkpoints; explicit null, cross-owner and historical distinctions remain exact.
+A checkpoint fingerprint is consequently not whole stored-object byte identity.
+Genuinely dirty stale writing still preserves competitors under its old parent.
+Older installed executables refuse newer session/owner-bearing data intact rather
+than silently stripping ownership. Attachment usability is rechecked after recovery
+and never persisted as durable permission. Evidence and costs are recorded in the
+[#108 ledger](../implementation/ui-ux-108.md); these decisions do not establish
+installed acceptance or extend the existing storage durability guarantees.

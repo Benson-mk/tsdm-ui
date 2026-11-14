@@ -216,16 +216,34 @@ async function selectAttachments(event: Event) {
   }
 }
 
+async function reattachAttachment(event: Event, key: string) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  const selection = props.workspace.writing.beginAttachmentReattachment(key);
+  try {
+    await selection.complete({
+      name: file.name,
+      type: file.type,
+      bytes: new Uint8Array(await file.arrayBuffer()),
+    });
+  } catch {
+    selection.fail();
+  }
+}
+
 function uploadLabel(
   upload: DeepReadonly<import("../forum-client").WritingUpload>,
 ) {
   const c = state.value.context;
-  const status =
-    upload.status === "uploaded" &&
-    upload.referenceKind &&
-    c?.source.includes(
-      `[${upload.referenceKind}]${upload.serverId}[/${upload.referenceKind}]`,
-    )
+  const status = props.workspace.writing.attachmentUnavailable(upload.key)
+    ? "Unavailable"
+    : upload.status === "uploaded" &&
+        upload.referenceKind &&
+        c?.source.includes(
+          `[${upload.referenceKind}]${upload.serverId}[/${upload.referenceKind}]`,
+        )
       ? "Inline referenced"
       : {
           selected: "Selected",
@@ -411,6 +429,7 @@ function updateOption(option: WritingOption, event: Event) {
       v-if="state.context"
       :class="{ 'sr-only': ordinaryReply && !elsewhere }"
       :writing="state.context"
+      :current-actor="workspace.writing.currentActor.value"
       :language="workspace.preferences.state.value.language"
       :category="category ?? 'neutral'"
       compact
@@ -530,15 +549,17 @@ function updateOption(option: WritingOption, event: Event) {
       </p>
       <p v-if="!state.accountVerified" role="alert">
         {{
-          insert(
-            state.accountObservation.kind === "guest"
-              ? text.writingSignedOut
-              : state.accountObservation.kind === "member" &&
-                  state.accountObservation.id !== state.context.account.id
-                ? text.writingAccountChanged
-                : text.writingPaused,
-            state.context.account.name,
-          )
+          ordinaryReply
+            ? text.sharedReplyPaused
+            : insert(
+                state.accountObservation.kind === "guest"
+                  ? text.writingSignedOut
+                  : state.accountObservation.kind === "member" &&
+                      state.accountObservation.id !== state.context.account.id
+                    ? text.writingAccountChanged
+                    : text.writingPaused,
+                state.context.account.name,
+              )
         }}
       </p>
       <p v-if="unresolved.length" role="alert">
@@ -722,6 +743,7 @@ function updateOption(option: WritingOption, event: Event) {
             {{ text.checkWriting }}
           </button>
           <button
+            v-if="!ordinaryReply"
             :disabled="
               workspace.writing.replyBlocked.value ||
               state.preparing ||
@@ -1414,6 +1436,52 @@ function updateOption(option: WritingOption, event: Event) {
         <ul>
           <li v-for="upload in state.context.uploads ?? []" :key="upload.key">
             <p>{{ uploadLabel(upload) }}</p>
+            <template
+              v-if="workspace.writing.attachmentUnavailable(upload.key)"
+            >
+              <p>
+                {{
+                  attachment(
+                    "Reattach replaces every exact use of this attachment, including quoted and code examples. A server reference uploads the selected replacement for the current account; local file selection alone does not upload.",
+                  )
+                }}
+              </p>
+              <label
+                >{{ attachment("Reattach")
+                }}<input
+                  type="file"
+                  :aria-label="`${attachment('Reattach')} ${upload.name}`"
+                  :disabled="
+                    !state.accountVerified ||
+                    state.publishing ||
+                    state.composing ||
+                    workspace.writing.replyBlocked.value ||
+                    workspace.writing.attachmentBusy.value
+                  "
+                  @change="reattachAttachment($event, upload.key)"
+              /></label>
+              <p>
+                {{
+                  attachment(
+                    "Remove deletes every exact reference for this attachment, including quoted and code examples. No server file is deleted.",
+                  )
+                }}
+              </p>
+              <button
+                :aria-label="`${attachment('Remove')} ${upload.name}`"
+                :disabled="
+                  state.publishing ||
+                  state.composing ||
+                  workspace.writing.replyBlocked.value ||
+                  workspace.writing.attachmentBusy.value
+                "
+                @click="
+                  workspace.writing.removeUnavailableAttachment(upload.key)
+                "
+              >
+                {{ attachment("Remove") }}
+              </button>
+            </template>
             <button
               v-if="
                 upload.status === 'associated' &&
@@ -1426,7 +1494,10 @@ function updateOption(option: WritingOption, event: Event) {
               {{ attachment("Check stored bytes") }}
             </button>
             <button
-              v-if="['uploaded', 'associated'].includes(upload.status)"
+              v-if="
+                ['uploaded', 'associated'].includes(upload.status) &&
+                !workspace.writing.attachmentUnavailable(upload.key)
+              "
               :aria-label="`${attachment('Remove server file')} ${upload.name}`"
               @click="removeUpload = upload.key"
             >
@@ -1449,7 +1520,8 @@ function updateOption(option: WritingOption, event: Event) {
                   'reselect',
                   'uncertain',
                   'removed',
-                ].includes(upload.status)
+                ].includes(upload.status) &&
+                !workspace.writing.attachmentUnavailable(upload.key)
               "
               :disabled="
                 workspace.writing.replyBlocked.value || state.publishing
@@ -1474,7 +1546,10 @@ function updateOption(option: WritingOption, event: Event) {
               {{ attachment("Upload") }}
             </button>
             <button
-              v-if="['uploaded', 'associated'].includes(upload.status)"
+              v-if="
+                ['uploaded', 'associated'].includes(upload.status) &&
+                !workspace.writing.attachmentUnavailable(upload.key)
+              "
               :aria-label="`${attachment('Insert')} ${upload.name}`"
               @click="workspace.writing.insertAttachment(upload.key)"
             >

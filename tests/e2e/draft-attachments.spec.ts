@@ -717,8 +717,20 @@ for (const stage of ["selected", "uploaded", "pending-save"] as const)
       ).toBeVisible();
     }
     if (stage === "pending-save") {
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              JSON.parse(
+                sessionStorage.getItem("tsdm.workspace.recovery")!,
+              ).writing.draftAttempts.at(-1).status,
+          ),
+        )
+        .toBe("uncertain");
       await expect(
-        page.getByText(/Pending draft save restored as uncertain/),
+        page.getByText(
+          /Pending draft save restored as uncertain|Draft saving may have succeeded/,
+        ),
       ).toBeVisible();
       await page
         .getByRole("button", { name: /Check original draft attempt/ })

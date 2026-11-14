@@ -2,6 +2,32 @@ import { strings } from "../layouts/strings";
 import type { Preferences } from "../workspace/preferences";
 
 const translations: Record<string, readonly [string, string]> = {
+  Reattach: ["重新附加", "重新附加"],
+  Remove: ["移除", "移除"],
+  Unavailable: ["不可用", "無法使用"],
+  "Reattach replaces every exact use of this attachment, including quoted and code examples. A server reference uploads the selected replacement for the current account; local file selection alone does not upload.":
+    [
+      "重新附加会替换此附件的所有完整引用，包括引用文字和代码示例。已有服务器引用会以当前账号上传所选替代文件；仅重新选择本地文件不会上传。",
+      "重新附加會替換此附件的所有完整引用，包括引用文字及程式碼範例。已有伺服器引用會以目前帳號上傳所選替代檔案；僅重新選擇本機檔案不會上傳。",
+    ],
+  "Remove deletes every exact reference for this attachment, including quoted and code examples. No server file is deleted.":
+    [
+      "移除会删除此附件的所有完整引用，包括引用文字和代码示例。不会删除服务器文件。",
+      "移除會刪除此附件的所有完整引用，包括引用文字及程式碼範例。不會刪除伺服器檔案。",
+    ],
+  "Replacement bytes selected locally. Upload is a separate explicit action.": [
+    "已在本地选择替代文件。上传需要单独操作。",
+    "已在本機選擇替代檔案。上傳需要另行操作。",
+  ],
+  "Replacement upload pending. The original attachment and source remain retained.":
+    [
+      "替代文件正在上传。原附件和源码仍保留。",
+      "替代檔案正在上傳。原附件與原始碼仍保留。",
+    ],
+  "Replacement upload stored for its captured account. No reply was sent.": [
+    "替代文件已按本次操作的账号存储。未发送回复。",
+    "替代檔案已按本次操作的帳號儲存。未傳送回覆。",
+  ],
   "This attachment has no verified insertion instruction. Continue in the native editor.":
     [
       "此附件没有已验证的插入指令。请在原生编辑器中继续。",

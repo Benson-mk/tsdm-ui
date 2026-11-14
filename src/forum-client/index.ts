@@ -3,6 +3,7 @@ import { createRating } from "./rating.js";
 import { decodePrivateConversation } from "./private-conversation.js";
 import {
   createAttachmentRemoval,
+  createReplyAttachmentCheck,
   createUploadAuthoring,
 } from "./upload-authoring.js";
 import { findMention } from "./mentions.js";
@@ -58,7 +59,7 @@ export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
 import { createPrivateWriting } from "./private-writing.js";
-export const FORUM_CLIENT_VERSION = "0.25.0";
+export const FORUM_CLIENT_VERSION = "0.26.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -153,6 +154,16 @@ export function createForumClient(options: {
     preparePrivateWriting: privateWriting.prepare,
     preparePrivateReview: privateWriting.review,
     removeUploadedAttachment: createAttachmentRemoval({
+      ...options,
+      generation: () => generation,
+      observe: (observed) => {
+        if (actor(observed) !== actor(account)) {
+          account = observed;
+          generation++;
+        }
+      },
+    }),
+    checkReplyAttachments: createReplyAttachmentCheck({
       ...options,
       generation: () => generation,
       observe: (observed) => {

@@ -182,7 +182,7 @@ export function createWorkspace(
     client,
     (disposed) => {
       if (disposed) host.disposeReply?.(disposed.replyTarget!.threadId);
-      record.schema = 5;
+      record.schema = 6;
       record.writing = writing.snapshot();
       record.retainedReplies = writing.retainedSnapshot();
       return persist();
@@ -691,7 +691,7 @@ export function createWorkspace(
   async function persist() {
     record.writing = writing.snapshot();
     record.retainedReplies = writing.retainedSnapshot();
-    record.schema = 5;
+    record.schema = 6;
     record.favoriteAttempts = JSON.parse(
       JSON.stringify(favorite.value.attempts),
     );
@@ -1585,7 +1585,7 @@ export function createWorkspace(
         recovered.retainedReplies,
       );
       record.writing = writing.snapshot();
-      if (record.schema === 4 || record.schema === 5)
+      if (record.schema === 4 || record.schema === 5 || record.schema === 6)
         record.retainedReplies = writing.retainedSnapshot();
       const attempts = (recovered.favoriteAttempts ?? []).map((attempt) =>
         attempt.status === "pending"

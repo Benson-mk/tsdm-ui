@@ -42,6 +42,7 @@ const upload = {
   message: true,
   status: true,
   serverId: true,
+  ownerId: true,
   referenceKind: true,
   originalSha256: true,
   fields: [field],
@@ -295,9 +296,39 @@ export function projectReply(value: unknown): PublicWritingContext {
       }
     : projected;
 }
+/** Only call with validated legacy session/current durable intent, never new unknown input. */
+export function recoverReplyOwners(
+  value: PublicWritingContext,
+): PublicWritingContext {
+  return value.uploads
+    ? {
+        ...value,
+        uploads: value.uploads.map((upload) =>
+          upload.serverId && upload.ownerId === undefined
+            ? { ...upload, ownerId: value.account.id }
+            : upload,
+        ),
+      }
+    : value;
+}
+/** New current intent never writes an implicit uploader. Historical snapshots stay exact. */
+export function explicitReplyOwners(
+  value: PublicWritingContext,
+): PublicWritingContext {
+  return value.uploads
+    ? {
+        ...value,
+        uploads: value.uploads.map((upload) =>
+          upload.serverId && upload.ownerId === undefined
+            ? { ...upload, ownerId: null }
+            : upload,
+        ),
+      }
+    : value;
+}
 export function replyMeaning(value: PublicWritingContext | null): string {
   if (!value) return "null";
-  const result = { ...value } as Record<string, unknown>;
+  const result = { ...recoverReplyOwners(value) } as Record<string, unknown>;
   for (const key of ["id", "account", "revision", "selection"])
     delete result[key];
   return canonical(result);
@@ -309,6 +340,15 @@ export async function replyFingerprint(
   if (result) {
     delete result.revision;
     delete result.selection;
+    if (value && isOrdinaryReply(value) && value.uploads)
+      result.uploads = value.uploads.map((upload) => {
+        if (!upload.serverId || upload.ownerId !== value.account.id)
+          return upload;
+        // All #107 hash inputs lacked this key. Only redundant current provenance is omitted.
+        const { ownerId: _owner, ...intent } = upload;
+        void _owner;
+        return intent;
+      });
   }
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -437,6 +477,7 @@ export function createReplyDraftStore() {
       context: PublicWritingContext | null,
       parent: string | null,
     ): Promise<ReplyRow> {
+      if (context) context = explicitReplyOwners(context);
       return transaction<ReplyRow>("readwrite", (store, done) => {
         const request = store.get(threadId);
         request.onsuccess = () => {

@@ -14,6 +14,8 @@ import {
   projectReply,
   replyMeaning,
   replyFingerprint,
+  recoverReplyOwners,
+  explicitReplyOwners,
 } from "./reply-drafts";
 import type { NavigationRecord } from "../workspace/navigation";
 const storageKey = "tsdm.workspace.recovery";
@@ -54,7 +56,7 @@ export function createBrowserNavigation(): NavigationHost {
       const rows = await drafts.read();
       if (!rows.length && !record) return null;
       const next: NavigationRecord = record ?? {
-        schema: 5,
+        schema: 6,
         writing: null,
         retainedReplies: [],
         entries: {},
@@ -89,7 +91,8 @@ export function createBrowserNavigation(): NavigationHost {
           !current ||
           (row.variants.length === 1 && (clean || (!checkpoint && equivalent)))
         ) {
-          if (variant.context) local.set(row.threadId, variant.context);
+          if (variant.context)
+            local.set(row.threadId, recoverReplyOwners(variant.context));
           else local.delete(row.threadId);
           checkpoints[row.threadId] = {
             version: variant.version,
@@ -105,7 +108,12 @@ export function createBrowserNavigation(): NavigationHost {
       next.retainedReplies = [...local.entries()]
         .filter(([thread]) => thread !== active)
         .map(([, context]) => context);
-      next.schema = 5;
+      if (next.writing && isOrdinaryReply(next.writing))
+        next.writing = recoverReplyOwners(next.writing);
+      next.retainedReplies = (next.retainedReplies ?? []).map(
+        recoverReplyOwners,
+      );
+      next.schema = 6;
       next.replyCheckpoints = { ...checkpoints };
       replyState = {
         available: true,
@@ -124,7 +132,7 @@ export function createBrowserNavigation(): NavigationHost {
     if (!latestRecord) return false;
     const snapshot = JSON.stringify({
       ...latestRecord,
-      schema: 5,
+      schema: 6,
       retainedReplies: latestRecord.retainedReplies ?? [],
       replyCheckpoints: { ...checkpoints },
       replyDisposals: [...pendingDisposals].filter(
@@ -194,6 +202,11 @@ export function createBrowserNavigation(): NavigationHost {
       } catch {
         return Promise.resolve(false);
       }
+      if (captured.writing && isOrdinaryReply(captured.writing))
+        captured.writing = explicitReplyOwners(captured.writing);
+      if (captured.retainedReplies)
+        captured.retainedReplies =
+          captured.retainedReplies.map(explicitReplyOwners);
       latestRecord = captured;
       // Navigation and live source are captured synchronously. Strict durable
       // work may still be queued; its later checkpoint cannot roll this back.
@@ -208,7 +221,7 @@ export function createBrowserNavigation(): NavigationHost {
       saveQueue = saveQueue.then(async () => {
         const snapshot: NavigationRecord = {
           ...captured,
-          schema: 5,
+          schema: 6,
           retainedReplies: captured.retainedReplies ?? [],
           replyCheckpoints: { ...checkpoints },
           replyDisposals: disposals,
@@ -242,7 +255,9 @@ export function createBrowserNavigation(): NavigationHost {
                 },
                 threadId: thread,
                 before: original,
-                context: row.variants[0]!.context,
+                context: row.variants[0]!.context
+                  ? recoverReplyOwners(row.variants[0]!.context)
+                  : null,
               });
               continue;
             }
@@ -319,7 +334,9 @@ export function createBrowserNavigation(): NavigationHost {
               updates.push({
                 threadId: row.threadId,
                 before: null,
-                context: row.variants[0]!.context,
+                context: row.variants[0]!.context
+                  ? recoverReplyOwners(row.variants[0]!.context)
+                  : null,
                 checkpoint: {
                   version: row.variants[0]!.version,
                   fingerprint: await replyFingerprint(row.variants[0]!.context),

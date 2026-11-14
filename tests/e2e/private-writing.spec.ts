@@ -310,7 +310,7 @@ test("J77.private-send: separate approval sends one exact recipient-bound revisi
   expect(server.posts).toHaveLength(1);
   expect(server.pendingRecords).toHaveLength(1);
   const acknowledged = JSON.parse(server.pendingRecords[0]!);
-  expect(acknowledged.schema).toBe(5);
+  expect(acknowledged.schema).toBe(6);
   expect(acknowledged.writing.privateAttempts[0]).toMatchObject({
     status: "pending",
     before: ["101"],
@@ -372,7 +372,7 @@ test("J77.private-send: separate approval sends one exact recipient-bound revisi
   ).toHaveCount(0);
 });
 
-test("J77.private-schema: private writing shares explicitly incompatible schema5 without replacing legacy public compatibility or persisting credentials", async ({
+test("J77.private-schema: private writing shares explicitly incompatible schema6 without replacing legacy public compatibility or persisting credentials", async ({
   page,
 }) => {
   await open(page);
@@ -385,7 +385,7 @@ test("J77.private-schema: private writing shares explicitly incompatible schema5
   const record = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery") ?? "null"),
   );
-  expect(record.schema).toBe(5);
+  expect(record.schema).toBe(6);
   expect(record.retainedReplies).toEqual([]);
   expect(record.writing.action).toBe("private-message");
   expect(record.writing.recipient.id).toBe("9");
@@ -958,7 +958,7 @@ test("J77.private-peer-guard: reading another peer keeps the original writing an
       () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
     ),
   );
-  expect(replacement.schema).toBe(5);
+  expect(replacement.schema).toBe(6);
   expect(replacement.writing.id).not.toBe(original.id);
   expect(replacement.writing.privateAttempts).toEqual(original.privateAttempts);
   await expect(attempt(page)).toContainText("Listener Nine");
@@ -1132,7 +1132,7 @@ test("J77.public-private-history: explicit private replacement keeps the origina
       () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
     ),
   );
-  expect(after.schema).toBe(5);
+  expect(after.schema).toBe(6);
   expect(after.writing.attempts[0]).toEqual(original);
   await page.reload();
   await page.addScriptTag({
@@ -1428,5 +1428,5 @@ test("F79.private-domain-recovery: guarded public/private writing, reading arriv
   );
   expect(saved).not.toContain("Independently arrived private text.");
   expect(saved).not.toContain("AUTHORED_PRIVATE_TOKEN");
-  expect(JSON.parse(saved).schema).toBe(5);
+  expect(JSON.parse(saved).schema).toBe(6);
 });

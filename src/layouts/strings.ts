@@ -477,6 +477,8 @@ const english = {
   newThreadIn: "New thread in {value}",
   writingAs: "Writing as {value}",
   writingBoard: "Board {value}",
+  sharedReplyPaused:
+    "Sending paused. Check the current account and form; your shared reply is retained.",
   writingPaused:
     "Sending paused — the current account has not been rechecked. Original writing remains bound to {value}.",
   writingAccountChanged:
@@ -1011,6 +1013,7 @@ const simplified: Strings = {
   newThreadIn: "在 {value} 中发表新主题",
   writingAs: "写作账号：{value}",
   writingBoard: "版块 {value}",
+  sharedReplyPaused: "发送已暂停。请检查当前账号和表单；共享回复仍保留。",
   writingPaused:
     "发送已暂停 — 当前账号尚未重新检查。原写作内容仍属于 {value}。",
   writingAccountChanged:
@@ -1539,6 +1542,7 @@ const traditional: Strings = {
   newThreadIn: "在 {value} 中發表新主題",
   writingAs: "寫作帳號：{value}",
   writingBoard: "版塊 {value}",
+  sharedReplyPaused: "傳送已暫停。請檢查目前帳號及表單；共用回覆仍保留。",
   writingPaused:
     "傳送已暫停 — 目前帳號尚未重新檢查。原寫作內容仍屬於 {value}。",
   writingAccountChanged:
@@ -1625,6 +1629,34 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "Check the current account and form before reviewing this shared reply.": [
+    "预览此共享回复前，请检查当前账号和表单。",
+    "預覽此共用回覆前，請檢查目前帳號及表單。",
+  ],
+  "The writing or account changed while reading the replacement. Choose it again.":
+    [
+      "读取替代文件时，内容或账号已改变。请重新选择。",
+      "讀取替代檔案時，內容或帳號已變更。請重新選擇。",
+    ],
+  "The replacement file could not be read. Original attachment intent is retained.":
+    [
+      "无法读取替代文件。原附件意图仍保留。",
+      "無法讀取替代檔案。原附件意圖仍保留。",
+    ],
+  "Recovery or writing changed. No replacement was uploaded.": [
+    "恢复存储或内容已改变。未上传替代文件。",
+    "復原儲存或內容已變更。未上傳替代檔案。",
+  ],
+  "The replacement upload reached the forum, but writing or authority changed. Original intent and the separate upload result are retained; nothing was retried.":
+    [
+      "替代文件已到达论坛，但内容或权限已改变。原附件意图和独立上传结果均已保留；未重试任何操作。",
+      "替代檔案已到達論壇，但內容或權限已變更。原附件意圖及獨立上傳結果均已保留；未重試任何操作。",
+    ],
+  "Unavailable attachment intent and its exact references removed locally. No server file was deleted.":
+    [
+      "已在本地移除不可用附件及其完整引用。未删除服务器文件。",
+      "已在本機移除無法使用的附件及其完整引用。未刪除伺服器檔案。",
+    ],
   "The private conversation could not be confirmed. Continue in the native forum.":
     [
       "无法确认此私人交谈。请前往原生论坛。",

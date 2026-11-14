@@ -34,7 +34,7 @@ export interface NavigationEntry {
   documentNavigations: number;
 }
 export interface NavigationRecord {
-  schema: 2 | 3 | 4 | 5;
+  schema: 2 | 3 | 4 | 5 | 6;
   replyDisposals?: string[];
   replyCheckpoints?: Record<
     string,

@@ -154,6 +154,44 @@ export function createWriting(
       conflictedReplies.value.includes(context.replyTarget!.threadId)
     );
   });
+  // Ordinary composition account is stable provenance. Every new operation
+  // captures the independently observed current actor without changing its lineage.
+  function captureOperation(context = state.value.context) {
+    if (!context || context.action === "private-message") return null;
+    const generation = client.generation;
+    const captured = canonical(context);
+    const ordinary = Boolean(isOrdinaryReply(context));
+    const actor = ordinary ? state.value.accountObservation : context.account;
+    if (
+      ordinary &&
+      (!observedAccountVerified ||
+        actor.kind !== "member" ||
+        client.account.kind !== "member" ||
+        client.account.id !== actor.id)
+    )
+      return null;
+    if (actor.kind !== "member") return null;
+    return {
+      writing: ordinary ? { ...context, account: actor } : context,
+      generation,
+      current: () =>
+        canonical(state.value.context) === captured &&
+        (!ordinary ||
+          (!replyBlocked.value &&
+            observedAccountVerified &&
+            client.generation === generation &&
+            client.account.kind === "member" &&
+            client.account.id === actor.id &&
+            state.value.accountObservation.kind === "member" &&
+            state.value.accountObservation.id === actor.id)),
+    };
+  }
+  const currentActor = computed<Account | undefined>(() => {
+    const context = state.value.context;
+    return context && isOrdinaryReply(context)
+      ? (captureOperation(context)?.writing.account ?? { kind: "unknown" })
+      : undefined;
+  });
   const retainedReplies = shallowRef<Record<string, PublicWritingContext>>({});
   let selectedReplyThread: string | null = null;
   function replaced(previous: WritingContext | null) {
@@ -342,8 +380,6 @@ export function createWriting(
           (attempt) =>
             attempt.status === "confirmed" &&
             attempt.publication.submission.contextId === context.id &&
-            attempt.publication.submission.writing.account.id ===
-              context.account.id &&
             replyMeaning(attempt.publication.submission.writing) ===
               replyMeaning(context),
         );
@@ -352,6 +388,123 @@ export function createWriting(
   });
   const uploadBytes = new Map<string, import("../forum-client").UploadFile>();
   const uploadControllers = new Map<string, AbortController>();
+  const attachmentProofs = shallowRef<
+    Record<string, { identity: string; available: boolean }>
+  >({});
+  const attachmentChecks = new Map<string, Promise<void>>();
+  function attachmentIdentity(
+    context: PublicWritingContext,
+    upload: import("../forum-client").WritingUpload,
+  ) {
+    const operation = captureOperation(context);
+    return operation
+      ? canonical({
+          context: context.id,
+          actor: operation.writing.account.id,
+          generation: operation.generation,
+          board: context.board.id,
+          target: context.replyTarget,
+          upload: {
+            key: upload.key,
+            serverId: upload.serverId,
+            ownerId: upload.ownerId,
+            referenceKind: upload.referenceKind,
+            fields: upload.fields,
+          },
+        })
+      : "";
+  }
+  function attachmentUnavailable(key: string) {
+    const context = state.value.context;
+    if (!context || !isOrdinaryReply(context)) return false;
+    const upload = context.uploads?.find((u) => u.key === key);
+    if (!upload) return false;
+    if (
+      [
+        "reselect",
+        "rejected",
+        "uncertain",
+        "removal-uncertain",
+        "removed",
+      ].includes(upload.status)
+    )
+      return true;
+    if (!["uploaded", "associated"].includes(upload.status)) return false;
+    const proof = attachmentProofs.value[key];
+    return (
+      !proof?.available ||
+      proof.identity !== attachmentIdentity(context, upload)
+    );
+  }
+  async function revalidateAttachments(force = false) {
+    const context = state.value.context;
+    if (!context || !isOrdinaryReply(context) || replyBlocked.value) return;
+    const operation = captureOperation(context);
+    if (!operation) return;
+    const uploads = (context.uploads ?? []).filter((u) =>
+      ["uploaded", "associated"].includes(u.status),
+    );
+    if (!uploads.length) return;
+    const identities = uploads.map(
+      (u) => [u.key, attachmentIdentity(context, u)] as const,
+    );
+    const key = canonical(identities);
+    if (attachmentChecks.has(key)) return attachmentChecks.get(key);
+    if (
+      !force &&
+      identities.every(
+        ([id, identity]) => attachmentProofs.value[id]?.identity === identity,
+      )
+    )
+      return;
+    attachmentProofs.value = {
+      ...attachmentProofs.value,
+      ...Object.fromEntries(
+        identities.map(([id, identity]) => [
+          id,
+          { identity, available: false },
+        ]),
+      ),
+    };
+    const checkAttachments = client.checkReplyAttachments;
+    if (!checkAttachments) return;
+    const pending = Promise.resolve().then(async () => {
+      try {
+        const result = await checkAttachments.call(client, {
+          ...operation.writing,
+          uploads:
+            operation.writing.uploads?.map((u) => ({
+              ...u,
+              ownerId: u.ownerId ?? null,
+            })) ?? [],
+        });
+        accountObserved(client.account);
+        observe(client.account, result.accountVerified);
+        if (!operation.current() || result.generation !== operation.generation)
+          return;
+        if (
+          !result.accountVerified ||
+          result.account.kind !== "member" ||
+          result.account.id !== operation.writing.account.id
+        )
+          return;
+        if (!(await changed()) || !operation.current()) return;
+        attachmentProofs.value = {
+          ...attachmentProofs.value,
+          ...Object.fromEntries(
+            identities.map(([id, identity]) => [
+              id,
+              { identity, available: result.usableKeys.includes(id) },
+            ]),
+          ),
+        };
+      } finally {
+        attachmentChecks.delete(key);
+      }
+    });
+    attachmentChecks.set(key, pending);
+    await pending;
+  }
   function updateUpload(
     key: string,
     patch: Partial<import("../forum-client").WritingUpload>,
@@ -370,13 +523,13 @@ export function createWriting(
     void changed();
   }
   function beginAttachmentSelection() {
-    const origin = state.value.context;
+    const origin = captureOperation()?.writing;
     const generation = client.generation;
     let delivered = false;
     state.value = { ...state.value, message: "" };
     return {
       complete(files: import("../forum-client").UploadFile[]) {
-        const current = state.value.context;
+        const current = captureOperation()?.writing;
         if (delivered || replyBlocked.value) return;
         delivered = true;
         if (
@@ -412,8 +565,10 @@ export function createWriting(
   function selectAttachments(files: import("../forum-client").UploadFile[]) {
     if (replyBlocked.value) return;
     const c = state.value.context;
+    const operation = captureOperation(c);
     if (
       !c ||
+      !operation ||
       c.action === "private-message" ||
       !state.value.accountVerified ||
       state.value.publishing
@@ -428,6 +583,9 @@ export function createWriting(
         type: file.type,
         size: file.bytes.length,
         status: "selected" as const,
+        ...(isOrdinaryReply(c)
+          ? { ownerId: operation.writing.account.id }
+          : {}),
         message: "",
         loaded: 0,
       };
@@ -445,12 +603,11 @@ export function createWriting(
   }
   async function uploadAttachment(key: string) {
     if (replyBlocked.value) return;
-    const c = state.value.context,
+    const c = captureOperation()?.writing,
       row = c?.uploads?.find((u) => u.key === key),
       file = uploadBytes.get(key);
     if (
       !c ||
-      c.action === "private-message" ||
       !row ||
       row.status !== "selected" ||
       !file ||
@@ -505,6 +662,7 @@ export function createWriting(
                   ...u,
                   status: "uploaded",
                   serverId: result.id,
+                  ...(isOrdinaryReply(c) ? { ownerId: c.account.id } : {}),
                   referenceKind: result.referenceKind,
                   originalSha256: result.sha256,
                   fields: result.fields,
@@ -517,7 +675,24 @@ export function createWriting(
         },
       };
       uploadBytes.delete(key);
-      void changed();
+      const acknowledged = await changed();
+      const uploaded = state.value.context?.uploads?.find((u) => u.key === key);
+      const latest = state.value.context;
+      if (
+        acknowledged &&
+        latest &&
+        isOrdinaryReply(latest) &&
+        uploaded &&
+        captureOperation(latest)?.writing.account.id === c.account.id
+      ) {
+        attachmentProofs.value = {
+          ...attachmentProofs.value,
+          [key]: {
+            identity: attachmentIdentity(latest, uploaded),
+            available: true,
+          },
+        };
+      }
     } else
       updateUpload(key, {
         status: result.kind === "uncertain" ? "uncertain" : "rejected",
@@ -527,7 +702,345 @@ export function createWriting(
           : {}),
       });
   }
+  let repairSourceTransaction = false;
+  function repairedSource(
+    source: string,
+    id: string,
+    replacement?: { id: string; kind: "attach" | "attachimg" },
+  ) {
+    return source.replace(
+      /(\[(attach(?:img)?)\])(\s*)([1-9]\d*)(\s*)(\[\/\2\])/gi,
+      (
+        span,
+        opening: string,
+        kind: string,
+        before: string,
+        found: string,
+        after: string,
+        closing: string,
+      ) => {
+        if (found !== id) return span;
+        if (!replacement) return "";
+        return (
+          (kind.toLowerCase() === replacement.kind
+            ? opening
+            : `[${replacement.kind}]`) +
+          before +
+          replacement.id +
+          after +
+          (kind.toLowerCase() === replacement.kind
+            ? closing
+            : `[/${replacement.kind}]`)
+        );
+      },
+    );
+  }
+  function applyAttachmentEdit(
+    next: PublicWritingContext,
+    source: string,
+    restoringCapturedIntent = false,
+  ) {
+    if (
+      state.value.composing ||
+      (replyBlocked.value && !restoringCapturedIntent)
+    )
+      return false;
+    const session = editor();
+    if (session.state.locks.busy || session.state.locks.session) return false;
+    const previous = state.value.context;
+    repairSourceTransaction = true;
+    try {
+      state.value = { ...state.value, publication: null, context: next };
+      if (source !== session.state.source && !session.replaceSource(source)) {
+        state.value = { ...state.value, context: previous };
+        return false;
+      }
+      return true;
+    } finally {
+      repairSourceTransaction = false;
+    }
+  }
+  async function removeUnavailableAttachment(key: string) {
+    const context = state.value.context;
+    const upload = context?.uploads?.find((u) => u.key === key);
+    if (
+      !context ||
+      !isOrdinaryReply(context) ||
+      !upload ||
+      !attachmentUnavailable(key) ||
+      replyBlocked.value ||
+      state.value.composing ||
+      state.value.publishing ||
+      uploadControllers.size
+    )
+      return;
+    const source = upload.serverId
+      ? repairedSource(context.source, upload.serverId)
+      : context.source;
+    const next: PublicWritingContext = {
+      ...context,
+      revision: context.revision + 1,
+      uploads: context.uploads!.filter((u) => u.key !== key),
+      uploadedReferences: context.uploadedReferences.filter(
+        (id) => id !== upload.serverId,
+      ),
+      attachmentFields: (context.attachmentFields ?? []).filter(
+        (f) =>
+          !upload.serverId ||
+          (!f.name.startsWith(`attachnew[${upload.serverId}]`) &&
+            !f.name.startsWith(`attachupdate[${upload.serverId}]`)),
+      ),
+    };
+    if (!applyAttachmentEdit(next, source)) return;
+    uploadBytes.delete(key);
+    state.value = {
+      ...state.value,
+      message:
+        "Unavailable attachment intent and its exact references removed locally. No server file was deleted.",
+    };
+    await changed();
+  }
+  function beginAttachmentReattachment(key: string) {
+    const operation = captureOperation();
+    let delivered = false;
+    return {
+      async complete(file: import("../forum-client").UploadFile) {
+        if (delivered) return;
+        delivered = true;
+        if (!operation?.current() || !attachmentUnavailable(key)) {
+          state.value = {
+            ...state.value,
+            message:
+              "The writing or account changed while reading the replacement. Choose it again.",
+          };
+          return;
+        }
+        await reattachAttachment(key, file);
+      },
+      fail() {
+        if (delivered) return;
+        delivered = true;
+        state.value = {
+          ...state.value,
+          message:
+            "The replacement file could not be read. Original attachment intent is retained.",
+        };
+      },
+    };
+  }
+  async function reattachAttachment(
+    key: string,
+    file: import("../forum-client").UploadFile,
+  ) {
+    const original = state.value.context;
+    const actor = captureOperation(original);
+    const old = original?.uploads?.find((u) => u.key === key);
+    if (
+      !original ||
+      !isOrdinaryReply(original) ||
+      !actor ||
+      !old ||
+      !attachmentUnavailable(key) ||
+      state.value.composing ||
+      state.value.publishing ||
+      uploadControllers.size ||
+      replyBlocked.value
+    )
+      return;
+    if (!old.serverId) {
+      uploadBytes.set(key, { ...file, bytes: new Uint8Array(file.bytes) });
+      state.value = {
+        ...state.value,
+        publication: null,
+        context: {
+          ...original,
+          revision: original.revision + 1,
+          uploads: original.uploads!.map((u) =>
+            u.key === key
+              ? {
+                  key,
+                  name: file.name,
+                  type: file.type,
+                  size: file.bytes.length,
+                  status: "selected",
+                  ownerId: actor.writing.account.id,
+                  message:
+                    "Replacement bytes selected locally. Upload is a separate explicit action.",
+                  loaded: 0,
+                }
+              : u,
+          ),
+        },
+      };
+      await changed();
+      return;
+    }
+    const pendingKey = crypto.randomUUID();
+    const pending: import("../forum-client").WritingUpload = {
+      key: pendingKey,
+      name: file.name,
+      type: file.type,
+      size: file.bytes.length,
+      ownerId: actor.writing.account.id,
+      status: "uploading",
+      loaded: 0,
+      message:
+        "Replacement upload pending. The original attachment and source remain retained.",
+    };
+    const controller = new AbortController();
+    uploadControllers.set(pendingKey, controller);
+    state.value = {
+      ...state.value,
+      publication: null,
+      context: {
+        ...original,
+        revision: original.revision + 1,
+        uploads: [...(original.uploads ?? []), pending],
+      },
+    };
+    const operation = captureOperation();
+    const acknowledged = await changed();
+    const result =
+      acknowledged && operation?.current()
+        ? await client.uploadAttachment(
+            operation.writing,
+            file,
+            () => {},
+            controller.signal,
+            effectGuard(),
+          )
+        : {
+            kind: "not-sent" as const,
+            message:
+              "Recovery or writing changed. No replacement was uploaded.",
+          };
+    uploadControllers.delete(pendingKey);
+    accountObserved(client.account);
+    observe(client.account);
+    const current = state.value.context;
+    if (!current || !isOrdinaryReply(current) || current.id !== original.id)
+      return;
+    const others = (current.uploads ?? []).filter((u) => u.key !== pendingKey);
+    if (result.kind !== "uploaded") {
+      state.value = {
+        ...state.value,
+        message: result.message,
+        context: {
+          ...current,
+          revision: current.revision + 1,
+          uploads:
+            result.kind === "uncertain"
+              ? [
+                  ...others,
+                  {
+                    ...pending,
+                    status: "uncertain",
+                    message: result.message,
+                    ...(result.id ? { serverId: result.id } : {}),
+                  },
+                ]
+              : others,
+        },
+      };
+      await changed();
+      return;
+    }
+    const accepted: import("../forum-client").WritingUpload = {
+      ...pending,
+      status: "uploaded",
+      serverId: result.id,
+      referenceKind: result.referenceKind,
+      originalSha256: result.sha256,
+      fields: result.fields,
+      loaded: file.bytes.length,
+      message:
+        "Replacement upload stored for its captured account. No reply was sent.",
+    };
+    const retainedResult = () => {
+      const latest = state.value.context;
+      if (!latest || !isOrdinaryReply(latest) || latest.id !== original.id)
+        return;
+      state.value = {
+        ...state.value,
+        publication: null,
+        message:
+          "The replacement upload reached the forum, but writing or authority changed. Original intent and the separate upload result are retained; nothing was retried.",
+        context: {
+          ...latest,
+          revision: latest.revision + 1,
+          uploads: [
+            ...(latest.uploads ?? []).filter((u) => u.key !== pendingKey),
+            accepted,
+          ],
+          uploadedReferences: [
+            ...new Set([...latest.uploadedReferences, result.id]),
+          ],
+          attachmentFields: [
+            ...(latest.attachmentFields ?? []),
+            ...result.fields,
+          ],
+        },
+      };
+    };
+    if (!operation?.current() || state.value.composing) {
+      retainedResult();
+      await changed();
+      return;
+    }
+    const source = repairedSource(current.source, old.serverId, {
+      id: result.id,
+      kind: result.referenceKind,
+    });
+    const next: PublicWritingContext = {
+      ...current,
+      revision: current.revision + 1,
+      uploads: others.map((u) => (u.key === key ? { ...accepted, key } : u)),
+      uploadedReferences: [
+        ...new Set([
+          ...current.uploadedReferences.filter((id) => id !== old.serverId),
+          result.id,
+        ]),
+      ],
+      attachmentFields: [
+        ...(current.attachmentFields ?? []).filter(
+          (f) =>
+            !f.name.startsWith(`attachnew[${old.serverId}]`) &&
+            !f.name.startsWith(`attachupdate[${old.serverId}]`),
+        ),
+        ...result.fields,
+      ],
+    };
+    if (!applyAttachmentEdit(next, source)) {
+      retainedResult();
+      await changed();
+      return;
+    }
+    const repaired = state.value.context;
+    const saved = await changed();
+    if (!saved && state.value.context === repaired) {
+      // A refused final acknowledgement cannot erase the old intent or claim rollback of the real upload.
+      applyAttachmentEdit(current, current.source, true);
+      retainedResult();
+      await changed();
+      return;
+    }
+    const latest = state.value.context;
+    const row = latest?.uploads?.find((u) => u.key === key);
+    if (
+      saved &&
+      latest &&
+      isOrdinaryReply(latest) &&
+      row &&
+      row.serverId === result.id &&
+      captureOperation(latest)?.writing.account.id === actor.writing.account.id
+    )
+      attachmentProofs.value = {
+        ...attachmentProofs.value,
+        [key]: { identity: attachmentIdentity(latest, row), available: true },
+      };
+  }
   function insertAttachment(key: string) {
+    if (attachmentUnavailable(key)) return;
     if (replyBlocked.value) return;
     const c = state.value.context,
       u = c?.uploads?.find((u) => u.key === key);
@@ -917,7 +1430,10 @@ export function createWriting(
       existing?.board.id === boardId &&
       existing?.replyTarget?.threadId === replyTarget.threadId &&
       !sameAction;
-    if (state.value.publishing && (replace || !sameAction)) {
+    if (
+      (state.value.publishing || (retarget && !canDeactivate())) &&
+      (replace || !sameAction)
+    ) {
       state.value = {
         ...state.value,
         message:
@@ -971,6 +1487,7 @@ export function createWriting(
           }
         : {}),
     };
+    const operation = retarget ? captureOperation() : null;
     const result = await (replyTarget
       ? client.prepareReply(boardId, replyTarget)
       : client.prepareNewThread(boardId, redPacket));
@@ -989,11 +1506,16 @@ export function createWriting(
     }
     if (retarget && existing && replyTarget) {
       const latest = state.value.context;
+      const latestOperation = captureOperation(latest);
       if (
         !latest ||
         latest.id !== existing.id ||
         latest.action === "private-message" ||
-        result.prepared.account.id !== latest.account.id ||
+        !operation ||
+        !latestOperation?.current() ||
+        latestOperation.generation !== operation.generation ||
+        latestOperation.writing.account.id !== operation.writing.account.id ||
+        result.prepared.account.id !== operation.writing.account.id ||
         !state.value.accountVerified
       ) {
         state.value = {
@@ -1020,7 +1542,8 @@ export function createWriting(
         validationIssues: [],
         message: "",
       };
-      void changed();
+      await changed();
+      void revalidateAttachments();
       return;
     }
     if (
@@ -1382,7 +1905,7 @@ export function createWriting(
         context: { ...context, ...patch, revision: context.revision + 1 },
         publication: null,
       };
-      changed();
+      if (!repairSourceTransaction) void changed();
     }
   }
   function submission(context: PublicWritingContext) {
@@ -2146,9 +2669,26 @@ export function createWriting(
       return reviewPrivate();
     if (state.value.context?.draft && !resendId)
       return reviewDraftPublication();
+    const currentReply = state.value.context;
+    if (
+      currentReply &&
+      isOrdinaryReply(currentReply) &&
+      !state.value.preparing &&
+      !state.value.publishing &&
+      !state.value.composing
+    ) {
+      const captured = canonical(currentReply);
+      if (!captureOperation(currentReply)) await check();
+      else if (currentReply.uploads?.some((u) => attachmentUnavailable(u.key)))
+        await revalidateAttachments(true);
+      if (replyBlocked.value || canonical(state.value.context) !== captured)
+        return;
+    }
     if (
       state.value.context?.uploads?.some(
-        (u) => !["uploaded", "associated", "removed"].includes(u.status),
+        (u) =>
+          attachmentUnavailable(u.key) ||
+          !["uploaded", "associated", "removed"].includes(u.status),
       )
     ) {
       state.value = {
@@ -2219,6 +2759,15 @@ export function createWriting(
       };
       return;
     }
+    const operation = captureOperation(context);
+    if (isOrdinaryReply(context) && !operation) {
+      state.value = {
+        ...state.value,
+        message:
+          "Check the current account and form before reviewing this shared reply.",
+      };
+      return;
+    }
     const preparation = ++sequence;
     state.value = {
       ...state.value,
@@ -2229,7 +2778,9 @@ export function createWriting(
     const result =
       context.action === "edit-post"
         ? await client.prepareEditPublication(submission(context))
-        : await client.prepareThreadPublication(submission(context));
+        : await client.prepareThreadPublication(
+            submission(operation?.writing ?? context),
+          );
     if (preparation !== sequence) return;
     const local =
       "validation" in result && result.validation?.source === "local";
@@ -2243,6 +2794,7 @@ export function createWriting(
       );
     }
     if (
+      (isOrdinaryReply(context) && !operation?.current()) ||
       state.value.context?.id !== context.id ||
       state.value.context.revision !== context.revision
     ) {
@@ -2269,9 +2821,8 @@ export function createWriting(
   function effectGuard(): import("../forum-client").EffectGuard | undefined {
     const context = state.value.context;
     if (!context || !isOrdinaryReply(context)) return undefined;
-    const captured = canonical(context);
-    const current = () =>
-      !replyBlocked.value && canonical(state.value.context) === captured;
+    const operation = captureOperation(context);
+    const current = () => operation?.current() === true;
     return {
       current,
       check: async () => current() && (await changed()) && current(),
@@ -2351,6 +2902,8 @@ export function createWriting(
       state.value.findingMention
     )
       return;
+    const operation = captureOperation(context);
+    if (!operation) return;
     const request = ++mentionSequence;
     state.value = {
       ...state.value,
@@ -2358,7 +2911,10 @@ export function createWriting(
       mentionPeople: [],
       message: "",
     };
-    const found = await client.findMention(submission(context).writing, query);
+    const found = await client.findMention(
+      submission(operation.writing).writing,
+      query,
+    );
     if (request !== mentionSequence || state.value.context?.id !== context.id)
       return;
     accountObserved(found.account);
@@ -2366,7 +2922,8 @@ export function createWriting(
     state.value = {
       ...state.value,
       findingMention: false,
-      mentionPeople: found.kind === "people" ? [...found.people] : [],
+      mentionPeople:
+        found.kind === "people" && operation.current() ? [...found.people] : [],
       mentionGeneration: found.generation,
       message: found.kind === "people" ? "" : found.message,
     };
@@ -2381,7 +2938,7 @@ export function createWriting(
       state.value.composing ||
       client.generation !== state.value.mentionGeneration ||
       client.account.kind !== "member" ||
-      client.account.id !== context.account.id
+      client.account.id !== captureOperation(context)?.writing.account.id
     )
       return;
     const session = editor(),
@@ -2413,8 +2970,24 @@ export function createWriting(
     state.value = { ...state.value, mentionPeople: [] };
   }
   let observedAccountVerified = false;
+  let observedGeneration = -1;
   function observe(account: Account, verified = true) {
+    const changedEvidence =
+      !verified ||
+      !observedAccountVerified ||
+      observedGeneration !== client.generation ||
+      canonical(state.value.accountObservation) !== canonical(account);
     observedAccountVerified = verified;
+    observedGeneration = client.generation;
+    if (changedEvidence) {
+      ++mentionSequence;
+      state.value = {
+        ...state.value,
+        mentionPeople: [],
+        mentionGeneration: -1,
+        findingMention: false,
+      };
+    }
     const privateReview = state.value.privateReview;
     if (
       privateReview &&
@@ -2443,7 +3016,9 @@ export function createWriting(
       accountVerified:
         verified &&
         account.kind === "member" &&
-        account.id === state.value.context?.account.id,
+        (state.value.context && isOrdinaryReply(state.value.context)
+          ? client.account.kind === "member" && client.account.id === account.id
+          : account.id === state.value.context?.account.id),
     };
     if (
       state.value.copy &&
@@ -2452,9 +3027,12 @@ export function createWriting(
         client.generation !== state.value.copy.generation)
     )
       state.value = { ...state.value, copy: null };
+    void revalidateAttachments();
   }
   async function check(copyText = false) {
     if (replyBlocked.value) return;
+    if (state.value.context && isOrdinaryReply(state.value.context))
+      copyText = false;
     if (state.value.context?.action === "private-message")
       return reviewPrivate();
     const original = state.value.context;
@@ -2510,6 +3088,7 @@ export function createWriting(
           }
         : null,
     };
+    await revalidateAttachments(true);
   }
   function confirmCopy() {
     if (replyBlocked.value) return;
@@ -2520,6 +3099,7 @@ export function createWriting(
       !candidate ||
       !original ||
       original.action === "private-message" ||
+      Boolean(isOrdinaryReply(original)) ||
       candidate.originalId !== original.id ||
       state.value.publishing
     )
@@ -2880,11 +3460,10 @@ export function createWriting(
       };
     },
     checkStoredAttachment: async (key: string) => {
-      const c = state.value.context,
+      const c = captureOperation()?.writing,
         u = c?.uploads?.find((v) => v.key === key);
       if (
         !c ||
-        c.action === "private-message" ||
         !u?.serverId ||
         !u.storedPost ||
         !u.originalSha256 ||
@@ -2894,6 +3473,7 @@ export function createWriting(
       updateUpload(key, {
         message: "Checking independently received file bytes…",
       });
+      const operation = captureOperation();
       const result = await client.downloadAttachment({
         threadURL: u.storedPost.threadURL,
         postId: u.storedPost.postId,
@@ -2902,7 +3482,7 @@ export function createWriting(
       });
       accountObserved(client.account);
       observe(client.account);
-      if (state.value.context?.id !== c.id) return;
+      if (!operation?.current()) return;
       if (result.kind !== "file") {
         updateUpload(key, { message: result.message });
         return;
@@ -2913,6 +3493,7 @@ export function createWriting(
         ),
         (b) => b.toString(16).padStart(2, "0"),
       ).join("");
+      if (!operation?.current()) return;
       updateUpload(key, {
         message:
           hash === u.originalSha256 &&
@@ -2924,14 +3505,16 @@ export function createWriting(
     },
     removeServerAttachment: async (key: string, checkOnly = false) => {
       if (replyBlocked.value) return;
-      const c = state.value.context,
+      const c = captureOperation()?.writing,
         u = c?.uploads?.find((v) => v.key === key);
       if (
         !c ||
-        c.action === "private-message" ||
         !u?.serverId ||
         state.value.publishing ||
         !state.value.accountVerified ||
+        (isOrdinaryReply(c) &&
+          (u.ownerId !== c.account.id ||
+            (!checkOnly && attachmentUnavailable(key)))) ||
         (!checkOnly &&
           !["uploaded", "associated", "removed"].includes(u.status))
       )
@@ -3059,6 +3642,16 @@ export function createWriting(
         : [];
     }),
     state: readonly(state),
+    currentActor,
+    attachmentUnavailable,
+    beginAttachmentReattachment,
+    removeUnavailableAttachment,
+    attachmentBusy: computed(
+      () =>
+        state.value.context?.uploads?.some((u) =>
+          ["uploading", "removing"].includes(u.status),
+        ) ?? false,
+    ),
     prepare,
     prepareReply: (boardId: string, target: ReplyTarget) =>
       prepare(boardId, false, target),
@@ -3343,6 +3936,9 @@ function validateWritingContext(
           integer(u.size) &&
           integer(u.loaded) &&
           string(u.message) &&
+          (u.ownerId === undefined ||
+            u.ownerId === null ||
+            (string(u.ownerId) && /^[1-9]\d*$/.test(u.ownerId))) &&
           (u.originalSha256 === undefined ||
             (string(u.originalSha256) &&
               /^[a-f0-9]{64}$/.test(u.originalSha256))) &&

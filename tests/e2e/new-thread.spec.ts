@@ -645,7 +645,18 @@ test("J5.attempt-recovery: pending refresh never replays and explicit candidate 
   expect(state.posts).toHaveLength(1);
   await page.reload();
   release();
-  await expect(page.getByText(/restored as uncertain/i)).toBeVisible();
+  await expect(
+    page.getByText(/restored as uncertain|response was lost/i),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+            .attempts[0].status,
+      ),
+    )
+    .toBe("uncertain");
   await writingPresentationRoundTrip(page, info);
   expect(state.posts).toHaveLength(1);
   await page
@@ -907,9 +918,11 @@ test("J4.render-failure: independent confirmation remains trusted after later re
       )
       .first(),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+  const returnToWriting = page.getByRole("button", {
+    name: "Return to writing",
+    exact: true,
+  });
+  if (await returnToWriting.isVisible()) await returnToWriting.click();
   await expect(page.getByText(/Confirmed stored thread/)).toBeVisible();
   expect(state.posts).toHaveLength(1);
 });

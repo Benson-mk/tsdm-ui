@@ -479,7 +479,7 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
   if (
     !object(value) ||
     typeof value.schema !== "number" ||
-    ![2, 3, 4, 5].includes(value.schema) ||
+    ![2, 3, 4, 5, 6].includes(value.schema) ||
     !object(value.entries)
   )
     return false;
@@ -492,7 +492,7 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
     return false;
   if (!(value.writing === null || isWritingContext(value.writing)))
     return false;
-  if (value.schema === 4 || value.schema === 5) {
+  if (value.schema === 4 || value.schema === 5 || value.schema === 6) {
     if (!Array.isArray(value.retainedReplies)) return false;
     const threads = new Set<string>();
     const identities = new Set<string>();
@@ -513,8 +513,25 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
       identities.add(reply.id);
     }
   } else if (value.retainedReplies !== undefined) return false;
+  if (value.schema === 6) {
+    const current = [
+      value.writing,
+      ...(Array.isArray(value.retainedReplies) ? value.retainedReplies : []),
+    ];
+    if (
+      current.some(
+        (context) =>
+          isWritingContext(context) &&
+          isOrdinaryReply(context) &&
+          context.uploads?.some(
+            (upload) => upload.serverId && upload.ownerId === undefined,
+          ),
+      )
+    )
+      return false;
+  }
   if (
-    value.schema === 5 &&
+    (value.schema === 5 || value.schema === 6) &&
     (!object(value.replyCheckpoints) ||
       !Object.entries(value.replyCheckpoints).every(
         ([thread, checkpoint]) =>
@@ -527,7 +544,7 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
   )
     return false;
   if (
-    value.schema === 5 &&
+    (value.schema === 5 || value.schema === 6) &&
     value.replyDisposals !== undefined &&
     (!Array.isArray(value.replyDisposals) ||
       !value.replyDisposals.every(id) ||

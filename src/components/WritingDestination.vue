@@ -7,12 +7,14 @@ import { strings, insert } from "../layouts/strings";
 import type { CategoryRole } from "../layouts/board-groups";
 const props = defineProps<{
   writing: DeepReadonly<PreparedWriting | PreparedPrivateWriting>;
+  currentActor?: DeepReadonly<import("../forum-client").Account> | undefined;
   language: Preferences["language"];
   review?: boolean;
   compact?: boolean;
   category?: CategoryRole;
 }>();
 const text = computed(() => strings(props.language));
+const actor = computed(() => props.currentActor ?? props.writing.account);
 const addressedURL = computed(() => {
   if (props.writing.action === "private-message") return "";
   const target = props.writing.replyTarget;
@@ -50,9 +52,10 @@ const action = computed(() =>
   >
     <p :class="{ 'sr-only': compact }">
       <strong>{{ action }}</strong> ·
-      {{ insert(text.writingAs, writing.account.name) }} ({{
-        writing.account.id
-      }})
+      <template v-if="actor.kind === 'member'"
+        >{{ insert(text.writingAs, actor.name) }} ({{ actor.id }})</template
+      >
+      <template v-else>{{ text.checkWriting }}</template>
     </p>
     <p v-if="writing.action === 'private-message'">
       {{

@@ -51,3 +51,30 @@ observed asynchronous preflight gap without introducing browser storage into the
 portable client or using account generation as a draft-conflict signal. Immutable
 original actor/target and actual callback outcomes remain retained. #111 owns the
 stronger cross-tab unsettled-send registry; #107 does not implement it.
+
+
+## Account-shared ordinary replies — #108
+
+Ordinary reply composition account metadata is now stable original provenance,
+not current sender eligibility. The workspace captures the independently verified
+current actor and generation at one transient operation seam; new publication,
+upload, repair, retarget, mention, removal and stored-file checks use that actor.
+Historical submissions and actual dispatched outcomes retain their original actor
+and target. New-thread, edit-post, private-message and Forum draft account rules
+remain unchanged. Account-only observations do not rewrite draft lineage or editor
+source. Current-writing presentation uses the current actor or unverified wording.
+
+Forum-client 0.26.0 adds optional read-only `checkReplyAttachments` and optional
+`WritingUpload.ownerId` (known member, null unknown, absent legacy). Fresh native
+form/profile and exact attachment controls prove only same-owner current usability;
+permissive lists cannot transfer upload ownership. These proofs remain transient.
+Unavailable intent stays named, blocks review and offers explicit Reattach/Remove.
+A server-reference replacement explicitly uploads new bytes, then replaces exact
+balanced literal attach/attachimg spans, row, fields and reference identity together.
+The disclosure includes quoted/code examples. Local-only selection requires a
+separate Upload. Remove changes local intent/source without deleting a server file;
+available-file removal keeps its existing confirmation. An exact failed-adoption
+rollback may restore the captured intent during conflict, but cannot authorize a
+new mutation/effect or select a competing head. Existing editor undo changes source,
+not server ownership. The accepted advisor gate and distinct costs are recorded in
+[the #108 ledger](../implementation/ui-ux-108.md).

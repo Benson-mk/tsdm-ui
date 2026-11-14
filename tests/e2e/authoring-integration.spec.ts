@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { publishSavedDraft } from "./draft-review-controls";
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -124,6 +125,7 @@ async function fixture(page: Page, action: Action) {
         ? "Edit post 101"
         : "New thread",
   ).click();
+  if (action === "reply") await selectSourceEditor(page);
   await expect(source(page)).toBeVisible();
   if (action === "draft")
     await page

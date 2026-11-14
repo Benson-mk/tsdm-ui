@@ -4015,16 +4015,18 @@ function boardIdFrom(url: string) {
             >
               <p v-if="!writing.accountVerified" role="alert">
                 {{
-                  insert(
-                    writing.accountObservation.kind === "guest"
-                      ? text.writingSignedOut
-                      : writing.accountObservation.kind === "member" &&
-                          writing.accountObservation.id !==
-                            writing.context.account.id
-                        ? text.writingAccountChanged
-                        : text.writingPaused,
-                    writing.context.account.name,
-                  )
+                  workspace.writing.currentActor.value
+                    ? text.sharedReplyPaused
+                    : insert(
+                        writing.accountObservation.kind === "guest"
+                          ? text.writingSignedOut
+                          : writing.accountObservation.kind === "member" &&
+                              writing.accountObservation.id !==
+                                writing.context.account.id
+                            ? text.writingAccountChanged
+                            : text.writingPaused,
+                        writing.context.account.name,
+                      )
                 }}
               </p>
               <p v-if="writing.recoveryAvailable === false" role="alert">
@@ -4134,6 +4136,7 @@ function boardIdFrom(url: string) {
       <div class="resume-destination">
         <WritingDestination
           :writing="writing.context"
+          :current-actor="workspace.writing.currentActor.value"
           :language="workspace.preferences.state.value.language"
           :category="writingCategory"
           compact
