@@ -1,5 +1,24 @@
 import type { Preferences } from "../workspace/preferences";
 const english = {
+  localReplyConflictSummary: "Draft conflict: choose a version to continue.",
+  localReplyUnsettledVersion:
+    "This version retains an unsettled operation. Continue with it to inspect its original status; it cannot be discarded while unresolved. Some attachment outcomes may require native continuation.",
+  localReplyUnsettled:
+    "Another retained version has an unsettled operation. Choose that version and check its original result before sending or discarding it.",
+
+  localReplyDiscard: "Discard version {value}",
+  localReplyDiscardConfirm: "Discard this retained version",
+  localReplyDiscardWarning:
+    "This removes only the displayed retained version from this browser. Copy any needed content first. It cannot remove a different or newly changed version.",
+  localReplyDiscardSource: "Version selected for discard",
+  localReplyKeep: "Keep this version",
+
+  localReplyAlternatives: "Recoverable reply versions",
+  localReplyChoiceDisclosure:
+    "Choose a version to continue. Every other version remains recoverable until you explicitly discard it. Nothing is sent.",
+  localReplyContinue: "Continue with version {value}",
+  localReplyContinueEmpty: "Continue without this draft",
+
   localReplyAttention: "Local reply recovery needs attention",
   localReplySaved: "Local reply draft saved in this browser profile.",
   localReplyUnsaved:
@@ -561,6 +580,25 @@ const english = {
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
+  localReplyConflictSummary: "草稿冲突：请选择要继续的版本。",
+  localReplyUnsettledVersion:
+    "此版本保留未确定的操作。继续使用此版本以检查原始状态；结果未确定前不能丢弃。部分附件操作可能需要前往原生论坛处理。",
+  localReplyUnsettled:
+    "另一保留版本有未确定的操作。请选择该版本并检查原始结果，再发送或丢弃。",
+
+  localReplyDiscard: "丢弃版本 {value}",
+  localReplyDiscardConfirm: "丢弃此保留版本",
+  localReplyDiscardWarning:
+    "仅从此浏览器移除显示的保留版本。请先复制需要的内容。不会移除其他版本或新改动的版本。",
+  localReplyDiscardSource: "准备丢弃的版本",
+  localReplyKeep: "保留此版本",
+
+  localReplyAlternatives: "可恢复的回复版本",
+  localReplyChoiceDisclosure:
+    "选择要继续的版本。其他版本会保留，直到你明确丢弃。不会发送任何内容。",
+  localReplyContinue: "继续使用版本 {value}",
+  localReplyContinueEmpty: "继续而不使用此草稿",
+
   localReplyAttention: "本地回复恢复需要处理",
   localReplySaved: "本地回复草稿已保存在此浏览器配置中。",
   localReplyUnsaved:
@@ -1089,6 +1127,25 @@ const simplified: Strings = {
     "无法读取浏览器页面会话存储。当前内容仍可使用；刷新恢复不可用。",
 };
 const traditional: Strings = {
+  localReplyConflictSummary: "草稿衝突：請選擇要繼續的版本。",
+  localReplyUnsettledVersion:
+    "此版本保留未確定的操作。繼續使用此版本以檢查原始狀態；結果未確定前不能捨棄。部分附件操作可能需要前往原生論壇處理。",
+  localReplyUnsettled:
+    "另一保留版本有未確定的操作。請選擇該版本並檢查原始結果，再傳送或捨棄。",
+
+  localReplyDiscard: "捨棄版本 {value}",
+  localReplyDiscardConfirm: "捨棄此保留版本",
+  localReplyDiscardWarning:
+    "僅從此瀏覽器移除顯示的保留版本。請先複製需要的內容。不會移除其他版本或新改動的版本。",
+  localReplyDiscardSource: "準備捨棄的版本",
+  localReplyKeep: "保留此版本",
+
+  localReplyAlternatives: "可復原的回覆版本",
+  localReplyChoiceDisclosure:
+    "選擇要繼續的版本。其他版本會保留，直到你明確捨棄。不會傳送任何內容。",
+  localReplyContinue: "繼續使用版本 {value}",
+  localReplyContinueEmpty: "繼續而不使用此草稿",
+
   localReplyAttention: "本機回覆復原需要處理",
   localReplySaved: "本機回覆草稿已儲存在此瀏覽器設定檔中。",
   localReplyUnsaved:
@@ -1629,6 +1686,41 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "Choosing this version…": ["正在选择此版本…", "正在選擇此版本…"],
+  "Selected version resumed. Other versions remain recoverable.": [
+    "已继续所选版本。其他版本仍可恢复。",
+    "已繼續所選版本。其他版本仍可復原。",
+  ],
+  "The choice could not be saved. Your writing remains available.": [
+    "无法保存此次选择。写作内容仍保留。",
+    "無法儲存此次選擇。寫作內容仍保留。",
+  ],
+  "The drafts changed. Inspect the current versions and choose again.": [
+    "草稿已改变。请查看当前版本后重新选择。",
+    "草稿已變更。請檢視目前版本後重新選擇。",
+  ],
+  "Discarding the selected retained version…": [
+    "正在丢弃所选保留版本…",
+    "正在捨棄所選保留版本…",
+  ],
+  "The selected retained version was discarded.": [
+    "已丢弃所选保留版本。",
+    "已捨棄所選保留版本。",
+  ],
+  "The discard could not be saved. The version remains recoverable.": [
+    "无法保存丢弃操作。此版本仍可恢复。",
+    "無法儲存捨棄操作。此版本仍可復原。",
+  ],
+  "The drafts changed. Inspect the current versions before discarding.": [
+    "草稿已改变。请查看当前版本后再丢弃。",
+    "草稿已變更。請檢視目前版本後再捨棄。",
+  ],
+  "This reply has an unsettled operation. Check its original result before discarding or replacing it. Your writing is retained.":
+    [
+      "此回复有未确定的操作。请先检查原始结果，再丢弃或替换。写作内容已保留。",
+      "此回覆有未確定的操作。請先檢查原始結果，再捨棄或取代。寫作內容已保留。",
+    ],
+
   "Check the current account and form before reviewing this shared reply.": [
     "预览此共享回复前，请检查当前账号和表单。",
     "預覽此共用回覆前，請檢查目前帳號及表單。",

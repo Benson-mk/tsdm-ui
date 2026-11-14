@@ -2,6 +2,7 @@ import {
   canonical,
   type ReplyCheckpoint,
   type ReplyRecovery,
+  type ReplyChoice,
 } from "../workspace/reply-recovery";
 import type { NavigationHost } from "../workspace/navigation";
 import { isNavigationRecord } from "./navigation-record";
@@ -33,6 +34,7 @@ export function createBrowserNavigation(): NavigationHost {
     available: null,
     problem: null,
     conflicts: [],
+    alternatives: [],
     updates: [],
   };
   const contexts = (record: NavigationRecord) =>
@@ -119,6 +121,7 @@ export function createBrowserNavigation(): NavigationHost {
         available: true,
         problem: null,
         conflicts: rows.filter((row) => row.variants.length > 1),
+        alternatives: rows.filter((row) => row.retained?.length),
         updates: [],
       };
       return next;
@@ -128,6 +131,7 @@ export function createBrowserNavigation(): NavigationHost {
     }
   }
   let latestRecord: NavigationRecord | null = null;
+  let sessionAvailable: boolean | null = null;
   function captureSession(completedDisposals: string[] = []) {
     if (!latestRecord) return false;
     const snapshot = JSON.stringify({
@@ -139,10 +143,17 @@ export function createBrowserNavigation(): NavigationHost {
         (thread) => !completedDisposals.includes(thread),
       ),
     });
-    sessionStorage.setItem(storageKey, snapshot);
-    return sessionStorage.getItem(storageKey) === snapshot;
+    try {
+      sessionStorage.setItem(storageKey, snapshot);
+      sessionAvailable = sessionStorage.getItem(storageKey) === snapshot;
+      return sessionAvailable;
+    } catch (error) {
+      sessionAvailable = false;
+      throw error;
+    }
   }
   let saveQueue = Promise.resolve(true);
+  const resolutionEpochs = new Map<string, number>();
   let problem: { kind: "incompatible" | "refused"; raw: string | null } | null =
     null;
   const entryKey = () =>
@@ -151,7 +162,77 @@ export function createBrowserNavigation(): NavigationHost {
     `${location.origin}/forum.php#workspace=${key}`;
   return {
     entryKey,
-    replyRecovery: () => replyState,
+    chooseReply(observed, version) {
+      const operation = saveQueue.then(async (): Promise<ReplyChoice> => {
+        try {
+          const selected = await drafts.choose(observed, version);
+          if (!selected) return { kind: "stale" };
+          resolutionEpochs.set(
+            observed.threadId,
+            (resolutionEpochs.get(observed.threadId) ?? 0) + 1,
+          );
+          channel?.postMessage("changed");
+          const rows = await drafts.read();
+          replyState = {
+            available: false,
+            problem: null,
+            conflicts: rows.filter((row) => row.variants.length > 1),
+            alternatives: rows.filter((row) => row.retained?.length),
+            updates: [],
+          };
+          if (
+            canonical(
+              rows.find((row) => row.threadId === observed.threadId),
+            ) !== canonical(selected)
+          )
+            return { kind: "stale" };
+          const chosen = selected.variants[0]!;
+          return {
+            kind: "chosen",
+            checkpoint: {
+              version: chosen.version,
+              fingerprint: await replyFingerprint(chosen.context),
+            },
+            context: chosen.context ? recoverReplyOwners(chosen.context) : null,
+          };
+        } catch (error) {
+          replyFailure(error);
+          return { kind: "refused" };
+        }
+      });
+      saveQueue = operation.then(() => false);
+      return operation;
+    },
+    discardReply(observed, version) {
+      const operation = saveQueue.then(
+        async (): Promise<"discarded" | "stale" | "refused"> => {
+          try {
+            const discarded = await drafts.discard(observed, version);
+            if (!discarded) return "stale";
+            channel?.postMessage("changed");
+            const rows = await drafts.read();
+            replyState = {
+              available: false,
+              problem: null,
+              conflicts: rows.filter((row) => row.variants.length > 1),
+              alternatives: rows.filter((row) => row.retained?.length),
+              updates: [],
+            };
+            return canonical(
+              rows.find((row) => row.threadId === observed.threadId),
+            ) === canonical(discarded)
+              ? "discarded"
+              : "stale";
+          } catch (error) {
+            replyFailure(error);
+            return "refused";
+          }
+        },
+      );
+      saveQueue = operation.then(() => false);
+      return operation;
+    },
+    replyRecovery: () => ({ ...replyState, sessionAvailable }),
     disposeReply: (thread) => {
       pendingDisposals.add(thread);
     },
@@ -217,6 +298,7 @@ export function createBrowserNavigation(): NavigationHost {
         return Promise.resolve(false);
       }
       const disposals = [...pendingDisposals];
+      const capturedEpochs = new Map(resolutionEpochs);
       replyState = { ...replyState, available: null };
       saveQueue = saveQueue.then(async () => {
         const snapshot: NavigationRecord = {
@@ -236,9 +318,17 @@ export function createBrowserNavigation(): NavigationHost {
           const expected = new Map<string, string>();
           const updates: ReplyRecovery["updates"] = [];
           let wrote = false;
+          const skipped = new Set<string>();
           for (const original of contexts(snapshot)) {
             const context = projectReply(original),
               thread = context.replyTarget!.threadId;
+            if (
+              (capturedEpochs.get(thread) ?? 0) !==
+              (resolutionEpochs.get(thread) ?? 0)
+            ) {
+              skipped.add(thread);
+              continue;
+            }
             const fingerprint = await replyFingerprint(context),
               checkpoint = checkpoints[thread];
             const row = rows.find((item) => item.threadId === thread);
@@ -261,6 +351,14 @@ export function createBrowserNavigation(): NavigationHost {
               });
               continue;
             }
+            // A clean old observer can remain read-only through a new conflict.
+            // Its preserved alternative is not a newly authored current branch.
+            if (
+              checkpoint &&
+              fingerprint === checkpoint.fingerprint &&
+              row?.retained?.some((item) => item.version === checkpoint.version)
+            )
+              continue;
             const equivalent =
               !checkpoint &&
               row?.variants.length === 1 &&
@@ -298,6 +396,13 @@ export function createBrowserNavigation(): NavigationHost {
             }
           }
           for (const thread of disposals) {
+            if (
+              (capturedEpochs.get(thread) ?? 0) !==
+              (resolutionEpochs.get(thread) ?? 0)
+            ) {
+              skipped.add(thread);
+              continue;
+            }
             if (
               contexts(snapshot).some(
                 (context) => context.replyTarget!.threadId === thread,
@@ -351,14 +456,19 @@ export function createBrowserNavigation(): NavigationHost {
             );
           });
           replyState = {
-            available: current && updates.length === 0,
+            available: current && updates.length === 0 && skipped.size === 0,
             problem: null,
             conflicts: rows.filter((row) => row.variants.length > 1),
+            alternatives: rows.filter((row) => row.retained?.length),
             updates,
           };
-          if (!captureSession(disposals))
+          const completedDisposals = disposals.filter(
+            (thread) => !skipped.has(thread),
+          );
+          if (!captureSession(completedDisposals))
             throw Error("Page-session checkpoint failed");
-          for (const thread of disposals) pendingDisposals.delete(thread);
+          for (const thread of completedDisposals)
+            pendingDisposals.delete(thread);
           // Retained conflicts remain globally visible, but authorization belongs
           // to the active writing owner, never to an unrelated thread's head.
           const active = snapshot.writing;

@@ -78,3 +78,15 @@ rollback may restore the captured intent during conflict, but cannot authorize a
 new mutation/effect or select a competing head. Existing editor undo changes source,
 not server ownership. The accepted advisor gate and distinct costs are recorded in
 [the #108 ledger](../implementation/ui-ux-108.md).
+
+## Explicit conflict choice — #109
+
+The host atomically compares/classifies durable current and recoverable versions;
+the workspace coordinates exact local adoption, save-queue epochs and retained
+unsettled-operation holds. Layouts present target/source/details and explicit choice
+or confirmed disposition through typed actions. Forum-client native permissions,
+current actor and immutable original-result interpretation remain unchanged.
+Conflict authorization and actual page-session acknowledgement are distinct UI
+facts. The accepted storage amendment and its qualification limits are recorded in
+[ADR0003](0003-use-browser-page-session-recovery.md#explicit-local-reply-choice--109)
+and [the109 implementation ledger](../implementation/ui-ux-109.md).

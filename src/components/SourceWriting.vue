@@ -25,6 +25,23 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ resize: [expanded: boolean] }>();
 const editor = ref<InstanceType<typeof PostEditor> | null>(null);
+const resolutionFeedback = ref<HTMLElement | null>(null);
+watch(
+  () => props.workspace.replyResolution.value,
+  async (resolution) => {
+    if (
+      !resolution ||
+      resolution.busy ||
+      resolution.threadId !==
+        props.workspace.writing.state.value.context?.replyTarget?.threadId
+    )
+      return;
+    await nextTick();
+    resolutionFeedback.value?.focus({ preventScroll: true });
+    resolutionFeedback.value?.scrollIntoView({ block: "nearest" });
+  },
+  { flush: "post" },
+);
 const detailsOpen = ref(false);
 const toolsOpen = ref(false);
 const previewOpen = ref(false);
@@ -170,8 +187,13 @@ const replyConflict = computed(() =>
     (row) => row.threadId === state.value.context?.replyTarget?.threadId,
   ),
 );
+const replyAlternatives = computed(() =>
+  props.workspace.state.value.replyRecovery?.alternatives.find(
+    (row) => row.threadId === state.value.context?.replyTarget?.threadId,
+  ),
+);
 const recoverySummary = computed(() => {
-  if (replyConflict.value) return text.value.localReplyPaused;
+  if (replyConflict.value) return text.value.localReplyConflictSummary;
   const durable = props.workspace.state.value.replyRecovery;
   if (ordinaryReply.value && durable?.problem)
     return durable.problem.kind === "incompatible"
@@ -622,8 +644,45 @@ function updateOption(option: WritingOption, event: Event) {
       <ReplyConflict
         v-if="replyConflict"
         :row="replyConflict"
+        :busy="workspace.replyResolution.value?.busy ?? false"
         :language="workspace.preferences.state.value.language"
+        @discard="(row, version) => workspace.discardReply(row, version)"
+        @choose="
+          (row, version) =>
+            workspace.chooseReply(JSON.parse(JSON.stringify(row)), version)
+        "
       />
+      <ReplyConflict
+        v-if="replyAlternatives"
+        :row="replyAlternatives"
+        alternatives
+        :language="workspace.preferences.state.value.language"
+        :busy="workspace.replyResolution.value?.busy ?? false"
+        @discard="(row, version) => workspace.discardReply(row, version)"
+        @choose="
+          (row, version) =>
+            workspace.chooseReply(JSON.parse(JSON.stringify(row)), version)
+        "
+      />
+      <p
+        v-if="
+          workspace.replyResolution.value?.threadId ===
+          state.context.replyTarget?.threadId
+        "
+        ref="resolutionFeedback"
+        role="status"
+        tabindex="-1"
+      >
+        {{
+          description(
+            workspace.replyResolution.value?.message ?? "",
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </p>
+      <p v-if="workspace.writing.replyPublicationBlocked.value" role="alert">
+        {{ text.localReplyUnsettled }}
+      </p>
       <PostEditor
         ref="editor"
         :key="state.context.id + workspace.writing.editorGeneration.value"
@@ -662,6 +721,7 @@ function updateOption(option: WritingOption, event: Event) {
             :title="text.reviewPublication"
             :disabled="
               workspace.writing.replyBlocked.value ||
+              workspace.writing.replyPublicationBlocked.value ||
               state.preparing ||
               state.publishing ||
               state.composing
@@ -735,6 +795,7 @@ function updateOption(option: WritingOption, event: Event) {
           <button
             :disabled="
               workspace.writing.replyBlocked.value ||
+              workspace.writing.replyPublicationBlocked.value ||
               state.preparing ||
               state.publishing
             "
@@ -746,6 +807,7 @@ function updateOption(option: WritingOption, event: Event) {
             v-if="!ordinaryReply"
             :disabled="
               workspace.writing.replyBlocked.value ||
+              workspace.writing.replyPublicationBlocked.value ||
               state.preparing ||
               state.publishing
             "
@@ -792,6 +854,7 @@ function updateOption(option: WritingOption, event: Event) {
         v-if="state.context.draftSaveAvailable"
         :disabled="
           workspace.writing.replyBlocked.value ||
+          workspace.writing.replyPublicationBlocked.value ||
           state.preparing ||
           state.publishing
         "
@@ -849,6 +912,7 @@ function updateOption(option: WritingOption, event: Event) {
         v-if="state.context.draft"
         :disabled="
           workspace.writing.replyBlocked.value ||
+          workspace.writing.replyPublicationBlocked.value ||
           state.preparing ||
           state.publishing
         "
@@ -1689,6 +1753,7 @@ function updateOption(option: WritingOption, event: Event) {
         class="primary-action"
         :disabled="
           workspace.writing.replyBlocked.value ||
+          workspace.writing.replyPublicationBlocked.value ||
           state.preparing ||
           state.publishing
         "

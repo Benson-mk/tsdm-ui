@@ -44,6 +44,23 @@ import { nativeDestination } from "../hosts/browser";
 import { strings, insert, description } from "./strings";
 import type { Section } from "../workspace/navigation";
 const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
+const replyResolutionFeedback = ref<HTMLElement | null>(null);
+watch(
+  () => props.workspace.replyResolution.value,
+  async (resolution) => {
+    if (
+      !resolution ||
+      resolution.busy ||
+      resolution.threadId ===
+        props.workspace.writing.state.value.context?.replyTarget?.threadId
+    )
+      return;
+    await nextTick();
+    replyResolutionFeedback.value?.focus({ preventScroll: true });
+    replyResolutionFeedback.value?.scrollIntoView({ block: "nearest" });
+  },
+  { flush: "post" },
+);
 const state = props.workspace.state;
 const history = props.workspace.threadHistory.state;
 const boardChecks = props.workspace.boardChecks.state;
@@ -2699,9 +2716,53 @@ function boardIdFrom(url: string) {
         ) ?? []"
         :key="row.threadId"
         :row="row"
+        :busy="workspace.replyResolution.value?.busy ?? false"
         :language="workspace.preferences.state.value.language"
+        @discard="(row, version) => workspace.discardReply(row, version)"
+        @choose="
+          (row, version) =>
+            workspace.chooseReply(JSON.parse(JSON.stringify(row)), version)
+        "
       />
-      <p v-if="state.recoveryAvailable === false" class="recovery-note">
+      <ReplyConflict
+        v-for="row in state.replyRecovery?.alternatives.filter(
+          (item) => item.threadId !== writing.context?.replyTarget?.threadId,
+        ) ?? []"
+        :key="'alternative-' + row.threadId"
+        :row="row"
+        alternatives
+        :language="workspace.preferences.state.value.language"
+        :busy="workspace.replyResolution.value?.busy ?? false"
+        @discard="(row, version) => workspace.discardReply(row, version)"
+        @choose="
+          (row, version) =>
+            workspace.chooseReply(JSON.parse(JSON.stringify(row)), version)
+        "
+      />
+      <p
+        v-if="
+          workspace.replyResolution.value &&
+          workspace.replyResolution.value.threadId !==
+            writing.context?.replyTarget?.threadId
+        "
+        ref="replyResolutionFeedback"
+        role="status"
+        tabindex="-1"
+      >
+        {{
+          description(
+            workspace.replyResolution.value.message,
+            workspace.preferences.state.value.language,
+          )
+        }}
+      </p>
+      <p
+        v-if="
+          state.recoveryAvailable === false &&
+          state.replyRecovery?.sessionAvailable !== true
+        "
+        class="recovery-note"
+      >
         {{ text.recoveryUnavailable }}
       </p>
       <section v-if="state.missing" role="alert">

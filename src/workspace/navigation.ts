@@ -47,6 +47,15 @@ export interface NavigationRecord {
   pending: { entryKey: string; destination: string } | null;
 }
 export interface NavigationHost {
+  discardReply?(
+    row: import("./reply-recovery").ReplyRow,
+    version: string,
+  ): Promise<"discarded" | "stale" | "refused">;
+  chooseReply?(
+    row: import("./reply-recovery").ReplyRow,
+    version: string,
+  ): Promise<import("./reply-recovery").ReplyChoice>;
+
   disposeReply?(threadId: string): void;
   onReplyChange?(action: () => void): void;
   acceptReplyUpdates?(

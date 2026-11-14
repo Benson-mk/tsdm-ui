@@ -1,4 +1,8 @@
-import { canonical, type ReplyRow } from "../workspace/reply-recovery";
+import {
+  canonical,
+  hasUnsettledReply,
+  type ReplyRow,
+} from "../workspace/reply-recovery";
 import {
   isOrdinaryReply,
   isWritingContext,
@@ -365,17 +369,26 @@ function validRow(value: unknown): value is ReplyRow {
   if (!value || typeof value !== "object") return false;
   const row = value as ReplyRow;
   if (
-    row.schema !== 1 ||
+    ![1, 2].includes(row.schema) ||
+    (row.schema === 1
+      ? row.retained !== undefined
+      : !Array.isArray(row.retained)) ||
     !/^[1-9]\d*$/.test(row.threadId) ||
     !Array.isArray(row.variants) ||
     !row.variants.length ||
     Object.keys(row).some(
-      (key) => !["schema", "threadId", "variants"].includes(key),
+      (key) =>
+        ![
+          "schema",
+          "threadId",
+          "variants",
+          ...(row.schema === 2 ? ["retained"] : []),
+        ].includes(key),
     )
   )
     return false;
   const ids = new Set<string>();
-  return row.variants.every((variant) => {
+  return [...row.variants, ...(row.retained ?? [])].every((variant) => {
     if (
       !variant ||
       !uuid(variant.version) ||
@@ -472,6 +485,78 @@ export function createReplyDraftStore() {
         });
       return rows;
     },
+    async choose(
+      observed: ReplyRow,
+      version: string,
+    ): Promise<ReplyRow | null> {
+      return transaction<ReplyRow | null>("readwrite", (store, done) => {
+        const request = store.get(observed.threadId);
+        request.onsuccess = () => {
+          const current: unknown = request.result;
+          if (!validRow(current)) {
+            request.transaction?.abort();
+            return;
+          }
+          if (canonical(current) !== canonical(observed)) {
+            done(null);
+            return;
+          }
+          const all = [...current.variants, ...(current.retained ?? [])];
+          const selected = all.find((item) => item.version === version);
+          if (!selected) {
+            done(null);
+            return;
+          }
+          const next: ReplyRow = {
+            schema: 2,
+            threadId: current.threadId,
+            variants: [selected],
+            retained: all.filter((item) => item.version !== version),
+          };
+          store.put(next);
+          done(next);
+        };
+      });
+    },
+    async discard(
+      observed: ReplyRow,
+      version: string,
+    ): Promise<ReplyRow | null> {
+      return transaction<ReplyRow | null>("readwrite", (store, done) => {
+        const request = store.get(observed.threadId);
+        request.onsuccess = () => {
+          const current: unknown = request.result;
+          if (!validRow(current)) {
+            request.transaction?.abort();
+            return;
+          }
+          if (
+            canonical(current) !== canonical(observed) ||
+            !current.retained?.some((item) => item.version === version)
+          ) {
+            done(null);
+            return;
+          }
+          if (
+            current.retained.some(
+              (item) =>
+                item.version === version && hasUnsettledReply(item.context),
+            )
+          ) {
+            request.transaction?.abort();
+            return;
+          }
+          const next: ReplyRow = {
+            ...current,
+            retained: current.retained.filter(
+              (item) => item.version !== version,
+            ),
+          };
+          store.put(next);
+          done(next);
+        };
+      });
+    },
     async save(
       threadId: string,
       context: PublicWritingContext | null,
@@ -487,6 +572,13 @@ export function createReplyDraftStore() {
             return;
           }
           const variants = old === undefined ? [] : (old as ReplyRow).variants;
+          if (
+            context === null &&
+            variants.some((item) => hasUnsettledReply(item.context))
+          ) {
+            request.transaction?.abort();
+            return;
+          }
           const existing = variants.find(
             (item) => canonical(item.context) === canonical(context),
           );
@@ -495,7 +587,10 @@ export function createReplyDraftStore() {
             return;
           }
           const next: ReplyRow = {
-            schema: 1,
+            schema: old === undefined ? 1 : (old as ReplyRow).schema,
+            ...((old as ReplyRow | undefined)?.schema === 2
+              ? { retained: (old as ReplyRow).retained }
+              : {}),
             threadId,
             variants: [
               ...variants.filter((item) => item.version !== parent),

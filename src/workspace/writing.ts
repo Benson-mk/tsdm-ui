@@ -1,4 +1,8 @@
-import { canonical, type ReplyUpdate } from "../workspace/reply-recovery";
+import {
+  canonical,
+  hasUnsettledReply,
+  type ReplyUpdate,
+} from "../workspace/reply-recovery";
 import { isPrivateAttempt } from "../forum-client/private-writing.js";
 import { createEditorSession, type EditorSession } from "../editor/session.js";
 import { computed, readonly, shallowRef } from "vue";
@@ -154,6 +158,26 @@ export function createWriting(
       conflictedReplies.value.includes(context.replyTarget!.threadId)
     );
   });
+  const retainedUnsettledReplies = shallowRef<string[]>([]);
+  const replyPublicationBlocked = computed(() => {
+    const context = state.value.context;
+    return (
+      !!context &&
+      isOrdinaryReply(context) &&
+      retainedUnsettledReplies.value.includes(context.replyTarget!.threadId)
+    );
+  });
+  function refuseReplyDisposal() {
+    const context = state.value.context;
+    if (!context || !isOrdinaryReply(context) || !hasUnsettledReply(context))
+      return false;
+    state.value = {
+      ...state.value,
+      message:
+        "This reply has an unsettled operation. Check its original result before discarding or replacing it. Your writing is retained.",
+    };
+    return true;
+  }
   // Ordinary composition account is stable provenance. Every new operation
   // captures the independently observed current actor without changing its lineage.
   function captureOperation(context = state.value.context) {
@@ -1168,6 +1192,7 @@ export function createWriting(
     account: Account,
     replace = false,
   ) {
+    if (replace && refuseReplyDisposal()) return;
     if (replyBlocked.value) return;
     if (
       deferViewChange(() => {
@@ -1404,6 +1429,7 @@ export function createWriting(
     replyTarget?: ReplyTarget,
     redPacket = false,
   ) {
+    if (replace && refuseReplyDisposal()) return;
     if (
       deferViewChange(() => {
         void prepare(boardId, replace, replyTarget, redPacket);
@@ -1599,6 +1625,7 @@ export function createWriting(
     postId: string,
     replace = false,
   ) {
+    if (replace && refuseReplyDisposal()) return;
     if (replyBlocked.value) return;
     if (
       deferViewChange(() => {
@@ -1730,6 +1757,7 @@ export function createWriting(
     account: Account,
     replace = false,
   ) {
+    if (replace && refuseReplyDisposal()) return;
     if (replyBlocked.value) return;
     if (
       deferViewChange(() => {
@@ -2664,7 +2692,7 @@ export function createWriting(
       await publishedDraft?.(result.publishedURL, result.submission.contextId);
   }
   async function reviewPublication(resendId?: string) {
-    if (replyBlocked.value) return;
+    if (replyBlocked.value || replyPublicationBlocked.value) return;
     if (state.value.context?.action === "private-message")
       return reviewPrivate();
     if (state.value.context?.draft && !resendId)
@@ -2794,7 +2822,8 @@ export function createWriting(
       );
     }
     if (
-      (isOrdinaryReply(context) && !operation?.current()) ||
+      (isOrdinaryReply(context) &&
+        (!operation?.current() || replyPublicationBlocked.value)) ||
       state.value.context?.id !== context.id ||
       state.value.context.revision !== context.revision
     ) {
@@ -2818,18 +2847,22 @@ export function createWriting(
       validationFocus: state.value.validationFocus + 1,
     };
   }
-  function effectGuard(): import("../forum-client").EffectGuard | undefined {
+  function effectGuard(
+    publication = false,
+  ): import("../forum-client").EffectGuard | undefined {
     const context = state.value.context;
     if (!context || !isOrdinaryReply(context)) return undefined;
     const operation = captureOperation(context);
-    const current = () => operation?.current() === true;
+    const current = () =>
+      operation?.current() === true &&
+      (!publication || !replyPublicationBlocked.value);
     return {
       current,
       check: async () => current() && (await changed()) && current(),
     };
   }
   async function publish() {
-    if (replyBlocked.value) return;
+    if (replyBlocked.value || replyPublicationBlocked.value) return;
     const publication = state.value.publication,
       context = state.value.context;
     if (
@@ -2857,6 +2890,7 @@ export function createWriting(
     if (
       !saved ||
       replyBlocked.value ||
+      replyPublicationBlocked.value ||
       state.value.context?.revision !== context.revision ||
       client.generation !== publication.generation
     )
@@ -2870,7 +2904,7 @@ export function createWriting(
       result =
         context.action === "edit-post"
           ? await client.savePostEdit(attempt)
-          : await client.publishThread(attempt, effectGuard());
+          : await client.publishThread(attempt, effectGuard(true));
     accountObserved(client.account);
     observe(client.account);
     updateAttempt(result);
@@ -3228,8 +3262,26 @@ export function createWriting(
   }
   return {
     replyBlocked,
+    replyPublicationBlocked,
     editorGeneration,
-    applyReplyUpdates: (updates: ReplyUpdate[]) => {
+    replySlot: (threadId: string) => {
+      const active = state.value.context;
+      return active &&
+        isOrdinaryReply(active) &&
+        active.replyTarget!.threadId === threadId
+        ? active
+        : (retainedReplies.value[threadId] ?? null);
+    },
+    canChooseReply: (threadId: string) => {
+      const active = state.value.context;
+      return (
+        !active ||
+        !isOrdinaryReply(active) ||
+        active.replyTarget!.threadId !== threadId ||
+        (canDeactivate() && !state.value.composing)
+      );
+    },
+    applyReplyUpdates: (updates: ReplyUpdate[], handoff = false) => {
       const accepted: ReplyUpdate[] = [];
       for (const update of updates) {
         const active = state.value.context;
@@ -3247,7 +3299,9 @@ export function createWriting(
           continue;
         // A live observation is not a restarted operation. Preserve the owner's
         // exact pending/history state; only document recovery normalizes it.
-        const next = update.context;
+        const next = handoff
+          ? (recoverContext(update.context) as PublicWritingContext | null)
+          : update.context;
         if (isActive) {
           ++sequence;
           editorGeneration.value++;
@@ -3259,6 +3313,9 @@ export function createWriting(
           state.value = {
             ...state.value,
             context: next,
+            message: "",
+            mentionPeople: [],
+            mentionGeneration: -1,
             visible: next !== null,
             preparing: false,
             publication: null,
@@ -3277,7 +3334,13 @@ export function createWriting(
       }
       return accepted;
     },
-    pauseConflictedReplies: (threads: string[]) => {
+    pauseConflictedReplies: (threads: string[], unsettled: string[] = []) => {
+      const publicationWasBlocked = replyPublicationBlocked.value;
+      retainedUnsettledReplies.value = unsettled;
+      if (replyPublicationBlocked.value && !publicationWasBlocked) {
+        ++sequence;
+        state.value = { ...state.value, preparing: false, publication: null };
+      }
       const wasBlocked = replyBlocked.value;
       conflictedReplies.value = threads;
       if (replyBlocked.value && !wasBlocked) {
@@ -3289,8 +3352,7 @@ export function createWriting(
           publication: null,
           copy: null,
           fundedDraftReview: null,
-          message:
-            "Both versions are retained. Editing and submission are paused until the conflict is resolved.",
+          message: "",
         };
       }
     },

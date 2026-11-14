@@ -3,6 +3,11 @@ import { createPrivateHistory, privateContext } from "./private-history";
 import { createThreadHistory, threadContext } from "./thread-history";
 import type { DownloadHost, PreparedFile } from "../hosts/download";
 import { createWriting } from "./writing";
+import {
+  hasUnsettledReply,
+  type ReplyRow,
+  type ReplyUpdate,
+} from "./reply-recovery";
 import { shallowRef, readonly, nextTick, watch } from "vue";
 import { createPreferences, type PreferenceHost } from "./preferences";
 import {
@@ -688,6 +693,74 @@ export function createWorkspace(
         };
     }
   }
+  const replyResolution = shallowRef<{
+    threadId: string;
+    busy: boolean;
+    message: string;
+  } | null>(null);
+  async function chooseReply(row: ReplyRow, version: string) {
+    if (
+      !host.chooseReply ||
+      replyResolution.value?.busy ||
+      !writing.canChooseReply(row.threadId)
+    )
+      return;
+    const before = JSON.parse(JSON.stringify(writing.replySlot(row.threadId)));
+    const observed = JSON.parse(JSON.stringify(row));
+    replyResolution.value = {
+      threadId: row.threadId,
+      busy: true,
+      message: "Choosing this version…",
+    };
+    const result = await host.chooseReply(observed, version);
+    let adopted = false;
+    if (result.kind === "chosen") {
+      const update: ReplyUpdate = {
+        threadId: row.threadId,
+        before,
+        context: result.context,
+        checkpoint: result.checkpoint,
+      };
+      const accepted = writing.applyReplyUpdates([update], true);
+      adopted = accepted.length === 1;
+      if (adopted) host.acceptReplyUpdates?.(accepted);
+    }
+    replyResolution.value = {
+      threadId: row.threadId,
+      busy: false,
+      message: adopted
+        ? "Selected version resumed. Other versions remain recoverable."
+        : result.kind === "refused"
+          ? "The choice could not be saved. Your writing remains available."
+          : "The drafts changed. Inspect the current versions and choose again.",
+    };
+    // A refused adoption must preserve the latest exact local writing/history now,
+    // under its unchanged parent, even if no further keystroke or event arrives.
+    await persist();
+  }
+  async function discardReply(row: ReplyRow, version: string) {
+    if (!host.discardReply || replyResolution.value?.busy) return;
+    replyResolution.value = {
+      threadId: row.threadId,
+      busy: true,
+      message: "Discarding the selected retained version…",
+    };
+    const result = await host.discardReply(
+      JSON.parse(JSON.stringify(row)),
+      version,
+    );
+    replyResolution.value = {
+      threadId: row.threadId,
+      busy: false,
+      message:
+        result === "discarded"
+          ? "The selected retained version was discarded."
+          : result === "refused"
+            ? "The discard could not be saved. The version remains recoverable."
+            : "The drafts changed. Inspect the current versions before discarding.",
+    };
+    await persist();
+  }
   async function persist() {
     record.writing = writing.snapshot();
     record.retainedReplies = writing.retainedSnapshot();
@@ -717,6 +790,11 @@ export function createWorkspace(
     if (replyRecovery)
       writing.pauseConflictedReplies(
         replyRecovery.conflicts.map((row) => row.threadId),
+        replyRecovery.alternatives
+          .filter((row) =>
+            row.retained?.some((variant) => hasUnsettledReply(variant.context)),
+          )
+          .map((row) => row.threadId),
       );
     state.value = { ...state.value, replyRecovery };
     const adopted = replyRecovery
@@ -1609,6 +1687,11 @@ export function createWorkspace(
     if (replyRecovery)
       writing.pauseConflictedReplies(
         replyRecovery.conflicts.map((row) => row.threadId),
+        replyRecovery.alternatives
+          .filter((row) =>
+            row.retained?.some((variant) => hasUnsettledReply(variant.context)),
+          )
+          .map((row) => row.threadId),
       );
     state.value = { ...state.value, replyRecovery };
     // Initial document traversal must not save an empty provisional record.
@@ -1891,6 +1974,9 @@ export function createWorkspace(
       if (pending)
         void openThread(pending.url, pending.selection, pending.contextId);
     },
+    chooseReply,
+    discardReply,
+    replyResolution: readonly(replyResolution),
     openThread,
     refresh,
     updateAnchor,

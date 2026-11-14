@@ -90,3 +90,28 @@ than silently stripping ownership. Attachment usability is rechecked after recov
 and never persisted as durable permission. Evidence and costs are recorded in the
 [#108 ledger](../implementation/ui-ux-108.md); these decisions do not establish
 installed acceptance or extend the existing storage durability guarantees.
+
+## Explicit local-reply choice — #109
+
+A deliberate resolution writes row schema2 in the same IDB database/store, keeping
+nonempty current heads and separately retained alternatives. Legacy schema1 remains
+readable. Choice and confirmed retained-version disposition compare the entire
+observed raw row in a strict transaction; they never select by time or delete an
+unchosen version implicitly. New ordinary writes replace only their own current
+parent and cannot use archived equality as current acknowledgement. Clean observers
+adopt a sole selected head; dirty stale writes preserve competition.
+
+Workspace adoption compares the exact local slot and callback/composition ownership.
+A transient queue epoch prevents older captured work from overwriting through a
+newly selected checkpoint; refused adoption immediately preserves latest local
+writing/history under its old parent. Selection supplies no forum authority. Only
+the selected operational descendant receives honest foreign pending/byte-loss
+normalization; raw alternatives and immutable submissions remain unchanged.
+
+Retained unsettled evidence continues to hold publication independently of source
+conflict, while original result checking remains possible. Unsettled disposition or
+destructive current replacement is refused; no cross-version outcome override or
+history merge is introduced. The selected observation's own authoritative check can
+establish its settled disposition. Older clients can refuse the complete durable
+read on encountering schema2. The accepted gate, costs and qualification are in
+[the109 implementation ledger](../implementation/ui-ux-109.md).

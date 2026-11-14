@@ -285,11 +285,26 @@ for (const [
     });
     await expect(visibleTarget).toBeVisible();
     await expect(visibleTarget).toContainText("Other author");
-    const geometry = await visibleTarget.evaluate((node) => ({
-      width: node.clientWidth,
-      scroll: node.scrollWidth,
-    }));
-    expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1);
+    // Viewport resizing delivers a separate browser resize event before the
+    // responsive workspace commits its pane arrangement. Observe the actual
+    // settled strip, retaining every intermediate measurement as evidence.
+    const geometries: { width: number; scroll: number; viewport: number }[] =
+      [];
+    await expect
+      .poll(async () => {
+        const geometry = await visibleTarget.evaluate((node) => ({
+          width: node.clientWidth,
+          scroll: node.scrollWidth,
+          viewport: window.innerWidth,
+        }));
+        geometries.push(geometry);
+        return geometry.scroll - geometry.width;
+      })
+      .toBeLessThanOrEqual(1);
+    await info.attach("reply-target-resize-measurements.json", {
+      body: JSON.stringify(geometries, null, 2),
+      contentType: "application/json",
+    });
     const writing = await stored(page);
     expect(writing.replyTarget).toEqual({
       threadId: "42",
