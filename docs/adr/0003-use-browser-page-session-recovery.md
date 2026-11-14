@@ -67,7 +67,6 @@ crash boundaries and all actual trade-offs are recorded once in the
 [#107 implementation ledger](../implementation/ui-ux-107.md). Qualification evidence
 is separate from this decision and retains Chrome's owner-approved #112 deferral.
 
-
 ## Account-shared intent and legacy provenance — #108
 
 For ordinary replies, supersede original-account eligibility/copy requirements with
@@ -115,3 +114,47 @@ history merge is introduced. The selected observation's own authoritative check 
 establish its settled disposition. Older clients can refuse the complete durable
 read on encountering schema2. The accepted gate, costs and qualification are in
 [the109 implementation ledger](../implementation/ui-ux-109.md).
+
+## Independent reply-send recovery — #111
+
+The required gpt-6.1-sol/xhigh advisor and root accepted schema3 in the existing
+IndexedDB version1 `threads` store. Each row retains its current/alternative draft
+versions and an independent collection of immutable publication identities,
+revisioned observations and optional successor identity. Validation requires finite
+acyclic nonbranching lineage, no duplicate identities or unequal historical immutable
+publications, exact submitted meaning across successors and at most one unsettled
+leaf. No lease, timeout release, second store or background replay is introduced.
+
+Strict transaction admission compares the exact sole current head, existing sends
+and every unrelated legacy operation hold. Commit, readback and coherent session6
+acknowledgement precede input clearing or dispatch. Changes to the captured input,
+selection, target, options, account or context before that boundary cancel and clear
+nothing. Failure after durable commit is unestablished acknowledgement, not rollback.
+Only the live owner with zero-dispatch proof records not-sent; other tabs display
+restored pending as Unknown without mutating its raw observation. Ordinary autosave,
+version choice and disposal always preserve the latest registry read inside their
+own transaction. Registry-only history uses the existing null-context tombstone.
+
+Exact observation CAS governs completion and explicit checking. The registry supplies
+an operational view only for exactly matching immutable attempt identities; raw
+branches stay intact. Stale observations remain local and visibly unsaved until a
+qualified check can reconcile them. An accepted checked-Unknown risk retry links one
+successor atomically, preserves the original Unknown and leaves any unrelated holds
+active. Late ancestor observations cannot release the successor.
+
+Legacy ordinary rejected or not-sent observations may be enrolled immediately before
+deliberate Retry or Edit only when unchecked, with null candidate/result and no
+comparison or red-packet data. Every current and retained occurrence must have the
+same immutable publication and complete observation. The supported actual110 producer
+provides invocation-scoped no-dispatch evidence for not-sent; it does not prove global
+absence on the forum. Explicit Check captures the complete same-ID observation
+multiset before its external read and compares it again atomically, enrolling only
+the actual portable result. Existing registry identities/links never reset. These
+paths require full commit/readback/session acknowledgement and preserve raw copies.
+
+Session6 retains its existing field shapes and raw histories. Older110 refuses the
+new durable row intact instead of dropping its independent holds; a session copy
+never grants stored publication authority. This increases historical storage and
+compatibility cost, and deliberately gives up automatic release/cleanup in favor of
+recoverable evidence and explicit duplicate-risk handling. The complete acceptance,
+limitations and distinct trade-offs belong to the #111 implementation ledger.

@@ -1,6 +1,9 @@
 import {
   canonical,
-  hasUnsettledReply,
+  hasReplyHold,
+  legacyFailedReply,
+  unsettledSend,
+  type ReplySend,
   type ReplyUpdate,
 } from "../workspace/reply-recovery";
 import { isPrivateAttempt } from "../forum-client/private-writing.js";
@@ -61,6 +64,16 @@ export function createWriting(
   changed: (disposed?: PublicWritingContext) => Promise<boolean>,
   accountObserved: (account: Account) => void,
   publishedDraft?: (url: string, contextId: string) => Promise<void>,
+  replyHost?: Pick<
+    import("./navigation").NavigationHost,
+    | "reserveReplySend"
+    | "checkReplySend"
+    | "observeReplySend"
+    | "replyRecovery"
+    | "retainFailedReply"
+    | "captureLegacyReply"
+    | "enrollLegacyReply"
+  >,
 ) {
   const state = shallowRef<{
     context: WritingContext | null;
@@ -159,17 +172,110 @@ export function createWriting(
     );
   });
   const retainedUnsettledReplies = shallowRef<string[]>([]);
-  const replyPublicationBlocked = computed(() => {
+  const registeredSends = shallowRef<Record<string, ReplySend[]>>({});
+  const liveSends = shallowRef<Record<string, boolean>>({});
+  const unsavedSendResults = shallowRef<Record<string, ThreadAttempt>>({});
+  function observeReplySends() {
+    registeredSends.value = Object.fromEntries(
+      (replyHost?.replyRecovery?.().sends ?? []).map((row) => [
+        row.threadId,
+        row.sends,
+      ]),
+    );
+  }
+  function registeredAttempt(attempt: ThreadAttempt) {
+    const thread = attempt.publication.submission.writing.replyTarget?.threadId;
+    return (
+      thread &&
+      registeredSends.value[thread]?.find(
+        (send) =>
+          send.attempt.id === attempt.id &&
+          canonical(send.attempt.publication) ===
+            canonical(attempt.publication),
+      )
+    );
+  }
+  function observedAttempt(attempt: ThreadAttempt): ThreadAttempt {
+    const send = registeredAttempt(attempt);
+    if (!send) return attempt;
+    const raw = unsavedSendResults.value[attempt.id] ?? send.attempt;
+    return raw.status === "pending" && !liveSends.value[raw.id]
+      ? {
+          ...raw,
+          status: "uncertain",
+          checked: false,
+          message:
+            "Pending reply restored as Unknown. Nothing was replayed; check its original status.",
+        }
+      : raw;
+  }
+  const contextAttemptHistory = computed(() => {
+    const context = state.value.context;
+    return (context?.attempts ?? []).filter(
+      (attempt) =>
+        !registeredAttempt(attempt) &&
+        !(
+          context &&
+          isOrdinaryReply(context) &&
+          ["reply", "quick-quote"].includes(
+            attempt.publication.submission.writing.action,
+          ) &&
+          attempt.publication.submission.writing.replyTarget?.threadId ===
+            context.replyTarget!.threadId
+        ),
+    );
+  });
+  function replyAttempts(threadId: string) {
+    const context =
+      state.value.context?.replyTarget?.threadId === threadId
+        ? state.value.context
+        : retainedReplies.value[threadId];
+    const attempts = new Map(
+      (context?.attempts ?? [])
+        .filter(
+          (attempt) =>
+            ["reply", "quick-quote"].includes(
+              attempt.publication.submission.writing.action,
+            ) &&
+            attempt.publication.submission.writing.replyTarget?.threadId ===
+              threadId,
+        )
+        .map((attempt) => [attempt.id, observedAttempt(attempt)]),
+    );
+    for (const send of registeredSends.value[threadId] ?? []) {
+      attempts.set(send.attempt.id, observedAttempt(send.attempt));
+    }
+    return [...attempts.values()];
+  }
+  const replySendBlocked = computed(() => {
     const context = state.value.context;
     return (
       !!context &&
       isOrdinaryReply(context) &&
-      retainedUnsettledReplies.value.includes(context.replyTarget!.threadId)
+      (registeredSends.value[context.replyTarget!.threadId] ?? []).some(
+        (send) => !send.successor && unsettledSend(send.attempt),
+      )
+    );
+  });
+  const replyPublicationBlocked = computed(() => {
+    const context = state.value.context;
+    return (
+      replySendBlocked.value ||
+      (!!context &&
+        isOrdinaryReply(context) &&
+        retainedUnsettledReplies.value.includes(context.replyTarget!.threadId))
     );
   });
   function refuseReplyDisposal() {
     const context = state.value.context;
-    if (!context || !isOrdinaryReply(context) || !hasUnsettledReply(context))
+    if (
+      !context ||
+      !isOrdinaryReply(context) ||
+      !hasReplyHold(
+        context,
+        registeredSends.value[context.replyTarget!.threadId] ?? [],
+      )
+    )
       return false;
     state.value = {
       ...state.value,
@@ -2767,8 +2873,17 @@ export function createWriting(
       };
       return;
     }
+    const ordinaryReply = Boolean(isOrdinaryReply(context));
     const unresolved =
-      context.attempts?.filter((attempt) =>
+      (ordinaryReply
+        ? replyAttempts(context.replyTarget!.threadId).filter(
+            (attempt) =>
+              !registeredSends.value[context.replyTarget!.threadId]?.some(
+                (send) => send.attempt.id === attempt.id && send.successor,
+              ),
+          )
+        : context.attempts?.map(observedAttempt)
+      )?.filter((attempt) =>
         ["pending", "uncertain", "moderation"].includes(attempt.status),
       ) ?? [];
     if (
@@ -2848,13 +2963,13 @@ export function createWriting(
     };
     return result.kind === "ready" ? result.publication : undefined;
   }
-  let replySendActive = false;
+  const replySendActive = new Set<string>();
   async function sendReply(resendId?: string) {
     const context = state.value.context;
     if (
       !context ||
       !isOrdinaryReply(context) ||
-      replySendActive ||
+      replySendActive.has(context.replyTarget!.threadId) ||
       replyBlocked.value ||
       replyPublicationBlocked.value ||
       state.value.preparing ||
@@ -2862,7 +2977,8 @@ export function createWriting(
       state.value.composing
     )
       return;
-    replySendActive = true;
+    const sendingThread = context.replyTarget!.threadId;
+    replySendActive.add(sendingThread);
     try {
       const operation = captureOperation(context);
       if (!operation) {
@@ -2887,7 +3003,7 @@ export function createWriting(
       }
       await publish();
     } finally {
-      replySendActive = false;
+      replySendActive.delete(sendingThread);
     }
   }
   function effectGuard(
@@ -2927,6 +3043,11 @@ export function createWriting(
       candidateURL: null,
       result: null,
     };
+    const ordinaryReply = Boolean(isOrdinaryReply(context));
+    if (ordinaryReply) {
+      await publishReply(context as PublicWritingContext, attempt);
+      return;
+    }
     updateAttempt(attempt);
     const saved = await changed();
     let result: ThreadAttempt;
@@ -2954,7 +3075,464 @@ export function createWriting(
     state.value = { ...state.value, publishing: false };
     await changed();
   }
+  async function publishReply(
+    context: PublicWritingContext,
+    attempt: ThreadAttempt,
+    predecessor?: ReplySend,
+  ) {
+    const thread = context.replyTarget!.threadId;
+    updateAttempt(attempt);
+    const activation = captureOperation();
+    const pendingContext = state.value.context as PublicWritingContext;
+    const saved = await changed();
+    const reservation =
+      saved && activation?.current()
+        ? await replyHost?.reserveReplySend?.(
+            pendingContext,
+            attempt,
+            predecessor,
+          )
+        : undefined;
+    observeReplySends();
+    const registered = reservation?.send;
+    let result: ThreadAttempt;
+    if (!reservation?.acknowledged || !registered || !activation?.current()) {
+      result = {
+        ...attempt,
+        status: "not-sent",
+        message:
+          "Reply was not sent because pending recovery, writing or the account changed. Your input is retained.",
+      };
+      state.value = { ...state.value, publishing: false };
+    } else {
+      if (!predecessor) {
+        const mode = editorSession?.state.mode;
+        const current = state.value.context as PublicWritingContext;
+        editorSession?.dispose();
+        editorSession = null;
+        editorContext = "";
+        state.value = {
+          ...state.value,
+          publishing: false,
+          context: {
+            ...current,
+            revision: current.revision + 1,
+            source: "",
+            title: "",
+            uploadedReferences: [],
+            attachmentFields: [],
+            uploads: [],
+            mentions: [],
+            editorUnresolved: false,
+            selection: { start: 0, end: 0, direction: "none" },
+          },
+        };
+        if (mode) editor().setMode(mode);
+        editorGeneration.value++;
+      } else state.value = { ...state.value, publishing: false };
+      liveSends.value = { ...liveSends.value, [attempt.id]: true };
+      await changed();
+      const actor = attempt.publication.submission.writing.account;
+      const generation = attempt.publication.generation;
+      let valid = true;
+      const currentAuthority = () =>
+        valid &&
+        client.generation === generation &&
+        client.account.kind === "member" &&
+        client.account.id === actor.id &&
+        !conflictedReplies.value.includes(thread);
+      result = await client.publishThread(attempt, {
+        current: currentAuthority,
+        check: async () => {
+          valid =
+            currentAuthority() &&
+            (await replyHost?.checkReplySend?.(thread, registered)) === true;
+          return currentAuthority();
+        },
+      });
+    }
+    accountObserved(client.account);
+    observe(client.account);
+    if (registered) {
+      const acknowledged = await replyHost?.observeReplySend?.(
+        thread,
+        registered,
+        result,
+      );
+      if (!acknowledged) {
+        updateOwnedReplyAttempt(thread, result);
+        unsavedSendResults.value = {
+          ...unsavedSendResults.value,
+          [attempt.id]: result,
+        };
+        state.value = {
+          ...state.value,
+          message:
+            "The reply outcome is retained in this tab but could not be durably acknowledged. Check its original status; no retry was sent.",
+        };
+      }
+    } else updateOwnedReplyAttempt(thread, result);
+    liveSends.value = { ...liveSends.value, [attempt.id]: false };
+    observeReplySends();
+    await changed();
+  }
+  const replyAction = shallowRef<string | null>(null);
+  const replyAttachmentResults = shallowRef<Record<string, string>>({});
+  function checkableReplyAttachment(thread: string, id: string, key: string) {
+    const attempt = replyAttempts(thread).find((item) => item.id === id);
+    const writing = attempt?.publication.submission.writing;
+    const upload = writing?.uploads?.find((item) => item.key === key);
+    return (
+      !!attempt?.result &&
+      attempt.status === "confirmed" &&
+      !!upload?.serverId &&
+      !!upload.originalSha256 &&
+      writing!.uploadedReferences.includes(upload.serverId) &&
+      (upload.ownerId === undefined ? writing!.account.id : upload.ownerId) ===
+        writing!.account.id &&
+      !replyAction.value &&
+      observedAccountVerified &&
+      client.account.kind === "member" &&
+      client.account.id === writing!.account.id
+    );
+  }
+  async function checkReplyAttachment(thread: string, id: string, key: string) {
+    if (!checkableReplyAttachment(thread, id, key)) return;
+    const attempt = replyAttempts(thread).find((item) => item.id === id)!;
+    const upload = attempt.publication.submission.writing.uploads!.find(
+      (item) => item.key === key,
+    )!;
+    const generation = client.generation,
+      captured = canonical(attempt);
+    const current = () =>
+      client.generation === generation &&
+      canonical(replyAttempts(thread).find((item) => item.id === id)) ===
+        captured;
+    const feedbackKey = `${id}:${key}`;
+    const feedback = (message: string) => {
+      replyAttachmentResults.value = {
+        ...replyAttachmentResults.value,
+        [feedbackKey]: message,
+      };
+    };
+    replyAction.value = feedbackKey;
+    feedback("Checking independently received file bytes…");
+    try {
+      const result = await client.downloadAttachment({
+        threadURL: attempt.result!.url,
+        postId: attempt.result!.postId,
+        attachmentId: upload.serverId!,
+        account: attempt.publication.submission.writing.account,
+      });
+      accountObserved(client.account);
+      observe(client.account);
+      if (!current()) {
+        feedback(
+          "The account or reply observation changed. Check stored bytes again.",
+        );
+        return;
+      }
+      if (result.kind !== "file") {
+        feedback(result.message);
+        return;
+      }
+      const hash = Array.from(
+        new Uint8Array(
+          await crypto.subtle.digest("SHA-256", new Uint8Array(result.bytes)),
+        ),
+        (byte) => byte.toString(16).padStart(2, "0"),
+      ).join("");
+      if (!current()) {
+        feedback(
+          "The account or reply observation changed. Check stored bytes again.",
+        );
+        return;
+      }
+      feedback(
+        hash === upload.originalSha256 &&
+          result.bytes.length === upload.size &&
+          result.name === upload.name
+          ? "Stored filename and bytes match the selected file."
+          : "Server file differs from selected bytes or filename. Server normalization is disclosed; original byte identity is not claimed.",
+      );
+    } finally {
+      replyAction.value = null;
+    }
+  }
+  function editableReply(thread: string, id: string) {
+    const context = state.value.context;
+    const send = registeredSends.value[thread]?.find(
+      (item) => item.attempt.id === id,
+    );
+    const attempt =
+      send?.attempt ?? replyAttempts(thread).find((item) => item.id === id);
+    return (
+      !!attempt &&
+      (send || legacyFailedReply(attempt)) &&
+      ["rejected", "not-sent"].includes(attempt.status) &&
+      !!context &&
+      isOrdinaryReply(context) &&
+      context.replyTarget!.threadId === thread &&
+      !replyAction.value &&
+      !replyBlocked.value &&
+      canDeactivate() &&
+      !state.value.composing
+    );
+  }
+  async function editFailedReply(thread: string, id: string) {
+    if (!editableReply(thread, id)) return;
+    const context = state.value.context as PublicWritingContext;
+    const before = canonical(context);
+    let send = registeredSends.value[thread]?.find(
+      (item) => item.attempt.id === id,
+    );
+    replyAction.value = id;
+    try {
+      if (!send) {
+        const legacy = replyAttempts(thread).find((item) => item.id === id);
+        const saved = await changed();
+        const captured =
+          saved &&
+          legacy &&
+          (await replyHost?.captureLegacyReply?.(thread, legacy));
+        send = captured
+          ? ((await replyHost?.enrollLegacyReply?.(captured)) ?? undefined)
+          : undefined;
+        observeReplySends();
+        if (!send || before !== canonical(state.value.context)) {
+          state.value = {
+            ...state.value,
+            message:
+              "The writing or saved reply changed, or recovery failed. Your newer draft is retained; try Edit again.",
+          };
+          return;
+        }
+      }
+      const candidate = recoverContext({
+        ...send.attempt.publication.submission.writing,
+        id: crypto.randomUUID(),
+        revision: 1,
+        selection: { start: 0, end: 0, direction: "none" },
+        ...(context.attempts ? { attempts: context.attempts } : {}),
+        ...(context.draftAttempts
+          ? { draftAttempts: context.draftAttempts }
+          : {}),
+        ...(context.privateAttempts
+          ? { privateAttempts: context.privateAttempts }
+          : {}),
+      }) as PublicWritingContext;
+      const saved = await changed();
+      const retained =
+        saved &&
+        before === canonical(state.value.context) &&
+        (await replyHost?.retainFailedReply?.(context, candidate, send));
+      await changed();
+      state.value = {
+        ...state.value,
+        message: retained
+          ? "The failed reply is a recoverable version. Choose it to edit, or keep writing your newer draft. Nothing was sent."
+          : "The writing or saved reply changed, or recovery failed. Your newer draft is retained; try Edit again.",
+      };
+    } finally {
+      replyAction.value = null;
+    }
+  }
+  const replyRisk = shallowRef<{ thread: string; send: ReplySend } | null>(
+    null,
+  );
+  function retryableReply(thread: string, id: string, risk = false) {
+    const context = state.value.context;
+    const send = registeredSends.value[thread]?.find(
+      (item) => item.attempt.id === id,
+    );
+    const attempt =
+      send?.attempt ?? replyAttempts(thread).find((item) => item.id === id);
+    return (
+      !!attempt &&
+      (send ? !send.successor : legacyFailedReply(attempt)) &&
+      !replyAction.value &&
+      !replySendActive.has(thread) &&
+      !!context &&
+      isOrdinaryReply(context) &&
+      context.replyTarget!.threadId === thread &&
+      !replyBlocked.value &&
+      !state.value.publishing &&
+      !state.value.preparing &&
+      !state.value.composing &&
+      (["not-sent", "rejected"].includes(attempt.status) ||
+        (risk && attempt.status === "uncertain" && attempt.checked)) &&
+      captureOperation()?.writing.account.id ===
+        attempt.publication.submission.writing.account.id
+    );
+  }
+  async function retryReply(thread: string, id: string, accepted?: ReplySend) {
+    if (!retryableReply(thread, id, !!accepted)) return;
+    let original = registeredSends.value[thread]?.find(
+      (item) => item.attempt.id === id,
+    );
+    if (accepted && canonical(original) !== canonical(accepted)) {
+      state.value = {
+        ...state.value,
+        message:
+          "The original reply status changed. Check it again before accepting duplicate risk.",
+      };
+      return;
+    }
+    const context = state.value.context as PublicWritingContext;
+    const activation = captureOperation();
+    replyAction.value = id;
+    state.value = { ...state.value, preparing: true, publication: null };
+    try {
+      if (!original) {
+        const legacy = replyAttempts(thread).find((item) => item.id === id);
+        const saved = await changed();
+        const captured =
+          saved &&
+          legacy &&
+          (await replyHost?.captureLegacyReply?.(thread, legacy));
+        original = captured
+          ? ((await replyHost?.enrollLegacyReply?.(captured)) ?? undefined)
+          : undefined;
+        observeReplySends();
+        if (!original || !activation?.current()) {
+          state.value = {
+            ...state.value,
+            preparing: false,
+            message:
+              "The historical failure could not be acknowledged unchanged. Check its original status; no retry was sent and your newer draft is retained.",
+          };
+          return;
+        }
+      }
+      const prepared = await client.prepareThreadPublication(
+        original.attempt.publication.submission,
+      );
+      accountObserved(client.account);
+      observe(client.account);
+      state.value = { ...state.value, preparing: false };
+      if (
+        !activation?.current() ||
+        prepared.kind !== "ready" ||
+        prepared.publication.submission.writing.account.id !==
+          original.attempt.publication.submission.writing.account.id
+      ) {
+        state.value = {
+          ...state.value,
+          message:
+            "The original reply could not be prepared under its original account. Your newer draft is retained; nothing was retried.",
+        };
+        return;
+      }
+      state.value = { ...state.value, publishing: true };
+      await publishReply(
+        context,
+        {
+          id: crypto.randomUUID(),
+          publication: prepared.publication,
+          status: "pending",
+          checked: false,
+          candidateURL: null,
+          result: null,
+          message: "The original reply is Sending. Newer writing is retained.",
+        },
+        original,
+      );
+    } finally {
+      replyAction.value = null;
+    }
+  }
+  async function checkReplyStatus(thread: string, id: string, url?: string) {
+    if (replyAction.value) return;
+    const registered = registeredSends.value[thread]?.find(
+      (send) => send.attempt.id === id,
+    );
+    const attempt =
+      registered?.attempt ??
+      replyAttempts(thread).find((item) => item.id === id);
+    if (!attempt) return;
+    replyAction.value = id;
+    try {
+      const captured = !registered
+        ? await replyHost?.captureLegacyReply?.(thread, attempt)
+        : null;
+      const fallback = attempt.publication.replyBefore?.pageURL;
+      const originalThread = fallback ? new URL(fallback) : null;
+      originalThread?.searchParams.delete("tsdmapp");
+      const result = await client.checkThreadResult(
+        attempt,
+        url || attempt.candidateURL || originalThread?.href,
+      );
+      accountObserved(client.account);
+      observe(client.account);
+      const acknowledged = registered
+        ? await replyHost?.observeReplySend?.(thread, registered, result)
+        : captured
+          ? await replyHost?.enrollLegacyReply?.(captured, result)
+          : null;
+      if (!acknowledged) {
+        updateOwnedReplyAttempt(thread, result);
+        unsavedSendResults.value = {
+          ...unsavedSendResults.value,
+          [id]: result,
+        };
+      } else {
+        const local = { ...unsavedSendResults.value };
+        delete local[id];
+        unsavedSendResults.value = local;
+      }
+      observeReplySends();
+      await changed();
+      if (!acknowledged)
+        state.value = {
+          ...state.value,
+          message:
+            "This status observation is retained in this tab but could not be durably acknowledged. Check the original status again before retrying.",
+        };
+    } finally {
+      replyAction.value = null;
+    }
+  }
+  function updateOwnedReplyAttempt(thread: string, attempt: ThreadAttempt) {
+    const current = state.value.context;
+    if (
+      current &&
+      isOrdinaryReply(current) &&
+      current.replyTarget!.threadId === thread
+    ) {
+      state.value = {
+        ...state.value,
+        context: {
+          ...current,
+          attempts: [
+            ...(current.attempts ?? []).filter(
+              (item) => item.id !== attempt.id,
+            ),
+            attempt,
+          ],
+        },
+      };
+    } else {
+      const retained = retainedReplies.value[thread];
+      if (retained)
+        retainedReplies.value = {
+          ...retainedReplies.value,
+          [thread]: {
+            ...retained,
+            attempts: [
+              ...(retained.attempts ?? []).filter(
+                (item) => item.id !== attempt.id,
+              ),
+              attempt,
+            ],
+          },
+        };
+    }
+  }
   async function checkResult(id: string, url?: string) {
+    const owned = Object.entries(registeredSends.value).find(([, sends]) =>
+      sends.some((send) => send.attempt.id === id),
+    );
+    if (owned) return checkReplyStatus(owned[0], id, url);
     if (replyBlocked.value) return;
     const attempt = state.value.context?.attempts?.find(
       (item) => item.id === id,
@@ -3304,8 +3882,13 @@ export function createWriting(
     return context;
   }
   return {
+    observeReplySends,
+    replyAttempts,
+    contextAttemptHistory,
+    registeredSends: readonly(registeredSends),
     replyBlocked,
     replyPublicationBlocked,
+    replySendBlocked,
     editorGeneration,
     replySlot: (threadId: string) => {
       const active = state.value.context;
@@ -3346,6 +3929,10 @@ export function createWriting(
           ? (recoverContext(update.context) as PublicWritingContext | null)
           : update.context;
         if (isActive) {
+          const pendingReplyMode =
+            !handoff && registeredSends.value[update.threadId]?.length
+              ? editorSession?.state.mode
+              : undefined;
           ++sequence;
           editorGeneration.value++;
           editorSession?.dispose();
@@ -3367,6 +3954,7 @@ export function createWriting(
             accountVerified: false,
           };
           observe(state.value.accountObservation, observedAccountVerified);
+          if (pendingReplyMode && next) editor().setMode(pendingReplyMode);
         } else {
           const retained = { ...retainedReplies.value };
           if (next) retained[update.threadId] = next;
@@ -3482,6 +4070,31 @@ export function createWriting(
     publishReviewedDraft,
     publish,
     checkResult,
+    retryReply,
+    editableReply,
+    editFailedReply,
+    retryableReply,
+    replyAction: readonly(replyAction),
+    checkableReplyAttachment,
+    checkReplyAttachment,
+    replyAttachmentResults: readonly(replyAttachmentResults),
+    checkReplyStatus,
+    replyRisk: readonly(replyRisk),
+    warnReplyRisk: (thread: string, id: string) => {
+      if (!retryableReply(thread, id, true)) return;
+      const send = registeredSends.value[thread]!.find(
+        (item) => item.attempt.id === id,
+      )!;
+      replyRisk.value = { thread, send: JSON.parse(JSON.stringify(send)) };
+    },
+    cancelReplyRisk: () => {
+      replyRisk.value = null;
+    },
+    confirmReplyRisk: () => {
+      const risk = replyRisk.value;
+      replyRisk.value = null;
+      if (risk) void retryReply(risk.thread, risk.send.attempt.id, risk.send);
+    },
     warnResend: (id: string) => {
       const attempt = state.value.context?.attempts?.find(
         (item) => item.id === id,

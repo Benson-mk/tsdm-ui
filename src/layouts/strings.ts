@@ -1686,6 +1686,55 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "Pending reply restored as Unknown. Nothing was replayed; check its original status.":
+    [
+      "待处理的回复已恢复为结果未知。未重新发送；请检查原回复状态。",
+      "待處理的回覆已復原為結果未知。未重新傳送；請檢查原回覆狀態。",
+    ],
+  "Reply was not sent because pending recovery, writing or the account changed. Your input is retained.":
+    [
+      "因待处理恢复记录、写作内容或账户发生变化，回复未发送。您的输入已保留。",
+      "因待處理復原紀錄、寫作內容或帳號發生變化，回覆未傳送。您的輸入已保留。",
+    ],
+  "The reply outcome is retained in this tab but could not be durably acknowledged. Check its original status; no retry was sent.":
+    [
+      "回复结果保留在此标签页中，但无法确认持久保存。请检查原回复状态；未重试发送。",
+      "回覆結果保留在此分頁中，但無法確認持久儲存。請檢查原回覆狀態；未重試傳送。",
+    ],
+  "The failed reply is a recoverable version. Choose it to edit, or keep writing your newer draft. Nothing was sent.":
+    [
+      "失败的回复已保留为可恢复版本。您可选择编辑该版本，或继续撰写较新草稿。未发送任何内容。",
+      "失敗的回覆已保留為可復原版本。您可選擇編輯該版本，或繼續撰寫較新草稿。未傳送任何內容。",
+    ],
+  "The writing or saved reply changed, or recovery failed. Your newer draft is retained; try Edit again.":
+    [
+      "写作内容或已保存的回复发生变化，或恢复失败。较新草稿已保留；请再次尝试编辑。",
+      "寫作內容或已儲存的回覆發生變化，或復原失敗。較新草稿已保留；請再次嘗試編輯。",
+    ],
+  "The original reply status changed. Check it again before accepting duplicate risk.":
+    [
+      "原回复状态已改变。接受重复风险前请再次检查。",
+      "原回覆狀態已改變。接受重複風險前請再次檢查。",
+    ],
+  "The historical failure could not be acknowledged unchanged. Check its original status; no retry was sent and your newer draft is retained.":
+    [
+      "无法确认历史失败记录保持不变。请检查原回复状态；未重试发送，较新草稿已保留。",
+      "無法確認歷史失敗紀錄保持不變。請檢查原回覆狀態；未重試傳送，較新草稿已保留。",
+    ],
+  "The original reply could not be prepared under its original account. Your newer draft is retained; nothing was retried.":
+    [
+      "无法使用原账户准备原回复。较新草稿已保留；未重试发送。",
+      "無法使用原帳號準備原回覆。較新草稿已保留；未重試傳送。",
+    ],
+  "The original reply is Sending. Newer writing is retained.": [
+    "正在发送原回复。较新的写作内容已保留。",
+    "正在傳送原回覆。較新的寫作內容已保留。",
+  ],
+  "This status observation is retained in this tab but could not be durably acknowledged. Check the original status again before retrying.":
+    [
+      "本次状态观察保留在此标签页中，但无法确认持久保存。重试前请再次检查原回复状态。",
+      "本次狀態觀察保留在此分頁中，但無法確認持久儲存。重試前請再次檢查原回覆狀態。",
+    ],
   "Choosing this version…": ["正在选择此版本…", "正在選擇此版本…"],
   "Selected version resumed. Other versions remain recoverable.": [
     "已继续所选版本。其他版本仍可恢复。",

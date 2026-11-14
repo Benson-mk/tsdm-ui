@@ -1060,14 +1060,28 @@ test("J77.public-private-history: explicit private replacement keeps the origina
     .getByRole("textbox", { name: "Complete source", exact: true })
     .fill("Original public reply remains identifiable");
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  // #111 owns qualified ordinary-reply outcomes independently of raw histories.
   await expect
-    .poll(
-      async () =>
-        JSON.parse(
-          await page.evaluate(
-            () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
-          ),
-        ).writing.attempts?.[0]?.status,
+    .poll(() =>
+      page.evaluate(async () => {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        return new Promise<string | undefined>((resolve, reject) => {
+          const tx = db.transaction("threads", "readonly"),
+            request = tx.objectStore("threads").get("42");
+          request.onsuccess = () => {
+            db.close();
+            resolve(request.result?.sends?.[0]?.attempt.status);
+          };
+          request.onerror = () => {
+            db.close();
+            reject(request.error);
+          };
+        });
+      }),
     )
     .toBe("uncertain");
   const original = JSON.parse(

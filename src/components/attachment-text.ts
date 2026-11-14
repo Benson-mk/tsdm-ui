@@ -2,6 +2,10 @@ import { strings } from "../layouts/strings";
 import type { Preferences } from "../workspace/preferences";
 
 const translations: Record<string, readonly [string, string]> = {
+  "The account or reply observation changed. Check stored bytes again.": [
+    "账户或回复状态观察已改变。请重新检查已存储的文件。",
+    "帳號或回覆狀態觀察已改變。請重新檢查已儲存的檔案。",
+  ],
   Reattach: ["重新附加", "重新附加"],
   Remove: ["移除", "移除"],
   Unavailable: ["不可用", "無法使用"],

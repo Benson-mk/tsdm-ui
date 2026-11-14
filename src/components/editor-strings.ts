@@ -1,5 +1,44 @@
 import type { Preferences } from "../workspace/preferences";
 const translations: Record<string, [string, string]> = {
+  "Another Send waits while an existing reply is sending or unresolved. You can keep writing.":
+    [
+      "已有回复正在发送或结果未明时，下一次发送会等待。您可继续撰写。",
+      "已有回覆正在傳送或結果未明時，下一次傳送會等待。您可繼續撰寫。",
+    ],
+  "Reply submissions": ["回复提交记录", "回覆提交紀錄"],
+  "Reply submission": ["回复提交记录", "回覆提交紀錄"],
+  "Sending reply": ["正在发送回复", "正在傳送回覆"],
+  "Confirmed reply": ["回复已确认", "回覆已確認"],
+  "Reply awaiting moderation": ["回复等待审核", "回覆等待審核"],
+  "Reply outcome unknown": ["回复结果未知", "回覆結果未知"],
+  "Reply rejected": ["回复被拒绝", "回覆遭拒絕"],
+  "Reply not sent": ["回复未发送", "回覆未傳送"],
+  "Submitted to thread": ["提交至主题", "提交至主題"],
+  "Submitted reply source": ["已提交的回复源码", "已提交的回覆原始碼"],
+  "Retry reply": ["重试回复", "重試回覆"],
+  "Edit failed reply": ["编辑失败的回复", "編輯失敗的回覆"],
+  "Published reply URL (optional)": [
+    "已发布回复的网址（可选）",
+    "已發佈回覆的網址（選填）",
+  ],
+  "Check reply status": ["检查回复状态", "檢查回覆狀態"],
+  "Retry with duplicate risk": ["承担重复风险并重试", "承擔重複風險並重試"],
+  "Original sending account": ["原发送账户", "原傳送帳號"],
+  "Reply duplicate risk": ["回复重复风险", "回覆重複風險"],
+  "Accept duplicate risk and retry reply": [
+    "接受重复风险并重试回复",
+    "接受重複風險並重試回覆",
+  ],
+  "Sending is not confirmation. You can write the next reply while this attempt is retained.":
+    [
+      "正在发送不代表已确认。此提交记录会保留，您可继续撰写下一条回复。",
+      "正在傳送不代表已確認。此提交紀錄會保留，您可繼續撰寫下一則回覆。",
+    ],
+  "The original reply may already exist or still be in flight. Retrying may publish it twice. Its Unknown outcome will remain visible, and your newer draft will be retained.":
+    [
+      "原回复可能已存在或仍在发送。重试可能重复发布。原记录的未知结果会继续显示，并保留您的较新草稿。",
+      "原回覆可能已存在或仍在傳送。重試可能重複發佈。原紀錄的未知結果會繼續顯示，並保留您的較新草稿。",
+    ],
   "Reply tools": ["回覆工具", "回覆工具"],
   Preview: ["预览", "預覽"],
   "Close preview": ["关闭预览", "關閉預覽"],

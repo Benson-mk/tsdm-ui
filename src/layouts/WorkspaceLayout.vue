@@ -33,6 +33,7 @@ import { privateWritingText } from "../components/private-writing-text";
 import PrivateConversationView from "../components/PrivateConversationView.vue";
 import NoticesView from "../components/NoticesView.vue";
 import SourceWriting from "../components/SourceWriting.vue";
+import ReplySends from "../components/ReplySends.vue";
 import WritingDestination from "../components/WritingDestination.vue";
 import { editorText } from "../components/editor-strings";
 import ContentView from "../components/ContentView";
@@ -3590,6 +3591,16 @@ function boardIdFrom(url: string) {
                 : text.chooseThread
             }}
           </p>
+          <ReplySends
+            v-if="
+              writing.context &&
+              ['reply', 'quick-quote'].includes(writing.context.action) &&
+              writing.context.replyTarget
+            "
+            :workspace="workspace"
+            :thread-id="writing.context.replyTarget.threadId"
+            :portal="portal"
+          />
         </section>
         <section
           v-if="pendingPrivate"
@@ -3956,6 +3967,11 @@ function boardIdFrom(url: string) {
           <ThreadHistoryBoundary
             :workspace="workspace"
             :direction="reverseReading ? 'earlier' : 'later'"
+          />
+          <ReplySends
+            :workspace="workspace"
+            :thread-id="reading.thread.id"
+            :portal="portal"
           />
           <button
             v-if="!reverseReading && history.later.status === 'end'"

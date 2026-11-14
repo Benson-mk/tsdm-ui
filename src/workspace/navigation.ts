@@ -47,6 +47,36 @@ export interface NavigationRecord {
   pending: { entryKey: string; destination: string } | null;
 }
 export interface NavigationHost {
+  captureLegacyReply?(
+    threadId: string,
+    attempt: import("../forum-client").ThreadAttempt,
+  ): Promise<import("./reply-recovery").LegacyReplyObservation | null>;
+  enrollLegacyReply?(
+    captured: import("./reply-recovery").LegacyReplyObservation,
+    checked?: import("../forum-client").ThreadAttempt,
+  ): Promise<import("./reply-recovery").ReplySend | null>;
+  retainFailedReply?(
+    context: import("./writing").PublicWritingContext,
+    candidate: import("./writing").PublicWritingContext,
+    send: import("./reply-recovery").ReplySend,
+  ): Promise<boolean>;
+  reserveReplySend?(
+    context: import("./writing").PublicWritingContext,
+    attempt: import("../forum-client").ThreadAttempt,
+    predecessor?: import("./reply-recovery").ReplySend,
+  ): Promise<{
+    acknowledged: boolean;
+    send: import("./reply-recovery").ReplySend | null;
+  }>;
+  checkReplySend?(
+    threadId: string,
+    send: import("./reply-recovery").ReplySend,
+  ): Promise<boolean>;
+  observeReplySend?(
+    threadId: string,
+    send: import("./reply-recovery").ReplySend,
+    attempt: import("../forum-client").ThreadAttempt,
+  ): Promise<import("./reply-recovery").ReplySend | null>;
   discardReply?(
     row: import("./reply-recovery").ReplyRow,
     version: string,

@@ -1,5 +1,6 @@
 import { test, expect, chromium, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import type { ReplyRow } from "../../src/workspace/reply-recovery";
 import {
   selectSourceEditor,
   revealWritingTools,
@@ -150,6 +151,25 @@ async function choose(page: Page, id: string) {
   await expect(
     page.getByRole("heading", { name: `Thread ${id}`, exact: true }),
   ).toBeVisible();
+}
+// Inspect actual native storage; no workspace/client internals are substituted.
+async function storedReply(page: Page, thread = "42"): Promise<ReplyRow> {
+  return page.evaluate(
+    (id) =>
+      new Promise<ReplyRow>((resolve, reject) => {
+        const request = indexedDB.open("tsdm.workspace.reply-drafts");
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const database = request.result;
+          const transaction = database.transaction("threads", "readonly");
+          const row = transaction.objectStore("threads").get(id);
+          row.onsuccess = () => resolve(row.result);
+          row.onerror = () => reject(row.error);
+          transaction.oncomplete = () => database.close();
+        };
+      }),
+    thread,
+  );
 }
 test.afterEach(async ({ page, browser }, info) => {
   info.annotations.push({
@@ -353,6 +373,13 @@ test("UX106.account: automatic account changes share one thread slot and keep im
   await revealWritingDetails(page);
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  await expect(await selectSourceEditor(page)).toHaveValue("");
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Original A content without silent B replacement");
+  await (
+    await selectSourceEditor(page)
+  ).fill("Newer A draft without silent B replacement");
   await choose(page, "43");
   state.member = "8";
   await choose(page, "44");
@@ -362,7 +389,7 @@ test("UX106.account: automatic account changes share one thread slot and keep im
     .click();
   await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
   await expect(await selectSourceEditor(page)).toHaveValue(
-    "Original A content without silent B replacement",
+    "Newer A draft without silent B replacement",
   );
   await expect(
     page.getByText(/current account differs from Writer 7/),
@@ -370,7 +397,7 @@ test("UX106.account: automatic account changes share one thread slot and keep im
   state.member = "7";
   await page.reload();
   await expect(await selectSourceEditor(page)).toHaveValue(
-    "Original A content without silent B replacement",
+    "Newer A draft without silent B replacement",
   );
   await revealWritingTools(page);
   await revealWritingDetails(page);
@@ -398,12 +425,12 @@ test("UX106.account: automatic account changes share one thread slot and keep im
     }),
   ).toHaveCount(0);
   await expect(await selectSourceEditor(page)).toHaveValue(
-    "Original A content without silent B replacement",
+    "Newer A draft without silent B replacement",
   );
   await choose(page, "43");
   await choose(page, "42");
   await expect(await selectSourceEditor(page)).toHaveValue(
-    "Original A content without silent B replacement",
+    "Newer A draft without silent B replacement",
   );
   await revealWritingTools(page);
   await expect(
@@ -418,7 +445,7 @@ test("UX106.account: automatic account changes share one thread slot and keep im
   ).toBeVisible();
   await page.reload();
   await expect(await selectSourceEditor(page)).toHaveValue(
-    "Original A content without silent B replacement",
+    "Newer A draft without silent B replacement",
   );
   await revealWritingTools(page);
   await revealWritingDetails(page);
@@ -438,7 +465,7 @@ test("UX106.account: automatic account changes share one thread slot and keep im
   await fresh.goto(boardURL);
   await choose(fresh, "42");
   await expect(await selectSourceEditor(fresh)).toHaveValue(
-    "Original A content without silent B replacement",
+    "Newer A draft without silent B replacement",
   );
   await revealWritingTools(fresh);
   await revealWritingDetails(fresh);
@@ -460,7 +487,21 @@ test("UX106.account: automatic account changes share one thread slot and keep im
   expect(recovered.attempts[0].publication.submission.writing.account.id).toBe(
     "7",
   );
-  expect(recovered.attempts[0].status).toBe("confirmed");
+  const registered = (await storedReply(fresh)).sends!;
+  expect(registered).toHaveLength(1);
+  expect(registered[0]!.attempt.status).toBe("confirmed");
+  expect(recovered.attempts[0].publication).toEqual(
+    registered[0]!.attempt.publication,
+  );
+  expect(registered[0]!.attempt.publication.submission.writing.source).toBe(
+    "Original A content without silent B replacement",
+  );
+  expect(registered[0]!.attempt.publication.submission.writing.account.id).toBe(
+    "7",
+  );
+  expect(
+    registered[0]!.attempt.publication.submission.writing.replyTarget?.threadId,
+  ).toBe("42");
   expect(
     state.requests.filter((request) => request.method === "POST"),
   ).toHaveLength(1);
@@ -514,7 +555,7 @@ for (const failure of ["quota", "refused", "readback"] as const) {
   });
 }
 
-test("UX106.indicators: cleared and unchanged sent writing lose the badge while new options or attachment intent restore it", async ({
+test("UX106.indicators: cleared submitted input loses the badge while newer text or attachment intent restores it", async ({
   page,
 }) => {
   const state = await open(page);
@@ -537,12 +578,26 @@ test("UX106.indicators: cleared and unchanged sent writing lose the badge while 
     .click();
   await (await selectSourceEditor(page)).fill("B remains unfinished");
   await choose(page, "42");
-  await expect(await selectSourceEditor(page)).toHaveValue(
-    "A confirmed reply with options",
-  );
+  await expect(await selectSourceEditor(page)).toHaveValue("");
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("A confirmed reply with options");
   await revealWritingTools(page);
   await page.getByLabel("Signature", { exact: true }).check();
+  await expect(row).not.toContainText("Local draft");
+  await expect(page.getByLabel("Signature", { exact: true })).toBeChecked();
+  const submitted = (await storedReply(page)).sends![0]!.attempt.publication
+    .submission.writing;
+  expect(submitted.source).toBe("A confirmed reply with options");
+  expect(
+    submitted.options.find((option) => option.name === "usesig")?.checked,
+  ).toBe(false);
+  await (
+    await selectSourceEditor(page)
+  ).fill("A newer draft with its own options");
   await expect(row).toContainText("Local draft");
+  await (await selectSourceEditor(page)).fill("");
+  await expect(row).not.toContainText("Local draft");
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await expect(row).not.toContainText("Local draft");
   await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
@@ -694,22 +749,24 @@ test("UX106.effect: pending publication keeps its owner and fresh B never inheri
         state.requests.filter((request) => request.method === "POST").length,
     )
     .toBe(1);
-  await page.locator('[data-thread-id="43"] .subject').click();
+  await expect(await selectSourceEditor(page)).toHaveValue("");
   await expect(
-    page.getByText("Keep current writing?", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Continue editing", exact: true })
-    .click();
-  release();
-  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Immutable original A submission");
   await choose(page, "43");
+  await expect(
+    page.getByRole("dialog", { name: "Keep current writing?", exact: true }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await (await selectSourceEditor(page)).fill("Independent B content");
   await revealWritingTools(page);
   await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
+  release();
+  await expect
+    .poll(() => state.saved.get("42")?.get("message"))
+    .toBe("Immutable original A submission");
   await choose(page, "42");
   await revealWritingTools(page);
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
@@ -941,12 +998,13 @@ test("UX106.pending-recovery: inactive pending snapshots recover as uncertain wi
   );
   await page.reload();
   release();
-  await expect(await selectSourceEditor(page)).toHaveValue(
-    "Original actor pending source",
-  );
+  await expect(await selectSourceEditor(page)).toHaveValue("");
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Original actor pending source");
   await revealWritingTools(page);
   await expect(
-    page.getByText(/Pending publication restored as uncertain/),
+    page.getByText("Reply outcome unknown", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("group", { name: "Writing destination", exact: true }),
@@ -957,6 +1015,12 @@ test("UX106.pending-recovery: inactive pending snapshots recover as uncertain wi
   );
   expect(recovered.account.id).toBe("7");
   expect(recovered.attempts[0].status).toBe("uncertain");
+  const pending = (await storedReply(page)).sends![0]!.attempt;
+  expect(pending.status).toBe("pending");
+  expect(pending.publication).toEqual(recovered.attempts[0].publication);
+  expect(pending.publication.submission.writing.replyTarget?.threadId).toBe(
+    "42",
+  );
   expect(recovered.attempts[0].publication.submission.writing.account.id).toBe(
     "7",
   );
@@ -987,7 +1051,7 @@ test("UX106.pending-ack: failed collection acknowledgement retains both replies 
   await revealWritingTools(page);
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
-    page.getByText(/Publication was not sent because recovery/),
+    page.getByText(/Reply was not sent because pending recovery/),
   ).toBeVisible();
   await expect(await selectSourceEditor(page)).toHaveValue(
     "Unsent retained 43",
@@ -1067,29 +1131,16 @@ test("UX106.parked-history: reading A while B sends never copies parked B's immu
         state.requests.filter((request) => request.method === "POST").length,
     )
     .toBe(1);
-  await page.locator('[data-thread-id="42"] .subject').click();
-  await page
-    .getByRole("button", { name: "Keep writing and read thread", exact: true })
-    .click();
+  await expect(await selectSourceEditor(page)).toHaveValue("");
+  await (await selectSourceEditor(page)).fill("Newer writing 43");
+  await choose(page, "42");
   await expect(
-    page.getByRole("heading", { name: "Thread 42", exact: true }),
-  ).toBeVisible();
+    page.getByRole("dialog", { name: "Keep current writing?", exact: true }),
+  ).toHaveCount(0);
   release();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
-  await revealWritingTools(page);
-  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
-  await page
-    .getByRole("button", { name: "Post 4201 actions", exact: true })
-    .click();
-  await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
-  await page
-    .getByRole("button", {
-      name: "Discard local changes and prepare",
-      exact: true,
-    })
-    .click();
+  await expect
+    .poll(() => state.saved.get("43")?.get("message"))
+    .toBe("Owned writing 43");
   await expect(await selectSourceEditor(page)).toHaveValue("Owned writing 42");
   await revealWritingTools(page);
   await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
@@ -1097,7 +1148,15 @@ test("UX106.parked-history: reading A while B sends never copies parked B's immu
   await revealWritingTools(page);
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await page.reload();
-  await expect(await selectSourceEditor(page)).toHaveValue("Owned writing 43");
+  await expect(await selectSourceEditor(page)).toHaveValue("Newer writing 43");
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Owned writing 43");
+  const attempt = (await storedReply(page, "43")).sends![0]!.attempt;
+  expect(attempt.publication.submission.writing.replyTarget?.threadId).toBe(
+    "43",
+  );
+  expect(attempt.publication.submission.writing.account.id).toBe("7");
   await choose(page, "42");
   await revealWritingTools(page);
   await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
@@ -1173,12 +1232,13 @@ test("UX106.startup-owners: pending retained writing cannot erase another recove
       '[data-favorite-attempt="9cdce87d-c882-4b05-960c-899c21f1873b"]',
     ),
   ).toContainText("Account 7");
-  await expect(await selectSourceEditor(page)).toHaveValue(
-    "Pending reply beside independent favorite history",
-  );
+  await expect(await selectSourceEditor(page)).toHaveValue("");
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Pending reply beside independent favorite history");
   await revealWritingTools(page);
   await expect(
-    page.getByText(/Pending publication restored as uncertain/),
+    page.getByText("Reply outcome unknown", { exact: true }),
   ).toBeVisible();
   expect(
     state.requests.filter((request) => request.method === "POST"),
@@ -1216,24 +1276,30 @@ for (const different of [true, false]) {
     await page
       .getByRole("textbox", { name: "Complete source", exact: true })
       .fill("Nonreply source with newer confirmed observation");
-    const raw = await page.evaluate((divergent) => {
-      const record = JSON.parse(
-        sessionStorage.getItem("tsdm.workspace.recovery")!,
-      );
-      record.retainedReplies[0].attempts = record.writing.attempts.map(
-        (attempt: Record<string, unknown>) =>
-          divergent
-            ? {
-                ...attempt,
-                status: "uncertain",
-                result: null,
-                checked: false,
-                message: "Older retained observation",
-              }
-            : Object.fromEntries(Object.entries(attempt).reverse()),
-      );
-      return JSON.stringify(record);
-    }, different);
+    const confirmed = (await storedReply(page, "43")).sends![0]!.attempt;
+    expect(confirmed.status).toBe("confirmed");
+    const raw = await page.evaluate(
+      ({ divergent, confirmed }) => {
+        const record = JSON.parse(
+          sessionStorage.getItem("tsdm.workspace.recovery")!,
+        );
+        record.writing.attempts = [confirmed];
+        record.retainedReplies[0].attempts = record.writing.attempts.map(
+          (attempt: Record<string, unknown>) =>
+            divergent
+              ? {
+                  ...attempt,
+                  status: "uncertain",
+                  result: null,
+                  checked: false,
+                  message: "Older retained observation",
+                }
+              : Object.fromEntries(Object.entries(attempt).reverse()),
+        );
+        return JSON.stringify(record);
+      },
+      { divergent: different, confirmed },
+    );
     await page.addInitScript(
       (value) => sessionStorage.setItem("tsdm.workspace.recovery", value),
       raw,
@@ -1273,7 +1339,16 @@ for (const different of [true, false]) {
         "Owned writing 42",
       );
       await revealWritingTools(page);
-      await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(1);
+      await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
+      const active = await page.evaluate(
+        () =>
+          JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
+            .writing,
+      );
+      expect(active.attempts[0]).toEqual(confirmed);
+      expect((await storedReply(page, "43")).sends![0]!.attempt).toEqual(
+        confirmed,
+      );
       await expect(
         page.getByText(/Different observations of the same earlier operation/),
       ).toHaveCount(0);
@@ -2398,13 +2473,12 @@ test("UX107.after-dispatch: a conflict retains the active immutable publication 
   await expect(
     page.getByRole("region", { name: "Conflicting local reply drafts" }),
   ).toBeVisible();
-  await page.locator('[data-thread-id="43"] .subject').click();
+  const pending = (await storedReply(page)).sends![0]!.attempt;
+  await choose(page, "43");
   await expect(
-    page.getByText("Keep current writing?", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Continue editing", exact: true })
-    .click();
+    page.getByRole("dialog", { name: "Keep current writing?", exact: true }),
+  ).toHaveCount(0);
+  await choose(page, "42");
   release();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(
@@ -2427,11 +2501,27 @@ test("UX107.after-dispatch: a conflict retains the active immutable publication 
     .evaluateAll((fields) =>
       fields.map((field) => (field as HTMLTextAreaElement).value),
     );
-  const details =
-    versions.find((version) => version.includes('"status": "confirmed"')) ?? "";
-  expect(details).toContain('"status": "confirmed"');
-  expect(details).toContain("Original immutable sent source");
-  expect(details).toContain('"id": "7"');
+  const raw = versions.map((version) => JSON.parse(version));
+  expect(
+    raw.some(
+      (version) => version.source === "Competing writing after dispatch",
+    ),
+  ).toBe(true);
+  const original = raw
+    .flatMap((version) => version.attempts ?? [])
+    .find((attempt) => attempt.id === pending.id);
+  expect(original?.publication).toEqual(pending.publication);
+  const confirmed = (await storedReply(page)).sends![0]!.attempt;
+  expect(confirmed.id).toBe(pending.id);
+  expect(confirmed.publication).toEqual(pending.publication);
+  expect(confirmed.status).toBe("confirmed");
+  expect(confirmed.publication.submission.writing.source).toBe(
+    "Original immutable sent source",
+  );
+  expect(confirmed.publication.submission.writing.account.id).toBe("7");
+  expect(confirmed.publication.submission.writing.replyTarget?.threadId).toBe(
+    "42",
+  );
   expect(
     state.requests.filter((request) => request.method === "POST"),
   ).toHaveLength(1);
@@ -2527,11 +2617,13 @@ test("UX107.live-owner: live notification preserves the pending owner's exact ob
     )
     .toBe(1);
   await expect(
-    other.getByText(
-      "Publication is pending. Refresh will retain it as uncertain without replay.",
-      { exact: true },
-    ),
+    other.getByText("Reply outcome unknown", { exact: true }),
   ).toBeVisible();
+  const pending = (await storedReply(other)).sends![0]!.attempt;
+  expect(pending.status).toBe("pending");
+  await expect(
+    other.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Live observed immutable reply");
   release();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await expect(other.getByText(/Confirmed stored reply/)).toBeVisible();
@@ -2761,50 +2853,61 @@ test("UX107.unequal-history: recovered uncertain and actual confirmed observatio
   await selectSourceEditor(restored);
   await revealWritingDetails(restored);
   await expect(
-    restored.getByText(/Pending publication restored as uncertain/),
+    restored.getByText("Reply outcome unknown", { exact: true }),
   ).toBeVisible();
   await expect(
     restored.getByText("Local reply draft saved in this browser profile.", {
       exact: true,
     }),
   ).toBeVisible();
+  const recoveredAttempt = await restored.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+        .attempts[0],
+  );
+  expect(recoveredAttempt.status).toBe("uncertain");
   release();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await page.reload();
-  const conflict = page.getByRole("region", {
-    name: "Conflicting local reply drafts",
+  await test.info().attach("unequal-history-native-row.json", {
+    body: JSON.stringify(await storedReply(page)),
+    contentType: "application/json",
   });
-  await expect(conflict.getByRole("textbox")).toHaveCount(2);
-  for (const summary of await conflict
-    .getByText("Complete retained reply details", { exact: true })
-    .all())
-    await summary.click();
-  const variants = await conflict
-    .getByRole("textbox", {
-      name: "Complete retained reply details",
-      exact: true,
-    })
-    .evaluateAll((fields) =>
-      fields.map((field) => JSON.parse((field as HTMLTextAreaElement).value)),
-    );
-  expect(variants.map((variant) => variant.attempts[0].status).sort()).toEqual([
-    "confirmed",
-    "uncertain",
-  ]);
-  expect(new Set(variants.map((variant) => variant.attempts[0].id)).size).toBe(
-    1,
-  );
-  expect(
-    variants.every(
-      (variant) =>
-        variant.source === "Same source distinct attempt observations",
+  await test.info().attach("unequal-history-restored-session.json", {
+    body: await restored.evaluate(
+      () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
     ),
-  ).toBe(true);
+    contentType: "application/json",
+  });
+  const row = await storedReply(page);
+  expect(row.variants).toHaveLength(1);
+  expect(row.retained ?? []).toHaveLength(0);
+  const rawAttempt = row.variants[0]!.context!.attempts![0]!;
+  expect(rawAttempt).toEqual(recoveredAttempt);
+  const confirmed = row.sends![0]!.attempt;
+  expect(confirmed.status).toBe("confirmed");
+  expect(confirmed.id).toBe(rawAttempt.id);
+  expect(confirmed.publication).toEqual(rawAttempt.publication);
+  expect(confirmed.publication.submission.writing.source).toBe(
+    "Same source distinct attempt observations",
+  );
+  expect(confirmed.publication.submission.writing.account.id).toBe("7");
+  expect(confirmed.publication.submission.writing.replyTarget?.threadId).toBe(
+    "42",
+  );
+  await expect(
+    page.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toHaveCount(0);
+  await expect(await selectSourceEditor(page)).toHaveValue("");
+  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Same source distinct attempt observations");
   expect(
     state.requests.filter((request) => request.method === "POST"),
   ).toHaveLength(1);
   await test.info().attach("unequal-history.json", {
-    body: JSON.stringify(variants),
+    body: JSON.stringify({ rawAttempt, confirmed }),
     contentType: "application/json",
   });
 });

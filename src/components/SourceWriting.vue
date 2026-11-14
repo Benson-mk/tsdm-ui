@@ -686,7 +686,13 @@ function updateOption(option: WritingOption, event: Event) {
         }}
       </p>
       <p v-if="workspace.writing.replyPublicationBlocked.value" role="alert">
-        {{ text.localReplyUnsettled }}
+        {{
+          workspace.writing.replySendBlocked.value
+            ? replyText(
+                "Another Send waits while an existing reply is sending or unresolved. You can keep writing.",
+              )
+            : text.localReplyUnsettled
+        }}
       </p>
       <PostEditor
         ref="editor"
@@ -1057,7 +1063,7 @@ function updateOption(option: WritingOption, event: Event) {
         </button>
       </section>
       <section
-        v-for="attempt in state.context.attempts"
+        v-for="attempt in workspace.writing.contextAttemptHistory.value"
         :key="attempt.id"
         role="status"
       >

@@ -3,6 +3,8 @@ import {
   type ReplyCheckpoint,
   type ReplyRecovery,
   type ReplyChoice,
+  type ReplyRow,
+  type ReplySend,
 } from "../workspace/reply-recovery";
 import type { NavigationHost } from "../workspace/navigation";
 import { isNavigationRecord } from "./navigation-record";
@@ -122,6 +124,9 @@ export function createBrowserNavigation(): NavigationHost {
         problem: null,
         conflicts: rows.filter((row) => row.variants.length > 1),
         alternatives: rows.filter((row) => row.retained?.length),
+        sends: rows
+          .filter((row) => row.sends?.length)
+          .map((row) => ({ threadId: row.threadId, sends: row.sends! })),
         updates: [],
       };
       return next;
@@ -153,6 +158,17 @@ export function createBrowserNavigation(): NavigationHost {
     }
   }
   let saveQueue = Promise.resolve(true);
+  const admittedSends = new Map<string, string>();
+  function observeRows(rows: ReplyRow[]) {
+    replyState = {
+      ...replyState,
+      conflicts: rows.filter((row) => row.variants.length > 1),
+      alternatives: rows.filter((row) => row.retained?.length),
+      sends: rows
+        .filter((row) => row.sends?.length)
+        .map((row) => ({ threadId: row.threadId, sends: row.sends! })),
+    };
+  }
   const resolutionEpochs = new Map<string, number>();
   let problem: { kind: "incompatible" | "refused"; raw: string | null } | null =
     null;
@@ -162,6 +178,174 @@ export function createBrowserNavigation(): NavigationHost {
     `${location.origin}/forum.php#workspace=${key}`;
   return {
     entryKey,
+    captureLegacyReply(threadId, attempt) {
+      const operation = saveQueue.then(async () => {
+        try {
+          const rows = await drafts.read();
+          observeRows(rows);
+          const row = rows.find((item) => item.threadId === threadId);
+          const observations =
+            row &&
+            [...row.variants, ...(row.retained ?? [])].flatMap((variant) =>
+              (variant.context?.attempts ?? []).filter(
+                (item) => item.id === attempt.id,
+              ),
+            );
+          if (
+            !row ||
+            row.sends?.some((send) => send.attempt.id === attempt.id) ||
+            !observations?.some(
+              (item) => canonical(item) === canonical(attempt),
+            ) ||
+            observations.some(
+              (item) =>
+                canonical(item.publication) !== canonical(attempt.publication),
+            )
+          )
+            return null;
+          return { threadId, attempt, observations };
+        } catch (error) {
+          replyFailure(error);
+          return null;
+        }
+      });
+      saveQueue = operation.then(() => false);
+      return operation;
+    },
+    enrollLegacyReply(captured, checked) {
+      const operation = saveQueue.then(async () => {
+        try {
+          const send = await drafts.enrollLegacy(captured, checked);
+          if (send) channel?.postMessage("changed");
+          const rows = await drafts.read();
+          observeRows(rows);
+          const current = rows
+            .find((row) => row.threadId === captured.threadId)
+            ?.sends?.find((item) => item.attempt.id === captured.attempt.id);
+          return send &&
+            canonical(current) === canonical(send) &&
+            captureSession()
+            ? send
+            : null;
+        } catch (error) {
+          replyFailure(error);
+          return null;
+        }
+      });
+      saveQueue = operation.then(() => false);
+      return operation;
+    },
+    retainFailedReply(context, candidate, send) {
+      const operation = saveQueue.then(async () => {
+        try {
+          const projected = projectReply(context),
+            replacement = projectReply(candidate);
+          const thread = projected.replyTarget!.threadId;
+          const retained = await drafts.retainFailed(
+            projected,
+            replacement,
+            checkpoints[thread]?.version ?? null,
+            send,
+          );
+          const rows = await drafts.read();
+          observeRows(rows);
+          if (retained) channel?.postMessage("changed");
+          return (
+            retained &&
+            !!rows
+              .find((row) => row.threadId === thread)
+              ?.retained?.some(
+                (item) =>
+                  replyMeaning(item.context) === replyMeaning(replacement),
+              ) &&
+            captureSession()
+          );
+        } catch (error) {
+          replyFailure(error);
+          return false;
+        }
+      });
+      saveQueue = operation.then(() => false);
+      return operation;
+    },
+    reserveReplySend(context, attempt, predecessor) {
+      let send: ReplySend | null = null;
+      const operation = saveQueue.then(async () => {
+        try {
+          const projected = projectReply(context);
+          const thread = projected.replyTarget!.threadId;
+          send = await drafts.reserve(
+            projected,
+            checkpoints[thread]?.version ?? null,
+            attempt,
+            predecessor,
+          );
+          if (!send) return { acknowledged: false, send: null };
+          channel?.postMessage("changed");
+          const rows = await drafts.read();
+          observeRows(rows);
+          const row = rows.find((item) => item.threadId === thread);
+          const current = row?.sends?.find(
+            (item) => item.attempt.id === attempt.id,
+          );
+          const acknowledged =
+            row?.variants.length === 1 &&
+            canonical(current) === canonical(send) &&
+            captureSession();
+          if (acknowledged) admittedSends.set(attempt.id, send.revision);
+          return { acknowledged, send };
+        } catch (error) {
+          replyFailure(error);
+          return { acknowledged: false, send };
+        }
+      });
+      saveQueue = operation.then(() => false);
+      return operation;
+    },
+    async checkReplySend(threadId, send) {
+      try {
+        const rows = await drafts.read();
+        observeRows(rows);
+        const row = rows.find((item) => item.threadId === threadId);
+        const current = row?.sends?.find(
+          (item) => item.attempt.id === send.attempt.id,
+        );
+        return (
+          admittedSends.get(send.attempt.id) === send.revision &&
+          row?.variants.length === 1 &&
+          !!current &&
+          !current.successor &&
+          current.attempt.status === "pending" &&
+          canonical(current) === canonical(send)
+        );
+      } catch (error) {
+        replyFailure(error);
+        return false;
+      }
+    },
+    observeReplySend(threadId, expected, attempt) {
+      const operation = saveQueue.then(async () => {
+        try {
+          const send = await drafts.observeSend(threadId, expected, attempt);
+          if (!send) return null;
+          channel?.postMessage("changed");
+          const rows = await drafts.read();
+          observeRows(rows);
+          const current = rows
+            .find((row) => row.threadId === threadId)
+            ?.sends?.find((item) => item.attempt.id === attempt.id);
+          if (canonical(current) !== canonical(send) || !captureSession())
+            return null;
+          admittedSends.delete(attempt.id);
+          return send;
+        } catch (error) {
+          replyFailure(error);
+          return null;
+        }
+      });
+      saveQueue = operation.then(() => false);
+      return operation;
+    },
     chooseReply(observed, version) {
       const operation = saveQueue.then(async (): Promise<ReplyChoice> => {
         try {
@@ -178,6 +362,9 @@ export function createBrowserNavigation(): NavigationHost {
             problem: null,
             conflicts: rows.filter((row) => row.variants.length > 1),
             alternatives: rows.filter((row) => row.retained?.length),
+            sends: rows
+              .filter((row) => row.sends?.length)
+              .map((row) => ({ threadId: row.threadId, sends: row.sends! })),
             updates: [],
           };
           if (
@@ -216,6 +403,9 @@ export function createBrowserNavigation(): NavigationHost {
               problem: null,
               conflicts: rows.filter((row) => row.variants.length > 1),
               alternatives: rows.filter((row) => row.retained?.length),
+              sends: rows
+                .filter((row) => row.sends?.length)
+                .map((row) => ({ threadId: row.threadId, sends: row.sends! })),
               updates: [],
             };
             return canonical(
@@ -460,6 +650,9 @@ export function createBrowserNavigation(): NavigationHost {
             problem: null,
             conflicts: rows.filter((row) => row.variants.length > 1),
             alternatives: rows.filter((row) => row.retained?.length),
+            sends: rows
+              .filter((row) => row.sends?.length)
+              .map((row) => ({ threadId: row.threadId, sends: row.sends! })),
             updates,
           };
           const completedDisposals = disposals.filter(

@@ -52,7 +52,6 @@ portable client or using account generation as a draft-conflict signal. Immutabl
 original actor/target and actual callback outcomes remain retained. #111 owns the
 stronger cross-tab unsettled-send registry; #107 does not implement it.
 
-
 ## Account-shared ordinary replies — #108
 
 Ordinary reply composition account metadata is now stable original provenance,
@@ -91,7 +90,6 @@ facts. The accepted storage amendment and its qualification limits are recorded 
 [ADR0003](0003-use-browser-page-session-recovery.md#explicit-local-reply-choice--109)
 and [the109 implementation ledger](../implementation/ui-ux-109.md).
 
-
 ## Explicit ordinary reply Send — #110
 
 The accepted #95/#110 policy supersedes the mandatory prepared-content inspection
@@ -114,3 +112,34 @@ ordinary action now truthfully accepts and sends. Pending-next-draft presentatio
 and the per-thread unsettled-send registry remain #111 scope. Evidence, the root's
 bounded implementation acceptance and distinct costs are recorded in
 [the #110 ledger](../implementation/ui-ux-110.md).
+
+## Independent outgoing replies — #111
+
+An ordinary reply's acknowledged immutable submission now belongs to its original
+thread independently of the next actively edited draft. The workspace clears only
+an unchanged acknowledged input revision, resets that editor's undo session while
+preserving mode, and permits newer source/target/options and navigation during the
+owned operation. The final portable EffectGuard still checks original actor and
+account generation, durable admission and thread conflicts. Newer draft revisions
+alone no longer revoke an already acknowledged submission. Nonreply publication
+retains its prior ownership and review policy; no portable API changes are added.
+
+The host owns an exact observation registry in each durable thread row; layout
+renders immutable submission/source, original actor/target and distinct Sending,
+confirmed, rejected, moderation and Unknown observations. The portable client alone
+interprets qualified outcomes. Compare-and-swap orders accepted observations, never
+proves remote publication, and mismatches preserve local evidence visibly unsaved.
+Raw historical branches are preserved rather than rewritten to manufacture a
+stronger result. See [ADR0003](0003-use-browser-page-session-recovery.md) for admission,
+compatibility and lineage rules.
+
+Failed Retry prepares the original submission under its original actor without
+changing newer writing. Failed Edit materializes a retained version and always
+uses explicit version choice, even when the newer source is blank but has other
+intent. Shared-content Edit does not require the original actor; future publication
+and attachment use still need fresh current authority. Checking Unknown is read-only.
+An explicit duplicate-risk acceptance may create exactly one successor to the exact
+checked current leaf. The ancestor stays Unknown and may still be physically in
+flight; a late ancestor result cannot release or overwrite its successor. Thus the
+accepted one-unsettled-send requirement means one active coordination lineage, not
+physical exactly-once execution or proof that the earlier request was absent.

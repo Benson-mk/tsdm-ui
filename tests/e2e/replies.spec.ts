@@ -1,3 +1,5 @@
+import type { ThreadAttempt } from "../../src/forum-client";
+import type { ReplyRow } from "../../src/workspace/reply-recovery";
 import { selectSourceEditor } from "./editor-controls";
 import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { writingTool } from "./editor-controls";
@@ -21,6 +23,13 @@ const source =
 function form(saved?: URLSearchParams, member = "7", quote = false) {
   return `<script>window.ATPLUS={"api":"plugin.php?id=atplus:search","login":1,"use":1};</script>${actor(member)}<div id="pt"><a href="${boardURL}">Music</a></div><form id="postform" method="post" action="forum.php?mod=post&action=${saved ? "edit&pid=303" : "reply"}&fid=5&tid=42&replysubmit=yes"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_FORM_TOKEN"><input type="hidden" name="posttime" value="1792550000"><input type="hidden" name="wysiwyg" value="0">${quote ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="OPAQUE-AUTHOR-8"><input type="hidden" name="noticeauthormsg" value="Preserved addressed author"><input type="hidden" name="noticetrimstr" value="">' : ""}<input name="subject" value=""><textarea name="message">${escape(saved?.get("message") ?? "")}</textarea><label><input type="checkbox" name="usesig" value="1"${saved && !saved.has("usesig") ? "" : " checked"}>Signature</label><label><input type="checkbox" name="bbcodeoff" value="1"${saved?.has("bbcodeoff") ? " checked" : ""}>Disable BBCode</label><button type="submit" name="replysubmit" value="yes">Reply</button></form>`;
 }
+const observations = new WeakMap<
+  Page,
+  {
+    requests: { url: string; method: string }[];
+    posts: URLSearchParams[];
+  }
+>();
 async function fixture(page: Page) {
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const state = {
@@ -39,6 +48,7 @@ async function fixture(page: Page) {
     posts: [] as URLSearchParams[],
     requests: [] as { url: string; method: string }[],
   };
+  observations.set(page, state);
   await page.context().route("**/*", async (route) => {
     const request = route.request(),
       url = new URL(request.url());
@@ -115,7 +125,109 @@ async function fixture(page: Page) {
   await page.goto(threadURL);
   return state;
 }
-test.afterEach(async ({ page }, info) => {
+
+// Observe the actual durable operation owner; historical session copies are raw
+// evidence and do not become current result authority after #111.
+async function replyRow(page: Page): Promise<ReplyRow> {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return new Promise<ReplyRow>((resolve, reject) => {
+      const tx = db.transaction("threads", "readonly");
+      const request = tx.objectStore("threads").get("42");
+      tx.oncomplete = () => {
+        db.close();
+        resolve(request.result);
+      };
+      tx.onabort = () => {
+        db.close();
+        reject(tx.error);
+      };
+    });
+  });
+}
+async function replyAttempt(page: Page): Promise<ThreadAttempt> {
+  return (await replyRow(page)).sends![0]!.attempt;
+}
+function recoveredHistoricalAttempts(attempts: ThreadAttempt[] | undefined) {
+  return attempts?.map((attempt) =>
+    attempt.status === "pending"
+      ? {
+          ...attempt,
+          status: "uncertain",
+          checked: false,
+          message:
+            "Pending publication restored as uncertain. Nothing has been replayed; check the original attempt.",
+        }
+      : attempt,
+  );
+}
+async function expectRecoveredReplyRow(page: Page, before: ReplyRow) {
+  const after = await replyRow(page);
+  expect(after).toEqual({
+    ...before,
+    variants: before.variants.map((variant) => ({
+      ...variant,
+      version: expect.any(String),
+      parent: variant.version,
+      context: variant.context
+        ? {
+            ...variant.context,
+            attempts: recoveredHistoricalAttempts(variant.context.attempts),
+          }
+        : null,
+    })),
+  });
+  for (const [index, variant] of after.variants.entries()) {
+    expect(variant.version).not.toBe("");
+    expect(variant.version).not.toBe(before.variants[index]!.version);
+  }
+}
+async function expectCheckedOutcome(page: Page) {
+  await expect
+    .poll(
+      async () =>
+        (await replyRow(page))?.sends?.[0]?.attempt.status ?? "pending",
+    )
+    .not.toBe("pending");
+  await expect(
+    page.getByRole("button", { name: "Check reply status", exact: true }),
+  ).toBeVisible();
+}
+async function expectSubmitted(page: Page, expected: string) {
+  await expect(page.locator(".reply-send textarea").first()).toHaveValue(
+    expected,
+  );
+  expect((await replyAttempt(page)).publication.submission.writing.source).toBe(
+    expected,
+  );
+}
+
+test.afterEach(async ({ page, browser }, info) => {
+  info.annotations.push({
+    type: "browser-version",
+    description: browser.version(),
+  });
+  const state = observations.get(page);
+  await info.attach("reply-requests-and-submissions.json", {
+    body: JSON.stringify(
+      {
+        requests: state?.requests,
+        posts: state?.posts.map((post) => Object.fromEntries(post)),
+        registry: await replyRow(page).catch(() => null),
+      },
+      null,
+      2,
+    ),
+    contentType: "application/json",
+  });
+  await info.attach("reply-application.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
   if (info.status !== info.expectedStatus)
     await info.attach("failed-application.png", {
       body: await page.screenshot(),
@@ -319,12 +431,14 @@ for (const mode of ["rejected", "moderation", "lost"])
     ).toBeVisible();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(source);
+    ).toHaveValue("");
+    await expectSubmitted(page, source);
     expect(state.posts).toHaveLength(1);
     await page.reload();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(source);
+    ).toHaveValue("");
+    await expectSubmitted(page, source);
     expect(state.posts).toHaveLength(1);
     await info.attach("outcome.png", {
       body: await page.screenshot(),
@@ -463,15 +577,14 @@ test("J5.reply-pending: reload retains uncertainty then explicit exact-post chec
   await page.reload();
   release();
   await expect(
-    page.getByText(
-      "The response was lost. The forum may have accepted this attempt. Check result; no send was repeated.",
-      { exact: true },
-    ),
+    page.getByText("Reply outcome unknown", { exact: true }),
   ).toBeVisible();
   await page
-    .getByLabel("Candidate thread URL", { exact: true })
+    .getByLabel("Published reply URL (optional)", { exact: true })
     .fill(`${threadURL}&page=1#pid303`);
-  await page.getByRole("button", { name: "Check result", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Check reply status", exact: true })
+    .click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.posts).toHaveLength(1);
   await info.attach("recovered-reply.png", {
@@ -503,7 +616,8 @@ for (const phase of ["before-send", "in-flight", "readback"])
     ).toBeVisible();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(source);
+    ).toHaveValue("");
+    await expectSubmitted(page, source);
     expect(state.posts).toHaveLength(phase === "before-send" ? 0 : 1);
     await info.attach("session.png", {
       body: await page.screenshot(),
@@ -543,9 +657,7 @@ for (const mismatch of [
     if (mismatch === "missing-post")
       state.threadChange = (b) => b.replaceAll("303", "304");
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Check result", exact: true }),
-    ).toBeVisible();
+    await expectCheckedOutcome(page);
     await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
     await info.attach("readback-refusal.png", {
@@ -643,9 +755,7 @@ for (const destination of [
     const state = await readyReply(page);
     state.response = `<root><![CDATA[<script>succeedhandle_post('${destination}', 'Reply accepted', {});</script>]]></root>`;
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Check result", exact: true }),
-    ).toBeVisible();
+    await expectCheckedOutcome(page);
     await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
     await info.attach("conflicting-result.png", {
@@ -730,9 +840,7 @@ test("J4.reply-merged-comparison: preserve known complete before and full observ
         )
       : body;
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Check result", exact: true }),
-  ).toBeVisible();
+  await expectCheckedOutcome(page);
   await expect(
     page.getByLabel("Complete source before sending", { exact: true }),
   ).toHaveValue(state.priorSource);
@@ -740,8 +848,9 @@ test("J4.reply-merged-comparison: preserve known complete before and full observ
     page.getByLabel("Complete observed result source", { exact: true }),
   ).toHaveValue(state.priorSource + "\nNative supplement boundary\n" + source);
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
-    source,
+    "",
   );
+  await expectSubmitted(page, source);
   await page.reload();
   await expect(
     page.getByLabel("Complete source before sending", { exact: true }),
@@ -749,7 +858,7 @@ test("J4.reply-merged-comparison: preserve known complete before and full observ
   expect(state.posts).toHaveLength(1);
   await info.attach("merge-comparison.png", {
     body: await page
-      .getByRole("status")
+      .getByRole("article", { name: "Reply submission", exact: true })
       .filter({ hasText: "Reply source comparison" })
       .screenshot(),
     contentType: "image/png",
@@ -804,21 +913,26 @@ for (const mutation of [
     await expect(
       page.getByLabel("Complete source before sending", { exact: true }),
     ).toHaveValue(state.priorSource);
-    const rejected = await page.evaluate((mutation) => {
-      const key = "tsdm.workspace.recovery",
-        record = JSON.parse(sessionStorage.getItem(key)!);
-      const attempt = record.writing.attempts[0];
-      if (mutation === "observed-actor")
-        attempt.replyComparison.observed.account.id = "8";
-      if (mutation === "baseline-actor")
-        attempt.publication.replyBefore.owned[0].writing.account.id = "8";
-      if (mutation === "invented-before")
-        attempt.replyComparison.before.source = "Invented prior source";
-      if (mutation === "baseline-thread")
-        attempt.publication.replyBefore.pageURL =
-          attempt.publication.replyBefore.pageURL.replace("tid=42", "tid=43");
-      return JSON.stringify(record);
-    }, mutation);
+    const registryBefore = await replyRow(page);
+    const rejected = await page.evaluate(
+      ({ mutation, original }) => {
+        const key = "tsdm.workspace.recovery",
+          record = JSON.parse(sessionStorage.getItem(key)!);
+        record.writing.attempts = JSON.parse(JSON.stringify([original]));
+        const attempt = record.writing.attempts[0];
+        if (mutation === "observed-actor")
+          attempt.replyComparison.observed.account.id = "8";
+        if (mutation === "baseline-actor")
+          attempt.publication.replyBefore.owned[0].writing.account.id = "8";
+        if (mutation === "invented-before")
+          attempt.replyComparison.before.source = "Invented prior source";
+        if (mutation === "baseline-thread")
+          attempt.publication.replyBefore.pageURL =
+            attempt.publication.replyBefore.pageURL.replace("tid=42", "tid=43");
+        return JSON.stringify(record);
+      },
+      { mutation, original: registryBefore.sends![0]!.attempt },
+    );
     // Install the authored corrupt record after pagehide has saved the old
     // document, before the next application boot can read browser storage.
     await page.addInitScript(
@@ -831,6 +945,7 @@ for (const mutation of [
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
+    expect(await replyRow(page)).toEqual(registryBefore);
     expect(
       await page.evaluate(() =>
         sessionStorage.getItem("tsdm.workspace.recovery"),
@@ -860,9 +975,8 @@ for (const [language, closeLabel, sourceLabel, sendLabel, confirmation] of [
     await page.getByLabel(sourceLabel, { exact: true }).fill(source);
     await page.getByRole("button", { name: sendLabel, exact: true }).click();
     await expect(page.getByText(new RegExp(confirmation))).toBeVisible();
-    await expect(page.getByLabel(sourceLabel, { exact: true })).toHaveValue(
-      source,
-    );
+    await expect(page.getByLabel(sourceLabel, { exact: true })).toHaveValue("");
+    await expectSubmitted(page, source);
     await info.attach("localized-reply.png", {
       body: await page.screenshot(),
       contentType: "image/png",
@@ -974,31 +1088,25 @@ test("J4.reply-native-supplement: reload original uncertainty then GET-only comp
       : body;
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/response was lost/)).toBeVisible();
-  const original = await page.evaluate(
-    () =>
-      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
-        .attempts[0],
-  );
+  const original = await replyAttempt(page);
   await (await selectSourceEditor(page)).fill("Newer unsent writing");
   await page.reload();
   const requestsBefore = state.requests.length;
   await page
-    .getByLabel("Candidate thread URL", { exact: true })
+    .getByLabel("Published reply URL (optional)", { exact: true })
     .fill(`${threadURL}&page=1#pid303`);
-  await page.getByRole("button", { name: "Check result", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Check reply status", exact: true })
+    .click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Newer unsent writing",
   );
-  const checked = await page.evaluate(
-    () =>
-      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
-        .attempts[0],
-  );
+  const checked = await replyAttempt(page);
   expect(checked.id).toBe(original.id);
   expect(checked.publication).toEqual(original.publication);
-  expect(checked.replyComparison.before.source).toBe(supplementBefore);
-  expect(checked.replyComparison.observed.source).toBe(supplementStored);
+  expect(checked.replyComparison!.before!.source).toBe(supplementBefore);
+  expect(checked.replyComparison!.observed.source).toBe(supplementStored);
   expect(
     state.requests.slice(requestsBefore).every((r) => r.method === "GET"),
   ).toBe(true);
@@ -1067,9 +1175,7 @@ for (const [name, stored] of [
         ? body.replace(escape(supplementSubmitted), escape(stored))
         : body;
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Check result", exact: true }),
-    ).toBeVisible();
+    await expectCheckedOutcome(page);
     await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
     await expect(
       page.getByLabel("Complete observed result source", { exact: true }),
@@ -1119,9 +1225,7 @@ for (const mismatch of ["options", "actor", "post", "thread", "account"])
       state.response =
         "<root><![CDATA[<script>succeedhandle_post('forum.php?mod=viewthread&tid=43&pid=303#pid303','Accepted',{});</script>]]></root>";
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Check result", exact: true }),
-    ).toBeVisible();
+    await expectCheckedOutcome(page);
     await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
     await info.attach("identity-refusal.png", {
@@ -1152,9 +1256,7 @@ for (const suffix of [
           )
         : body;
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Check result", exact: true }),
-    ).toBeVisible();
+    await expectCheckedOutcome(page);
     await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
     await info.attach("unqualified-marker.png", {
@@ -1262,8 +1364,9 @@ for (const locale of [
       expect(state.posts[0]!.get("message")).toBe(source);
       expect(state.posts[0]!.get("reppost")).toBe(addressed ? "101" : null);
       await expect(page.getByLabel(locale.source, { exact: true })).toHaveValue(
-        source,
+        "",
       );
+      await expectSubmitted(page, source);
       await info.attach("reply-action-review.png", {
         body: await page.screenshot(),
         contentType: "image/png",
@@ -1363,10 +1466,9 @@ for (const attempted of [false, true]) {
       await page
         .getByRole("button", { name: "Send reply", exact: true })
         .click();
-      await expect(
-        page.getByRole("button", { name: "Check result", exact: true }),
-      ).toBeVisible();
+      await expectCheckedOutcome(page);
     }
+    const registryBefore = attempted ? await replyRow(page) : null;
     const before = await page.evaluate(
       () =>
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
@@ -1375,14 +1477,18 @@ for (const attempted of [false, true]) {
     await page.reload();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(source);
+    ).toHaveValue(attempted ? "" : source);
+    if (attempted) await expectSubmitted(page, source);
     const after = await page.evaluate(
       () =>
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     );
     expect(after.source).toBe(before.source);
     expect(after.selection).toEqual(before.selection);
-    expect(after.attempts).toEqual(before.attempts);
+    expect(after.attempts).toEqual(
+      recoveredHistoricalAttempts(before.attempts),
+    );
+    if (attempted) await expectRecoveredReplyRow(page, registryBefore!);
     expect(state.posts).toHaveLength(attempted ? 1 : 0);
     expect(
       state.requests.slice(count).filter((r) => r.method !== "GET"),
@@ -1439,24 +1545,32 @@ for (const merged of [false, true]) {
     page,
   }, info) => {
     const state = await dormantSnapshotJourney(page, merged);
+    const registryBefore = await replyRow(page);
     const before = await page.evaluate(
       () =>
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     );
     expect(
-      before.attempts[0].replyComparison.observed.attachmentFields,
+      registryBefore.sends![0]!.attempt.replyComparison!.observed
+        .attachmentFields,
     ).toContainEqual({ name: "attachupdate[77]", value: "", disabled: false });
-    expect(before.attempts[0].status).toBe(merged ? "uncertain" : "confirmed");
+    expect(registryBefore.sends![0]!.attempt.status).toBe(
+      merged ? "uncertain" : "confirmed",
+    );
     const count = state.requests.length;
     await page.reload();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(source);
+    ).toHaveValue("");
+    await expectSubmitted(page, source);
     const after = await page.evaluate(
       () =>
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     );
-    expect(after.attempts).toEqual(before.attempts);
+    expect(after.attempts).toEqual(
+      recoveredHistoricalAttempts(before.attempts),
+    );
+    await expectRecoveredReplyRow(page, registryBefore);
     expect(after.selection).toEqual(before.selection);
     expect(state.posts).toHaveLength(1);
     expect(state.requests).toHaveLength(count);
@@ -1497,37 +1611,42 @@ for (const mutation of [
     page,
   }, info) => {
     const state = await dormantSnapshotJourney(page, true);
-    const rejected = await page.evaluate((mutation) => {
-      const key = "tsdm.workspace.recovery",
-        record = JSON.parse(sessionStorage.getItem(key)!);
-      const attempt = record.writing.attempts[0],
-        observed = attempt.replyComparison.observed;
-      const sentinel = observed.attachmentFields.find(
-        (f: { name: string }) => f.name === "attachupdate[77]",
-      );
-      if (mutation === "nonempty") sentinel.value = "replace";
-      if (mutation === "invalid-id") sentinel.name = "attachupdate[0]";
-      if (mutation === "unassociated") sentinel.name = "attachupdate[78]";
-      if (mutation === "missing-metadata")
-        observed.attachmentFields = [sentinel];
-      if (mutation === "duplicate")
-        observed.attachmentFields.push({ ...sentinel });
-      if (mutation === "arbitrary-name") sentinel.name = "deleteattach[77]";
-      if (mutation === "wrong-action") observed.action = "edit-post";
-      if (mutation === "actor") observed.account.id = "9";
-      if (mutation === "board") observed.board.id = "6";
-      if (mutation === "target") observed.replyTarget.threadId = "43";
-      if (mutation === "before-identity")
-        attempt.replyComparison.before.source += " hostile drift";
-      if (mutation === "active-sentinel")
-        record.writing.attachmentFields = [{ ...sentinel }];
-      if (mutation === "submitted-sentinel")
-        attempt.publication.submission.writing.attachmentFields = [
-          { ...sentinel },
-        ];
-      const raw = JSON.stringify(record);
-      return raw;
-    }, mutation);
+    const registryBefore = await replyRow(page);
+    const rejected = await page.evaluate(
+      ({ mutation, original }) => {
+        const key = "tsdm.workspace.recovery",
+          record = JSON.parse(sessionStorage.getItem(key)!);
+        record.writing.attempts = JSON.parse(JSON.stringify([original]));
+        const attempt = record.writing.attempts[0],
+          observed = attempt.replyComparison.observed;
+        const sentinel = observed.attachmentFields.find(
+          (f: { name: string }) => f.name === "attachupdate[77]",
+        );
+        if (mutation === "nonempty") sentinel.value = "replace";
+        if (mutation === "invalid-id") sentinel.name = "attachupdate[0]";
+        if (mutation === "unassociated") sentinel.name = "attachupdate[78]";
+        if (mutation === "missing-metadata")
+          observed.attachmentFields = [sentinel];
+        if (mutation === "duplicate")
+          observed.attachmentFields.push({ ...sentinel });
+        if (mutation === "arbitrary-name") sentinel.name = "deleteattach[77]";
+        if (mutation === "wrong-action") observed.action = "edit-post";
+        if (mutation === "actor") observed.account.id = "9";
+        if (mutation === "board") observed.board.id = "6";
+        if (mutation === "target") observed.replyTarget.threadId = "43";
+        if (mutation === "before-identity")
+          attempt.replyComparison.before.source += " hostile drift";
+        if (mutation === "active-sentinel")
+          record.writing.attachmentFields = [{ ...sentinel }];
+        if (mutation === "submitted-sentinel")
+          attempt.publication.submission.writing.attachmentFields = [
+            { ...sentinel },
+          ];
+        const raw = JSON.stringify(record);
+        return raw;
+      },
+      { mutation, original: registryBefore.sends![0]!.attempt },
+    );
     await page.addInitScript(
       (raw) => sessionStorage.setItem("tsdm.workspace.recovery", raw),
       rejected,
@@ -1543,6 +1662,7 @@ for (const mutation of [
       ),
     ).toBe(rejected);
     expect(state.posts).toHaveLength(1);
+    expect(await replyRow(page)).toEqual(registryBefore);
     expect(state.requests).toHaveLength(count);
     await info.attach("snapshot-hostile-record.json", {
       body: Buffer.from(rejected),
@@ -1629,12 +1749,9 @@ for (const [name, stored, confirmed] of [
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect.poll(() => state.posts.length).toBe(1);
     await expect
-      .poll(() =>
-        page.evaluate(
-          () =>
-            JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
-              .writing.attempts[0].status,
-        ),
+      .poll(
+        async () =>
+          (await replyRow(page))?.sends?.[0]?.attempt.status ?? "pending",
       )
       .not.toBe("pending");
     await info.attach("quote-supplement.png", {
@@ -1657,17 +1774,16 @@ for (const [name, stored, confirmed] of [
     });
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(supplementSubmitted);
+    ).toHaveValue("");
+    await expectSubmitted(page, supplementSubmitted);
     if (confirmed)
       await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
     else {
-      await expect(
-        page.getByRole("button", { name: "Check result", exact: true }),
-      ).toBeVisible();
+      await expectCheckedOutcome(page);
       await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
       const before = state.requests.length;
       await page
-        .getByRole("button", { name: "Check result", exact: true })
+        .getByRole("button", { name: "Check reply status", exact: true })
         .click();
       await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
       expect(state.posts).toHaveLength(1);
@@ -1689,26 +1805,20 @@ test("J5.reply-quote-supplement-recovery: recheck the same uncertain attempt aft
       : body;
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/response was lost/)).toBeVisible();
-  const original = await page.evaluate(
-    () =>
-      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
-        .attempts[0],
-  );
+  const original = await replyAttempt(page);
   await (
     await selectSourceEditor(page)
   ).fill("Later local writing remains untouched.");
   await page.reload();
   const requestsBefore = state.requests.length;
   await page
-    .getByLabel("Candidate thread URL", { exact: true })
+    .getByLabel("Published reply URL (optional)", { exact: true })
     .fill(`${threadURL}&page=1#pid303`);
-  await page.getByRole("button", { name: "Check result", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Check reply status", exact: true })
+    .click();
   await expect.soft(page.getByText(/Confirmed stored reply/)).toBeVisible();
-  const checked = await page.evaluate(
-    () =>
-      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
-        .attempts[0],
-  );
+  const checked = await replyAttempt(page);
   await info.attach("quote-recovered-result.json", {
     body: Buffer.from(
       JSON.stringify({

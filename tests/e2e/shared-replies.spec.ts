@@ -245,7 +245,10 @@ test("UX108.publication-actor: revoke A authority then send explicitly as B whil
     })
     .click();
   await page.reload();
-  await expect(await selectSourceEditor(page)).toHaveValue(source);
+  await expect(await selectSourceEditor(page)).toHaveValue("");
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue(source);
   const recovered = await page.evaluate(
     () =>
       JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
@@ -257,7 +260,12 @@ test("UX108.publication-actor: revoke A authority then send explicitly as B whil
   expect(
     recovered.attempts[0].publication.submission.writing.replyTarget.postId,
   ).toBe("4201");
-  expect(recovered.attempts[0].status).toBe("confirmed");
+  expect(recovered.attempts[0].status).toBe("uncertain");
+  const originalSend = JSON.parse(await readReplyRows(page))[0].sends[0];
+  expect(originalSend.attempt.status).toBe("confirmed");
+  expect(originalSend.attempt.publication).toEqual(
+    recovered.attempts[0].publication,
+  );
   expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(1);
 });
 
@@ -1007,6 +1015,29 @@ test("UX108.repaired-payload: a visual-mode replacement adopts the qualified ref
   );
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  await (
+    await selectSourceEditor(page)
+  ).fill("Newer writing remains during original attachment check");
+  state.member = "7";
+  await page
+    .getByRole("button", {
+      name: "Check current account and form",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Check stored bytes replacement.txt",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  state.member = "8";
+  await page
+    .getByRole("button", {
+      name: "Check current account and form",
+      exact: true,
+    })
+    .click();
   await page
     .getByRole("button", {
       name: "Check stored bytes replacement.txt",
@@ -1021,7 +1052,13 @@ test("UX108.repaired-payload: a visual-mode replacement adopts the qualified ref
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Insert replacement.txt", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Newer writing remains during original attachment check",
+  );
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue(source);
   const payload = state.saved.get("42")!;
   expect(payload.get("message")).toBe(source);
   expect([...payload.keys()].filter((k) => k.startsWith("attachnew"))).toEqual([
@@ -1290,11 +1327,26 @@ test("UX108.repair-storage-refusal: refused checkpoint prevents replacement uplo
   page,
 }) => {
   const state = await unavailableServerIntent(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.evaluate(() => {
     const original = IDBDatabase.prototype.transaction;
+    Object.defineProperty(window, "refused111Writes", {
+      configurable: true,
+      writable: true,
+      value: 0,
+    });
     IDBDatabase.prototype.transaction = function (names, access, options) {
-      if (this.name === "tsdm.workspace.reply-drafts" && access === "readwrite")
+      if (
+        this.name === "tsdm.workspace.reply-drafts" &&
+        access === "readwrite"
+      ) {
+        (window as unknown as { refused111Writes: number }).refused111Writes++;
         throw new DOMException("Induced durable host refusal", "SecurityError");
+      }
       return original.call(this, names, access, options);
     };
   });
@@ -1303,9 +1355,14 @@ test("UX108.repair-storage-refusal: refused checkpoint prevents replacement uplo
     mimeType: "text/plain",
     buffer: Buffer.from("blocked replacement"),
   });
-  await expect(
-    page.getByText(/Local reply drafts could not be saved/).first(),
-  ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { refused111Writes: number }).refused111Writes,
+      ),
+    )
+    .toBeGreaterThan(0);
   await expect(
     page.getByText(
       "Recovery or writing changed. No replacement was uploaded.",

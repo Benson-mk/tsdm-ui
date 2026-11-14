@@ -4,7 +4,7 @@ import { createThreadHistory, threadContext } from "./thread-history";
 import type { DownloadHost, PreparedFile } from "../hosts/download";
 import { createWriting } from "./writing";
 import {
-  hasUnsettledReply,
+  hasReplyHold,
   type ReplyRow,
   type ReplyUpdate,
 } from "./reply-recovery";
@@ -199,6 +199,7 @@ export function createWorkspace(
       await loadDrafts();
       await openThread(url, null, contextId);
     },
+    host,
   );
   const state = shallowRef<WorkspaceState>({
     section: "boards",
@@ -787,12 +788,15 @@ export function createWorkspace(
       ),
     });
     const replyRecovery = host.replyRecovery?.() ?? null;
+    writing.observeReplySends();
     if (replyRecovery)
       writing.pauseConflictedReplies(
         replyRecovery.conflicts.map((row) => row.threadId),
         replyRecovery.alternatives
           .filter((row) =>
-            row.retained?.some((variant) => hasUnsettledReply(variant.context)),
+            row.retained?.some((variant) =>
+              hasReplyHold(variant.context, row.sends ?? []),
+            ),
           )
           .map((row) => row.threadId),
       );
@@ -1689,11 +1693,14 @@ export function createWorkspace(
         replyRecovery.conflicts.map((row) => row.threadId),
         replyRecovery.alternatives
           .filter((row) =>
-            row.retained?.some((variant) => hasUnsettledReply(variant.context)),
+            row.retained?.some((variant) =>
+              hasReplyHold(variant.context, row.sends ?? []),
+            ),
           )
           .map((row) => row.threadId),
       );
     state.value = { ...state.value, replyRecovery };
+    writing.observeReplySends();
     // Initial document traversal must not save an empty provisional record.
     // Read the current key after loading; earlier history events need no replay.
     host.onPop(restoreHistory);

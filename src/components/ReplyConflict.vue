@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, nextTick, type DeepReadonly } from "vue";
-import { hasUnsettledReply, type ReplyRow } from "../workspace/reply-recovery";
+import { hasReplyHold, type ReplyRow } from "../workspace/reply-recovery";
 import type { Preferences } from "../workspace/preferences";
 import { strings } from "../layouts/strings";
 const props = defineProps<{
@@ -70,7 +70,7 @@ const text = computed(() => strings(props.language));
       <button
         v-if="alternatives"
         :data-discard-version="variant.version"
-        :disabled="busy || hasUnsettledReply(variant.context)"
+        :disabled="busy || hasReplyHold(variant.context, row.sends ?? [])"
         @click="
           confirmation = {
             row: JSON.parse(JSON.stringify(row)),
@@ -80,7 +80,7 @@ const text = computed(() => strings(props.language));
       >
         {{ text.localReplyDiscard.replace("{value}", String(index + 1)) }}
       </button>
-      <p v-if="hasUnsettledReply(variant.context)">
+      <p v-if="hasReplyHold(variant.context, row.sends ?? [])">
         {{ text.localReplyUnsettledVersion }}
       </p>
       <details>

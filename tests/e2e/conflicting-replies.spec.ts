@@ -388,9 +388,7 @@ test("UX109.unsettled: choosing clean text preserves the original uncertain atte
   await expect
     .poll(
       async () =>
-        JSON.parse(
-          await readReplyRows(page),
-        )[0].variants[0].context.attempts?.at(-1)?.status,
+        JSON.parse(await readReplyRows(page))[0].sends?.[0]?.attempt.status,
     )
     .toBe("uncertain");
   const original = JSON.parse(await readReplyRows(page))[0].variants[0].context
@@ -414,7 +412,7 @@ test("UX109.unsettled: choosing clean text preserves the original uncertain atte
   );
   await expect(
     other.getByText(
-      "Another retained version has an unsettled operation. Choose that version and check its original result before sending or discarding it.",
+      "Another Send waits while an existing reply is sending or unresolved. You can keep writing.",
       { exact: true },
     ),
   ).toBeVisible();
@@ -444,12 +442,13 @@ test("UX109.unsettled: choosing clean text preserves the original uncertain atte
   await alternatives
     .getByRole("button", { name: "Continue with version 1", exact: true })
     .click();
-  await expect(await selectSourceEditor(other)).toHaveValue(
-    "Original submitted immutable 原文",
-  );
+  await expect(await selectSourceEditor(other)).toHaveValue("");
+  await expect(
+    other.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Original submitted immutable 原文");
   await revealWritingDetails(other);
   await expect(
-    other.getByRole("button", { name: "Check result", exact: true }),
+    other.getByRole("button", { name: "Check reply status", exact: true }),
   ).toBeEnabled();
   expect(
     JSON.parse(await readReplyRows(other))[0].variants[0].context.attempts[0]
@@ -469,17 +468,21 @@ test("UX109.unsettled: choosing clean text preserves the original uncertain atte
     ),
   ).toBeVisible();
   await other.getByRole("button", { name: "Return", exact: true }).click();
-  await expect(await selectSourceEditor(other)).toHaveValue(
-    "Original submitted immutable 原文",
-  );
+  await expect(await selectSourceEditor(other)).toHaveValue("");
+  await expect(
+    other.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Original submitted immutable 原文");
   const sent = state.requests.find((request) => request.method === "POST")!;
   state.saved.set("42", new URLSearchParams(sent.body!));
   state.savedActors.set("42", "7");
   await other
-    .getByRole("textbox", { name: "Candidate thread URL", exact: true })
+    .getByRole("textbox", {
+      name: "Published reply URL (optional)",
+      exact: true,
+    })
     .fill(`${origin}/forum.php?mod=viewthread&tid=42&pid=4299&page=1#pid4299`);
   await other
-    .getByRole("button", { name: "Check result", exact: true })
+    .getByRole("button", { name: "Check reply status", exact: true })
     .click();
   await expect(other.getByText(/Confirmed stored reply/)).toBeVisible();
   await continueSource(
@@ -1105,16 +1108,16 @@ test("UX109.foreign-pending: selection normalizes only its operational descendan
   await expect(ownerConflict).toBeVisible();
   await continueSource(ownerConflict, "Competing independent unsent source");
   await expect(await selectSourceEditor(page)).toHaveValue(
-    "Immutable original sent source",
+    "Competing independent unsent source",
   );
-  await continueSource(conflict, "Immutable original sent source");
-  await expect
-    .poll(
-      async () =>
-        JSON.parse(await readReplyRows(other))[0].variants[0].context
-          .attempts[0].status,
-    )
-    .toBe("uncertain");
+  // Acknowledged sending now permits explicit independent draft choice.
+  await other.reload();
+  const alternatives = other.getByRole("region", {
+    name: "Recoverable reply versions",
+    exact: true,
+  });
+  await continueSource(alternatives, "");
+  await expect(await selectSourceEditor(other)).toHaveValue("");
   const selected = JSON.parse(await readReplyRows(other))[0];
   expect(selected.variants[0].context.attempts[0].publication).toEqual(
     original.publication,
@@ -1122,23 +1125,24 @@ test("UX109.foreign-pending: selection normalizes only its operational descendan
   expect(selected.retained[0].context.source).toBe(
     "Competing independent unsent source",
   );
+  expect(selected.sends[0].attempt.status).toBe("pending");
+  const authored = JSON.stringify({
+    variants: selected.variants,
+    retained: selected.retained,
+  });
   release();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await expect
-    .poll(async () =>
-      JSON.parse(await readReplyRows(page))[0]
-        .variants.map(
-          (v: { context: { attempts: { status: string }[] } }) =>
-            v.context.attempts[0]!.status,
-        )
-        .sort(),
+    .poll(
+      async () =>
+        JSON.parse(await readReplyRows(page))[0].sends?.[0]?.attempt.status,
     )
-    .toEqual(["confirmed", "uncertain"]);
+    .toBe("confirmed");
   const final = JSON.parse(await readReplyRows(page))[0];
-  for (const variant of final.variants)
-    expect(variant.context.attempts[0].publication).toEqual(
-      original.publication,
-    );
+  expect(
+    JSON.stringify({ variants: final.variants, retained: final.retained }),
+  ).toBe(authored);
+  expect(final.sends[0].attempt.publication).toEqual(original.publication);
   expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(1);
 });
 
@@ -1422,8 +1426,7 @@ test("UX109.history-epoch: an original result arriving during handoff is retaine
   await expect
     .poll(
       async () =>
-        JSON.parse(await readReplyRows(page))[0].variants[0].context
-          .attempts?.[0]?.status,
+        JSON.parse(await readReplyRows(page))[0].sends?.[0]?.attempt.status,
     )
     .toBe("uncertain");
   await editor.fill("Alternative without history");
@@ -1431,7 +1434,7 @@ test("UX109.history-epoch: an original result arriving during handoff is retaine
     name: "Conflicting local reply drafts",
   });
   await expect(conflict).toBeVisible();
-  await continueSource(conflict, "Original history-only update source");
+  await continueSource(conflict, "");
   await revealWritingDetails(other);
   await expect(
     other.getByText("Local reply draft saved in this browser profile.", {
@@ -1443,7 +1446,10 @@ test("UX109.history-epoch: an original result arriving during handoff is retaine
   state.saved.set("42", new URLSearchParams(request.body!));
   state.savedActors.set("42", "7");
   await other
-    .getByRole("textbox", { name: "Candidate thread URL", exact: true })
+    .getByRole("textbox", {
+      name: "Published reply URL (optional)",
+      exact: true,
+    })
     .fill(`${origin}/forum.php?mod=viewthread&tid=42&pid=4299&page=1#pid4299`);
   await holdNextWriteCompletion(other);
   await continueSource(
@@ -1460,40 +1466,27 @@ test("UX109.history-epoch: an original result arriving during handoff is retaine
     )
     .toBe("function");
   await other
-    .getByRole("button", { name: "Check result", exact: true })
+    .getByRole("button", { name: "Check reply status", exact: true })
     .click();
-  await expect
-    .poll(() =>
-      other.evaluate(
-        () =>
-          JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
-            .attempts[0].status,
-      ),
-    )
-    .toBe("confirmed");
+  // The external observation races an already committed choice whose completion
+  // is delayed. Releasing acknowledgement lets registry CAS settle independently.
+  const committed = JSON.parse(await readReplyRows(other))[0];
+  const authored = JSON.stringify({
+    variants: committed.variants,
+    retained: committed.retained,
+  });
   await releaseWriteCompletion(other);
-  await expect
-    .poll(async () =>
-      JSON.parse(await readReplyRows(other))[0].variants.some(
-        (v: { context: { attempts?: { status: string }[] } }) =>
-          v.context.attempts?.[0]?.status === "confirmed",
-      ),
-    )
-    .toBe(true);
+  await expect(other.getByText(/Confirmed stored reply/)).toBeVisible();
   const row = JSON.parse(await readReplyRows(other))[0];
-  expect(row.variants).toHaveLength(2);
-  const confirmed = row.variants.find(
-    (v: { context: { attempts?: { status: string }[] } }) =>
-      v.context.attempts?.[0]?.status === "confirmed",
-  ).context;
-  expect(confirmed.revision).toBe(before.revision);
-  expect(confirmed.attempts[0].publication).toEqual(
+  expect(row.sends[0].attempt.status).toBe("confirmed");
+  expect(row.sends[0].attempt.publication).toEqual(
     before.attempts[0].publication,
   );
-  expect(row.retained[0].context.attempts[0].status).toBe("uncertain");
-  await expect(conflict).toBeVisible();
+  expect(
+    JSON.stringify({ variants: row.variants, retained: row.retained }),
+  ).toBe(authored);
   await expect(await selectSourceEditor(other)).toHaveValue(
-    "Original history-only update source",
+    "Alternative without history",
   );
   expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(1);
 });

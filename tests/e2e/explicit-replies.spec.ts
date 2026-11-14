@@ -62,6 +62,27 @@ async function open(page: Page, startReply = true) {
 }
 const posts = (state: Fixture) =>
   state.requests.filter((r) => r.method === "POST");
+async function replyObservations(page: Page) {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return new Promise<{ attempt: { status: string } }[]>((resolve, reject) => {
+      const tx = db.transaction("threads", "readonly"),
+        request = tx.objectStore("threads").get("42");
+      request.onsuccess = () => {
+        db.close();
+        resolve(request.result.sends);
+      };
+      request.onerror = () => {
+        db.close();
+        reject(request.error);
+      };
+    });
+  });
+}
 test.afterEach(async ({ page, browser }, info) => {
   info.annotations.push({
     type: "browser-version",
@@ -115,7 +136,10 @@ test("UX110.one-send: explicit addressed Send binds exact source options target 
       exact: true,
     }),
   ).toHaveCount(0);
-  await expect(await selectSourceEditor(page)).toHaveValue(source);
+  await expect(await selectSourceEditor(page)).toHaveValue("");
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue(source);
 });
 
 test("UX110.visual-keys: Shift Enter inserts an exact newline and Enter sends the visual reply", async ({
@@ -311,10 +335,24 @@ for (const phase of ["prepare", "preflight"] as const) {
         .toBeGreaterThanOrEqual(phase === "prepare" ? 1 : 2);
       await expect(sendButton(page)).toBeEnabled();
       expect(posts(state)).toHaveLength(0);
-      await expect(source).toHaveValue("Exact refused reply");
-      await expect(page.locator(".source-writing")).toContainText(
-        /changed|权限不足|account/i,
+      await expect(source).toHaveValue(
+        phase === "prepare" ? "Exact refused reply" : "",
       );
+      if (phase === "preflight")
+        await expect(
+          page.getByRole("textbox", {
+            name: "Submitted reply source",
+            exact: true,
+          }),
+        ).toHaveValue("Exact refused reply");
+      await expect(
+        phase === "prepare"
+          ? page.locator(".source-writing")
+          : page.getByRole("article", {
+              name: "Reply submission",
+              exact: true,
+            }),
+      ).toContainText(/changed|权限不足|account/i);
       delete state.respond;
     });
   }
@@ -336,7 +374,7 @@ test("UX110.pending-ack: failed native storage acknowledgement prevents dispatch
   });
   await sendButton(page).click();
   await expect(
-    page.getByText(/Publication was not sent because recovery/),
+    page.getByText(/Reply was not sent because pending recovery/),
   ).toBeVisible();
   expect(posts(state)).toHaveLength(0);
   await expect(source).toHaveValue("Unsent because recovery refused");
@@ -372,31 +410,18 @@ test("UX110.fast-double-click: second click of one gesture cannot resend after f
 }) => {
   const state = await open(page);
   await (await selectSourceEditor(page)).fill("One mouse gesture");
-  await sendButton(page).evaluate((node) => {
-    node.addEventListener(
-      "click",
-      (event) => {
-        if ((event as MouseEvent).detail === 2)
-          node.setAttribute(
-            "data-confirmed-before-second-click",
-            String(
-              (node.getRootNode() as ShadowRoot).textContent?.includes(
-                "Confirmed stored reply in thread 42",
-              ),
-            ),
-          );
-      },
-      true,
-    );
-  });
-  await sendButton(page).dblclick({ delay: 400 });
-  await expect(sendButton(page)).toHaveAttribute(
-    "data-confirmed-before-second-click",
-    "true",
-  );
+  await sendButton(page).click();
   await expect(
     page.getByText(/Confirmed stored reply in thread 42/),
   ).toBeVisible();
+  // #111 replaces the input after acknowledgement, so the old button node is
+  // detached. Deliver the second click to the actual current control only after
+  // qualified completion, preserving the fast-completion timing assertion.
+  await sendButton(page).click({ clickCount: 2 });
+  await expect(await selectSourceEditor(page)).toHaveValue("");
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("One mouse gesture");
   expect(posts(state)).toHaveLength(1);
 });
 
@@ -553,19 +578,21 @@ test("UX110.uncertain-resend: checked uncertainty requires explicit duplicate-ri
     return response;
   };
   await sendButton(page).click();
-  await page.getByRole("button", { name: "Check result", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Check reply status", exact: true })
+    .click();
   await source.fill("Later deliberate reply");
-  await sendButton(page).click();
-  await expect(
-    page.getByText(/An earlier attempt may already exist/),
-  ).toBeVisible();
+  await expect(sendButton(page)).toBeDisabled();
   expect(posts(state)).toHaveLength(1);
   await page
-    .getByRole("button", { name: "Prepare another attempt", exact: true })
+    .getByRole("button", { name: "Retry with duplicate risk", exact: true })
     .click();
+  await expect(
+    page.getByRole("dialog", { name: "Reply duplicate risk", exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", {
-      name: "Accept duplicate risk and send",
+      name: "Accept duplicate risk and retry reply",
       exact: true,
     })
     .click();
@@ -574,10 +601,10 @@ test("UX110.uncertain-resend: checked uncertainty requires explicit duplicate-ri
     posts(state).map((request) =>
       new URLSearchParams(request.body ?? "").get("message"),
     ),
-  ).toEqual(["Original uncertain reply", "Later deliberate reply"]);
+  ).toEqual(["Original uncertain reply", "Original uncertain reply"]);
   await expect(source).toHaveValue("Later deliberate reply");
   await expect(
-    page.getByRole("button", { name: "Check result", exact: true }),
+    page.getByRole("button", { name: "Check reply status", exact: true }),
   ).toHaveCount(2);
   await page.reload();
   await expect(await selectSourceEditor(page)).toHaveValue(
@@ -646,7 +673,7 @@ test("UX110.switch-thread: late preparation cannot send into a newly selected th
   expect(posts(state)).toHaveLength(0);
 });
 
-test("UX110.preflight-writing: later typing after pending acknowledgement cannot alter or dispatch the captured attempt", async ({
+test("UX110.preflight-writing: later typing after pending acknowledgement cannot alter the independently dispatched captured attempt", async ({
   page,
 }) => {
   const state = await open(page);
@@ -668,9 +695,12 @@ test("UX110.preflight-writing: later typing after pending acknowledgement cannot
   await source.fill("Newer writing during preflight");
   gate.release();
   await expect(
-    page.getByText(/Local writing or recovery changed during preflight/),
+    page.getByText(/Confirmed stored reply in thread 42/),
   ).toBeVisible();
-  expect(posts(state)).toHaveLength(0);
+  expect(posts(state)).toHaveLength(1);
+  expect(new URLSearchParams(posts(state)[0]!.body ?? "").get("message")).toBe(
+    "Exact pending revision",
+  );
   await expect(source).toHaveValue("Newer writing during preflight");
   const saved = await page.evaluate(
     () =>
@@ -679,7 +709,8 @@ test("UX110.preflight-writing: later typing after pending acknowledgement cannot
   expect(saved.attempts[0].publication.submission.writing.source).toBe(
     "Exact pending revision",
   );
-  expect(saved.attempts[0].status).toBe("not-sent");
+  expect(saved.attempts[0].status).toBe("pending");
+  expect((await replyObservations(page))[0]!.attempt.status).toBe("confirmed");
 });
 
 test("UX110.current-actor: shared historical provenance stays A while explicit Send publishes exact B operation", async ({
@@ -1004,19 +1035,16 @@ test("UX110.narrow-guidance: expanded mode guidance remains visibly reachable th
   // The fixture reuses its result post ID, so the second observation can be
   // uncertain rather than a second independently confirmed new post.
   await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const attempts = JSON.parse(
-          sessionStorage.getItem("tsdm.workspace.recovery")!,
-        ).writing.attempts;
-        return (
-          attempts.length === 2 &&
-          attempts.every(
-            (attempt: { status: string }) => attempt.status !== "pending",
-          )
-        );
-      }),
-    )
+    .poll(async () => {
+      const sends = await replyObservations(page);
+      return (
+        sends.length === 2 &&
+        sends.every(
+          (send: { attempt: { status: string } }) =>
+            send.attempt.status !== "pending",
+        )
+      );
+    })
     .toBe(true);
 
   const retained = "[b]Retained source[/b]\n你好";

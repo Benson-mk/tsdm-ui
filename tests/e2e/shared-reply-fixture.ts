@@ -11,6 +11,7 @@ export function createSharedReplyFixture() {
   return {
     member: "7",
     refusedReply: false,
+    replyOutcome: "accepted" as "accepted" | "rejected" | "moderation" | "lost",
     attachmentFieldsMissing: false,
     mentionGate: null as Promise<void> | null,
     saved: new Map<string, URLSearchParams>(),
@@ -71,6 +72,17 @@ export async function renderSharedReplyResponse(
   }
   if (request.method === "POST") {
     if (state.postGate) await state.postGate;
+    if (state.replyOutcome !== "accepted")
+      return {
+        status: state.replyOutcome === "lost" ? 503 : 200,
+        contentType: "text/xml",
+        body:
+          state.replyOutcome === "rejected"
+            ? "<root><![CDATA[<script>errorhandle_post('message_toolong', {});</script>]]></root>"
+            : state.replyOutcome === "moderation"
+              ? "<root><![CDATA[<script>succeedhandle_post('', '回复需要审核', {});</script>]]></root>"
+              : "",
+      };
     const thread = url.searchParams.get("tid") ?? "42";
     state.saved.set(thread, new URLSearchParams(request.body ?? ""));
     state.savedActors.set(thread, state.member);

@@ -1,6 +1,10 @@
 import {
   canonical,
-  hasUnsettledReply,
+  hasReplyHold,
+  unsettledSend,
+  legacyFailedReply,
+  type LegacyReplyObservation,
+  type ReplySend,
   type ReplyRow,
 } from "../workspace/reply-recovery";
 import {
@@ -369,7 +373,7 @@ function validRow(value: unknown): value is ReplyRow {
   if (!value || typeof value !== "object") return false;
   const row = value as ReplyRow;
   if (
-    ![1, 2].includes(row.schema) ||
+    ![1, 2, 3].includes(row.schema) ||
     (row.schema === 1
       ? row.retained !== undefined
       : !Array.isArray(row.retained)) ||
@@ -382,35 +386,108 @@ function validRow(value: unknown): value is ReplyRow {
           "schema",
           "threadId",
           "variants",
-          ...(row.schema === 2 ? ["retained"] : []),
+          ...(row.schema >= 2 ? ["retained"] : []),
+          ...(row.schema === 3 ? ["sends"] : []),
         ].includes(key),
     )
   )
     return false;
   const ids = new Set<string>();
-  return [...row.variants, ...(row.retained ?? [])].every((variant) => {
-    if (
-      !variant ||
-      !uuid(variant.version) ||
-      !(variant.parent === null || uuid(variant.parent)) ||
-      ids.has(variant.version) ||
-      Object.keys(variant).some(
-        (key) => !["version", "parent", "context"].includes(key),
+  const variantsValid = [...row.variants, ...(row.retained ?? [])].every(
+    (variant) => {
+      if (
+        !variant ||
+        !uuid(variant.version) ||
+        !(variant.parent === null || uuid(variant.parent)) ||
+        ids.has(variant.version) ||
+        Object.keys(variant).some(
+          (key) => !["version", "parent", "context"].includes(key),
+        )
       )
+        return false;
+      ids.add(variant.version);
+      if (variant.context === null) return true;
+      try {
+        const context = projectReply(variant.context);
+        return (
+          context.replyTarget!.threadId === row.threadId &&
+          canonical(context) === canonical(variant.context)
+        );
+      } catch {
+        return false;
+      }
+    },
+  );
+  if (!variantsValid) return false;
+  if (row.schema !== 3) return row.sends === undefined;
+  if (!Array.isArray(row.sends)) return false;
+  const sends = row.sends;
+  const sendIds = new Set<string>();
+  const successors = new Set<string>();
+  for (const send of sends) {
+    if (
+      !send ||
+      !uuid(send.revision) ||
+      !send.attempt ||
+      Object.keys(send).some(
+        (key) => !["revision", "attempt", "successor"].includes(key),
+      ) ||
+      !(send.successor === null || uuid(send.successor)) ||
+      sendIds.has(send.attempt.id)
     )
       return false;
-    ids.add(variant.version);
-    if (variant.context === null) return true;
+    sendIds.add(send.attempt.id);
     try {
-      const context = projectReply(variant.context);
-      return (
-        context.replyTarget!.threadId === row.threadId &&
-        canonical(context) === canonical(variant.context)
-      );
+      const submitted = send.attempt.publication.submission;
+      const context = projectReply({
+        ...submitted.writing,
+        id: submitted.contextId,
+        revision: submitted.revision,
+        selection: { start: 0, end: 0, direction: "none" },
+        attempts: [send.attempt],
+      });
+      if (
+        context.replyTarget!.threadId !== row.threadId ||
+        canonical(context.attempts?.[0]) !== canonical(send.attempt)
+      )
+        return false;
     } catch {
       return false;
     }
-  });
+    if (send.successor) {
+      if (successors.has(send.successor)) return false;
+      successors.add(send.successor);
+    }
+    for (const variant of [...row.variants, ...(row.retained ?? [])])
+      for (const attempt of variant.context?.attempts ?? [])
+        if (
+          attempt.id === send.attempt.id &&
+          canonical(attempt.publication) !== canonical(send.attempt.publication)
+        )
+          return false;
+  }
+  for (const send of sends) {
+    const seen = new Set<string>();
+    let current: ReplySend | undefined = send;
+    while (current?.successor) {
+      if (seen.has(current.attempt.id)) return false;
+      seen.add(current.attempt.id);
+      const successor = sends.find(
+        (item) => item.attempt.id === current!.successor,
+      );
+      if (
+        !successor ||
+        canonical(successor.attempt.publication.submission.writing) !==
+          canonical(current.attempt.publication.submission.writing)
+      )
+        return false;
+      current = successor;
+    }
+  }
+  return (
+    sends.filter((send) => !send.successor && unsettledSend(send.attempt))
+      .length <= 1
+  );
 }
 export function createReplyDraftStore() {
   let database: Promise<IDBDatabase> | null = null;
@@ -474,6 +551,256 @@ export function createReplyDraftStore() {
     });
   }
   return {
+    async enrollLegacy(
+      captured: LegacyReplyObservation,
+      checked?: import("../forum-client").ThreadAttempt,
+    ): Promise<ReplySend | null> {
+      return transaction<ReplySend | null>("readwrite", (store, done) => {
+        const request = store.get(captured.threadId);
+        request.onsuccess = () => {
+          const row: unknown = request.result;
+          if (!validRow(row)) {
+            request.transaction?.abort();
+            return;
+          }
+          const original = captured.attempt;
+          const observations = [
+            ...row.variants,
+            ...(row.retained ?? []),
+          ].flatMap((variant) =>
+            (variant.context?.attempts ?? []).filter(
+              (attempt) => attempt.id === original.id,
+            ),
+          );
+          const fingerprint = (
+            items: import("../forum-client").ThreadAttempt[],
+          ) => canonical(items.map(canonical).sort());
+          const result = checked ?? original;
+          if (
+            row.sends?.some((send) => send.attempt.id === original.id) ||
+            !observations.some(
+              (attempt) => canonical(attempt) === canonical(original),
+            ) ||
+            observations.some(
+              (attempt) =>
+                canonical(attempt.publication) !==
+                canonical(original.publication),
+            ) ||
+            fingerprint(observations) !== fingerprint(captured.observations) ||
+            result.id !== original.id ||
+            canonical(result.publication) !== canonical(original.publication) ||
+            (checked
+              ? !checked.checked
+              : !legacyFailedReply(original) ||
+                observations.some(
+                  (attempt) => canonical(attempt) !== canonical(original),
+                ))
+          ) {
+            done(null);
+            return;
+          }
+          const send: ReplySend = {
+            revision: crypto.randomUUID(),
+            attempt: result,
+            successor: null,
+          };
+          const next: ReplyRow = {
+            ...row,
+            schema: 3,
+            retained: row.retained ?? [],
+            sends: [...(row.sends ?? []), send],
+          };
+          if (!validRow(next)) {
+            done(null);
+            return;
+          }
+          store.put(next);
+          done(send);
+        };
+      });
+    },
+    async retainFailed(
+      context: PublicWritingContext,
+      candidate: PublicWritingContext,
+      parent: string | null,
+      expected: ReplySend,
+    ): Promise<boolean> {
+      return transaction<boolean>("readwrite", (store, done) => {
+        const request = store.get(context.replyTarget!.threadId);
+        request.onsuccess = () => {
+          const row: unknown = request.result;
+          if (!validRow(row)) {
+            request.transaction?.abort();
+            return;
+          }
+          const send = row.sends?.find(
+            (item) => item.attempt.id === expected.attempt.id,
+          );
+          if (
+            row.variants.length !== 1 ||
+            row.variants[0]!.version !== parent ||
+            canonical(row.variants[0]!.context) !== canonical(context) ||
+            canonical(send) !== canonical(expected) ||
+            !send ||
+            !["rejected", "not-sent"].includes(send.attempt.status)
+          ) {
+            done(false);
+            return;
+          }
+          if (
+            row.retained?.some(
+              (variant) =>
+                replyMeaning(variant.context) === replyMeaning(candidate),
+            )
+          ) {
+            done(true);
+            return;
+          }
+          const next: ReplyRow = {
+            ...row,
+            retained: [
+              ...(row.retained ?? []),
+              {
+                version: crypto.randomUUID(),
+                parent,
+                context: candidate,
+              },
+            ],
+          };
+          if (!validRow(next)) {
+            request.transaction?.abort();
+            return;
+          }
+          store.put(next);
+          done(true);
+        };
+      });
+    },
+    async reserve(
+      context: PublicWritingContext,
+      parent: string | null,
+      attempt: import("../forum-client").ThreadAttempt,
+      predecessor?: ReplySend,
+    ): Promise<ReplySend | null> {
+      const threadId = context.replyTarget!.threadId;
+      return transaction<ReplySend | null>("readwrite", (store, done) => {
+        const request = store.get(threadId);
+        request.onsuccess = () => {
+          const row: unknown = request.result;
+          if (!validRow(row)) {
+            request.transaction?.abort();
+            return;
+          }
+          const sends = row.sends ?? [];
+          const prior =
+            predecessor &&
+            sends.find((item) => item.attempt.id === predecessor.attempt.id);
+          if (
+            row.variants.length !== 1 ||
+            row.variants[0]!.version !== parent ||
+            canonical(row.variants[0]!.context) !== canonical(context) ||
+            sends.some((item) => item.attempt.id === attempt.id) ||
+            (predecessor &&
+              (!prior ||
+                prior.successor ||
+                prior.revision !== predecessor.revision ||
+                canonical(prior.attempt) !== canonical(predecessor.attempt) ||
+                !(
+                  ["rejected", "not-sent"].includes(prior.attempt.status) ||
+                  (prior.attempt.status === "uncertain" &&
+                    prior.attempt.checked)
+                ) ||
+                prior.attempt.publication.submission.writing.account.id !==
+                  attempt.publication.submission.writing.account.id))
+          ) {
+            done(null);
+            return;
+          }
+          const ignored = [attempt.id, ...(prior ? [prior.attempt.id] : [])];
+          if (
+            sends.some(
+              (item) =>
+                !ignored.includes(item.attempt.id) &&
+                !item.successor &&
+                unsettledSend(item.attempt),
+            ) ||
+            [...row.variants, ...(row.retained ?? [])].some((variant) =>
+              hasReplyHold(variant.context, sends, ignored),
+            )
+          ) {
+            done(null);
+            return;
+          }
+          const send: ReplySend = {
+            revision: crypto.randomUUID(),
+            attempt,
+            successor: null,
+          };
+          const next: ReplyRow = {
+            ...row,
+            schema: 3,
+            retained: row.retained ?? [],
+            sends: [
+              ...sends.map((item) =>
+                item === prior ? { ...item, successor: attempt.id } : item,
+              ),
+              send,
+            ],
+          };
+          if (!validRow(next)) {
+            request.transaction?.abort();
+            return;
+          }
+          store.put(next);
+          done(send);
+        };
+      });
+    },
+    async observeSend(
+      threadId: string,
+      expected: ReplySend,
+      attempt: import("../forum-client").ThreadAttempt,
+    ): Promise<ReplySend | null> {
+      return transaction<ReplySend | null>("readwrite", (store, done) => {
+        const request = store.get(threadId);
+        request.onsuccess = () => {
+          const row: unknown = request.result;
+          if (!validRow(row)) {
+            request.transaction?.abort();
+            return;
+          }
+          const current = row.sends?.find(
+            (item) => item.attempt.id === expected.attempt.id,
+          );
+          if (
+            !current ||
+            current.revision !== expected.revision ||
+            canonical(current.attempt) !== canonical(expected.attempt) ||
+            attempt.id !== current.attempt.id ||
+            canonical(attempt.publication) !==
+              canonical(current.attempt.publication)
+          ) {
+            done(null);
+            return;
+          }
+          const send: ReplySend = {
+            ...current,
+            revision: crypto.randomUUID(),
+            attempt,
+          };
+          const next = {
+            ...row,
+            sends: row.sends!.map((item) => (item === current ? send : item)),
+          };
+          if (!validRow(next)) {
+            request.transaction?.abort();
+            return;
+          }
+          store.put(next);
+          done(send);
+        };
+      });
+    },
     async read(): Promise<ReplyRow[]> {
       const rows = await transaction<unknown[]>("readonly", (store, done) => {
         const request = store.getAll();
@@ -508,7 +835,8 @@ export function createReplyDraftStore() {
             return;
           }
           const next: ReplyRow = {
-            schema: 2,
+            schema: current.schema === 3 ? 3 : 2,
+            ...(current.schema === 3 ? { sends: current.sends } : {}),
             threadId: current.threadId,
             variants: [selected],
             retained: all.filter((item) => item.version !== version),
@@ -540,7 +868,8 @@ export function createReplyDraftStore() {
           if (
             current.retained.some(
               (item) =>
-                item.version === version && hasUnsettledReply(item.context),
+                item.version === version &&
+                hasReplyHold(item.context, current.sends ?? []),
             )
           ) {
             request.transaction?.abort();
@@ -574,7 +903,15 @@ export function createReplyDraftStore() {
           const variants = old === undefined ? [] : (old as ReplyRow).variants;
           if (
             context === null &&
-            variants.some((item) => hasUnsettledReply(item.context))
+            (variants.some((item) =>
+              hasReplyHold(
+                item.context,
+                (old as ReplyRow | undefined)?.sends ?? [],
+              ),
+            ) ||
+              (old as ReplyRow | undefined)?.sends?.some(
+                (send) => !send.successor && unsettledSend(send.attempt),
+              ))
           ) {
             request.transaction?.abort();
             return;
@@ -588,8 +925,12 @@ export function createReplyDraftStore() {
           }
           const next: ReplyRow = {
             schema: old === undefined ? 1 : (old as ReplyRow).schema,
-            ...((old as ReplyRow | undefined)?.schema === 2
+            ...((old as ReplyRow | undefined)?.schema !== undefined &&
+            (old as ReplyRow).schema >= 2
               ? { retained: (old as ReplyRow).retained }
+              : {}),
+            ...((old as ReplyRow | undefined)?.schema === 3
+              ? { sends: (old as ReplyRow).sends }
               : {}),
             threadId,
             variants: [
