@@ -342,6 +342,10 @@ function optionCaption(option: WritingOption) {
     ? packetText(option.label)
     : option.label;
 }
+function requestSend(event: MouseEvent) {
+  if (event.detail > 1) return;
+  void props.workspace.writing.sendReply();
+}
 function requestReview(refresh = false) {
   if (
     state.value.preparing ||
@@ -354,6 +358,7 @@ function requestReview(refresh = false) {
   void props.workspace.writing.reviewPublication();
 }
 function reviewShortcut(event: KeyboardEvent) {
+  if (ordinaryReply.value) return;
   if (event.key !== "Enter" || (!event.ctrlKey && !event.metaKey)) return;
   const target = event.target;
   if (
@@ -717,8 +722,8 @@ function updateOption(option: WritingOption, event: Event) {
         <template v-if="ordinaryReply" #trailing>
           <button
             class="primary-action reply-review"
-            :aria-label="text.reviewPublication"
-            :title="text.reviewPublication"
+            :aria-label="text.sendReply"
+            :title="text.sendReply"
             :disabled="
               workspace.writing.replyBlocked.value ||
               workspace.writing.replyPublicationBlocked.value ||
@@ -726,11 +731,9 @@ function updateOption(option: WritingOption, event: Event) {
               state.publishing ||
               state.composing
             "
-            @click="requestReview(true)"
+            @click="requestSend"
           >
-            <WorkspaceIcon name="review" /><span>{{
-              replyText("Review")
-            }}</span>
+            <WorkspaceIcon name="send" /><span>{{ replyText("Send") }}</span>
           </button>
         </template>
         <template v-if="ordinaryReply" #tools>
@@ -745,7 +748,6 @@ function updateOption(option: WritingOption, event: Event) {
               {{ text.returnReading }}
             </button>
           </div>
-          <p class="composer-help">{{ text.writingShortcut }}</p>
         </template>
       </PostEditor>
       <section
@@ -1256,14 +1258,22 @@ function updateOption(option: WritingOption, event: Event) {
           {{
             state.context.action === "edit-post"
               ? text.editRepeatWarning
-              : text.duplicatePublicationWarning
+              : ordinaryReply
+                ? replyText(
+                    "The earlier reply may already exist. Sending again may create a duplicate reply or repeat a merged reply. This cannot undo the first attempt.",
+                  )
+                : text.duplicatePublicationWarning
           }}
         </p>
         <button @click="workspace.writing.cancelResend()">
           {{ text.keepOriginalAttempt }}
         </button>
         <button @click="workspace.writing.confirmResend()">
-          {{ text.acceptDuplicateReview }}
+          {{
+            ordinaryReply
+              ? replyText("Accept duplicate risk and send")
+              : text.acceptDuplicateReview
+          }}
         </button>
       </section>
       <section v-if="state.conflict" role="alert">
@@ -1338,7 +1348,7 @@ function updateOption(option: WritingOption, event: Event) {
       />
       <div class="writing-actions">
         <PreparedPublication
-          v-if="state.publication"
+          v-if="state.publication && !ordinaryReply"
           :publication="state.publication"
           :category="category ?? 'neutral'"
           :language="workspace.preferences.state.value.language"

@@ -2846,6 +2846,49 @@ export function createWriting(
         "validation" in result ? (result.validation?.issues ?? []) : [],
       validationFocus: state.value.validationFocus + 1,
     };
+    return result.kind === "ready" ? result.publication : undefined;
+  }
+  let replySendActive = false;
+  async function sendReply(resendId?: string) {
+    const context = state.value.context;
+    if (
+      !context ||
+      !isOrdinaryReply(context) ||
+      replySendActive ||
+      replyBlocked.value ||
+      replyPublicationBlocked.value ||
+      state.value.preparing ||
+      state.value.publishing ||
+      state.value.composing
+    )
+      return;
+    replySendActive = true;
+    try {
+      const operation = captureOperation(context);
+      if (!operation) {
+        await check();
+        state.value = {
+          ...state.value,
+          message:
+            "The sending account was not verified when Send was activated. Check the current account, then choose Send again. Your reply is retained.",
+        };
+        return;
+      }
+      const publication = await reviewPublication(resendId);
+      if (!publication || state.value.publication !== publication) return;
+      if (!operation.current()) {
+        state.value = {
+          ...state.value,
+          publication: null,
+          message:
+            "The reply or sending account changed during preparation. Nothing was sent. Choose Send again for the current reply.",
+        };
+        return;
+      }
+      await publish();
+    } finally {
+      replySendActive = false;
+    }
   }
   function effectGuard(
     publication = false,
@@ -3417,6 +3460,7 @@ export function createWriting(
     searchMention,
     insertMention,
     reviewPublication,
+    sendReply,
     cancelPublicationReview: () => {
       if (state.value.publishing || state.value.composing) return;
       state.value = { ...state.value, publication: null, privateReview: null };
@@ -3448,7 +3492,11 @@ export function createWriting(
     confirmResend: () => {
       const id = state.value.resend;
       state.value = { ...state.value, resend: null };
-      if (id) void reviewPublication(id);
+      if (id) {
+        if (state.value.context && isOrdinaryReply(state.value.context))
+          void sendReply(id);
+        else void reviewPublication(id);
+      }
     },
     cancelResend: () => {
       state.value = { ...state.value, resend: null };

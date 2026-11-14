@@ -90,3 +90,27 @@ Conflict authorization and actual page-session acknowledgement are distinct UI
 facts. The accepted storage amendment and its qualification limits are recorded in
 [ADR0003](0003-use-browser-page-session-recovery.md#explicit-local-reply-choice--109)
 and [the109 implementation ledger](../implementation/ui-ux-109.md).
+
+
+## Explicit ordinary reply Send — #110
+
+The accepted #95/#110 policy supersedes the mandatory prepared-content inspection
+and second confirmation from #52/#59 for ordinary replies only. One explicit Send
+binds the current context revision, target, options and independently verified
+current actor, then the workspace orchestrates fresh preparation and publication.
+The portable client still owns current native forms/permissions, one-use commands,
+exact immutable submissions and result interpretation. Acknowledged pending
+recovery and the existing final EffectGuard remain mandatory. No portable API,
+durable schema or stored authorization is added.
+
+Changed writing/selection, retargeting, account evidence or recovery can cancel a
+pre-dispatch activation; discovering an initially unverified actor cannot silently
+authorize that actor. Preview is optional and inert. Visual Enter sends and
+Shift+Enter inserts a represented newline; complete BBCode uses Enter for newline
+and Ctrl/Cmd+Enter for Send. Only actual editor surfaces own these shortcuts, with
+composition confirmation guarded. Nonreply authoring keeps its prior review policy.
+Checked-uncertain recovery retains explicit duplicate-risk acceptance, whose
+ordinary action now truthfully accepts and sends. Pending-next-draft presentation
+and the per-thread unsettled-send registry remain #111 scope. Evidence, the root's
+bounded implementation acceptance and distinct costs are recorded in
+[the #110 ledger](../implementation/ui-ux-110.md).

@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -238,7 +239,7 @@ test("PROTOTYPE.writing: compact reference actions retain source, destination an
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  const source = page.locator(".post-editor textarea");
+  const source = await selectSourceEditor(page);
   await source.fill("A retained reply 中文");
   await capture(page, info, "compact", requests);
   const expand = page.getByRole("button", {
@@ -248,7 +249,7 @@ test("PROTOTYPE.writing: compact reference actions retain source, destination an
   expect.soft((await expand.boundingBox())!.width).toBe(44);
   await expect.soft(page.locator(".writing-destination")).toBeInViewport();
   const review = page.getByRole("button", {
-    name: "Review publication",
+    name: "Send reply",
     exact: true,
   });
   await expect(review).toBeInViewport();
@@ -296,10 +297,10 @@ for (const [width, theme, textSize] of [
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    const source = page.getByLabel("Complete source", { exact: true });
+    const source = await selectSourceEditor(page);
     await source.fill("Retained across presentation 中文");
     await expect(
-      page.getByRole("button", { name: "Review publication", exact: true }),
+      page.getByRole("button", { name: "Send reply", exact: true }),
     ).toBeInViewport();
     await page
       .getByRole("button", { name: "Expand writing", exact: true })

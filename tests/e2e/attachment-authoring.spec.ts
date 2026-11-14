@@ -1,4 +1,8 @@
-import { selectSourceEditor } from "./editor-controls";
+import {
+  selectSourceEditor,
+  revealWritingTools,
+  revealWritingDetails,
+} from "./editor-controls";
 import { writingDetailAction, writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
@@ -626,9 +630,10 @@ for (const context of ["new-thread", "reply", "quote"] as const) {
     await page
       .getByRole("button", { name: "Insert note.txt", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+    if (context === "new-thread")
+      await page
+        .getByRole("button", { name: "Review publication", exact: true })
+        .click();
     await page
       .getByRole("button", {
         name: context === "new-thread" ? "Publish thread" : "Send reply",
@@ -1183,15 +1188,26 @@ for (const route of [
       combinedSource + "@\u2063Other author\u2063 [attach]88[/attach]";
     await expect(source).toHaveValue(expected);
     await richRoundTrip(page, expected);
+    if (!edit && route !== "new-thread") {
+      await revealWritingDetails(page);
+      await page
+        .getByRole("button", {
+          name: "Check current account and form",
+          exact: true,
+        })
+        .click();
+      await expect(source).toHaveValue(expected);
+    }
     expect(state.saves).toHaveLength(0);
     expect(state.uploads).toHaveLength(1);
     expect(state.removals).toEqual([]);
-    await page
-      .getByRole("button", {
-        name: edit ? "Review edit" : "Review publication",
-        exact: true,
-      })
-      .click();
+    if (edit || route === "new-thread")
+      await page
+        .getByRole("button", {
+          name: edit ? "Review edit" : "Review publication",
+          exact: true,
+        })
+        .click();
     let release!: () => void;
     state.saveGate = new Promise<void>((resolve) => {
       release = resolve;
@@ -2967,9 +2983,9 @@ test("UX101.uploaded-retarget: actual uploaded reference survives held addressed
   await expect(
     page.getByText("Inline referenced · note.txt", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await revealWritingTools(page);
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await expect(editor).toHaveValue(uploaded + " Later authored text");
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();

@@ -1,3 +1,8 @@
+import {
+  revealWritingTools,
+  revealWritingDetails,
+  selectSourceEditor,
+} from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -90,7 +95,7 @@ test("UI92.external-edges: wide reading and writing protect only exposed lateral
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Exact [quote]edge source[/quote]");
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
@@ -184,9 +189,7 @@ test("UI92.browsing-edges: unselected results own the outside right edge and bot
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Resume preserved source");
+  await (await selectSourceEditor(page)).fill("Resume preserved source");
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
@@ -321,7 +324,7 @@ test("UI92.short-review: keyboard-height writing preserves exact source selectio
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Exact [quote]retained short source[/quote]");
   await source.evaluate((node: HTMLTextAreaElement) =>
     node.setSelectionRange(13, 21, "backward"),
@@ -343,18 +346,20 @@ test("UI92.short-review: keyboard-height writing preserves exact source selectio
   const focused = (await source.boundingBox())!;
   expect(focused.y).toBeGreaterThanOrEqual(64);
   expect(focused.y + focused.height).toBeLessThanOrEqual(304);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await revealWritingTools(page);
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
   const review = page.getByRole("region", {
-    name: "Prepared publication review",
+    name: "Preview",
     exact: true,
   });
   await expect(review).toBeVisible();
   await expect(review).toContainText("retained short source");
-  await expect(review).toContainText("Composer Nine");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Composer Nine");
   const cancel = review.getByRole("button", {
-    name: "Cancel review and return to writing",
+    name: "Close preview",
     exact: true,
   });
   await cancel.scrollIntoViewIfNeeded();
@@ -535,7 +540,7 @@ for (const [width, height, inset] of [
       .getByRole("button", { name: "Reply to this post", exact: true })
       .first()
       .click();
-    const source = page.getByLabel("Complete source", { exact: true });
+    const source = await selectSourceEditor(page);
     await source.fill("Retained original 中文 source");
     await source.evaluate((node: HTMLTextAreaElement) =>
       node.setSelectionRange(9, 17),
@@ -731,7 +736,7 @@ test("UI92.restored-short-history: a truthful restored snapshot leaves useful ac
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Retained exact recovered source 中文");
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
@@ -859,19 +864,19 @@ for (const expanded of [false, true])
       .getByRole("button", { name: "Reply to this post", exact: true })
       .first()
       .click();
-    const source = page.getByLabel("Complete source", { exact: true });
+    const source = await selectSourceEditor(page);
     await source.fill("Exact retained short source 保留內容");
     await page.reload();
+    await selectSourceEditor(page);
     await expect(source).toHaveValue("Exact retained short source 保留內容");
     if (expanded)
       await page
         .getByRole("button", { name: "Expand writing", exact: true })
         .click();
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+    await revealWritingTools(page);
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
     const review = page.getByRole("region", {
-      name: "Prepared publication review",
+      name: "Preview",
       exact: true,
     });
     await expect(review).toBeVisible();
@@ -880,7 +885,7 @@ for (const expanded of [false, true])
       if (state === "source") {
         await review
           .getByRole("button", {
-            name: "Cancel review and return to writing",
+            name: "Close preview",
             exact: true,
           })
           .click();

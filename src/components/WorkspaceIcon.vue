@@ -2,6 +2,7 @@
 const paths = {
   quote: "M10 5H4v7h5c0 4-2 6-5 7 M21 5h-6v7h5c0 4-2 6-5 7",
   plus: "M12 5v14 M5 12h14",
+  send: "M3 3l18 9-18 9 4-9z M7 12h14",
   review: "M9 4h10v16H5V8 M3 5l2 2 4-4 M9 12h6 M9 16h6",
   refresh:
     "M20 7v5h-5 M4 17v-5h5 M6 7a7 7 0 0 1 12-2l2 3 M18 17a7 7 0 0 1-12 2l-2-3",

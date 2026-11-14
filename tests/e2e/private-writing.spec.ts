@@ -1059,9 +1059,6 @@ test("J77.public-private-history: explicit private replacement keeps the origina
   await page
     .getByRole("textbox", { name: "Complete source", exact: true })
     .fill("Original public reply remains identifiable");
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect
     .poll(

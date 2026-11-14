@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -114,7 +115,7 @@ test("IM74.viewport-pan: reduced and panned scale-one viewport sizes the real sh
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Retained [quote]exact target[/quote]");
   await source.evaluate((node: HTMLTextAreaElement) =>
     node.setSelectionRange(2, 9, "backward"),
@@ -211,7 +212,7 @@ test("IM74.pinch-orientation: real page scale preserves the layout and genuine o
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Orientation preserves addressed writing");
   const identity = await source.elementHandle();
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
@@ -435,7 +436,7 @@ test("IM74.continuity: repeated viewport cycles preserve browser composition, un
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Retained ");
   const identity = await source.elementHandle();
   const reader = page.locator(".reading-pane");
@@ -533,7 +534,7 @@ test("IM74.extremely-short: bounded writer scrolling exposes protected source, v
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("[alien]Protected exact text[/alien]");
   await changeViewport(page, { height: 240, offsetTop: 30, scale: 1 });
   const writer = page.locator(".source-writing");
@@ -564,10 +565,10 @@ test("IM74.extremely-short: bounded writer scrolling exposes protected source, v
     .click();
   await expect(source).toHaveValue("[alien]Protected exact text[/alien]");
   await source.fill("");
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  const blocker = page.getByText("Enter the post body.", { exact: true });
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  const blocker = page.getByText("Enter reply text before sending.", {
+    exact: true,
+  });
   await expect(blocker).toBeVisible();
   for (const control of [
     blocker,

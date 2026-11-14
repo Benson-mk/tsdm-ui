@@ -476,7 +476,7 @@ test.describe("touch entry", () => {
   });
 });
 
-test("UX101.review-race: retarget immediately revokes review and late review preparation cannot enable controls for a still-pending target", async ({
+test("UX101.review-race: retarget cancels Send and late preparation cannot dispatch for a still-pending target", async ({
   page,
 }) => {
   const state = await open(page);
@@ -488,10 +488,9 @@ test("UX101.review-race: retarget immediately revokes review and late review pre
   const editor = await selectSourceEditor(page);
   await editor.fill("Authored source for review");
   const review = page.getByRole("button", {
-    name: "Review publication",
+    name: "Send reply",
     exact: true,
   });
-  await review.click();
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
@@ -503,7 +502,7 @@ test("UX101.review-race: retarget immediately revokes review and late review pre
     .click();
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
-  ).toHaveCount(0);
+  ).toBeDisabled();
   await responseThenRelease(page, "202", releaseTarget);
   await expect(
     page.getByRole("group", { name: "Reply target", exact: true }),
@@ -546,7 +545,7 @@ test("UX101.review-race: retarget immediately revokes review and late review pre
   await expect(editor).toHaveValue("Authored source for review");
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
-  ).toHaveCount(0);
+  ).toBeEnabled();
   expect(state.requests.filter((r) => r.method !== "GET")).toEqual([]);
 });
 
@@ -573,9 +572,7 @@ test("UX101.literal-quote: BBCode-looking visible text stays literal and cannot 
   expect(quoted).toContain(
     "Literal [attach]999[/attach] and [b]printed syntax[/b]",
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
     page
       .getByRole("alert")
@@ -584,7 +581,7 @@ test("UX101.literal-quote: BBCode-looking visible text stays literal and cannot 
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   expect(state.requests.filter((r) => r.method !== "GET")).toEqual([]);
 });
 

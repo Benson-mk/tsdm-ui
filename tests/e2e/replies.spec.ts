@@ -31,6 +31,7 @@ async function fixture(page: Page) {
     postGate: null as Promise<void> | null,
     sourceGate: null as Promise<void> | null,
     mentionGate: null as Promise<void> | null,
+    beforeResponse: null as ((url: URL) => void) | null,
     formChange: (body: string) => body,
     sourceChange: (body: string) => body,
     threadChange: (body: string) => body,
@@ -49,6 +50,7 @@ async function fixture(page: Page) {
         body: `<html><head><meta charset="utf-8"></head><body><script src="${origin}/__workspace-fixture.js"></script></body></html>`,
       });
     state.requests.push({ url: url.href, method: request.method() });
+    state.beforeResponse?.(url);
     if (url.pathname === "/plugin.php") {
       if (state.mentionGate) await state.mentionGate;
       return route.fulfill({
@@ -130,10 +132,7 @@ test("J4.reply-current: preserve complete source/current options and open indepe
   await (await selectSourceEditor(page)).fill(source);
   await revealWritingTools(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  await expect(page.getByText(/Review reply revision/)).toBeVisible();
+
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.posts).toHaveLength(1);
@@ -210,9 +209,7 @@ test("J4.quote-target: authored quote blocks survive general and addressed retar
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     source,
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.posts).toHaveLength(1);
@@ -264,9 +261,7 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Literal @Other author stays literal. @\u2063Other author\u2063 ",
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.posts).toHaveLength(1);
@@ -300,9 +295,7 @@ async function readyReply(page: Page) {
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await (await selectSourceEditor(page)).fill(source);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
@@ -491,8 +484,13 @@ for (const phase of ["before-send", "in-flight", "readback"])
     page,
   }, info) => {
     const state = await readyReply(page);
-    if (phase === "before-send") state.member = "8";
-    else if (phase === "in-flight") {
+    if (phase === "before-send") {
+      let forms = 0;
+      state.beforeResponse = (url) => {
+        if (url.searchParams.get("action") === "reply" && ++forms === 2)
+          state.member = "8";
+      };
+    } else if (phase === "in-flight") {
       state.mode = "account-flight";
     } else
       state.sourceChange = (body) =>
@@ -615,13 +613,15 @@ test("J4.reply-mention-drift: selected UID changing before send refuses without 
   await page
     .getByRole("button", { name: "Mention Other author (UID 8)", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
-  state.people = [{ uid: 9, username: "Other author" }];
+  let lookups = 0;
+  state.beforeResponse = (url) => {
+    if (url.pathname === "/plugin.php" && ++lookups === 2)
+      state.people = [{ uid: 9, username: "Other author" }];
+  };
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
     page.getByText(/selected mention identity changed before send/),
@@ -716,9 +716,7 @@ test("J4.reply-merged-comparison: preserve known complete before and full observ
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await (await selectSourceEditor(page)).fill(source);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
@@ -757,7 +755,7 @@ test("J4.reply-merged-comparison: preserve known complete before and full observ
     contentType: "image/png",
   });
 });
-test("J4.reply-prior-drift: known existing source changed after review prevents sending", async ({
+test("J4.reply-prior-drift: known existing source changed during fresh preflight prevents sending", async ({
   page,
 }, info) => {
   const state = await fixture(page);
@@ -766,13 +764,15 @@ test("J4.reply-prior-drift: known existing source changed after review prevents 
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await (await selectSourceEditor(page)).fill(source);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
-  state.priorSource = "Changed prior source";
+  let forms = 0;
+  state.beforeResponse = (url) => {
+    if (url.searchParams.get("action") === "reply" && ++forms === 2)
+      state.priorSource = "Changed prior source";
+  };
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
     page.getByText(/previously observed post changed before send/),
@@ -799,9 +799,7 @@ for (const mutation of [
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
     await (await selectSourceEditor(page)).fill(source);
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect(
       page.getByLabel("Complete source before sending", { exact: true }),
@@ -844,16 +842,9 @@ for (const mutation of [
     });
   });
 
-for (const [
-  language,
-  closeLabel,
-  sourceLabel,
-  reviewLabel,
-  sendLabel,
-  confirmation,
-] of [
-  ["zh-CN", "关闭", "完整源码", "检查发布", "发送回复", "已确认储存回复"],
-  ["zh-TW", "關閉", "完整原始碼", "檢查發佈", "傳送回覆", "已確認儲存回覆"],
+for (const [language, closeLabel, sourceLabel, sendLabel, confirmation] of [
+  ["zh-CN", "关闭", "完整源码", "发送回复", "已确认储存回复"],
+  ["zh-TW", "關閉", "完整原始碼", "傳送回覆", "已確認儲存回覆"],
 ] as const)
   test(`J4.reply-localization-${language}: reply confirmation follows interface language and preserves source`, async ({
     page,
@@ -867,7 +858,6 @@ for (const [
     await page.locator("#interface-language").selectOption(language);
     await page.getByRole("button", { name: closeLabel, exact: true }).click();
     await page.getByLabel(sourceLabel, { exact: true }).fill(source);
-    await page.getByRole("button", { name: reviewLabel, exact: true }).click();
     await page.getByRole("button", { name: sendLabel, exact: true }).click();
     await expect(page.getByText(new RegExp(confirmation))).toBeVisible();
     await expect(page.getByLabel(sourceLabel, { exact: true })).toHaveValue(
@@ -967,9 +957,7 @@ async function readySupplement(page: Page) {
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     supplementSubmitted,
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
@@ -1152,9 +1140,7 @@ for (const suffix of [
   }, info) => {
     const state = await readySupplement(page);
     await (await selectSourceEditor(page)).fill(supplementSubmitted + suffix);
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+
     await expect(
       page.getByRole("button", { name: "Send reply", exact: true }),
     ).toBeVisible();
@@ -1194,9 +1180,7 @@ test("J4.reply-native-person-link: a new reply preserves complete source with se
   await page
     .getByRole("button", { name: "Mention Writer 7 (UID 7)", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   state.sourceChange = (body) =>
     state.posts.length
       ? body.replace(
@@ -1222,35 +1206,26 @@ for (const locale of [
     language: "en",
     close: "Close",
     source: "Complete source",
-    review: "Review publication",
     send: "Send reply",
-    summary:
-      /^Review reply revision \d+ for Writer 7 in thread 42 \(Music\)\. Sending may add a reply or merge it into an existing post\.$/,
     addressed: "Addressed to Other author · Post 101",
   },
   {
     language: "zh-CN",
     close: "关闭",
     source: "完整源码",
-    review: "检查发布",
     send: "发送回复",
-    summary:
-      /^检查 Writer 7 在 Music 版块主题 42 中的回复修订 \d+。发送可能新增回复，也可能合并到已有帖子。$/,
     addressed: "回复对象：Other author · 帖子 101",
   },
   {
     language: "zh-TW",
     close: "關閉",
     source: "完整原始碼",
-    review: "檢查發佈",
     send: "傳送回覆",
-    summary:
-      /^檢查 Writer 7 在 Music 版塊主題 42 中的回覆修訂 \d+。傳送可能新增回覆，也可能合併到已有帖子。$/,
     addressed: "回覆對象：Other author · 帖子 101",
   },
 ] as const)
   for (const addressed of [false, true])
-    test(`J4.reply-review-${locale.language}-${addressed ? "addressed" : "ordinary"}: review describes the reply target and possible merge before sending`, async ({
+    test(`J4.reply-send-${locale.language}-${addressed ? "addressed" : "ordinary"}: current destination and localized Send retain the exact reply target and source`, async ({
       page,
     }, info) => {
       const state = await fixture(page);
@@ -1270,25 +1245,25 @@ for (const locale of [
         .getByRole("button", { name: locale.close, exact: true })
         .click();
       await page.getByLabel(locale.source, { exact: true }).fill(source);
-      await page
-        .getByRole("button", { name: locale.review, exact: true })
-        .click();
-      const review = page.getByRole("region", {
-        name:
-          locale.language === "en"
-            ? "Prepared publication review"
-            : locale.language === "zh-CN"
-              ? "发布前审阅"
-              : "發佈前審閱",
-        exact: true,
-      });
-      await expect(review.getByText(locale.summary)).toBeVisible();
+      await revealWritingDetails(page);
+      await expect(page.locator(".writing-destination")).toContainText(
+        "Writer 7 (7)",
+      );
+      await expect(page.locator(".writing-destination")).toContainText("42");
       if (addressed)
         await expect(
           page.getByText(locale.addressed, { exact: true }),
         ).toBeVisible();
       expect(state.posts).toHaveLength(0);
-      await review.scrollIntoViewIfNeeded();
+      await page
+        .getByRole("button", { name: locale.send, exact: true })
+        .click();
+      await expect.poll(() => state.posts.length).toBe(1);
+      expect(state.posts[0]!.get("message")).toBe(source);
+      expect(state.posts[0]!.get("reppost")).toBe(addressed ? "101" : null);
+      await expect(page.getByLabel(locale.source, { exact: true })).toHaveValue(
+        source,
+      );
       await info.attach("reply-action-review.png", {
         body: await page.screenshot(),
         contentType: "image/png",
@@ -1333,9 +1308,7 @@ for (const addressed of [false, true])
       .getByRole("button", { name: "Return to writing", exact: true })
       .click();
     await expect(complete).toHaveValue(expected);
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
     expect(state.posts).toHaveLength(1);
@@ -1387,9 +1360,6 @@ for (const attempted of [false, true]) {
       .click();
     await (await selectSourceEditor(page)).fill(source);
     if (attempted) {
-      await page
-        .getByRole("button", { name: "Review publication", exact: true })
-        .click();
       await page
         .getByRole("button", { name: "Send reply", exact: true })
         .click();
@@ -1455,9 +1425,7 @@ async function dormantSnapshotJourney(page: Page, merged: boolean) {
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
   await (await selectSourceEditor(page)).fill(source);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   if (merged)
     await expect(
@@ -1657,9 +1625,7 @@ for (const [name, stored, confirmed] of [
       return result;
     };
     // Capture the configured prior association before sending, not after review.
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect.poll(() => state.posts.length).toBe(1);
     await expect

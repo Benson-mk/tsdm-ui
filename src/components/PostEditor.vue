@@ -49,14 +49,23 @@ const sourceIssue = computed(() =>
     (issue) => issue.field === "source",
   ),
 );
+const inputDescription = computed(() =>
+  [
+    props.reply ? "reply-shortcut" : "",
+    sourceIssue.value ? "writing-source-error" : "",
+  ]
+    .filter(Boolean)
+    .join(" "),
+);
 function editorAttributes() {
   return {
     role: "textbox",
     "aria-label": t("Visual post content"),
     "aria-multiline": "true",
-    ...(sourceIssue.value
-      ? { "aria-invalid": "true", "aria-describedby": "writing-source-error" }
+    ...(inputDescription.value
+      ? { "aria-describedby": inputDescription.value }
       : {}),
+    ...(sourceIssue.value ? { "aria-invalid": "true" } : {}),
   };
 }
 watch(
@@ -68,6 +77,13 @@ let view: EditorView | null = null;
 let unsubscribe = () => {};
 const t = (value: string) =>
   editorText(value, props.workspace.preferences.state.value.language);
+const shortcutHint = computed(() =>
+  t(
+    state.value.mode === "visual"
+      ? "Enter: send · Shift+Enter: new line"
+      : "Enter: new line · Ctrl/⌘+Enter: send",
+  ),
+);
 const inputMessage = ref("");
 const argument = ref("");
 const activeTool = ref<string | null>(null);
@@ -276,6 +292,33 @@ function apply(name: string) {
     });
   focus();
 }
+function replyShortcut(event: KeyboardEvent): boolean {
+  if (
+    !props.reply ||
+    event.key !== "Enter" ||
+    event.defaultPrevented ||
+    event.altKey ||
+    event.isComposing ||
+    event.keyCode === 229 ||
+    state.value.composing ||
+    writing.state.value.composing
+  )
+    return false;
+  const modified = event.ctrlKey || event.metaKey;
+  const send =
+    state.value.mode === "visual"
+      ? !modified && !event.shiftKey
+      : modified && !event.shiftKey;
+  const newline = state.value.mode === "visual" && event.shiftKey && !modified;
+  if (!send && !newline) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  if (!blocked.value) {
+    if (newline) session.command("paste", { text: "\n" });
+    else if (!event.repeat) void writing.sendReply();
+  }
+  return true;
+}
 function composition(value: boolean) {
   if (value) {
     session.setComposing(true);
@@ -331,6 +374,19 @@ onMounted(() => {
       session.dispatch(transaction);
     },
     handleKeyDown: (editor, event) => {
+      // ProseMirror handles active native composition before this callback.
+      // Its base Enter must not add a paragraph for a confirmation key that
+      // arrives just after compositionend, while our composition guard remains.
+      if (
+        props.reply &&
+        event.key === "Enter" &&
+        (event.isComposing ||
+          event.keyCode === 229 ||
+          state.value.composing ||
+          writing.state.value.composing)
+      )
+        return true;
+      if (replyShortcut(event)) return true;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
         travel(event.shiftKey ? "redo" : "undo");
         return true;
@@ -579,6 +635,9 @@ onBeforeUnmount(() => {
         </fieldset>
       </details>
       <slot name="tools" />
+      <p v-if="reply" id="reply-shortcut" class="composer-help">
+        {{ shortcutHint }}
+      </p>
     </div>
     <p
       v-if="!plain && state.issues.some((issue) => issue.kind === 'protected')"
@@ -630,10 +689,12 @@ onBeforeUnmount(() => {
               "Enter private message text before review.",
               workspace.preferences.state.value.language,
             )
-          : validationText(
-              sourceIssue,
-              workspace.preferences.state.value.language,
-            )
+          : reply && sourceIssue.code === "required"
+            ? t("Enter reply text before sending.")
+            : validationText(
+                sourceIssue,
+                workspace.preferences.state.value.language,
+              )
       }}
     </p>
     <div :class="reply ? 'reply-input-row' : undefined">
@@ -658,7 +719,7 @@ onBeforeUnmount(() => {
             ref="source"
             :readonly="blocked"
             :aria-invalid="sourceIssue ? 'true' : undefined"
-            :aria-describedby="sourceIssue ? 'writing-source-error' : undefined"
+            :aria-describedby="inputDescription || undefined"
             :value="state.display"
             :rows="reply ? 1 : expanded ? 14 : 6"
             spellcheck="false"
@@ -669,6 +730,7 @@ onBeforeUnmount(() => {
             @blur="selected"
             @compositionstart.stop="composition(true)"
             @compositionend.stop="composition(false)"
+            @keydown.enter="replyShortcut"
             @keydown.meta.z.prevent="travel($event.shiftKey ? 'redo' : 'undo')"
             @keydown.ctrl.z.prevent="travel($event.shiftKey ? 'redo' : 'undo')"
           />

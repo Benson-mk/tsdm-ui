@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -97,7 +98,7 @@ test("IM73.edges: exposed surfaces protect top, lateral and stable bottom edges 
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Exact retained [quote]safe edges[/quote]");
   const original = await source.elementHandle();
   const padding = (selector: string) =>
@@ -368,7 +369,7 @@ test("IM73.notices: global recovery notices and retained-writing review remain p
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Retain exact [quote]source[/quote]");
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await page
@@ -414,10 +415,10 @@ test("IM73.portrait-fallback: portrait edges and unavailable VisualViewport reta
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Portrait complete source");
   const review = page.getByRole("button", {
-    name: "Review publication",
+    name: "Send reply",
     exact: true,
   });
   await review.scrollIntoViewIfNeeded();
@@ -501,7 +502,7 @@ for (const mode of [
         .getByRole("button", { name: "Reply to this post", exact: true })
         .first()
         .click();
-      const source = page.getByLabel("Complete source", { exact: true });
+      const source = await selectSourceEditor(page);
       await source.fill("Hidden retained [quote]exact[/quote]");
       writing = await source.elementHandle();
       await page

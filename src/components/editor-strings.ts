@@ -4,6 +4,28 @@ const translations: Record<string, [string, string]> = {
   Preview: ["预览", "預覽"],
   "Close preview": ["关闭预览", "關閉預覽"],
   Review: ["审阅", "審閱"],
+  Send: ["发送", "傳送"],
+  "Accept duplicate risk and send": [
+    "接受重复风险并发送",
+    "接受重複風險並傳送",
+  ],
+  "The earlier reply may already exist. Sending again may create a duplicate reply or repeat a merged reply. This cannot undo the first attempt.":
+    [
+      "之前的回复可能已存在。再次发送可能创建重复回复或重复合并回复，且无法撤销第一次尝试。",
+      "之前的回覆可能已存在。再次傳送可能建立重複回覆或重複合併回覆，且無法撤銷第一次嘗試。",
+    ],
+  "Enter: send · Shift+Enter: new line": [
+    "Enter：发送 · Shift+Enter：换行",
+    "Enter：傳送 · Shift+Enter：換行",
+  ],
+  "Enter: new line · Ctrl/⌘+Enter: send": [
+    "Enter：换行 · Ctrl/⌘+Enter：发送",
+    "Enter：換行 · Ctrl/⌘+Enter：傳送",
+  ],
+  "Enter reply text before sending.": [
+    "发送前请输入回复内容。",
+    "傳送前請輸入回覆內容。",
+  ],
   "This attribute cannot be represented safely.": [
     "无法安全表示此属性。",
     "無法安全表示此屬性。",

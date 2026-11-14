@@ -29,7 +29,12 @@ async function open(page: Page) {
     uploadGate: null as Promise<void> | null,
     removalGate: null as Promise<void> | null,
     uploaded: false,
-    gate: null as { thread: string; promise: Promise<void> } | null,
+    gate: null as {
+      thread: string;
+      promise: Promise<void>;
+      pending?: boolean;
+      entered?: boolean;
+    } | null,
     requests: [] as { url: string; method: string; body: string | null }[],
   };
   ledgers.set(page, state.requests);
@@ -85,8 +90,24 @@ async function open(page: Page) {
           : undefined,
       newThread = url.searchParams.get("action") === "newthread",
       post = saved?.get("reppost") ?? url.searchParams.get("reppost");
-    if (state.gate?.thread === id && url.searchParams.get("mod") === "post")
-      await state.gate.promise;
+    if (state.gate?.thread === id && url.searchParams.get("mod") === "post") {
+      const pending =
+        !state.gate.pending ||
+        (await request.frame().evaluate(() => {
+          const record = JSON.parse(
+            sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
+          );
+          return (
+            record?.writing?.attempts?.some(
+              (attempt: { status: string }) => attempt.status === "pending",
+            ) ?? false
+          );
+        }));
+      if (pending) {
+        state.gate.entered = true;
+        await state.gate.promise;
+      }
+    }
     if (state.refusedReply && url.searchParams.get("action") === "reply")
       return route.fulfill({
         contentType: "text/html",
@@ -258,11 +279,24 @@ test("UX106.late: delayed preparation cannot replace another selected thread or 
     .click();
   await (await selectSourceEditor(page)).fill("A must survive delayed forms");
   await revealWritingTools(page);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  await expect(page.getByText(/Review reply revision/)).toBeVisible();
+  let releaseA!: () => void;
+  state.gate = {
+    thread: "42",
+    promise: new Promise<void>((resolve) => {
+      releaseA = resolve;
+    }),
+  };
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect.poll(() => state.gate?.entered).toBe(true);
   await choose(page, "43");
+  const responseA = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).searchParams.get("mod") === "post" &&
+      new URL(response.url()).searchParams.get("tid") === "42",
+  );
+  releaseA();
+  state.gate = null;
+  await responseA;
   let release!: () => void;
   state.gate = {
     thread: "43",
@@ -317,9 +351,6 @@ test("UX106.account: automatic account changes share one thread slot and keep im
     await selectSourceEditor(page)
   ).fill("Original A content without silent B replacement");
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await choose(page, "43");
@@ -497,9 +528,6 @@ test("UX106.indicators: cleared and unchanged sent writing lose the badge while 
   await expect(row).not.toContainText("Local draft");
   await (await selectSourceEditor(page)).fill("A confirmed reply with options");
   await expect(row).toContainText("Local draft");
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await expect(row).not.toContainText("Local draft");
@@ -655,9 +683,6 @@ test("UX106.effect: pending publication keeps its owner and fresh B never inheri
     await selectSourceEditor(page)
   ).fill("Immutable original A submission");
   await revealWritingTools(page);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   let release!: () => void;
   state.postGate = new Promise<void>((resolve) => {
     release = resolve;
@@ -890,9 +915,6 @@ test("UX106.pending-recovery: inactive pending snapshots recover as uncertain wi
     .click();
   await (await selectSourceEditor(page)).fill("Original actor pending source");
   await revealWritingTools(page);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   let release!: () => void;
   state.postGate = new Promise<void>((resolve) => {
     release = resolve;
@@ -963,9 +985,6 @@ test("UX106.pending-ack: failed collection acknowledgement retains both replies 
     };
   });
   await revealWritingTools(page);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
     page.getByText(/Publication was not sent because recovery/),
@@ -1006,9 +1025,7 @@ test("UX106.return-during-prepare: leaving and returning to the same context rev
       (request) => new URL(request.url).searchParams.get("mod") === "post",
     ).length;
   const before = forms();
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect.poll(forms).toBeGreaterThan(before);
   await choose(page, "43");
   await choose(page, "42");
@@ -1039,9 +1056,6 @@ test("UX106.parked-history: reading A while B sends never copies parked B's immu
     await (await selectSourceEditor(page)).fill(`Owned writing ${id}`);
   }
   await revealWritingTools(page);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   let release!: () => void;
   state.postGate = new Promise<void>((resolve) => {
     release = resolve;
@@ -1104,9 +1118,6 @@ test("UX106.startup-owners: pending retained writing cannot erase another recove
     await selectSourceEditor(page)
   ).fill("Pending reply beside independent favorite history");
   await revealWritingTools(page);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   let release!: () => void;
   state.postGate = new Promise<void>((resolve) => {
     release = resolve;
@@ -1187,9 +1198,6 @@ for (const different of [true, false]) {
       await (await selectSourceEditor(page)).fill(`Owned writing ${id}`);
     }
     await revealWritingTools(page);
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
     await page.getByRole("button", { name: "New thread", exact: true }).click();
@@ -1391,7 +1399,7 @@ test("UX107.conflict: retain both tabs' competing source and pause editing and r
   await revealWritingTools(other);
   await expect(other.getByLabel("Signature", { exact: true })).toBeDisabled();
   await expect(
-    other.getByRole("button", { name: "Review publication", exact: true }),
+    other.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeDisabled();
   await other.reload();
   await expect(
@@ -1485,32 +1493,21 @@ test("UX107.preflight-conflict: a competing draft detected during final native p
   await expect(await selectSourceEditor(other)).toHaveValue(
     "Original submitted source",
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
   let release!: () => void;
   state.gate = {
     thread: "42",
+    pending: true,
     promise: new Promise<void>((resolve) => {
       release = resolve;
     }),
   };
   const before = state.requests.length;
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
-  await expect
-    .poll(
-      () =>
-        state.requests
-          .slice(before)
-          .filter(
-            (request) =>
-              new URL(request.url).searchParams.get("mod") === "post",
-          ).length,
-    )
-    .toBeGreaterThan(0);
+  await expect.poll(() => state.gate?.entered).toBe(true);
+  expect(state.requests.length).toBeGreaterThan(before);
   await (
     await selectSourceEditor(other)
   ).fill("Competing second-tab source during preflight");
@@ -2380,9 +2377,6 @@ test("UX107.after-dispatch: a conflict retains the active immutable publication 
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   let release!: () => void;
   state.postGate = new Promise<void>((resolve) => {
     release = resolve;
@@ -2491,9 +2485,6 @@ test("UX107.independent-conflict: a retained conflict in another thread cannot b
       exact: true,
     }),
   ).toBeVisible();
-  await other
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await other.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(other.getByText(/Confirmed stored reply/)).toBeVisible();
   const posts = state.requests.filter((request) => request.method === "POST");
@@ -2524,9 +2515,6 @@ test("UX107.live-owner: live notification preserves the pending owner's exact ob
   await choose(other, "42");
   await selectSourceEditor(other);
   await revealWritingDetails(other);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   let release!: () => void;
   state.postGate = new Promise<void>((resolve) => {
     release = resolve;
@@ -2756,9 +2744,6 @@ test("UX107.unequal-history: recovered uncertain and actual confirmed observatio
       exact: true,
     }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   let release!: () => void;
   state.postGate = new Promise<void>((resolve) => {
     release = resolve;
@@ -3084,7 +3069,7 @@ for (const phase of ["preparation", "acknowledgement"] as const) {
         }),
       };
       await page
-        .getByRole("button", { name: "Review publication", exact: true })
+        .getByRole("button", { name: "Send reply", exact: true })
         .click();
       await expect
         .poll(
@@ -3098,9 +3083,6 @@ for (const phase of ["preparation", "acknowledgement"] as const) {
         )
         .toBeGreaterThan(0);
     } else {
-      await page
-        .getByRole("button", { name: "Review publication", exact: true })
-        .click();
       await page.evaluate(() => {
         const original = IDBDatabase.prototype.transaction;
         let held = false;
@@ -3109,7 +3091,12 @@ for (const phase of ["preparation", "acknowledgement"] as const) {
           if (
             !held &&
             this.name === "tsdm.workspace.reply-drafts" &&
-            mode === "readonly"
+            mode === "readonly" &&
+            JSON.parse(
+              sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
+            )?.writing?.attempts?.some(
+              (attempt: { status: string }) => attempt.status === "pending",
+            )
           ) {
             held = true;
             Object.defineProperty(tx, "oncomplete", {
@@ -3158,11 +3145,8 @@ for (const phase of ["preparation", "acknowledgement"] as const) {
       page.getByRole("region", { name: "Conflicting local reply drafts" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Review publication", exact: true }),
-    ).toBeDisabled();
-    await expect(
       page.getByRole("button", { name: "Send reply", exact: true }),
-    ).toHaveCount(0);
+    ).toBeDisabled();
     expect(
       state.requests.filter((request) => request.method === "POST"),
     ).toEqual([]);

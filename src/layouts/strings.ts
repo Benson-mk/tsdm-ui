@@ -2694,6 +2694,16 @@ const descriptions: Record<string, readonly [string, string]> = {
       "先前尝试可能已产生主题。再次发送前，请检查结果并明确接受重复风险。",
       "先前嘗試可能已產生主題。再次傳送前，請檢查結果並明確接受重複風險。",
     ],
+  "The sending account was not verified when Send was activated. Check the current account, then choose Send again. Your reply is retained.":
+    [
+      "点击发送时尚未验证当前发送账号。请检查当前账号后重新选择发送。回复已保留。",
+      "按下傳送時尚未驗證目前傳送帳號。請檢查目前帳號後重新選擇傳送。回覆已保留。",
+    ],
+  "The reply or sending account changed during preparation. Nothing was sent. Choose Send again for the current reply.":
+    [
+      "准备期间回复或发送账号已改变。未发送任何内容。请重新选择发送当前回复。",
+      "準備期間回覆或傳送帳號已改變。未傳送任何內容。請重新選擇傳送目前回覆。",
+    ],
   "Writing changed during publication preparation. Review the current revision again.":
     [
       "准备发布期间写作内容已变化。请重新检查当前版本。",

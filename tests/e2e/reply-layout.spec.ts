@@ -448,7 +448,7 @@ for (const width of [1440, 905, 390])
       });
     });
 
-test("UI105.tools-review: compact tools execute full commands and optional inert Preview keeps separate frozen review", async ({
+test("UI105.tools-preview: compact tools execute full commands and optional inert Preview preserves exact writing before explicit Send", async ({
   page,
 }, info) => {
   const server = await open(page, false, true, true);
@@ -535,20 +535,11 @@ test("UI105.tools-review: compact tools execute full commands and optional inert
   const preview = page.getByRole("region", { name: "Preview", exact: true });
   await expect(preview).toContainText("Preview exact");
   await expect(preview).toContainText("[unknown]raw[/unknown]");
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  const review = page.getByRole("region", {
-    name: "Prepared publication review",
-    exact: true,
-  });
-  await expect(review).toBeVisible();
-  await review.getByText("Complete prepared source", { exact: true }).click();
-  await expect(review.locator(".prepared-source")).toHaveText(
+  await expect(source).toHaveValue(
     "[b]Preview exact[/b] [unknown]raw[/unknown]",
   );
   await expect(
-    review.getByRole("button", { name: "Send reply", exact: true }),
+    page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
   expect(server.requests.every((request) => request.method === "GET")).toBe(
     true,

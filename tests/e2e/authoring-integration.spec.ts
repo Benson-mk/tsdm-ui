@@ -1,3 +1,4 @@
+import { revealWritingDetails, revealWritingTools } from "./editor-controls";
 import { selectSourceEditor } from "./editor-controls";
 import { publishSavedDraft } from "./draft-review-controls";
 import { test, expect, type Page, type Locator } from "@playwright/test";
@@ -140,13 +141,13 @@ const source = (page: Page) =>
 const warning = (page: Page) =>
   page.getByText(/Some visual input has no unambiguous/);
 const reviewName = (action: Action) =>
-  action === "edit" ? "Review edit" : "Review publication";
+  action === "edit" ? "Review edit" : "Send reply";
 const submitName = (action: Action) =>
   action === "edit" ? "Save edited post" : "Send reply";
 async function complete(page: Page, action: Action) {
   if (action === "draft") await button(page, "Save forum draft").click();
   else {
-    await button(page, reviewName(action)).click();
+    if (action === "edit") await button(page, reviewName(action)).click();
     await button(page, submitName(action)).click();
   }
   await expect(
@@ -255,6 +256,13 @@ for (const action of ["reply", "edit"] as const) {
     await page.reload();
     await expect(source(page)).toHaveValue(revised);
     expect(state.effects).toHaveLength(0);
+    if (action === "reply") {
+      await revealWritingTools(page);
+      await revealWritingDetails(page);
+      await button(page, "Check current account and form").click();
+      await expect(source(page)).toHaveValue(revised);
+      expect(state.effects).toHaveLength(0);
+    }
     await complete(page, action);
     await verifyStored(state, action, revised, 1);
   });
@@ -271,7 +279,7 @@ for (const action of ["reply", "edit", "draft"] as const) {
         action === "draft" ? "Save forum draft" : reviewName(action),
       ),
     );
-    if (action !== "draft")
+    if (action === "edit")
       await expect(button(page, submitName(action))).toHaveCount(0);
     await recoverAmbiguity(page);
     expect(state.effects).toHaveLength(0);
@@ -282,7 +290,7 @@ for (const action of ["reply", "edit", "draft"] as const) {
       ),
     );
     await expect(warning(page)).toBeVisible();
-    if (action !== "draft")
+    if (action === "edit")
       await expect(button(page, submitName(action))).toHaveCount(0);
     await interpret(page);
     expect(state.effects).toHaveLength(0);

@@ -316,16 +316,12 @@ for (const [
     expect(state.requests.every((r) => r.method === "GET")).toBe(true);
     await visibleTarget.scrollIntoViewIfNeeded();
     await page
-      .getByRole("button", {
-        name: /^(Review publication|检查发布|檢查發佈)$/,
-        exact: true,
-      })
+      .getByRole("button", { name: /^(Preview|预览|預覽)$/, exact: true })
       .click();
-    await expect(review).toContainText("101");
-    await expect(review).toContainText("Other author");
-    await expect(page.locator(".prepared-review .prepared-source")).toHaveText(
-      retained,
-    );
+    await expect(identity).toContainText("101");
+    await expect(identity).toContainText("Other author");
+    await expect(editor).toHaveValue(retained);
+    await expect(review).toHaveCount(0);
     expect(state.requests.every((r) => r.method === "GET")).toBe(true);
     await capture(page, info);
   });

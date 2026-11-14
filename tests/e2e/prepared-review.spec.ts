@@ -1,5 +1,5 @@
 import { selectSourceEditor } from "./editor-controls";
-import { revealWritingTools } from "./editor-controls";
+import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
 import {
@@ -41,6 +41,7 @@ function state() {
       fresh: string | undefined;
     }[],
     postGate: null as Promise<void> | null,
+    formGate: null as Promise<void> | null,
     outcome: "accepted",
     formChange: (html: string) => html,
   };
@@ -81,6 +82,8 @@ async function fixture(
         body: `<root><![CDATA[<script>succeedhandle_post('${threadURL}&pid=${entry.startsWith("edit") ? (entry === "edit-reply" ? "202" : "101") : entry === "new-thread" ? "101" : "303"}', 'Saved', {'fid':'5','tid':'42','pid':'${entry === "new-thread" ? "101" : "303"}'});</script>]]></root>`,
       });
     }
+    if (u.searchParams.get("action") === "reply" && f.formGate)
+      await f.formGate;
     const account = `<div id="um"><strong><a href="home.php?mod=space&uid=${f.member}">Writer ${f.member}</a></strong></div>`;
     const board = `<div id="pt"><a href="${boardURL}">Music discussion</a></div>`;
     let html = account + board;
@@ -344,9 +347,7 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();
   await source.fill(" \n ");
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(source).toHaveAttribute("aria-invalid", "true");
   await expect(source).toBeFocused();
   expect(f.posts).toHaveLength(0);
@@ -366,19 +367,19 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
     "attachmentFields",
   ])
     expect(corrected[key]).toEqual(before[key]);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  const review = page.getByRole("region", {
-    name: "Prepared publication review",
-    exact: true,
-  });
-  await expect(review).toContainText("Other author · Post 101");
-  await review.locator("summary").focus();
-  await review.locator("summary").press("Enter");
-  expect(await review.locator(".prepared-source").textContent()).toBe(
-    formatted,
+  await revealWritingTools(page);
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await expect(page.locator(".reply-preview")).toBeVisible();
+  await expect(page.locator(".reply-target-strip")).toContainText(
+    "Other author",
   );
+  await revealWritingDetails(page);
+  await expect(page.locator(".writing-destination")).toContainText("Post 101");
+  await expect(source).toHaveValue(formatted);
+  expect(f.posts).toHaveLength(0);
+  await page
+    .getByRole("button", { name: "Close preview", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
@@ -394,7 +395,7 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
   // A board-only history snapshot has no conversation until writing is shown.
   // Threads is an in-place primary pane since #82, not an Escape modal.
   await page.getByRole("button", { name: "Threads pane", exact: true }).click();
-  await expect(review).toBeVisible();
+  await expect(source).toHaveValue(formatted);
   expect(await retained(page)).toEqual(corrected);
   await revealWritingTools(page);
   await capture(page, info);
@@ -875,38 +876,55 @@ for (const entry of [
       await page.getByLabel("Title", { exact: true }).fill(title);
     await revealWritingTools(page);
     await page.getByLabel("Signature", { exact: true }).uncheck();
-    await page
-      .getByRole("button", {
-        name: entry.startsWith("edit") ? "Review edit" : "Review publication",
+    if (entry === "reply" || entry === "addressed") {
+      await revealWritingDetails(page);
+      const destination = page.locator(".writing-destination");
+      await expect(destination).toContainText("Writer 7 (7)");
+      await expect(destination).toContainText("42");
+      if (entry === "addressed")
+        await expect(destination).toContainText("Other author · Post 101");
+      await expect(page.getByLabel("Title", { exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: "Preview", exact: true }).click();
+      await expect(page.locator(".reply-preview")).toContainText(
+        "Prepared 完整正文",
+      );
+      await expect(
+        page.getByLabel("Complete source", { exact: true }),
+      ).toHaveValue(body);
+      expect(f.posts).toHaveLength(0);
+      await capture(page, info);
+    } else {
+      await page
+        .getByRole("button", {
+          name: "Review edit",
+          exact: true,
+        })
+        .click();
+      const review = page.getByRole("region", {
+        name: "Prepared publication review",
         exact: true,
-      })
-      .click();
-    const review = page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    });
-    await expect(review).toBeVisible();
-    await expect(review).toContainText("Writer 7 (7)");
-    await expect(review).toContainText("Thread 42");
-    await expect(review).toContainText(
-      entry === "addressed"
-        ? "Other author · Post 101"
-        : entry.startsWith("edit")
-          ? `Edit post ${entry === "edit-opening" ? "101" : "202"}`
-          : "Reply to thread",
-    );
-    await expect(review.locator("dt").filter({ hasText: "Title" })).toHaveCount(
-      entry === "edit-opening" ? 1 : 0,
-    );
-    if (entry === "edit-opening") await expect(review).toContainText(title);
-    if (entry.startsWith("edit")) {
-      await expect(review).toContainText("Fixture attachment");
-      await expect(review).toContainText("disabled; not submitted");
+      });
+      await expect(review).toBeVisible();
+      await expect(review).toContainText("Writer 7 (7)");
+      await expect(review).toContainText("Thread 42");
+      await expect(review).toContainText(
+        `Edit post ${entry === "edit-opening" ? "101" : "202"}`,
+      );
+      await expect(
+        review.locator("dt").filter({ hasText: "Title" }),
+      ).toHaveCount(entry === "edit-opening" ? 1 : 0);
+      if (entry === "edit-opening") await expect(review).toContainText(title);
+      if (entry.startsWith("edit")) {
+        await expect(review).toContainText("Fixture attachment");
+        await expect(review).toContainText("disabled; not submitted");
+      }
+      await review
+        .getByText("Complete prepared source", { exact: true })
+        .click();
+      expect(await review.locator(".prepared-source").textContent()).toBe(body);
+      expect(f.posts).toHaveLength(0);
+      await capture(page, info);
     }
-    await review.getByText("Complete prepared source", { exact: true }).click();
-    expect(await review.locator(".prepared-source").textContent()).toBe(body);
-    expect(f.posts).toHaveLength(0);
-    await capture(page, info);
     await page
       .getByRole("button", {
         name: entry.startsWith("edit") ? "Save edited post" : "Send reply",
@@ -1071,19 +1089,19 @@ test("UX59.invalidate-account: observing another actor removes approval and reta
   expect((await retained(page)).source).toBe(body);
   expect(f.posts).toHaveLength(0);
 });
-test("UX59.invalidate-target: same-thread retarget clears approval before preparing an addressed target", async ({
+test("UX59.invalidate-target: same-thread retarget revokes delayed Send before preparing an addressed target", async ({
   page,
 }) => {
   const f = await fixture(page, "reply");
-  await page.getByLabel("Complete source", { exact: true }).fill(body);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  const review = page.getByRole("region", {
-    name: "Prepared publication review",
-    exact: true,
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill(body);
+  let release!: () => void;
+  f.formGate = new Promise<void>((resolve) => {
+    release = resolve;
   });
-  await expect(review).toBeVisible();
+  const before = f.requests.length;
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect.poll(() => f.requests.length).toBeGreaterThan(before);
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
@@ -1091,22 +1109,26 @@ test("UX59.invalidate-target: same-thread retarget clears approval before prepar
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
-    body,
-  );
-  await expect(review).toHaveCount(0);
+  f.formGate = null;
+  release();
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
-  ).toHaveCount(0);
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill(body + " addressed");
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  await expect(review).toContainText("Other author · Post 101");
+  ).toBeEnabled();
+  await expect(source).toHaveValue(body);
+  await expect(page.locator(".reply-target-strip")).toContainText(
+    "Other author",
+  );
+  await revealWritingDetails(page);
+  await expect(page.locator(".writing-destination")).toContainText("Post 101");
   expect(f.posts).toHaveLength(0);
+  await source.fill(body + " addressed");
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  expect(f.posts).toHaveLength(1);
+  expect(f.stored.get("message")).toBe(body + " addressed");
+  expect(f.stored.get("reppost")).toBe("101");
 });
+
 test("UX59.delayed-uncertain: delayed unknown result owns the frozen revision while later local writing survives reload without replay", async ({
   page,
 }) => {
@@ -1355,7 +1377,11 @@ for (const entry of [
         requests = f.requests.length;
       await page
         .getByRole("button", {
-          name: entry.startsWith("edit") ? "Review edit" : "Review publication",
+          name: entry.startsWith("edit")
+            ? "Review edit"
+            : entry === "reply" || entry === "addressed"
+              ? "Send reply"
+              : "Review publication",
           exact: true,
         })
         .click();
@@ -1364,7 +1390,14 @@ for (const entry of [
         exact: true,
       });
       await expect(editor).toHaveAttribute("aria-invalid", "true");
-      await expect(editor).toHaveAccessibleDescription("Enter the post body.");
+      await expect(editor).toHaveAccessibleDescription(
+        entry === "reply" || entry === "addressed"
+          ? (mode === "visual"
+              ? "Enter: send · Shift+Enter: new line"
+              : "Enter: new line · Ctrl/⌘+Enter: send") +
+              " Enter reply text before sending."
+          : "Enter the post body.",
+      );
       await expect(editor).toBeFocused();
       await expect(
         page.getByText("Enter a title.", { exact: true }),

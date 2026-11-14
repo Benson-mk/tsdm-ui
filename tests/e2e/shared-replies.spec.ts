@@ -206,38 +206,33 @@ test("UX108.publication-actor: revoke A authority then send explicitly as B whil
   const source = "[b]Shared exact reply[/b]\n[quote]Literal quote[/quote]";
   await (await selectSourceEditor(page)).fill(source);
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  await expect(
-    page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
+  let release!: () => void;
+  state.gate = {
+    thread: "42",
+    promise: new Promise<void>((resolve) => {
+      release = resolve;
     }),
-  ).toContainText("Writer 7 (7)");
+  };
+  const before = state.requests.length;
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect.poll(() => state.requests.length).toBeGreaterThan(before);
   state.member = "8";
+  await clickThreadTool(page, "Refresh thread");
+  await expect(page.locator(".writing-destination")).toContainText(
+    "Writer 8 (8)",
+  );
+  state.gate = null;
+  release();
+  await expect(
+    page.getByRole("button", { name: "Send reply", exact: true }),
+  ).toBeEnabled();
   await page
     .getByRole("button", {
       name: "Check current account and form",
       exact: true,
     })
     .click();
-  await expect(
-    page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    }),
-  ).toHaveCount(0);
   expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(0);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  await expect(
-    page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    }),
-  ).toContainText("Writer 8 (8)");
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.saved.get("42")?.get("message")).toBe(source);
@@ -354,9 +349,7 @@ test("UX108.attachment-availability: permissive lists cannot transfer ownership 
   await expect(
     page.getByText("Unavailable · intent.txt", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
     page.getByRole("region", {
       name: "Prepared publication review",
@@ -956,9 +949,6 @@ test("UX108.lost-local-bytes: reload retains named intent, local reattachment se
   await expect(page.locator(".writing-destination")).toContainText(
     "Writer 8 (8)",
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.saved.get("42")?.get("message")).toBe(source);
@@ -1012,15 +1002,9 @@ test("UX108.repaired-payload: a visual-mode replacement adopts the qualified ref
   });
   const source = "[b]Before[/b] [attachimg] 89 [/attachimg] after";
   await expect(await selectSourceEditor(page)).toHaveValue(source);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  await expect(
-    page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    }),
-  ).toContainText("Writer 8 (8)");
+  await expect(page.locator(".writing-destination")).toContainText(
+    "Writer 8 (8)",
+  );
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await page
@@ -1158,9 +1142,6 @@ test("UX108.shared-confirmed-indicator: confirmed B reply in A lineage is no lon
   await expect(page.locator(".writing-destination")).toContainText(
     "Writer 8 (8)",
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await choose(page, "42");
@@ -1430,7 +1411,7 @@ test("UX108.repair-adoption-refusal: final native write refusal retains old sour
 });
 
 for (const observation of ["guest", "unknown", "refused-B"] as const) {
-  test(`UX108.authority-${observation}: a ready review is revoked without losing source or dispatching an effect`, async ({
+  test(`UX108.authority-${observation}: an active Send is revoked without losing source or dispatching an effect`, async ({
     page,
   }) => {
     const state = await open(page);
@@ -1441,14 +1422,24 @@ for (const observation of ["guest", "unknown", "refused-B"] as const) {
     const source =
       "[b]Literal source[/b]\n[quote]Preserved quoted writing[/quote]";
     await (await selectSourceEditor(page)).fill(source);
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+    let release!: () => void;
+    state.gate = {
+      thread: "42",
+      promise: new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    };
+    const before = state.requests.length;
+    await page.getByRole("button", { name: "Send reply", exact: true }).click();
+    await expect.poll(() => state.requests.length).toBeGreaterThan(before);
     await expect(
       page.getByRole("button", { name: "Send reply", exact: true }),
     ).toBeVisible();
     state.member = observation === "refused-B" ? "8" : observation;
     state.refusedReply = observation === "refused-B";
+    await clickThreadTool(page, "Refresh thread");
+    state.gate = null;
+    release();
     await revealWritingDetails(page);
     await page
       .getByRole("button", {
@@ -1458,17 +1449,15 @@ for (const observation of ["guest", "unknown", "refused-B"] as const) {
       .click();
     await expect(
       page.getByRole("button", { name: "Send reply", exact: true }),
-    ).toHaveCount(0);
+    ).toBeVisible();
     await expect(await selectSourceEditor(page)).toHaveValue(source);
     await expect(
       page.getByLabel("Select attachments", { exact: true }),
     ).toBeDisabled();
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Send reply", exact: true }),
-    ).toHaveCount(0);
+    ).toBeVisible();
     expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(0);
   });
 }
@@ -1501,12 +1490,10 @@ for (const kind of ["kind", "controls"] as const) {
     await expect(
       page.getByText("Unavailable · intent.txt", { exact: true }),
     ).toBeVisible();
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Send reply", exact: true }),
-    ).toHaveCount(0);
+    ).toBeVisible();
     await expect(await selectSourceEditor(page)).toHaveValue(
       "[b]Keep[/b] [attach]88[/attach] tail",
     );
@@ -1704,12 +1691,10 @@ test("UX108.repair-undo: editor undo restores literal old reference without manu
   await expect(await selectSourceEditor(page)).toHaveValue(
     "[b]Keep[/b] [attach]88[/attach] tail",
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(2);
 });
 
@@ -1731,7 +1716,7 @@ for (const pending of ["review", "mention"] as const) {
       state.gate = { thread: "42", promise: gate };
       const count = state.requests.length;
       await page
-        .getByRole("button", { name: "Review publication", exact: true })
+        .getByRole("button", { name: "Send reply", exact: true })
         .click();
       await expect.poll(() => state.requests.length).toBeGreaterThan(count);
     } else {
@@ -1771,7 +1756,7 @@ for (const pending of ["review", "mention"] as const) {
     );
     await expect(
       page.getByRole("button", { name: "Send reply", exact: true }),
-    ).toHaveCount(0);
+    ).toBeVisible();
     await expect(
       page.getByRole("button", {
         name: "Mention Other author (UID 6)",
@@ -1889,7 +1874,7 @@ test("UX108.composing-actor: observed actor change preserves in-progress editor 
   );
   await expect(editor).toHaveValue(source);
   await expect(
-    page.getByRole("button", { name: "Review publication", exact: true }),
+    page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeDisabled();
   await editor.dispatchEvent("compositionend", { data: "編" });
   await expect(editor).toHaveValue(source);

@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -170,10 +171,7 @@ test("DESIGN.composer: compact reply exposes editor and review together, expansi
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  const input = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const input = await selectSourceEditor(page);
   await input.fill("A retained reply 中文");
   const node = await input.elementHandle();
   await capture(page, info, "compact-reply");
@@ -182,7 +180,7 @@ test("DESIGN.composer: compact reply exposes editor and review together, expansi
     // The sidebar prototype reserves 324px for its visible target and reply controls.
     .toBeLessThanOrEqual(324);
   const review = page.getByRole("button", {
-    name: "Review publication",
+    name: "Send reply",
     exact: true,
   });
   await expect(review).toBeInViewport();

@@ -16,7 +16,7 @@ type Entry =
 const states = new WeakMap<Page, ReturnType<typeof fixtureState>>();
 function fixtureState() {
   return {
-    requests: [] as { url: string; method: string }[],
+    requests: [] as { url: string; method: string; body: string | null }[],
     member: "7",
     refused: false,
     openingOwned: false,
@@ -50,7 +50,11 @@ async function open(
         contentType: "text/html; charset=utf-8",
         body: `<html><body><script src="${origin}/__entry.js"></script></body></html>`,
       });
-    state.requests.push({ url: url.href, method: request.method() });
+    state.requests.push({
+      url: url.href,
+      method: request.method(),
+      body: request.postData(),
+    });
     if (request.method() !== "GET")
       return route.fulfill({
         status: 500,
@@ -914,7 +918,7 @@ for (const size of [
   });
 
 for (const entry of ["reply", "addressed", "new-thread", "edit-reply"] as const)
-  test(`IM72.review-shortcut-${entry}: newline and IME remain input while modifier Enter only prepares one immutable review`, async ({
+  test(`IM72.review-shortcut-${entry}: newline and IME remain input while modifier Enter follows the current writing policy`, async ({
     page,
   }, info) => {
     const server = await open(page, false, true);
@@ -947,21 +951,46 @@ for (const entry of ["reply", "addressed", "new-thread", "edit-reply"] as const)
       page.getByRole("button", { name: "Undo", exact: true }),
     ).toBeEnabled();
     await source.press(entry === "reply" ? "Control+Enter" : "Meta+Enter");
-    const review = page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    });
-    await expect(review).toBeVisible();
-    await expect(review).toContainText("Keyboard review 中文");
-    const reviewed = (await review.textContent()) ?? "";
-    const after = server.requests.length;
-    await source.press("Control+Enter");
-    await source.press("Meta+Enter");
-    await expect(review).toHaveText(reviewed);
-    expect(server.requests).toHaveLength(after);
-    expect(server.requests.every((request) => request.method === "GET")).toBe(
-      true,
-    );
+    if (entry === "reply" || entry === "addressed") {
+      await expect
+        .poll(() => server.requests.filter((r) => r.method === "POST").length)
+        .toBe(1);
+      await expect(
+        page.getByRole("button", {
+          name: "Check result",
+          exact: true,
+        }),
+      ).toBeVisible();
+      const effect = server.requests.find((r) => r.method === "POST")!;
+      expect(new URLSearchParams(effect.body ?? "").get("message")).toBe(
+        "Keyboard review 中文\nx",
+      );
+      expect(new URLSearchParams(effect.body ?? "").get("reppid")).toBe(
+        entry === "addressed" ? "101" : null,
+      );
+      await source.press("Control+Enter");
+      await source.press("Meta+Enter");
+      expect(server.requests.filter((r) => r.method === "POST")).toHaveLength(
+        1,
+      );
+      await expect(source).toHaveValue("Keyboard review 中文\nx");
+    } else {
+      const review = page.getByRole("region", {
+        name: "Prepared publication review",
+        exact: true,
+      });
+      await expect(review).toBeVisible();
+      await expect(review).toContainText("Keyboard review 中文");
+      const reviewed = (await review.textContent()) ?? "";
+      const after = server.requests.length;
+      await source.press("Control+Enter");
+      await source.press("Meta+Enter");
+      await expect(review).toHaveText(reviewed);
+      expect(server.requests).toHaveLength(after);
+      expect(server.requests.every((request) => request.method === "GET")).toBe(
+        true,
+      );
+    }
     await info.attach("shortcut-review.png", {
       body: await page.screenshot(),
       contentType: "image/png",
@@ -1021,7 +1050,7 @@ test("IM72.addressed-return: blank addressed source names the exact post and ord
   });
 });
 
-test("IM72.visual-ime-shortcut: browser composition stays input and settled visual modifier Enter requests review without publication", async ({
+test("IM72.visual-ime-shortcut: browser composition stays input and settled visual Enter sends exact committed source", async ({
   page,
 }, info) => {
   const server = await open(page, false, true);
@@ -1055,17 +1084,19 @@ test("IM72.visual-ime-shortcut: browser composition stays input and settled visu
   await expect(
     page.getByRole("button", { name: "Undo", exact: true }),
   ).toBeEnabled();
-  await visual.press("Meta+Enter");
+  await visual.press("Enter");
+  await expect
+    .poll(() => server.requests.filter((r) => r.method === "POST").length)
+    .toBe(1);
   await expect(
-    page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    }),
+    page.getByRole("button", { name: "Check result", exact: true }),
   ).toBeVisible();
   expect((await stored(page)).source).toBe("Base 你好");
-  expect(server.requests.every((request) => request.method === "GET")).toBe(
-    true,
-  );
+  expect(
+    new URLSearchParams(
+      server.requests.find((r) => r.method === "POST")!.body ?? "",
+    ).get("message"),
+  ).toBe("Base 你好");
   await info.attach("visual-ime-review.json", {
     body: JSON.stringify({
       writing: await stored(page),
@@ -1080,12 +1111,13 @@ test("IM72.approval-keyboard-boundary: modifier Enter on the focused final appro
   page,
 }, info) => {
   const server = await open(page, false, true);
-  await enter(page, "reply");
+  await enter(page, "new-thread");
+  await page.getByLabel("Category", { exact: true }).selectOption("3");
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Separate approval only");
   await source.press("Control+Enter");
   const approval = page.getByRole("button", {
-    name: "Send reply",
+    name: "Publish thread",
     exact: true,
   });
   await expect(approval).toBeVisible();
@@ -1372,7 +1404,7 @@ for (const width of [1439, 1440, 1706])
     });
   });
 
-test("UI87.mismatch-review: returning to a parked reply restores the original addressed target and immutable review", async ({
+test("UI87.mismatch-review: returning to a parked reply restores the original addressed target and optional inspection", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -1394,14 +1426,16 @@ test("UI87.mismatch-review: returning to a parked reply restores the original ad
     postId: "101",
   });
   await expect(source).toHaveValue("Original target answer");
-  await source.press("Control+Enter");
-  const review = page.getByRole("region", {
-    name: "Prepared publication review",
+  await revealWritingTools(page);
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await revealWritingDetails(page);
+  const destination = page.getByRole("group", {
+    name: "Writing destination",
     exact: true,
   });
-  await expect(review).toBeVisible();
-  await expect(review).toContainText("Thread 42");
-  await expect(review).toContainText("Other author · Post 101");
+  await expect(destination).toContainText("42");
+  await expect(destination).toContainText("Other author · Post 101");
+  await expect(source).toHaveValue("Original target answer");
   expect(server.requests.every((request) => request.method === "GET")).toBe(
     true,
   );
@@ -1511,11 +1545,11 @@ test("UI87.short-restored: returning to parked writing and reload retain at leas
     contentType: "image/png",
   });
   expect(lines.visibleHeight).toBeGreaterThanOrEqual(96);
-  const review = page.getByRole("button", {
-    name: "Review publication",
+  const send = page.getByRole("button", {
+    name: "Send reply",
     exact: true,
   });
-  await review.focus();
+  await send.focus();
   const after = await readableLines(page);
   expect(after.visibleHeight).toBeGreaterThanOrEqual(96);
 });

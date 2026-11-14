@@ -384,9 +384,6 @@ test("UX109.unsettled: choosing clean text preserves the original uncertain atte
       });
     },
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect
     .poll(
@@ -422,7 +419,7 @@ test("UX109.unsettled: choosing clean text preserves the original uncertain atte
     ),
   ).toBeVisible();
   await expect(
-    other.getByRole("button", { name: "Review publication", exact: true }),
+    other.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeDisabled();
   await expect(await selectSourceEditor(other)).not.toHaveAttribute(
     "readonly",
@@ -442,7 +439,7 @@ test("UX109.unsettled: choosing clean text preserves the original uncertain atte
   ).toEqual(original);
   await other.reload();
   await expect(
-    other.getByRole("button", { name: "Review publication", exact: true }),
+    other.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeDisabled();
   await alternatives
     .getByRole("button", { name: "Continue with version 1", exact: true })
@@ -503,7 +500,7 @@ test("UX109.unsettled: choosing clean text preserves the original uncertain atte
     .click();
   await expect(alternatives).toHaveCount(0);
   await expect(
-    other.getByRole("button", { name: "Review publication", exact: true }),
+    other.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeEnabled();
   expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(1);
 });
@@ -1085,9 +1082,6 @@ test("UX109.foreign-pending: selection normalizes only its operational descendan
   await other.goto(boardURL);
   await choose(other, "42");
   const editor = await selectSourceEditor(other);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   let release!: () => void;
   state.postGate = new Promise<void>((resolve) => {
     release = resolve;
@@ -1175,7 +1169,7 @@ test("UX109.dirty-archived-equality: a stale dirty tab cannot treat content equa
     ).version,
   ).not.toBe(row.retained[0].version);
   await expect(
-    third!.getByRole("button", { name: "Review publication", exact: true }),
+    third!.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeDisabled();
 });
 
@@ -1263,9 +1257,7 @@ test("UX109.target-intent: selected target/options/literal source remain exact a
       exact: true,
     }),
   ).toHaveCount(0);
-  await other
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await other.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
     other.getByRole("region", {
       name: "Prepared publication review",
@@ -1426,9 +1418,6 @@ test("UX109.history-epoch: an original result arriving during handoff is retaine
       });
     },
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect
     .poll(
