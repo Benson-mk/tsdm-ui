@@ -116,3 +116,10 @@ const prepareReport: (target: ReportTarget) => Promise<ReportPreparation> = clie
 const submitReport: (form: ReportForm, intent: ReportIntent) => Promise<ReportResult> = client.submitReport;
 const reportOutcomes: Record<ReportResult['kind'], string> = { rejected: 'refused', uncertain: 'unknown', 'not-sent': 'no request' };
 void [prepareReport, submitReport, reportOutcomes];
+
+import type { EffectGuard } from '@tsdm/forum-client';
+const effectGuard: EffectGuard = { check: async () => true, current: () => true };
+const guardedReply = (attempt: ThreadAttempt) => client.publishThread(attempt, effectGuard);
+const guardedUpload = (writing: PreparedWriting, file: UploadFile) => client.uploadAttachment(writing, file, () => {}, cancellation, effectGuard);
+const guardedRemoval = (writing: PreparedWriting, id: string) => client.removeUploadedAttachment(writing, id, false, effectGuard);
+void [guardedReply, guardedUpload, guardedRemoval];

@@ -30,3 +30,24 @@ The costs are a serializable core contract, library packaging/compatibility work
 The workspace owns one actively edited composition and inactive local reply drafts keyed by thread within the forum origin. The existing inert writing representation retains source, target, options, attachment intent and historical attempt identity. Account metadata remains provenance and eligibility under the current account safeguards, never an account-indexed draft lineage. New-thread, edit-post, private-message and server-owned Forum draft writing retain their existing guards. Ordinary navigation restores writing automatically without submitting or retaining current publication authority. Deliberate existing text-copy replacement still replaces the sole thread slot under its existing disclosures; automatic account sharing belongs to #108.
 
 In-document selection preserves available file handles and invalidates transient preparation/review; reload normalization separately marks lost bytes and pending operations unavailable or uncertain. Owned effectful operations finish before deactivation. Immutable histories remain where already owned without copying a parked thread’s history into a fresh reply. A genuine non-reply replacement may transfer history, but unequal observations for the same attempt identity refuse replacement before either composition changes; equivalent observations deduplicate without choosing a chronological winner. The required gpt-6.1-sol/xhigh BDFL evaluation accepted this bounded contract with these refinements before implementation; the decision and complete trade-off ledger are retained with [#106 implementation evidence](../implementation/ui-ux-106.md). Durable storage, conflict preservation and pending-next-draft ownership remain #107–111 work.
+
+## Durable ordinary replies — #107
+
+Ordinary local reply retention now uses the browser host's acknowledged durable
+store under [ADR0003](0003-use-browser-page-session-recovery.md). The workspace owns
+reply checkpoints, conflict pause, exact captured writing/history and effect-owner
+continuity; the host owns IndexedDB transactions and advisory notifications. Shared
+recovery types and inert snapshot comparison stay in the workspace, without a
+runtime dependency on the browser implementation. Layouts only render current
+status and copyable retained versions. Non-reply composition and navigation remain
+page-session scoped, including when durable reply storage is unavailable.
+
+Forum-client 0.25.0 adds optional transient `EffectGuard` arguments to publication,
+upload and immediate attachment removal. After fresh native preflight, the client
+awaits the caller's check, then rechecks current validity and account generation
+immediately before dispatch. The guard is never serialized, supplies no native
+permission and cannot recall an already dispatched operation. It closes the
+observed asynchronous preflight gap without introducing browser storage into the
+portable client or using account generation as a draft-conflict signal. Immutable
+original actor/target and actual callback outcomes remain retained. #111 owns the
+stronger cross-tab unsettled-send registry; #107 does not implement it.

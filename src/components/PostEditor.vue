@@ -35,6 +35,8 @@ const props = defineProps<{
 }>();
 const writing = props.workspace.writing;
 const session = writing.editor();
+const blocked = writing.replyBlocked;
+watch(blocked, () => view?.setProps({ editable: () => !blocked.value }));
 const state = shallowRef<EditorSnapshot>(session.state);
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
@@ -300,6 +302,7 @@ onMounted(() => {
       .map((name) => [name, renderNode]),
   );
   view = new EditorView(mount.value, {
+    editable: () => !blocked.value,
     state: session.pmState,
     plugins: [
       new Plugin({
@@ -324,6 +327,7 @@ onMounted(() => {
     nodeViews: nodes,
     markViews: { format: editorMark, literal: editorMark },
     dispatchTransaction: (transaction) => {
+      if (blocked.value && transaction.docChanged) return;
       session.dispatch(transaction);
     },
     handleKeyDown: (editor, event) => {
@@ -463,7 +467,7 @@ onBeforeUnmount(() => {
         <button
           v-for="item in commonTools"
           :key="item[0]"
-          :disabled="state.composing"
+          :disabled="blocked || state.composing"
           @mousedown.prevent
           @click="chooseTool(item[0]!)"
         >
@@ -476,7 +480,7 @@ onBeforeUnmount(() => {
           v-for="group in advancedGroups"
           :key="group.name"
           class="editor-tools"
-          :disabled="state.composing"
+          :disabled="blocked || state.composing"
         >
           <legend>{{ t(group.name) }}</legend>
           <button
@@ -515,7 +519,7 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </fieldset>
-        <fieldset class="editor-tools" :disabled="state.composing">
+        <fieldset class="editor-tools" :disabled="blocked || state.composing">
           <legend>{{ t("Table") }}</legend>
           <label
             >{{ t("Table rows")
@@ -547,7 +551,7 @@ onBeforeUnmount(() => {
             {{ t("Apply table operation") }}
           </button>
         </fieldset>
-        <fieldset class="editor-tools">
+        <fieldset class="editor-tools" :disabled="blocked">
           <legend>{{ text.mentions }}</legend>
           <label
             >{{ text.findMentionPerson }}<input v-model="mentionQuery"
@@ -652,6 +656,7 @@ onBeforeUnmount(() => {
               : text.completeSource
           }}<textarea
             ref="source"
+            :readonly="blocked"
             :aria-invalid="sourceIssue ? 'true' : undefined"
             :aria-describedby="sourceIssue ? 'writing-source-error' : undefined"
             :value="state.display"

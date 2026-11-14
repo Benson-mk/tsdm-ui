@@ -1,3 +1,4 @@
+import { canonical, type ReplyUpdate } from "../workspace/reply-recovery";
 import { isPrivateAttempt } from "../forum-client/private-writing.js";
 import { createEditorSession, type EditorSession } from "../editor/session.js";
 import { computed, readonly, shallowRef } from "vue";
@@ -53,7 +54,7 @@ export type PrivateWritingContext =
 export type WritingContext = PublicWritingContext | PrivateWritingContext;
 export function createWriting(
   client: ForumClient,
-  changed: () => Promise<boolean>,
+  changed: (disposed?: PublicWritingContext) => Promise<boolean>,
   accountObserved: (account: Account) => void,
   publishedDraft?: (url: string, contextId: string) => Promise<void>,
 ) {
@@ -143,8 +144,30 @@ export function createWriting(
     fundedDraftReview: null,
     draftResend: null,
   });
+  const editorGeneration = shallowRef(0);
+  const conflictedReplies = shallowRef<string[]>([]);
+  const replyBlocked = computed(() => {
+    const context = state.value.context;
+    return (
+      !!context &&
+      isOrdinaryReply(context) &&
+      conflictedReplies.value.includes(context.replyTarget!.threadId)
+    );
+  });
   const retainedReplies = shallowRef<Record<string, PublicWritingContext>>({});
   let selectedReplyThread: string | null = null;
+  function replaced(previous: WritingContext | null) {
+    const next = state.value.context;
+    return changed(
+      previous &&
+        isOrdinaryReply(previous) &&
+        (!next ||
+          !isOrdinaryReply(next) ||
+          next.replyTarget!.threadId !== previous.replyTarget!.threadId)
+        ? previous
+        : undefined,
+    );
+  }
   function canDeactivate() {
     const context = state.value.context;
     return (
@@ -354,7 +377,7 @@ export function createWriting(
     return {
       complete(files: import("../forum-client").UploadFile[]) {
         const current = state.value.context;
-        if (delivered) return;
+        if (delivered || replyBlocked.value) return;
         delivered = true;
         if (
           !origin ||
@@ -387,6 +410,7 @@ export function createWriting(
     };
   }
   function selectAttachments(files: import("../forum-client").UploadFile[]) {
+    if (replyBlocked.value) return;
     const c = state.value.context;
     if (
       !c ||
@@ -420,6 +444,7 @@ export function createWriting(
     void changed();
   }
   async function uploadAttachment(key: string) {
+    if (replyBlocked.value) return;
     const c = state.value.context,
       row = c?.uploads?.find((u) => u.key === key),
       file = uploadBytes.get(key);
@@ -441,7 +466,7 @@ export function createWriting(
       message: "Uploading selected bytes…",
     });
     const saved = await changed();
-    if (!saved) {
+    if (!saved || replyBlocked.value) {
       uploadControllers.delete(key);
       updateUpload(key, {
         status: "selected",
@@ -454,6 +479,7 @@ export function createWriting(
       file,
       (loaded) => updateUpload(key, { loaded }),
       controller.signal,
+      effectGuard(),
     );
     uploadControllers.delete(key);
     accountObserved(client.account);
@@ -502,6 +528,7 @@ export function createWriting(
       });
   }
   function insertAttachment(key: string) {
+    if (replyBlocked.value) return;
     const c = state.value.context,
       u = c?.uploads?.find((u) => u.key === key);
     if (
@@ -628,6 +655,7 @@ export function createWriting(
     account: Account,
     replace = false,
   ) {
+    if (replyBlocked.value) return;
     if (
       deferViewChange(() => {
         void preparePrivate(url, account, replace);
@@ -699,7 +727,7 @@ export function createWriting(
           : {}),
       },
     };
-    await changed();
+    await replaced(existing);
   }
   async function reviewPrivate() {
     const context = state.value.context;
@@ -869,6 +897,11 @@ export function createWriting(
       })
     )
       return;
+    if (
+      replyBlocked.value ||
+      (replyTarget && conflictedReplies.value.includes(replyTarget.threadId))
+    )
+      return;
     const existing = state.value.context;
     const sameAction =
       existing?.action !== "private-message" &&
@@ -1036,13 +1069,14 @@ export function createWriting(
       reloadWarning: false,
       overwriteWarning: false,
     };
-    changed();
+    replaced(existing);
   }
   async function prepareEdit(
     threadURL: string,
     postId: string,
     replace = false,
   ) {
+    if (replyBlocked.value) return;
     if (
       deferViewChange(() => {
         void prepareEdit(threadURL, postId, replace);
@@ -1122,7 +1156,7 @@ export function createWriting(
       acknowledged: 0,
       accountVerified: true,
     };
-    await changed();
+    await replaced(existing);
   }
   function reconcileEdit(mode: "manual" | "overwrite" | "reload") {
     if (deferViewChange(() => reconcileEdit(mode))) return;
@@ -1173,6 +1207,7 @@ export function createWriting(
     account: Account,
     replace = false,
   ) {
+    if (replyBlocked.value) return;
     if (
       deferViewChange(() => {
         void resumeDraft(row, account, replace);
@@ -1250,7 +1285,7 @@ export function createWriting(
       accountVerified: true,
       publication: null,
     };
-    await changed();
+    await replaced(existing);
   }
   function showExisting() {
     state.value = {
@@ -1311,6 +1346,7 @@ export function createWriting(
     >,
   ) {
     const context = state.value.context;
+    if (replyBlocked.value) return;
     if (context) {
       if (context.action === "private-message") {
         const source = patch.source ?? context.source,
@@ -1724,6 +1760,7 @@ export function createWriting(
     resendId?: string,
     fundingReviewed = false,
   ) {
+    if (replyBlocked.value) return;
     const context = state.value.context;
     if (
       !context ||
@@ -2104,6 +2141,7 @@ export function createWriting(
       await publishedDraft?.(result.publishedURL, result.submission.contextId);
   }
   async function reviewPublication(resendId?: string) {
+    if (replyBlocked.value) return;
     if (state.value.context?.action === "private-message")
       return reviewPrivate();
     if (state.value.context?.draft && !resendId)
@@ -2228,7 +2266,19 @@ export function createWriting(
       validationFocus: state.value.validationFocus + 1,
     };
   }
+  function effectGuard(): import("../forum-client").EffectGuard | undefined {
+    const context = state.value.context;
+    if (!context || !isOrdinaryReply(context)) return undefined;
+    const captured = canonical(context);
+    const current = () =>
+      !replyBlocked.value && canonical(state.value.context) === captured;
+    return {
+      current,
+      check: async () => current() && (await changed()) && current(),
+    };
+  }
   async function publish() {
+    if (replyBlocked.value) return;
     const publication = state.value.publication,
       context = state.value.context;
     if (
@@ -2255,6 +2305,7 @@ export function createWriting(
     let result: ThreadAttempt;
     if (
       !saved ||
+      replyBlocked.value ||
       state.value.context?.revision !== context.revision ||
       client.generation !== publication.generation
     )
@@ -2268,7 +2319,7 @@ export function createWriting(
       result =
         context.action === "edit-post"
           ? await client.savePostEdit(attempt)
-          : await client.publishThread(attempt);
+          : await client.publishThread(attempt, effectGuard());
     accountObserved(client.account);
     observe(client.account);
     updateAttempt(result);
@@ -2276,6 +2327,7 @@ export function createWriting(
     await changed();
   }
   async function checkResult(id: string, url?: string) {
+    if (replyBlocked.value) return;
     const attempt = state.value.context?.attempts?.find(
       (item) => item.id === id,
     );
@@ -2320,6 +2372,7 @@ export function createWriting(
     };
   }
   function insertMention(id: string) {
+    if (replyBlocked.value) return;
     const context = state.value.context,
       person = state.value.mentionPeople.find((p) => p.id === id);
     if (
@@ -2401,6 +2454,7 @@ export function createWriting(
       state.value = { ...state.value, copy: null };
   }
   async function check(copyText = false) {
+    if (replyBlocked.value) return;
     if (state.value.context?.action === "private-message")
       return reviewPrivate();
     const original = state.value.context;
@@ -2458,6 +2512,7 @@ export function createWriting(
     };
   }
   function confirmCopy() {
+    if (replyBlocked.value) return;
     if (deferViewChange(confirmCopy)) return;
     const candidate = state.value.copy,
       original = state.value.context;
@@ -2592,6 +2647,73 @@ export function createWriting(
     return context;
   }
   return {
+    replyBlocked,
+    editorGeneration,
+    applyReplyUpdates: (updates: ReplyUpdate[]) => {
+      const accepted: ReplyUpdate[] = [];
+      for (const update of updates) {
+        const active = state.value.context;
+        const isActive =
+          !!active &&
+          isOrdinaryReply(active) &&
+          active.replyTarget!.threadId === update.threadId;
+        const current = isActive
+          ? active
+          : (retainedReplies.value[update.threadId] ?? null);
+        if (
+          canonical(current) !== canonical(update.before) ||
+          (isActive && (!canDeactivate() || state.value.composing))
+        )
+          continue;
+        // A live observation is not a restarted operation. Preserve the owner's
+        // exact pending/history state; only document recovery normalizes it.
+        const next = update.context;
+        if (isActive) {
+          ++sequence;
+          editorGeneration.value++;
+          editorSession?.dispose();
+          editorSession = null;
+          editorContext = "";
+          for (const upload of current?.uploads ?? [])
+            uploadBytes.delete(upload.key);
+          state.value = {
+            ...state.value,
+            context: next,
+            visible: next !== null,
+            preparing: false,
+            publication: null,
+            copy: null,
+            acknowledged: 0,
+            accountVerified: false,
+          };
+          observe(state.value.accountObservation, observedAccountVerified);
+        } else {
+          const retained = { ...retainedReplies.value };
+          if (next) retained[update.threadId] = next;
+          else delete retained[update.threadId];
+          retainedReplies.value = retained;
+        }
+        accepted.push(update);
+      }
+      return accepted;
+    },
+    pauseConflictedReplies: (threads: string[]) => {
+      const wasBlocked = replyBlocked.value;
+      conflictedReplies.value = threads;
+      if (replyBlocked.value && !wasBlocked) {
+        ++sequence;
+        ++mentionSequence;
+        state.value = {
+          ...state.value,
+          preparing: false,
+          publication: null,
+          copy: null,
+          fundedDraftReview: null,
+          message:
+            "Both versions are retained. Editing and submission are paused until the conflict is resolved.",
+        };
+      }
+    },
     canSelectThread,
     selectThread,
     localReplyThreads,
@@ -2801,6 +2923,7 @@ export function createWriting(
       });
     },
     removeServerAttachment: async (key: string, checkOnly = false) => {
+      if (replyBlocked.value) return;
       const c = state.value.context,
         u = c?.uploads?.find((v) => v.key === key);
       if (
@@ -2819,7 +2942,7 @@ export function createWriting(
           "Immediate server-file removal pending. Local discard cannot undo it.",
       });
       const acknowledged = await changed();
-      if (!acknowledged) {
+      if (!acknowledged || replyBlocked.value) {
         updateUpload(key, {
           status: u.status,
           message: "Recovery unavailable; removal was not sent.",
@@ -2830,6 +2953,7 @@ export function createWriting(
         c,
         u.serverId,
         checkOnly,
+        effectGuard(),
       );
       accountObserved(client.account);
       observe(client.account);
@@ -2892,6 +3016,7 @@ export function createWriting(
         });
     },
     removeLocalAttachment: (key: string) => {
+      if (replyBlocked.value) return;
       const c = state.value.context,
         u = c?.uploads?.find((v) => v.key === key);
       if (

@@ -478,7 +478,8 @@ function result(value: unknown): boolean {
 export function isNavigationRecord(value: unknown): value is NavigationRecord {
   if (
     !object(value) ||
-    (value.schema !== 2 && value.schema !== 3 && value.schema !== 4) ||
+    typeof value.schema !== "number" ||
+    ![2, 3, 4, 5].includes(value.schema) ||
     !object(value.entries)
   )
     return false;
@@ -491,7 +492,7 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
     return false;
   if (!(value.writing === null || isWritingContext(value.writing)))
     return false;
-  if (value.schema === 4) {
+  if (value.schema === 4 || value.schema === 5) {
     if (!Array.isArray(value.retainedReplies)) return false;
     const threads = new Set<string>();
     const identities = new Set<string>();
@@ -512,6 +513,27 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
       identities.add(reply.id);
     }
   } else if (value.retainedReplies !== undefined) return false;
+  if (
+    value.schema === 5 &&
+    (!object(value.replyCheckpoints) ||
+      !Object.entries(value.replyCheckpoints).every(
+        ([thread, checkpoint]) =>
+          id(thread) &&
+          object(checkpoint) &&
+          key(checkpoint.version) &&
+          string(checkpoint.fingerprint) &&
+          /^[a-f0-9]{64}$/.test(checkpoint.fingerprint),
+      ))
+  )
+    return false;
+  if (
+    value.schema === 5 &&
+    value.replyDisposals !== undefined &&
+    (!Array.isArray(value.replyDisposals) ||
+      !value.replyDisposals.every(id) ||
+      new Set(value.replyDisposals).size !== value.replyDisposals.length)
+  )
+    return false;
   if (
     value.favoriteAttempts !== undefined &&
     !list(value.favoriteAttempts, (attempt) => {

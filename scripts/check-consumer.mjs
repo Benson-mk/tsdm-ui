@@ -101,7 +101,7 @@ try {
   const source =
     `import assert from 'node:assert/strict';
 import { createForumClient, FORUM_CLIENT_VERSION, unresolvedWritingAttachments } from '@tsdm/forum-client';
-assert.equal(FORUM_CLIENT_VERSION, '0.24.1');
+assert.equal(FORUM_CLIENT_VERSION, '0.25.0');
 const origin = 'https://fixture.example';
 const threadURL = origin + '/forum.php?mod=viewthread&tid=42';
 const attachmentURL = origin + '/forum.php?mod=attachment&aid=authored-token';
@@ -322,9 +322,9 @@ void [cancellation, transfer, removal];
       "utf8",
     ),
   );
-  if (installed.version !== "0.24.1")
+  if (installed.version !== "0.25.0")
     throw new Error(
-      "Expected the qualified permalink public package version 0.24.1.",
+      "Expected the optional effect-guard public package version 0.25.0.",
     );
   if (
     Object.keys(installed.dependencies ?? {}).length ||

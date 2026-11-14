@@ -34,7 +34,12 @@ export interface NavigationEntry {
   documentNavigations: number;
 }
 export interface NavigationRecord {
-  schema: 2 | 3 | 4;
+  schema: 2 | 3 | 4 | 5;
+  replyDisposals?: string[];
+  replyCheckpoints?: Record<
+    string,
+    import("../workspace/reply-recovery").ReplyCheckpoint
+  >;
   favoriteAttempts?: import("../forum-client").FavoriteAttempt[];
   writing: WritingContext | null;
   retainedReplies?: import("./writing").PublicWritingContext[];
@@ -42,6 +47,12 @@ export interface NavigationRecord {
   pending: { entryKey: string; destination: string } | null;
 }
 export interface NavigationHost {
+  disposeReply?(threadId: string): void;
+  onReplyChange?(action: () => void): void;
+  acceptReplyUpdates?(
+    updates: import("../workspace/reply-recovery").ReplyUpdate[],
+  ): void;
+  replyRecovery?(): import("../workspace/reply-recovery").ReplyRecovery;
   entryKey(): string | null;
   recoveryProblem(): {
     kind: "incompatible" | "refused";

@@ -3403,3 +3403,9 @@ input {
 .reply-composer .writing-attachments li > p:empty {
   display: none;
 }
+
+.reply-conflict textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}

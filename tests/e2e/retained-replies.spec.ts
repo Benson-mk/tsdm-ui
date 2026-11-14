@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, chromium, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import {
   selectSourceEditor,
@@ -306,6 +306,7 @@ test("UX106.late: delayed preparation cannot replace another selected thread or 
 
 test("UX106.account: automatic account changes retain one thread slot; deliberate text-copy keeps its existing disclosure", async ({
   page,
+  context,
 }) => {
   const state = await open(page);
   await choose(page, "42");
@@ -315,6 +316,12 @@ test("UX106.account: automatic account changes retain one thread slot; deliberat
   await (
     await selectSourceEditor(page)
   ).fill("Original A content without silent B replacement");
+  await revealWritingDetails(page);
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await choose(page, "43");
   state.member = "8";
   await choose(page, "44");
@@ -371,9 +378,65 @@ test("UX106.account: automatic account changes retain one thread slot; deliberat
   await expect(
     page.getByLabel("Select attachments", { exact: true }),
   ).toBeEnabled();
-  expect(state.requests.filter((request) => request.method !== "GET")).toEqual(
-    [],
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Original A content without silent B replacement",
   );
+  await revealWritingTools(page);
+  await revealWritingDetails(page);
+  await page
+    .getByRole("button", {
+      name: "Check current account and form",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByLabel("Select attachments", { exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByText(/current account differs from Writer 7/),
+  ).toHaveCount(0);
+  const fresh = await context.newPage();
+  await fresh.goto(boardURL);
+  await choose(fresh, "42");
+  await expect(await selectSourceEditor(fresh)).toHaveValue(
+    "Original A content without silent B replacement",
+  );
+  await revealWritingTools(fresh);
+  await revealWritingDetails(fresh);
+  await fresh
+    .getByRole("button", {
+      name: "Check current account and form",
+      exact: true,
+    })
+    .click();
+  await expect(
+    fresh.getByLabel("Select attachments", { exact: true }),
+  ).toBeEnabled();
+  const recovered = await fresh.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+  );
+  expect(recovered.account.id).toBe("8");
+  expect(recovered.attempts).toHaveLength(1);
+  expect(recovered.attempts[0].publication.submission.writing.account.id).toBe(
+    "7",
+  );
+  expect(recovered.attempts[0].status).toBe("confirmed");
+  expect(
+    state.requests.filter((request) => request.method === "POST"),
+  ).toHaveLength(1);
+  await test.info().attach("deliberate-copy-recovery.json", {
+    body: JSON.stringify(recovered),
+    contentType: "application/json",
+  });
 });
 
 for (const failure of ["quota", "refused", "readback"] as const) {
@@ -1203,3 +1266,1960 @@ for (const different of [true, false]) {
     ).toHaveLength(1);
   });
 }
+
+test("UX107.fresh-tab: recover acknowledged per-thread reply source, target and options without a page-session copy", async ({
+  page,
+  context,
+}) => {
+  const state = await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Post 4201 actions", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
+  await (
+    await selectSourceEditor(page)
+  ).fill("[b]Restart retained A[/b]\nLiteral [unknown]原文[/unknown]");
+  await revealWritingTools(page);
+  await page.getByLabel("Signature", { exact: true }).uncheck();
+  await choose(page, "43");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Independent thread B survives");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
+  ).toBeVisible();
+  const fresh = await context.newPage();
+  await fresh.goto(boardURL);
+  await expect(fresh.locator(".thread-row")).toHaveCount(3);
+  await choose(fresh, "42");
+  await expect(fresh.locator(".source-writing")).toHaveCount(1);
+  await expect(await selectSourceEditor(fresh)).toHaveValue(
+    "[b]Restart retained A[/b]\nLiteral [unknown]原文[/unknown]",
+  );
+  await revealWritingTools(fresh);
+  await expect(
+    fresh.getByLabel("Signature", { exact: true }),
+  ).not.toBeChecked();
+  await expect(
+    fresh.getByRole("button", { name: "Remove reply target", exact: true }),
+  ).toBeVisible();
+  await choose(fresh, "43");
+  await expect(await selectSourceEditor(fresh)).toHaveValue(
+    "Independent thread B survives",
+  );
+  expect(state.requests.filter((request) => request.method !== "GET")).toEqual(
+    [],
+  );
+  await test.info().attach("fresh-independent-tab.png", {
+    body: await fresh.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UX107.conflict: retain both tabs' competing source and pause editing and review through reload", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  const state = await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Common observed draft");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
+  ).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(boardURL);
+  await choose(other, "42");
+  const otherEditor = await selectSourceEditor(other);
+  await expect(otherEditor).toHaveValue("Common observed draft");
+  // Delay advisory delivery at the external browser-host boundary. The real
+  // durable compare-and-preserve still decides whether these writes compete.
+  await other.evaluate(() => {
+    Object.defineProperty(window, "BroadcastChannel", {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  await (await selectSourceEditor(page)).fill("First tab competing writing");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
+  ).toBeVisible();
+  await otherEditor.fill("Second tab competing writing");
+  await expect(
+    other.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toBeVisible();
+  await expect(
+    other
+      .getByRole("region", { name: "Conflicting local reply drafts" })
+      .getByRole("textbox"),
+  ).toHaveCount(2);
+  const retained = await other
+    .getByRole("region", { name: "Conflicting local reply drafts" })
+    .getByRole("textbox")
+    .evaluateAll((nodes) =>
+      nodes.map((node) => (node as HTMLTextAreaElement).value),
+    );
+  expect(retained).toEqual(
+    expect.arrayContaining([
+      "First tab competing writing",
+      "Second tab competing writing",
+    ]),
+  );
+  await expect(otherEditor).toHaveAttribute("readonly", "");
+  await revealWritingTools(other);
+  await expect(other.getByLabel("Signature", { exact: true })).toBeDisabled();
+  await expect(
+    other.getByRole("button", { name: "Review publication", exact: true }),
+  ).toBeDisabled();
+  await other.reload();
+  await expect(
+    other.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toContainText("Both versions are retained");
+  await expect(
+    other
+      .getByRole("region", { name: "Conflicting local reply drafts" })
+      .getByRole("textbox"),
+  ).toHaveCount(2);
+  expect(state.requests.filter((request) => request.method !== "GET")).toEqual(
+    [],
+  );
+  await test.info().attach("conflicting-versions.png", {
+    body: await other.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UX107.clean-remote: a clean second tab adopts the current draft while unrelated thread writing stays independent", async ({
+  page,
+  context,
+}) => {
+  const state = await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Observed common source");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(boardURL);
+  await choose(other, "42");
+  await expect(await selectSourceEditor(other)).toHaveValue(
+    "Observed common source",
+  );
+  await (
+    await selectSourceEditor(page)
+  ).fill("First tab latest acknowledged source");
+  await expect(await selectSourceEditor(other)).toHaveValue(
+    "First tab latest acknowledged source",
+  );
+  await choose(other, "43");
+  await other
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (
+    await selectSourceEditor(other)
+  ).fill("Independent thread remains writable");
+  await expect(
+    page.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toHaveCount(0);
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "First tab latest acknowledged source",
+  );
+  expect(state.requests.filter((request) => request.method !== "GET")).toEqual(
+    [],
+  );
+});
+
+test("UX107.preflight-conflict: a competing draft detected during final native preflight prevents publication", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  const state = await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Original submitted source");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(boardURL);
+  await choose(other, "42");
+  await expect(await selectSourceEditor(other)).toHaveValue(
+    "Original submitted source",
+  );
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Send reply", exact: true }),
+  ).toBeVisible();
+  let release!: () => void;
+  state.gate = {
+    thread: "42",
+    promise: new Promise<void>((resolve) => {
+      release = resolve;
+    }),
+  };
+  const before = state.requests.length;
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect
+    .poll(
+      () =>
+        state.requests
+          .slice(before)
+          .filter(
+            (request) =>
+              new URL(request.url).searchParams.get("mod") === "post",
+          ).length,
+    )
+    .toBeGreaterThan(0);
+  await (
+    await selectSourceEditor(other)
+  ).fill("Competing second-tab source during preflight");
+  await expect(
+    other.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(
+    page.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toBeVisible();
+  state.gate = null;
+  release();
+  await expect(
+    page
+      .getByText(/Confirmed stored reply|Nothing was sent|nothing was sent/)
+      .first(),
+  ).toBeVisible();
+  expect(state.requests.filter((request) => request.method === "POST")).toEqual(
+    [],
+  );
+  await expect(
+    page
+      .getByRole("region", { name: "Conflicting local reply drafts" })
+      .getByRole("textbox"),
+  ).toHaveCount(2);
+});
+
+for (const operation of ["upload", "remove"] as const) {
+  test(`UX107.attachment-preflight-${operation}: detected conflict prevents the effect after delayed native form checks`, async ({
+    page,
+    context,
+  }) => {
+    await context.addInitScript(() => {
+      Object.defineProperty(window, "BroadcastChannel", {
+        value: undefined,
+        configurable: true,
+      });
+    });
+    const state = await open(page);
+    await choose(page, "42");
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    await (
+      await selectSourceEditor(page)
+    ).fill("Attachment effect owner source");
+    await revealWritingTools(page);
+    if (operation === "remove") {
+      await page
+        .getByLabel("Select attachments", { exact: true })
+        .setInputFiles({
+          name: "intent.txt",
+          mimeType: "text/plain",
+          buffer: Buffer.from("UNUPLOADED_GUARDED_BYTES"),
+        });
+      await page
+        .getByRole("button", { name: "Upload intent.txt", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", {
+          name: "Remove server file intent.txt",
+          exact: true,
+        }),
+      ).toBeVisible();
+    }
+    await revealWritingDetails(page);
+    await expect(
+      page.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    const other = await context.newPage();
+    await other.goto(boardURL);
+    await choose(other, "42");
+    await expect(await selectSourceEditor(other)).toHaveValue(
+      "Attachment effect owner source",
+    );
+    if (operation === "upload")
+      await page
+        .getByLabel("Select attachments", { exact: true })
+        .setInputFiles({
+          name: "intent.txt",
+          mimeType: "text/plain",
+          buffer: Buffer.from("UNUPLOADED_GUARDED_BYTES"),
+        });
+    let release!: () => void;
+    state.gate = {
+      thread: "42",
+      promise: new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    };
+    const before = state.requests.length;
+    if (operation === "upload")
+      await page
+        .getByRole("button", { name: "Upload intent.txt", exact: true })
+        .click();
+    else {
+      await page
+        .getByRole("button", {
+          name: "Remove server file intent.txt",
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole("button", {
+          name: "Confirm immediate file removal",
+          exact: true,
+        })
+        .click();
+    }
+    await expect
+      .poll(
+        () =>
+          state.requests
+            .slice(before)
+            .filter(
+              (request) =>
+                new URL(request.url).searchParams.get("mod") === "post",
+            ).length,
+      )
+      .toBeGreaterThan(0);
+    await (
+      await selectSourceEditor(other)
+    ).fill(`Competing ${operation} source`);
+    await expect(
+      other.getByRole("region", { name: "Conflicting local reply drafts" }),
+    ).toBeVisible();
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(
+      page.getByRole("region", { name: "Conflicting local reply drafts" }),
+    ).toBeVisible();
+    state.gate = null;
+    release();
+    await expect(
+      page
+        .getByText(
+          /Nothing was uploaded|Nothing was removed|not sent|Original selected bytes sent|removed/i,
+        )
+        .first(),
+    ).toBeVisible();
+    await expect
+      .poll(
+        () =>
+          state.requests
+            .slice(before)
+            .filter(
+              (request) =>
+                new URL(request.url).pathname === "/misc.php" ||
+                new URL(request.url).searchParams.get("action") ===
+                  "deleteattach",
+            ).length,
+      )
+      .toBe(0);
+  });
+}
+
+test("UX107.disposal: acknowledged deliberate non-reply replacement does not resurrect the discarded ordinary draft", async ({
+  page,
+  context,
+}) => {
+  await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (
+    await selectSourceEditor(page)
+  ).fill("Deliberately discarded ordinary source");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Discard local changes and prepare",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByRole("heading", {
+      name: "New thread in Music discussion",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Browser recovery is up to date for this page session.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const fresh = await context.newPage();
+  await fresh.goto(boardURL);
+  await choose(fresh, "42");
+  await expect(fresh.locator(".source-writing")).toHaveCount(0);
+  await expect(
+    page.getByRole("textbox", { name: "Complete source", exact: true }),
+  ).toHaveValue("");
+});
+
+test("UX107.incompatible: incompatible durable data stays inspectable without an active editor and reload cannot erase it", async ({
+  page,
+  context,
+}) => {
+  await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (
+    await selectSourceEditor(page)
+  ).fill("Recoverable writing in incompatible durable row");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.evaluate(async () => {
+    const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("threads", "readwrite"),
+        store = tx.objectStore("threads"),
+        read = store.get("42");
+      read.onsuccess = () => store.put({ ...read.result, schema: 99 });
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error);
+    });
+    db.close();
+  });
+  const fresh = await context.newPage();
+  await fresh.goto(boardURL);
+  await expect(
+    fresh.getByRole("region", { name: "Local reply recovery needs attention" }),
+  ).toBeVisible();
+  await fresh
+    .getByText("Inspect retained local reply data", { exact: true })
+    .click();
+  await expect(
+    fresh.getByRole("textbox", {
+      name: "Retained local reply data",
+      exact: true,
+    }),
+  ).toHaveValue(/Recoverable writing in incompatible durable row/);
+  await fresh.reload();
+  await expect(
+    fresh.getByRole("region", { name: "Local reply recovery needs attention" }),
+  ).toBeVisible();
+  await fresh
+    .getByText("Inspect retained local reply data", { exact: true })
+    .click();
+  await expect(
+    fresh.getByRole("textbox", {
+      name: "Retained local reply data",
+      exact: true,
+    }),
+  ).toHaveValue(/"schema":99/);
+});
+
+for (const failure of [
+  "refusal",
+  "quota",
+  "abort",
+  "weak-durability",
+] as const) {
+  test(`UX107.storage-${failure}: unacknowledged source stays live and the prior acknowledged draft survives independently`, async ({
+    page,
+    context,
+  }) => {
+    const state = await open(page);
+    await choose(page, "42");
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    await (
+      await selectSourceEditor(page)
+    ).fill("Previously acknowledged durable writing");
+    await revealWritingDetails(page);
+    await expect(
+      page.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.evaluate((mode) => {
+      const original = IDBDatabase.prototype.transaction;
+      IDBDatabase.prototype.transaction = function (names, access, options) {
+        if (
+          this.name === "tsdm.workspace.reply-drafts" &&
+          access === "readwrite"
+        ) {
+          if (mode === "quota" || mode === "refusal")
+            throw new DOMException(
+              "Induced durable host failure",
+              mode === "quota" ? "QuotaExceededError" : "SecurityError",
+            );
+          const tx = original.call(this, names, access, options);
+          if (mode === "weak-durability")
+            Object.defineProperty(tx, "durability", { value: "relaxed" });
+          else {
+            const put = IDBObjectStore.prototype.put;
+            const store = tx.objectStore("threads");
+            store.put = function (value, key) {
+              const request = put.call(this, value, key);
+              request.addEventListener("success", () => tx.abort());
+              return request;
+            };
+            const objectStore = tx.objectStore.bind(tx);
+            tx.objectStore = (name) =>
+              name === "threads" ? store : objectStore(name);
+          }
+          return tx;
+        }
+        return original.call(this, names, access, options);
+      };
+    }, failure);
+    await (
+      await selectSourceEditor(page)
+    ).fill(`Live unacknowledged ${failure} writing`);
+    await expect(
+      page.getByText(/Local reply drafts could not be saved/).first(),
+    ).toBeVisible();
+    const fresh = await context.newPage();
+    await fresh.goto(boardURL);
+    await choose(fresh, "42");
+    await expect(await selectSourceEditor(fresh)).toHaveValue(
+      "Previously acknowledged durable writing",
+    );
+    await expect(await selectSourceEditor(page)).toHaveValue(
+      `Live unacknowledged ${failure} writing`,
+    );
+    expect(
+      state.requests.filter((request) => request.method !== "GET"),
+    ).toEqual([]);
+  });
+}
+for (const failure of ["readback", "checkpoint"] as const) {
+  test(`UX107.after-commit-${failure}: failed acknowledgement remains unsaved and retry cannot fork its own committed source`, async ({
+    page,
+    context,
+  }) => {
+    await open(page);
+    await choose(page, "42");
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    await (
+      await selectSourceEditor(page)
+    ).fill("Before late acknowledgement failure");
+    await revealWritingDetails(page);
+    await expect(
+      page.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.evaluate((mode) => {
+      const originalTransaction = IDBDatabase.prototype.transaction,
+        originalSet = Storage.prototype.setItem;
+      const originalVersion = JSON.parse(
+        sessionStorage.getItem("tsdm.workspace.recovery")!,
+      ).replyCheckpoints["42"].version;
+      let committed = false;
+      IDBDatabase.prototype.transaction = function (names, access, options) {
+        if (
+          mode === "readback" &&
+          this.name === "tsdm.workspace.reply-drafts" &&
+          access === "readonly" &&
+          committed
+        )
+          throw new DOMException(
+            "Induced post-commit readback refusal",
+            "SecurityError",
+          );
+        const tx = originalTransaction.call(this, names, access, options);
+        if (
+          this.name === "tsdm.workspace.reply-drafts" &&
+          access === "readwrite"
+        )
+          tx.addEventListener("complete", () => {
+            committed = true;
+          });
+        return tx;
+      };
+      Storage.prototype.setItem = function (key, value) {
+        if (
+          mode === "checkpoint" &&
+          key === "tsdm.workspace.recovery" &&
+          JSON.parse(value).replyCheckpoints?.["42"]?.version !==
+            originalVersion
+        )
+          throw new DOMException(
+            "Induced checkpoint refusal",
+            "QuotaExceededError",
+          );
+        return originalSet.call(this, key, value);
+      };
+      Object.defineProperty(window, "restore107Host", {
+        configurable: true,
+        value: () => {
+          IDBDatabase.prototype.transaction = originalTransaction;
+          Storage.prototype.setItem = originalSet;
+        },
+      });
+    }, failure);
+    await (
+      await selectSourceEditor(page)
+    ).fill(`Committed source with failed ${failure}`);
+    await expect(
+      page.getByText(/Local reply drafts could not be saved/).first(),
+    ).toBeVisible();
+    await page.evaluate(() => {
+      (window as unknown as { restore107Host(): void }).restore107Host();
+      window.dispatchEvent(new Event("focus"));
+    });
+    await expect(
+      page.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Conflicting local reply drafts" }),
+    ).toHaveCount(0);
+    const fresh = await context.newPage();
+    await fresh.goto(boardURL);
+    await choose(fresh, "42");
+    await expect(await selectSourceEditor(fresh)).toHaveValue(
+      `Committed source with failed ${failure}`,
+    );
+    await expect(
+      fresh.getByRole("region", { name: "Conflicting local reply drafts" }),
+    ).toHaveCount(0);
+  });
+}
+
+test("UX107.file-capability: another tab recovers only attachment intent without erasing the original tab's live selected bytes", async ({
+  page,
+  context,
+}) => {
+  await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Selected attachment intent");
+  await revealWritingTools(page);
+  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+    name: "local-intent.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("PRIVATE_LOCAL_BYTES_MUST_NOT_BECOME_DURABLE"),
+  });
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(boardURL);
+  await choose(other, "42");
+  await revealWritingTools(other);
+  await expect(
+    other.getByText(/File bytes are not retained across refresh/),
+  ).toBeVisible();
+  await expect(
+    other.getByRole("button", { name: "Upload local-intent.txt", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    other.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(
+    page.getByRole("button", { name: "Upload local-intent.txt", exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toHaveCount(0);
+});
+
+test("UX107.delayed-latest-session: reload during native storage contention retains the latest navigation and both newer drafts", async ({
+  page,
+}) => {
+  await open(page);
+  for (const id of ["42", "43"]) {
+    await choose(page, id);
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    await (await selectSourceEditor(page)).fill(`Acknowledged ${id}`);
+    await revealWritingDetails(page);
+    await expect(
+      page.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
+  await page.evaluate(async () => {
+    const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    // A real native transaction holds the store. No application module or
+    // acknowledgement promise is replaced, and navigation ends this owner.
+    const tx = db.transaction("threads", "readwrite"),
+      store = tx.objectStore("threads");
+    const keepAlive = () => {
+      const read = store.get("42");
+      read.onsuccess = keepAlive;
+    };
+    keepAlive();
+  });
+  await choose(page, "42");
+  await (
+    await selectSourceEditor(page)
+  ).fill("Latest A while durable commit waits");
+  await choose(page, "43");
+  await (
+    await selectSourceEditor(page)
+  ).fill("Latest B and latest navigation while commit waits");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText(/has not yet acknowledged these changes/),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText("This navigation snapshot is unavailable.", { exact: true }),
+  ).toHaveCount(0);
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Latest B and latest navigation while commit waits",
+  );
+  await choose(page, "42");
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Latest A while durable commit waits",
+  );
+  await expect(
+    page.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toHaveCount(0);
+});
+
+test("UX107.process-restart: source target options and unavailable file intent survive a real isolated Edge process restart without session recovery", async ({
+  browserName,
+}, info) => {
+  expect(browserName).toBe("chromium");
+  const profile = info.outputPath("restart-profile");
+  let running = await chromium.launchPersistentContext(profile, {
+    channel: "msedge",
+    headless: true,
+    offline: true,
+    viewport: { width: 1280, height: 900 },
+  });
+  try {
+    const first = await running.newPage();
+    await open(first);
+    await choose(first, "42");
+    await first
+      .getByRole("button", { name: "Post 4201 actions", exact: true })
+      .click();
+    await first.getByRole("menuitem", { name: "Reply", exact: true }).click();
+    await (
+      await selectSourceEditor(first)
+    ).fill("[b]Actual process restart writing[/b]\n原文");
+    await revealWritingTools(first);
+    await first.getByLabel("Signature", { exact: true }).uncheck();
+    await first
+      .getByLabel("Select attachments", { exact: true })
+      .setInputFiles({
+        name: "restart-intent.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("NEVER_DURABLE_FILE_BYTES_107"),
+      });
+    await expect(
+      first.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await info.attach("before-process-close.png", {
+      body: await first.screenshot(),
+      contentType: "image/png",
+    });
+    await running.close();
+    running = await chromium.launchPersistentContext(profile, {
+      channel: "msedge",
+      headless: true,
+      offline: true,
+      viewport: { width: 1280, height: 900 },
+    });
+    await running.addInitScript(() => {
+      Object.defineProperty(window, "initialRestartSession", {
+        value: sessionStorage.getItem("tsdm.workspace.recovery"),
+      });
+    });
+    const second = await running.newPage(),
+      state = await open(second);
+    await choose(second, "42");
+    expect(
+      await second.evaluate(
+        () =>
+          (window as unknown as { initialRestartSession: unknown })
+            .initialRestartSession,
+      ),
+    ).toBeNull();
+    await expect(await selectSourceEditor(second)).toHaveValue(
+      "[b]Actual process restart writing[/b]\n原文",
+    );
+    await revealWritingTools(second);
+    await expect(
+      second.getByLabel("Signature", { exact: true }),
+    ).not.toBeChecked();
+    await expect(
+      second.getByRole("button", { name: "Remove reply target", exact: true }),
+    ).toBeVisible();
+    await expect(
+      second.getByText("restart-intent.txt", { exact: false }).first(),
+    ).toBeVisible();
+    await expect(
+      second.getByText(/File bytes are not retained across refresh/),
+    ).toBeVisible();
+    await expect(
+      second.getByRole("button", {
+        name: "Upload restart-intent.txt",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    expect(
+      state.requests.filter((request) => request.method !== "GET"),
+    ).toEqual([]);
+    await info.attach("after-process-restart.png", {
+      body: await second.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("restart-observation.json", {
+      body: JSON.stringify(
+        {
+          closedFirstProcess: true,
+          sameIsolatedProfile: true,
+          initialSessionRecord: null,
+          source: await (await selectSourceEditor(second)).inputValue(),
+          requests: state.requests,
+          userAgent: await second.evaluate(() => navigator.userAgent),
+        },
+        null,
+        2,
+      ),
+      contentType: "application/json",
+    });
+  } finally {
+    await running.close();
+  }
+});
+
+for (const schema of [2, 3, 4] as const) {
+  test(`UX107.legacy-projection-${schema}: recover literal writing while excluding nested native authority and byte fields from durable content`, async ({
+    page,
+    browser,
+  }) => {
+    await open(page);
+    await choose(page, "42");
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    await (
+      await selectSourceEditor(page)
+    ).fill(`Legacy ${schema} literal [b]source[/b]`);
+    await revealWritingDetails(page);
+    await expect(
+      page.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    const raw = await page.evaluate((version) => {
+      const record = JSON.parse(
+        sessionStorage.getItem("tsdm.workspace.recovery")!,
+      );
+      record.schema = version;
+      delete record.replyCheckpoints;
+      delete record.replyDisposals;
+      if (version !== 4) delete record.retainedReplies;
+      record.writing.formhash = "INJECTED_AUTHORITY_107";
+      record.writing.account.cookie = "INJECTED_COOKIE_107";
+      record.writing.options[0].token = "INJECTED_NESTED_TOKEN_107";
+      record.writing.bytes = [17, 31, 77];
+      return JSON.stringify(record);
+    }, schema);
+    const isolated = await browser.newContext({ offline: true });
+    try {
+      await isolated.addInitScript(
+        (value) => sessionStorage.setItem("tsdm.workspace.recovery", value),
+        raw,
+      );
+      const recovered = await isolated.newPage();
+      await open(recovered);
+      await choose(recovered, "42");
+      await test.info().attach("legacy-arrival.png", {
+        body: await recovered.screenshot(),
+        contentType: "image/png",
+      });
+      await test.info().attach("legacy-arrival-dom.json", {
+        body: JSON.stringify(
+          await recovered.locator(".source-writing").evaluate((node) => ({
+            display: getComputedStyle(node).display,
+            visibility: getComputedStyle(node).visibility,
+            viewport: [innerWidth, innerHeight],
+            style: node.getAttribute("style"),
+          })),
+        ),
+        contentType: "application/json",
+      });
+      await recovered
+        .getByRole("button", { name: "Return to writing", exact: true })
+        .click();
+      await expect(recovered.locator(".source-writing")).toBeVisible();
+      await expect(await selectSourceEditor(recovered)).toHaveValue(
+        `Legacy ${schema} literal [b]source[/b]`,
+      );
+      await revealWritingDetails(recovered);
+      await expect(
+        recovered.getByText(
+          "Local reply draft saved in this browser profile.",
+          { exact: true },
+        ),
+      ).toBeVisible();
+      const durable = await recovered.evaluate(async () => {
+        const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        const rows = await new Promise<unknown>((resolve, reject) => {
+          const read = db
+            .transaction("threads")
+            .objectStore("threads")
+            .getAll();
+          read.onsuccess = () => resolve(read.result);
+          read.onerror = () => reject(read.error);
+        });
+        db.close();
+        return JSON.stringify(rows);
+      });
+      expect(durable).not.toMatch(/INJECTED_|formhash|"cookie"|"bytes"/);
+      expect(durable).toContain(`Legacy ${schema} literal`);
+      await test.info().attach(`legacy-${schema}-durable.json`, {
+        body: durable,
+        contentType: "application/json",
+      });
+    } finally {
+      await isolated.close();
+    }
+  });
+}
+
+test("UX107.queued-branches: native storage contention retains the latest already-entered source from each tab without self-conflict", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Shared before queued edits");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(boardURL);
+  await choose(other, "42");
+  await expect(await selectSourceEditor(other)).toHaveValue(
+    "Shared before queued edits",
+  );
+  const holder = await context.newPage();
+  await holder.goto(`${origin}/__storage-holder`);
+  await holder.evaluate(async () => {
+    const request = indexedDB.open("tsdm.workspace.reply-drafts", 1),
+      db = await new Promise<IDBDatabase>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    const tx = db.transaction("threads", "readwrite"),
+      store = tx.objectStore("threads");
+    let held = true;
+    Object.defineProperty(window, "release107Storage", {
+      value: () => {
+        held = false;
+      },
+    });
+    const keep = () => {
+      if (!held) return;
+      const read = store.get("42");
+      read.onsuccess = keep;
+    };
+    keep();
+    tx.oncomplete = () => db.close();
+  });
+  const a = await selectSourceEditor(page),
+    b = await selectSourceEditor(other);
+  await a.fill("A first queued");
+  await b.fill("B first queued");
+  await a.fill("A latest already-entered source");
+  await b.fill("B latest already-entered source");
+  await holder.evaluate(() =>
+    (window as unknown as { release107Storage(): void }).release107Storage(),
+  );
+  await expect(
+    other.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(
+    page.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toBeVisible();
+  const fresh = await context.newPage();
+  await fresh.goto(boardURL);
+  await choose(fresh, "42");
+  const versions = fresh
+    .getByRole("region", { name: "Conflicting local reply drafts" })
+    .getByRole("textbox");
+  await expect(versions).toHaveCount(2);
+  expect(
+    await versions.evaluateAll((nodes) =>
+      nodes.map((node) => (node as HTMLTextAreaElement).value),
+    ),
+  ).toEqual(
+    expect.arrayContaining([
+      "A latest already-entered source",
+      "B latest already-entered source",
+    ]),
+  );
+  await holder.close();
+});
+
+test("UX107.after-dispatch: a conflict retains the active immutable publication owner and its actual confirmed outcome", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  const state = await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Original immutable sent source");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(boardURL);
+  await choose(other, "42");
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  let release!: () => void;
+  state.postGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect
+    .poll(
+      () =>
+        state.requests.filter((request) => request.method === "POST").length,
+    )
+    .toBe(1);
+  await (
+    await selectSourceEditor(other)
+  ).fill("Competing writing after dispatch");
+  await expect(
+    other.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(
+    page.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toBeVisible();
+  await page.locator('[data-thread-id="43"] .subject').click();
+  await expect(
+    page.getByText("Keep current writing?", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Continue editing", exact: true })
+    .click();
+  release();
+  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  expect(
+    state.requests.filter((request) => request.method === "POST"),
+  ).toHaveLength(1);
+  await page.reload();
+  const conflict = page.getByRole("region", {
+    name: "Conflicting local reply drafts",
+  });
+  await expect(conflict.getByRole("textbox")).toHaveCount(2);
+  for (const summary of await conflict
+    .getByText("Complete retained reply details", { exact: true })
+    .all())
+    await summary.click();
+  const versions = await conflict
+    .getByRole("textbox", {
+      name: "Complete retained reply details",
+      exact: true,
+    })
+    .evaluateAll((fields) =>
+      fields.map((field) => (field as HTMLTextAreaElement).value),
+    );
+  const details =
+    versions.find((version) => version.includes('"status": "confirmed"')) ?? "";
+  expect(details).toContain('"status": "confirmed"');
+  expect(details).toContain("Original immutable sent source");
+  expect(details).toContain('"id": "7"');
+  expect(
+    state.requests.filter((request) => request.method === "POST"),
+  ).toHaveLength(1);
+});
+
+test("UX107.independent-conflict: a retained conflict in another thread cannot block this thread's acknowledged deliberate reply", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "BroadcastChannel", {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  const state = await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Shared before conflict");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(boardURL);
+  await choose(other, "42");
+  await (await selectSourceEditor(page)).fill("First thread version A");
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await (await selectSourceEditor(other)).fill("First thread version B");
+  await expect(
+    other.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toBeVisible();
+  await choose(other, "43");
+  await other
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (
+    await selectSourceEditor(other)
+  ).fill("Independent thread deliberate reply");
+  await revealWritingDetails(other);
+  await expect(
+    other.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await other
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  await other.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect(other.getByText(/Confirmed stored reply/)).toBeVisible();
+  const posts = state.requests.filter((request) => request.method === "POST");
+  expect(posts).toHaveLength(1);
+  expect(new URL(posts[0]!.url).searchParams.get("tid")).toBe("43");
+});
+
+// Failure inventory: a clean, already-open observer must not reinterpret a live
+// pending owner as a recovered uncertain attempt and manufacture a competing head.
+test("UX107.live-owner: live notification preserves the pending owner's exact observation until its confirmed result", async ({
+  page,
+  context,
+}) => {
+  const state = await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Live observed immutable reply");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(boardURL);
+  await choose(other, "42");
+  await selectSourceEditor(other);
+  await revealWritingDetails(other);
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  let release!: () => void;
+  state.postGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect
+    .poll(
+      () =>
+        state.requests.filter((request) => request.method === "POST").length,
+    )
+    .toBe(1);
+  await expect(
+    other.getByText(
+      "Publication is pending. Refresh will retain it as uncertain without replay.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  release();
+  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  await expect(other.getByText(/Confirmed stored reply/)).toBeVisible();
+  await expect(
+    other.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toHaveCount(0);
+  expect(
+    state.requests.filter((request) => request.method === "POST"),
+  ).toHaveLength(1);
+});
+
+// Durable authority boundary: legacy validators accept extra URL query fields
+// and arbitrary attachnew names. Refuse durable acknowledgement while retaining
+// the exact page-session source, rather than storing authority or rewriting it.
+for (const unsafe of ["url", "attachment-field", "option-name"] as const) {
+  test(`UX107.authority-${unsafe}: unsafe legacy qualified fields stay recoverable without entering durable reply content`, async ({
+    page,
+    browser,
+  }) => {
+    await open(page);
+    await choose(page, "42");
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    await (
+      await selectSourceEditor(page)
+    ).fill("Literal source: formhash=AUTHOR_TEXT_MUST_SURVIVE");
+    await revealWritingDetails(page);
+    await expect(
+      page.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    const raw = await page.evaluate((kind) => {
+      const record = JSON.parse(
+        sessionStorage.getItem("tsdm.workspace.recovery")!,
+      );
+      record.schema = 4;
+      delete record.replyCheckpoints;
+      delete record.replyDisposals;
+      if (kind === "url")
+        record.writing.board.url += "&formhash=INJECTED_AUTHORITY_107";
+      else if (kind === "attachment-field")
+        record.writing.attachmentFields = [
+          {
+            name: "attachnew[88][formhash]",
+            value: "INJECTED_AUTHORITY_107",
+            disabled: false,
+          },
+        ];
+      else {
+        record.writing.options[0].name = "formhash";
+        record.writing.options[0].value = "INJECTED_AUTHORITY_107";
+      }
+      return JSON.stringify(record);
+    }, unsafe);
+    const isolated = await browser.newContext({ offline: true });
+    try {
+      await isolated.addInitScript(
+        (value) => sessionStorage.setItem("tsdm.workspace.recovery", value),
+        raw,
+      );
+      const recovered = await isolated.newPage();
+      await open(recovered);
+      await choose(recovered, "42");
+      await recovered
+        .getByRole("button", { name: "Return to writing", exact: true })
+        .click();
+      await expect(await selectSourceEditor(recovered)).toHaveValue(
+        "Literal source: formhash=AUTHOR_TEXT_MUST_SURVIVE",
+      );
+      await revealWritingDetails(recovered);
+      await expect(
+        recovered.getByText(
+          "Local reply draft saved in this browser profile.",
+          { exact: true },
+        ),
+      ).toHaveCount(0);
+      const evidence = await recovered.evaluate(async () => {
+        const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        const rows = await new Promise<unknown>((resolve) => {
+          const read = db
+            .transaction("threads")
+            .objectStore("threads")
+            .getAll();
+          read.onsuccess = () => resolve(read.result);
+        });
+        db.close();
+        return {
+          rows,
+          session: JSON.parse(
+            sessionStorage.getItem("tsdm.workspace.recovery")!,
+          ).writing.source,
+        };
+      });
+      expect(evidence.rows).toEqual([]);
+      expect(evidence.session).toBe(
+        "Literal source: formhash=AUTHOR_TEXT_MUST_SURVIVE",
+      );
+      await test.info().attach("authority-boundary.json", {
+        body: JSON.stringify(evidence),
+        contentType: "application/json",
+      });
+    } finally {
+      await isolated.close();
+    }
+  });
+}
+
+// Dual-store failure inventory: incompatible session navigation must remain raw,
+// while compatible durable reply writing remains independently recoverable.
+test("UX107.independent-recovery: incompatible page-session state cannot hide or reset compatible durable replies", async ({
+  page,
+  context,
+}) => {
+  await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (
+    await selectSourceEditor(page)
+  ).fill("Durable writing independent of corrupt navigation");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const raw = '{"schema":999,"recoverable":"future session data must survive"}';
+  await page.addInitScript(
+    (value) => sessionStorage.setItem("tsdm.workspace.recovery", value),
+    raw,
+  );
+  await page.goto(boardURL);
+  await choose(page, "42");
+  const returnToWriting = page.getByRole("button", {
+    name: "Return to writing",
+    exact: true,
+  });
+  if (await returnToWriting.isVisible()) await returnToWriting.click();
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Durable writing independent of corrupt navigation",
+  );
+  expect(
+    await page.evaluate(() =>
+      sessionStorage.getItem("tsdm.workspace.recovery"),
+    ),
+  ).toBe(raw);
+  await expect(
+    page.getByText(/Stored recovery data is incompatible/),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Reset incompatible recovery", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Discard incompatible recovery record",
+      exact: true,
+    })
+    .click();
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const fresh = await context.newPage();
+  await fresh.goto(boardURL);
+  await choose(fresh, "42");
+  await expect(await selectSourceEditor(fresh)).toHaveValue(
+    "Durable writing independent of corrupt navigation",
+  );
+  await test.info().attach("independent-stores.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+// History identity cannot be ordered by status: a restart observation and the
+// original still-running callback must remain separately inspectable, no replay.
+test("UX107.unequal-history: recovered uncertain and actual confirmed observations of one immutable attempt both survive", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() =>
+    Object.defineProperty(window, "BroadcastChannel", {
+      value: undefined,
+      configurable: true,
+    }),
+  );
+  const state = await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (
+    await selectSourceEditor(page)
+  ).fill("Same source distinct attempt observations");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Review publication", exact: true })
+    .click();
+  let release!: () => void;
+  state.postGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  await expect
+    .poll(
+      () =>
+        state.requests.filter((request) => request.method === "POST").length,
+    )
+    .toBe(1);
+  const restored = await context.newPage();
+  await restored.goto(boardURL);
+  await choose(restored, "42");
+  await selectSourceEditor(restored);
+  await revealWritingDetails(restored);
+  await expect(
+    restored.getByText(/Pending publication restored as uncertain/),
+  ).toBeVisible();
+  await expect(
+    restored.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  release();
+  await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
+  await page.reload();
+  const conflict = page.getByRole("region", {
+    name: "Conflicting local reply drafts",
+  });
+  await expect(conflict.getByRole("textbox")).toHaveCount(2);
+  for (const summary of await conflict
+    .getByText("Complete retained reply details", { exact: true })
+    .all())
+    await summary.click();
+  const variants = await conflict
+    .getByRole("textbox", {
+      name: "Complete retained reply details",
+      exact: true,
+    })
+    .evaluateAll((fields) =>
+      fields.map((field) => JSON.parse((field as HTMLTextAreaElement).value)),
+    );
+  expect(variants.map((variant) => variant.attempts[0].status).sort()).toEqual([
+    "confirmed",
+    "uncertain",
+  ]);
+  expect(new Set(variants.map((variant) => variant.attempts[0].id)).size).toBe(
+    1,
+  );
+  expect(
+    variants.every(
+      (variant) =>
+        variant.source === "Same source distinct attempt observations",
+    ),
+  ).toBe(true);
+  expect(
+    state.requests.filter((request) => request.method === "POST"),
+  ).toHaveLength(1);
+  await test.info().attach("unequal-history.json", {
+    body: JSON.stringify(variants),
+    contentType: "application/json",
+  });
+});
+
+test("UX107.stale-disposal: explicit stale replacement preserves unseen competing writing beside a tombstone", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() =>
+    Object.defineProperty(window, "BroadcastChannel", {
+      value: undefined,
+      configurable: true,
+    }),
+  );
+  await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Shared before stale discard");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(boardURL);
+  await choose(other, "42");
+  await (
+    await selectSourceEditor(page)
+  ).fill("Unseen competing draft survives stale disposal");
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await other.getByRole("button", { name: "New thread", exact: true }).click();
+  await other
+    .getByRole("button", {
+      name: "Discard local changes and prepare",
+      exact: true,
+    })
+    .click();
+  const conflict = other.getByRole("region", {
+    name: "Conflicting local reply drafts",
+  });
+  await expect(conflict.getByRole("textbox")).toHaveCount(2);
+  expect(
+    await conflict
+      .getByRole("textbox")
+      .evaluateAll((fields) =>
+        fields.map((field) => (field as HTMLTextAreaElement).value),
+      ),
+  ).toContain("Unseen competing draft survives stale disposal");
+  await other.reload();
+  await expect(
+    other
+      .getByRole("region", { name: "Conflicting local reply drafts" })
+      .getByRole("textbox"),
+  ).toHaveCount(2);
+});
+
+// Workspace enforcement, not merely a disabled DOM control: simulate a stale
+// enabled attachment button left on screen while conflict delivery races it.
+test("UX107.stale-control: a stale enabled attachment control cannot mutate paused writing", async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() =>
+    Object.defineProperty(window, "BroadcastChannel", {
+      value: undefined,
+      configurable: true,
+    }),
+  );
+  await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (await selectSourceEditor(page)).fill("Shared attachment writing");
+  await revealWritingTools(page);
+  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+    name: "paused-intent.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("local file intent"),
+  });
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(boardURL);
+  await choose(other, "42");
+  const editor = await selectSourceEditor(other);
+  await (
+    await selectSourceEditor(page)
+  ).fill("Competing owner attachment writing");
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await editor.fill("Paused attachment branch");
+  await expect(
+    other.getByRole("region", { name: "Conflicting local reply drafts" }),
+  ).toBeVisible();
+  await revealWritingTools(other);
+  const remove = other.getByRole("button", {
+    name: "Remove local selection paused-intent.txt",
+    exact: true,
+  });
+  await expect(remove).toBeDisabled();
+  await remove.evaluate((button) => {
+    (button as HTMLButtonElement).disabled = false;
+  });
+  await remove.click();
+  await expect(remove).toHaveCount(1);
+  await expect(
+    other.getByText(
+      "Local selection removed. No remote file was deleted; an interrupted upload may remain on the forum.",
+      { exact: true },
+    ),
+  ).toHaveCount(0);
+});
+
+test("UX107.future-database: a future database version is refused without replacing legacy session writing or resetting durable content", async ({
+  page,
+}) => {
+  const state = await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (
+    await selectSourceEditor(page)
+  ).fill("Future database still owns this writing");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.evaluate(async () => {
+    const request = indexedDB.open("tsdm.workspace.reply-drafts", 2);
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+  });
+  await page.reload();
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Future database still owns this writing",
+  );
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText(/Local reply drafts could not be saved/).first(),
+  ).toBeVisible();
+  const databases = await page.evaluate(() => indexedDB.databases());
+  expect(
+    databases.find((db) => db.name === "tsdm.workspace.reply-drafts")?.version,
+  ).toBe(2);
+  expect(state.requests.filter((request) => request.method !== "GET")).toEqual(
+    [],
+  );
+  await test.info().attach("future-database.json", {
+    body: JSON.stringify(databases),
+    contentType: "application/json",
+  });
+});
+
+// Non-reply scope: refusal of the ordinary-reply store cannot turn a successful
+// page-session acknowledgement for a new-thread composition into a false failure.
+test("UX107.nonreply-scope: durable reply-store refusal leaves new-thread page-session recovery truthful", async ({
+  page,
+}) => {
+  await open(page);
+  await page.evaluate(() => {
+    const original = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (names, mode, options) {
+      if (this.name === "tsdm.workspace.reply-drafts")
+        throw new DOMException("Induced reply-only refusal", "SecurityError");
+      return original.call(this, names, mode, options);
+    };
+  });
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "New thread in Music discussion",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await (
+    await selectSourceEditor(page)
+  ).fill("Nonreply writing remains page-session scoped");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Browser recovery is up to date for this page session.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Local reply drafts could not be saved/).first(),
+  ).toBeVisible();
+  await page.reload();
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Nonreply writing remains page-session scoped",
+  );
+});
+
+// Async authorization failure inventory: delayed workspace preparation and
+// delayed durable readback must not re-enable a review/send after conflict.
+for (const phase of ["preparation", "acknowledgement"] as const) {
+  test(`UX107.conflict-during-${phase}: delayed continuation cannot authorize a conflicted owner`, async ({
+    page,
+    context,
+  }) => {
+    await context.addInitScript(() =>
+      Object.defineProperty(window, "BroadcastChannel", {
+        value: undefined,
+        configurable: true,
+      }),
+    );
+    const state = await open(page);
+    await choose(page, "42");
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    await (
+      await selectSourceEditor(page)
+    ).fill("Shared before delayed continuation");
+    await revealWritingDetails(page);
+    await expect(
+      page.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    const other = await context.newPage();
+    await other.goto(boardURL);
+    await choose(other, "42");
+    await (
+      await selectSourceEditor(page)
+    ).fill("Captured owner before delayed continuation");
+    await expect(
+      page.getByText("Local reply draft saved in this browser profile.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    let release!: () => void;
+    if (phase === "preparation") {
+      const before = state.requests.length;
+      state.gate = {
+        thread: "42",
+        promise: new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+      };
+      await page
+        .getByRole("button", { name: "Review publication", exact: true })
+        .click();
+      await expect
+        .poll(
+          () =>
+            state.requests
+              .slice(before)
+              .filter(
+                (request) =>
+                  new URL(request.url).searchParams.get("mod") === "post",
+              ).length,
+        )
+        .toBeGreaterThan(0);
+    } else {
+      await page
+        .getByRole("button", { name: "Review publication", exact: true })
+        .click();
+      await page.evaluate(() => {
+        const original = IDBDatabase.prototype.transaction;
+        let held = false;
+        IDBDatabase.prototype.transaction = function (names, mode, options) {
+          const tx = original.call(this, names, mode, options);
+          if (
+            !held &&
+            this.name === "tsdm.workspace.reply-drafts" &&
+            mode === "readonly"
+          ) {
+            held = true;
+            Object.defineProperty(tx, "oncomplete", {
+              configurable: true,
+              set(
+                listener: ((this: IDBTransaction, event: Event) => void) | null,
+              ) {
+                if (listener)
+                  tx.addEventListener("complete", (event) =>
+                    Object.defineProperty(window, "release107Ack", {
+                      configurable: true,
+                      value: () => {
+                        IDBDatabase.prototype.transaction = original;
+                        listener.call(tx, event);
+                      },
+                    }),
+                  );
+              },
+            });
+          }
+          return tx;
+        };
+      });
+      await page
+        .getByRole("button", { name: "Send reply", exact: true })
+        .click();
+      await expect
+        .poll(() => page.evaluate(() => "release107Ack" in window))
+        .toBe(true);
+    }
+    await (
+      await selectSourceEditor(other)
+    ).fill("Competing branch during delayed continuation");
+    await expect(
+      other.getByRole("region", { name: "Conflicting local reply drafts" }),
+    ).toBeVisible();
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    if (phase === "preparation") {
+      state.gate = null;
+      release();
+    } else
+      await page.evaluate(() =>
+        (window as unknown as { release107Ack(): void }).release107Ack(),
+      );
+    await expect(
+      page.getByRole("region", { name: "Conflicting local reply drafts" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Review publication", exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Send reply", exact: true }),
+    ).toHaveCount(0);
+    expect(
+      state.requests.filter((request) => request.method === "POST"),
+    ).toEqual([]);
+  });
+}
+
+// Ambiguous migration must preserve legacy writing without inventing a baseline
+// or treating the durable store's mere existence as a winning chronology.
+test("UX107.legacy-divergence: schema4 writing without a known baseline preserves both differing versions", async ({
+  page,
+  context,
+}) => {
+  const state = await open(page);
+  await choose(page, "42");
+  await page
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  await (
+    await selectSourceEditor(page)
+  ).fill("Already acknowledged durable source");
+  await revealWritingDetails(page);
+  await expect(
+    page.getByText("Local reply draft saved in this browser profile.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const legacy = await page.evaluate(() => {
+    const record = JSON.parse(
+      sessionStorage.getItem("tsdm.workspace.recovery")!,
+    );
+    record.schema = 4;
+    delete record.replyCheckpoints;
+    delete record.replyDisposals;
+    record.writing.source = "Different readable legacy source";
+    record.writing.selection = { start: 0, end: 0, direction: "none" };
+    return JSON.stringify(record);
+  });
+  const other = await context.newPage();
+  await other.addInitScript(
+    (raw) => sessionStorage.setItem("tsdm.workspace.recovery", raw),
+    legacy,
+  );
+  await other.goto(boardURL);
+  await choose(other, "42");
+  const returnToWriting = other.getByRole("button", {
+    name: "Return to writing",
+    exact: true,
+  });
+  if (await returnToWriting.isVisible()) await returnToWriting.click();
+  const conflict = other.getByRole("region", {
+    name: "Conflicting local reply drafts",
+  });
+  await expect(conflict.getByRole("textbox")).toHaveCount(2);
+  expect(
+    await conflict
+      .getByRole("textbox")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => (node as HTMLTextAreaElement).value),
+      ),
+  ).toEqual(
+    expect.arrayContaining([
+      "Already acknowledged durable source",
+      "Different readable legacy source",
+    ]),
+  );
+  expect(state.requests.filter((request) => request.method !== "GET")).toEqual(
+    [],
+  );
+  await test.info().attach("legacy-divergence.png", {
+    body: await other.screenshot(),
+    contentType: "image/png",
+  });
+});

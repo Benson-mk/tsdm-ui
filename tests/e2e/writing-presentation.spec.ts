@@ -1372,7 +1372,7 @@ for (const width of [1439, 1440, 1706])
     });
   });
 
-test("UI87.mismatch-review: bottom resume and review retain the original addressed target after permitted browsing", async ({
+test("UI87.mismatch-review: returning to a parked reply restores the original addressed target and immutable review", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -1382,22 +1382,17 @@ test("UI87.mismatch-review: bottom resume and review retain the original address
   await source.fill("Original target answer");
   const handle = await source.elementHandle();
   await page.getByRole("link", { name: "Another thread", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Keep writing and read thread", exact: true })
-    .click();
-  await expect(page.locator(".bottom-resume")).toContainText("Thread 42");
   await expect(
-    page
-      .locator(".bottom-resume")
-      .getByText(
-        "Writing still targets the original destination shown here, not the current reader.",
-        { exact: true },
-      ),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
-  expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
+    page.getByRole("dialog", { name: "Keep current writing?", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".source-writing")).toHaveCount(0);
+  expect(await handle!.evaluate((node) => node.isConnected)).toBe(false);
+  await page.goBack();
+  await selectSourceEditor(page);
+  expect((await stored(page)).replyTarget).toMatchObject({
+    threadId: "42",
+    postId: "101",
+  });
   await expect(source).toHaveValue("Original target answer");
   await source.press("Control+Enter");
   const review = page.getByRole("region", {
@@ -1490,7 +1485,7 @@ test("UI87.target-color: writing destination keeps the source-qualified board ro
   });
 });
 
-test("UI87.short-restored: focused writing retains at least96px of actually visible history after a restored mismatch", async ({
+test("UI87.short-restored: returning to parked writing and reload retain at least96px of visible history", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 375, height: 420 });
@@ -1499,12 +1494,9 @@ test("UI87.short-restored: focused writing retains at least96px of actually visi
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Retained short reply");
   await page.getByRole("link", { name: "Another thread", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Keep writing and read thread", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+  await expect(page.locator(".source-writing")).toHaveCount(0);
+  await page.goBack();
+  await selectSourceEditor(page);
   await page.reload();
   await selectSourceEditor(page);
   await expect(source).toHaveValue("Retained short reply");
@@ -1528,7 +1520,7 @@ test("UI87.short-restored: focused writing retains at least96px of actually visi
   expect(after.visibleHeight).toBeGreaterThanOrEqual(96);
 });
 
-test("UI87.short-resume: overflowed original author destination and mismatch can all be scrolled into the bottom bar", async ({
+test("UI87.short-resume: restored original author and addressed destination remain reachable in the bottom bar", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 375, height: 420 });
@@ -1549,10 +1541,19 @@ test("UI87.short-resume: overflowed original author destination and mismatch can
     .getByLabel("Complete source", { exact: true })
     .fill("Original addressed source");
   await page.getByRole("link", { name: "Another thread", exact: true }).click();
+  await expect(page.locator(".source-writing")).toHaveCount(0);
+  await page.goBack();
+  await selectSourceEditor(page);
   await page
-    .getByRole("button", { name: "Keep writing and read thread", exact: true })
+    .getByRole("button", { name: "Return to reading", exact: true })
     .click();
   const bar = page.locator(".bottom-resume");
+  await expect(bar).toContainText("Other author");
+  await expect(bar).toContainText("101");
+  expect((await stored(page)).replyTarget).toMatchObject({
+    threadId: "42",
+    postId: "101",
+  });
   const geometry = async () =>
     bar.evaluate((node) => {
       const rect = (e: Element) => {
@@ -1562,7 +1563,7 @@ test("UI87.short-resume: overflowed original author destination and mismatch can
       return {
         bar: rect(node),
         author: rect(node.querySelector(".writing-destination p")!),
-        mismatch: rect(node.querySelector(".resume-destination > p")!),
+        destination: rect(node.querySelector(".writing-destination")!),
         scrollTop: node.scrollTop,
         scrollHeight: node.scrollHeight,
         clientHeight: node.clientHeight,
@@ -1573,7 +1574,7 @@ test("UI87.short-resume: overflowed original author destination and mismatch can
   expect(top.author.top).toBeGreaterThanOrEqual(top.bar.top);
   await bar.evaluate((node) => (node.scrollTop = node.scrollHeight));
   const bottom = await geometry();
-  expect(bottom.mismatch.bottom).toBeLessThanOrEqual(bottom.bar.bottom);
+  expect(bottom.destination.bottom).toBeLessThanOrEqual(bottom.bar.bottom);
   await info.attach("short-resume-reachability.json", {
     body: JSON.stringify({ top, bottom }),
     contentType: "application/json",

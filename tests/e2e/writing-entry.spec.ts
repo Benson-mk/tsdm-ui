@@ -1,5 +1,6 @@
 import {
   revealWritingDetails,
+  selectSourceEditor,
   revealWritingTools,
   writingDetailAction,
   writingTool,
@@ -30,7 +31,11 @@ function fixtureState() {
     } | null,
   };
 }
-async function open(page: Page, openingOwned = false) {
+async function open(
+  page: Page,
+  openingOwned = false,
+  attachmentMetadata = true,
+) {
   const state = fixtureState();
   state.openingOwned = openingOwned;
   states.set(page, state);
@@ -66,7 +71,7 @@ async function open(page: Page, openingOwned = false) {
         replyEdit = url.searchParams.get("pid") === "202";
       body += state.refused
         ? '<div id="messagetext">权限不足</div>'
-        : `<form id="postform" method="post" action="forum.php?mod=post&action=${action}&fid=5&tid=42${edit ? `&pid=${replyEdit ? "202" : "101"}&editsubmit=yes` : action === "newthread" ? "&topicsubmit=yes" : "&replysubmit=yes"}"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_TOKEN">${post ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="OPAQUE_AUTHOR_8"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">' : ""}${replyEdit ? "" : '<input name="subject" value="Native title">'}<textarea name="message">${edit ? escape(retained) : ""}</textarea>${action === "newthread" || (edit && !replyEdit) ? '<select name="typeid"><option value="0">Choose category</option><option value="3">Listening notes</option></select>' : ""}<label><input name="usesig" type="checkbox" value="1" checked>Signature</label><input name="attachnew[77][description]" value="Existing attachment"><button type="submit" name="${edit ? "editsubmit" : action === "newthread" ? "topicsubmit" : "replysubmit"}">Continue</button></form>`;
+        : `<form id="postform" method="post" action="forum.php?mod=post&action=${action}&fid=5&tid=42${edit ? `&pid=${replyEdit ? "202" : "101"}&editsubmit=yes` : action === "newthread" ? "&topicsubmit=yes" : "&replysubmit=yes"}"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_TOKEN">${post ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="OPAQUE_AUTHOR_8"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">' : ""}${replyEdit ? "" : '<input name="subject" value="Native title">'}<textarea name="message">${edit ? escape(retained) : ""}</textarea>${action === "newthread" || (edit && !replyEdit) ? '<select name="typeid"><option value="0">Choose category</option><option value="3">Listening notes</option></select>' : ""}<label><input name="usesig" type="checkbox" value="1" checked>Signature</label>${attachmentMetadata ? '<input name="attachnew[77][description]" value="Existing attachment">' : ""}<button type="submit" name="${edit ? "editsubmit" : action === "newthread" ? "topicsubmit" : "replysubmit"}" value="yes">Continue</button></form>`;
     } else if (url.searchParams.get("mod") === "forumdisplay")
       body += `<div id="ct"><h1><a href="${boardURL}">Music discussion</a></h1></div><table id="threadlisttableid"><tbody id="normalthread_42"><tr><th><a class="xst" href="${threadURL}">Existing thread</a></th></tr></tbody></table>`;
     else
@@ -218,12 +223,19 @@ for (const [
         ),
       { textSize, theme, language },
     );
-    const state = await open(page);
+    // Retention cases below carry attachment fields. This actual-review fixture
+    // omits an unsupported interactive native attachment control while keeping
+    // the complete authored source, including its literal attachment reference.
+    const state = await open(page, false, false);
     const action = page
       .locator("#pid101")
       .getByRole("button", { name: label, exact: true });
     await action.focus();
     await page.keyboard.press("Enter");
+    await expect(
+      page.locator('[role="textbox"][contenteditable="true"]'),
+    ).toBeFocused();
+    await selectSourceEditor(page);
     const editor = page.getByLabel(bodyLabel, { exact: true });
     await expect(editor).toBeFocused();
     await expect(editor).toHaveValue("");
@@ -256,7 +268,7 @@ for (const [
       name: reviewDestination,
       exact: true,
     });
-    await expect(review).toContainText("101");
+    await expect(review).toHaveCount(0);
     await editor.fill(retained);
     const before = await stored(page),
       reads = state.requests.length;
@@ -265,7 +277,15 @@ for (const [
     await expect(editor).toHaveValue(retained);
     expect(await stored(page)).toEqual(before);
     expect(state.requests).toHaveLength(reads);
-    const geometry = await identity.evaluate((node) => ({
+    // Ordinary replies keep the full identity for assistive technology; the
+    // visible addressed-target strip owns the layout geometry since #105.
+    const visibleTarget = page.getByRole("group", {
+      name: /^(Reply target|回复对象|回覆對象)$/,
+      exact: true,
+    });
+    await expect(visibleTarget).toBeVisible();
+    await expect(visibleTarget).toContainText("Other author");
+    const geometry = await visibleTarget.evaluate((node) => ({
       width: node.clientWidth,
       scroll: node.scrollWidth,
     }));
@@ -279,7 +299,19 @@ for (const [
     });
     expect(writing.source).toBe(retained);
     expect(state.requests.every((r) => r.method === "GET")).toBe(true);
-    await identity.scrollIntoViewIfNeeded();
+    await visibleTarget.scrollIntoViewIfNeeded();
+    await page
+      .getByRole("button", {
+        name: /^(Review publication|检查发布|檢查發佈)$/,
+        exact: true,
+      })
+      .click();
+    await expect(review).toContainText("101");
+    await expect(review).toContainText("Other author");
+    await expect(page.locator(".prepared-review .prepared-source")).toHaveText(
+      retained,
+    );
+    expect(state.requests.every((r) => r.method === "GET")).toBe(true);
     await capture(page, info);
   });
 }
@@ -296,6 +328,12 @@ for (const entry of [
   }) => {
     const state = await open(page, entry === "edit-opening");
     await enter(page, entry);
+    if (entry === "reply" || entry === "addressed") {
+      await expect(
+        page.getByRole("textbox", { name: "Visual post content", exact: true }),
+      ).toBeFocused();
+      await selectSourceEditor(page);
+    }
     const editor = page.getByLabel("Complete source", { exact: true });
     await expect(editor).toBeFocused();
     await editor.fill(retained);
@@ -409,6 +447,7 @@ test("UX56.cancel-pending: return to retained writing invalidates delayed retarg
 }) => {
   const state = await open(page);
   await enter(page, "reply");
+  await selectSourceEditor(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(retained);
   await editor.press("Meta+ArrowUp");
@@ -446,6 +485,7 @@ test("UX56.revision-refusal: refused replacement preserves retained writing and 
 }) => {
   const state = await open(page);
   await enter(page, "reply");
+  await selectSourceEditor(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(retained);
   await revealNavigation(page);
@@ -492,6 +532,7 @@ test("UX56.composition: entry and replacement wait for composition and the lates
 }) => {
   const state = await open(page);
   await enter(page, "reply");
+  await selectSourceEditor(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(retained);
   await editor.dispatchEvent("compositionstart", { data: "音" });
@@ -525,6 +566,7 @@ test("UX56.latest-guard: newer entry replaces the old replacement guard before a
 }) => {
   const state = await open(page);
   await enter(page, "reply");
+  await selectSourceEditor(page);
   await page.getByLabel("Complete source", { exact: true }).fill(retained);
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
@@ -565,6 +607,7 @@ test("UX56.explicit-mode-during-check: deliberate visible editor mode focus rema
 }) => {
   const state = await open(page);
   await enter(page, "reply");
+  await selectSourceEditor(page);
   await page.getByLabel("Complete source", { exact: true }).fill(retained);
   let release!: () => void;
   state.gate = {

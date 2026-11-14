@@ -1,7 +1,139 @@
+import {
+  canonical,
+  type ReplyCheckpoint,
+  type ReplyRecovery,
+} from "../workspace/reply-recovery";
 import type { NavigationHost } from "../workspace/navigation";
 import { isNavigationRecord } from "./navigation-record";
+import {
+  isOrdinaryReply,
+  type PublicWritingContext,
+} from "../workspace/writing";
+import {
+  createReplyDraftStore,
+  projectReply,
+  replyMeaning,
+  replyFingerprint,
+} from "./reply-drafts";
+import type { NavigationRecord } from "../workspace/navigation";
 const storageKey = "tsdm.workspace.recovery";
 export function createBrowserNavigation(): NavigationHost {
+  const drafts = createReplyDraftStore();
+  const channel =
+    typeof BroadcastChannel === "function"
+      ? new BroadcastChannel("tsdm.workspace.reply-drafts")
+      : null;
+  let replyChanged = () => {};
+  if (channel) channel.onmessage = () => replyChanged();
+  const pendingDisposals = new Set<string>();
+  let checkpoints: Record<string, ReplyCheckpoint> = {};
+  let replyState: ReplyRecovery = {
+    available: null,
+    problem: null,
+    conflicts: [],
+    updates: [],
+  };
+  const contexts = (record: NavigationRecord) =>
+    [record.writing, ...(record.retainedReplies ?? [])].filter(
+      (value): value is PublicWritingContext =>
+        !!value && isOrdinaryReply(value),
+    );
+  function replyFailure(error: unknown) {
+    const raw =
+      error && typeof error === "object" && "raw" in error
+        ? String(error.raw)
+        : null;
+    replyState = {
+      ...replyState,
+      available: false,
+      problem: { kind: raw === null ? "refused" : "incompatible", raw },
+    };
+  }
+  async function recoverReplies(record: NavigationRecord | null) {
+    try {
+      const rows = await drafts.read();
+      if (!rows.length && !record) return null;
+      const next: NavigationRecord = record ?? {
+        schema: 5,
+        writing: null,
+        retainedReplies: [],
+        entries: {},
+        pending: null,
+        replyCheckpoints: {},
+      };
+      checkpoints = { ...(next.replyCheckpoints ?? {}) };
+      for (const thread of next.replyDisposals ?? [])
+        pendingDisposals.add(thread);
+      const local = new Map(
+        contexts(next).map((context) => [
+          context.replyTarget!.threadId,
+          context,
+        ]),
+      );
+      for (const row of rows) {
+        if (pendingDisposals.has(row.threadId)) continue;
+        const current = local.get(row.threadId),
+          checkpoint = checkpoints[row.threadId];
+        const variant =
+          row.variants.find((item) => item.version === checkpoint?.version) ??
+          row.variants[0]!;
+        const clean =
+          !current ||
+          (!!checkpoint &&
+            checkpoint.fingerprint ===
+              (await replyFingerprint(projectReply(current))));
+        const equivalent =
+          !!current &&
+          replyMeaning(projectReply(current)) === replyMeaning(variant.context);
+        if (
+          !current ||
+          (row.variants.length === 1 && (clean || (!checkpoint && equivalent)))
+        ) {
+          if (variant.context) local.set(row.threadId, variant.context);
+          else local.delete(row.threadId);
+          checkpoints[row.threadId] = {
+            version: variant.version,
+            fingerprint: await replyFingerprint(variant.context),
+          };
+        }
+      }
+      const active =
+        next.writing && isOrdinaryReply(next.writing)
+          ? next.writing.replyTarget!.threadId
+          : null;
+      if (active) next.writing = local.get(active) ?? null;
+      next.retainedReplies = [...local.entries()]
+        .filter(([thread]) => thread !== active)
+        .map(([, context]) => context);
+      next.schema = 5;
+      next.replyCheckpoints = { ...checkpoints };
+      replyState = {
+        available: true,
+        problem: null,
+        conflicts: rows.filter((row) => row.variants.length > 1),
+        updates: [],
+      };
+      return next;
+    } catch (error) {
+      replyFailure(error);
+      return record;
+    }
+  }
+  let latestRecord: NavigationRecord | null = null;
+  function captureSession(completedDisposals: string[] = []) {
+    if (!latestRecord) return false;
+    const snapshot = JSON.stringify({
+      ...latestRecord,
+      schema: 5,
+      retainedReplies: latestRecord.retainedReplies ?? [],
+      replyCheckpoints: { ...checkpoints },
+      replyDisposals: [...pendingDisposals].filter(
+        (thread) => !completedDisposals.includes(thread),
+      ),
+    });
+    sessionStorage.setItem(storageKey, snapshot);
+    return sessionStorage.getItem(storageKey) === snapshot;
+  }
   let saveQueue = Promise.resolve(true);
   let problem: { kind: "incompatible" | "refused"; raw: string | null } | null =
     null;
@@ -11,6 +143,18 @@ export function createBrowserNavigation(): NavigationHost {
     `${location.origin}/forum.php#workspace=${key}`;
   return {
     entryKey,
+    replyRecovery: () => replyState,
+    disposeReply: (thread) => {
+      pendingDisposals.add(thread);
+    },
+    onReplyChange: (action) => {
+      replyChanged = action;
+      window.addEventListener("focus", action);
+    },
+    acceptReplyUpdates: (updates) => {
+      for (const update of updates)
+        checkpoints[update.threadId] = update.checkpoint;
+    },
     recoveryProblem: () => problem,
     resetRecovery: () => {
       problem = null;
@@ -19,13 +163,13 @@ export function createBrowserNavigation(): NavigationHost {
       let raw: string | null = null;
       try {
         raw = sessionStorage.getItem(storageKey);
-        if (raw === null) return null;
+        if (raw === null) return recoverReplies(null);
         let value: unknown;
         try {
           value = JSON.parse(raw);
         } catch {
           problem = { kind: "incompatible", raw };
-          return null;
+          return recoverReplies(null);
         }
         if (
           value &&
@@ -34,28 +178,188 @@ export function createBrowserNavigation(): NavigationHost {
           value.schema === 1
         )
           value = { ...value, schema: 2, writing: null };
-        if (isNavigationRecord(value)) return value;
+        if (isNavigationRecord(value)) return recoverReplies(value);
         problem = { kind: "incompatible", raw };
-        return null;
+        return recoverReplies(null);
       } catch {
         problem = { kind: "refused", raw };
-        return null;
+        return recoverReplies(null);
       }
     },
     save(record) {
       if (problem?.kind === "incompatible") return Promise.resolve(false);
-      let snapshot: string;
+      let captured: NavigationRecord;
       try {
-        snapshot = JSON.stringify(record);
+        captured = JSON.parse(JSON.stringify(record));
       } catch {
         return Promise.resolve(false);
       }
-      saveQueue = saveQueue.then(() => {
+      latestRecord = captured;
+      // Navigation and live source are captured synchronously. Strict durable
+      // work may still be queued; its later checkpoint cannot roll this back.
+      try {
+        if (!captureSession()) throw Error("Page-session capture failed");
+      } catch (error) {
+        replyFailure(error);
+        return Promise.resolve(false);
+      }
+      const disposals = [...pendingDisposals];
+      replyState = { ...replyState, available: null };
+      saveQueue = saveQueue.then(async () => {
+        const snapshot: NavigationRecord = {
+          ...captured,
+          schema: 5,
+          retainedReplies: captured.retainedReplies ?? [],
+          replyCheckpoints: { ...checkpoints },
+          replyDisposals: disposals,
+        };
+        const sessionOnly =
+          !snapshot.writing || !isOrdinaryReply(snapshot.writing);
         try {
-          sessionStorage.setItem(storageKey, snapshot);
-          return sessionStorage.getItem(storageKey) === snapshot;
-        } catch {
-          return false;
+          if (!captureSession())
+            throw Error("Page-session acknowledgement failed");
+          if (replyState.problem?.kind === "incompatible") return sessionOnly;
+          let rows = await drafts.read();
+          const expected = new Map<string, string>();
+          const updates: ReplyRecovery["updates"] = [];
+          let wrote = false;
+          for (const original of contexts(snapshot)) {
+            const context = projectReply(original),
+              thread = context.replyTarget!.threadId;
+            const fingerprint = await replyFingerprint(context),
+              checkpoint = checkpoints[thread];
+            const row = rows.find((item) => item.threadId === thread);
+            if (
+              checkpoint &&
+              fingerprint === checkpoint.fingerprint &&
+              row?.variants.length === 1 &&
+              row.variants[0]!.version !== checkpoint.version
+            ) {
+              updates.push({
+                checkpoint: {
+                  version: row.variants[0]!.version,
+                  fingerprint: await replyFingerprint(row.variants[0]!.context),
+                },
+                threadId: thread,
+                before: original,
+                context: row.variants[0]!.context,
+              });
+              continue;
+            }
+            const equivalent =
+              !checkpoint &&
+              row?.variants.length === 1 &&
+              replyMeaning(row.variants[0]!.context) === replyMeaning(context);
+            const unchanged =
+              checkpoint &&
+              fingerprint === checkpoint.fingerprint &&
+              row?.variants.some((item) => item.version === checkpoint.version);
+            const saved =
+              equivalent || unchanged
+                ? row!
+                : await drafts.save(
+                    thread,
+                    context,
+                    checkpoint?.version ?? null,
+                  );
+            const variant =
+              saved.variants.find(
+                (item) => canonical(item.context) === canonical(context),
+              ) ??
+              (equivalent
+                ? saved.variants[0]
+                : unchanged
+                  ? saved.variants.find(
+                      (item) => item.version === checkpoint!.version,
+                    )
+                  : undefined);
+            if (canonical(saved) !== canonical(row)) wrote = true;
+            if (variant) {
+              checkpoints[thread] = {
+                version: variant.version,
+                fingerprint: await replyFingerprint(variant.context),
+              };
+              expected.set(thread, variant.version);
+            }
+          }
+          for (const thread of disposals) {
+            if (
+              contexts(snapshot).some(
+                (context) => context.replyTarget!.threadId === thread,
+              )
+            )
+              continue;
+            const prior = rows.find((row) => row.threadId === thread);
+            const saved = await drafts.save(
+              thread,
+              null,
+              checkpoints[thread]?.version ?? null,
+            );
+            const variant = saved.variants.find(
+              (item) => item.context === null,
+            )!;
+            checkpoints[thread] = {
+              version: variant.version,
+              fingerprint: await replyFingerprint(null),
+            };
+            expected.set(thread, variant.version);
+            if (canonical(saved) !== canonical(prior)) wrote = true;
+          }
+          rows = await drafts.read();
+          const present = new Set(
+            contexts(snapshot).map((context) => context.replyTarget!.threadId),
+          );
+          for (const row of rows) {
+            if (
+              !present.has(row.threadId) &&
+              !disposals.includes(row.threadId) &&
+              row.variants.length === 1 &&
+              row.variants[0]!.context
+            )
+              updates.push({
+                threadId: row.threadId,
+                before: null,
+                context: row.variants[0]!.context,
+                checkpoint: {
+                  version: row.variants[0]!.version,
+                  fingerprint: await replyFingerprint(row.variants[0]!.context),
+                },
+              });
+          }
+          if (wrote) channel?.postMessage("changed");
+          const current = [...expected].every(([thread, version]) => {
+            const row = rows.find((item) => item.threadId === thread);
+            return (
+              row?.variants.length === 1 && row.variants[0]!.version === version
+            );
+          });
+          replyState = {
+            available: current && updates.length === 0,
+            problem: null,
+            conflicts: rows.filter((row) => row.variants.length > 1),
+            updates,
+          };
+          if (!captureSession(disposals))
+            throw Error("Page-session checkpoint failed");
+          for (const thread of disposals) pendingDisposals.delete(thread);
+          // Retained conflicts remain globally visible, but authorization belongs
+          // to the active writing owner, never to an unrelated thread's head.
+          const active = snapshot.writing;
+          if (!active || !isOrdinaryReply(active)) return true;
+          const thread = active.replyTarget!.threadId;
+          const row = rows.find((item) => item.threadId === thread);
+          return (
+            expected.has(thread) &&
+            row?.variants.length === 1 &&
+            row.variants[0]!.version === expected.get(thread) &&
+            !updates.some((update) => update.threadId === thread)
+          );
+        } catch (error) {
+          replyFailure(error);
+          // The full captured page session was already acknowledged before
+          // entering this queue. Durable reply failure cannot revoke unrelated
+          // non-reply recovery, while reply failure remains globally visible.
+          return sessionOnly;
         }
       });
       return saveQueue;

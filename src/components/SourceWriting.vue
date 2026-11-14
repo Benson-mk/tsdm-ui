@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ReplyConflict from "./ReplyConflict.vue";
 import { privateWritingText } from "./private-writing-text";
 import PrivateAttemptHistory from "./PrivateAttemptHistory.vue";
 import { computed, ref, watch, nextTick, type DeepReadonly } from "vue";
@@ -164,7 +165,18 @@ watch(
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
+const replyConflict = computed(() =>
+  props.workspace.state.value.replyRecovery?.conflicts.find(
+    (row) => row.threadId === state.value.context?.replyTarget?.threadId,
+  ),
+);
 const recoverySummary = computed(() => {
+  if (replyConflict.value) return text.value.localReplyPaused;
+  const durable = props.workspace.state.value.replyRecovery;
+  if (ordinaryReply.value && durable?.problem)
+    return durable.problem.kind === "incompatible"
+      ? text.value.localReplyIncompatible
+      : text.value.localReplyUnsaved;
   const problem = props.workspace.state.value.recoveryProblem;
   if (problem?.kind === "incompatible")
     return text.value.writingRecoveryIncompatible;
@@ -173,7 +185,9 @@ const recoverySummary = computed(() => {
     return text.value.writingRecoveryUnavailable;
   return state.value.recoveryAvailable &&
     state.value.acknowledged === state.value.context?.revision
-    ? text.value.writingRecoveryCurrent
+    ? ordinaryReply.value
+      ? text.value.localReplySaved
+      : text.value.writingRecoveryCurrent
     : text.value.writingRecoveryPending;
 });
 const attachment = (value: string) =>
@@ -427,7 +441,7 @@ function updateOption(option: WritingOption, event: Event) {
       </button>
       <button
         :aria-label="text.removeReplyTarget"
-        :disabled="state.publishing"
+        :disabled="workspace.writing.replyBlocked.value || state.publishing"
         @click="removeReplyTarget"
       >
         ×
@@ -487,7 +501,14 @@ function updateOption(option: WritingOption, event: Event) {
             v-else-if="state.acknowledged === state.context.revision"
             role="status"
           >
-            {{ insert(text.writingAcknowledged, state.acknowledged) }}
+            {{
+              insert(
+                ordinaryReply
+                  ? text.localReplyAcknowledged
+                  : text.writingAcknowledged,
+                state.acknowledged,
+              )
+            }}
           </p>
           <p v-else role="status">
             {{
@@ -497,7 +518,11 @@ function updateOption(option: WritingOption, event: Event) {
               )
             }}
           </p>
-          <p>{{ text.writingRecoveryLimits }}</p>
+          <p>
+            {{
+              ordinaryReply ? text.localReplyLimits : text.writingRecoveryLimits
+            }}
+          </p>
         </details>
       </section>
       <p v-if="state.context.redPacket" role="alert">
@@ -526,6 +551,7 @@ function updateOption(option: WritingOption, event: Event) {
         >{{ text.writingTitle
         }}<input
           ref="titleInput"
+          :disabled="workspace.writing.replyBlocked.value"
           :aria-invalid="titleIssue ? 'true' : undefined"
           :aria-describedby="titleIssue ? 'writing-title-error' : undefined"
           :value="state.context.title"
@@ -546,7 +572,10 @@ function updateOption(option: WritingOption, event: Event) {
           "
           :aria-label="text.writingCategory"
           :value="state.context.category.value"
-          :disabled="state.context.category.disabled"
+          :disabled="
+            workspace.writing.replyBlocked.value ||
+            state.context.category.disabled
+          "
           @change="
             updateOption(state.context.category as WritingOption, $event)
           "
@@ -569,9 +598,14 @@ function updateOption(option: WritingOption, event: Event) {
           )
         }}
       </p>
+      <ReplyConflict
+        v-if="replyConflict"
+        :row="replyConflict"
+        :language="workspace.preferences.state.value.language"
+      />
       <PostEditor
         ref="editor"
-        :key="state.context.id"
+        :key="state.context.id + workspace.writing.editorGeneration.value"
         :workspace="workspace"
         :expanded="expanded"
         :reply="ordinaryReply"
@@ -605,7 +639,12 @@ function updateOption(option: WritingOption, event: Event) {
             class="primary-action reply-review"
             :aria-label="text.reviewPublication"
             :title="text.reviewPublication"
-            :disabled="state.preparing || state.publishing || state.composing"
+            :disabled="
+              workspace.writing.replyBlocked.value ||
+              state.preparing ||
+              state.publishing ||
+              state.composing
+            "
             @click="requestReview(true)"
           >
             <WorkspaceIcon name="review" /><span>{{
@@ -673,13 +712,21 @@ function updateOption(option: WritingOption, event: Event) {
         <p>{{ text.writingShortcut }}</p>
         <div class="writing-actions">
           <button
-            :disabled="state.preparing || state.publishing"
+            :disabled="
+              workspace.writing.replyBlocked.value ||
+              state.preparing ||
+              state.publishing
+            "
             @click="workspace.writing.check()"
           >
             {{ text.checkWriting }}
           </button>
           <button
-            :disabled="state.preparing || state.publishing"
+            :disabled="
+              workspace.writing.replyBlocked.value ||
+              state.preparing ||
+              state.publishing
+            "
             @click="workspace.writing.check(true)"
           >
             {{ text.prepareTextCopy }}
@@ -713,7 +760,7 @@ function updateOption(option: WritingOption, event: Event) {
           {{ text.keepWriting }}
         </button>
         <button
-          :disabled="state.publishing"
+          :disabled="workspace.writing.replyBlocked.value || state.publishing"
           @click="workspace.writing.confirmCopy()"
         >
           {{ text.replaceTextCopy }}
@@ -721,7 +768,11 @@ function updateOption(option: WritingOption, event: Event) {
       </section>
       <button
         v-if="state.context.draftSaveAvailable"
-        :disabled="state.preparing || state.publishing"
+        :disabled="
+          workspace.writing.replyBlocked.value ||
+          state.preparing ||
+          state.publishing
+        "
         @click="workspace.writing.saveDraft()"
       >
         {{ text.saveForumDraft }}
@@ -774,7 +825,11 @@ function updateOption(option: WritingOption, event: Event) {
       </section>
       <button
         v-if="state.context.draft"
-        :disabled="state.preparing || state.publishing"
+        :disabled="
+          workspace.writing.replyBlocked.value ||
+          state.preparing ||
+          state.publishing
+        "
         @click="requestReview(true)"
       >
         {{ text.reviewSavedDraft }}
@@ -1084,7 +1139,7 @@ function updateOption(option: WritingOption, event: Event) {
               :placeholder="attempt.candidateURL ?? ''"
           /></label>
           <button
-            :disabled="state.publishing"
+            :disabled="workspace.writing.replyBlocked.value || state.publishing"
             @click="
               workspace.writing.checkResult(
                 attempt.id,
@@ -1202,7 +1257,10 @@ function updateOption(option: WritingOption, event: Event) {
           :category="category ?? 'neutral'"
           :language="workspace.preferences.state.value.language"
         >
-          <button :disabled="state.publishing" @click="cancelReview">
+          <button
+            :disabled="workspace.writing.replyBlocked.value || state.publishing"
+            @click="cancelReview"
+          >
             {{
               reviewText(
                 "Cancel review and return to writing",
@@ -1300,7 +1358,7 @@ function updateOption(option: WritingOption, event: Event) {
             }}
           </p>
           <button
-            :disabled="state.publishing"
+            :disabled="workspace.writing.replyBlocked.value || state.publishing"
             @click="
               state.context.draft
                 ? workspace.writing.publishReviewedDraft()
@@ -1393,7 +1451,9 @@ function updateOption(option: WritingOption, event: Event) {
                   'removed',
                 ].includes(upload.status)
               "
-              :disabled="state.publishing"
+              :disabled="
+                workspace.writing.replyBlocked.value || state.publishing
+              "
               :aria-label="`${attachment('Remove local selection')} ${upload.name}`"
               @click="workspace.writing.removeLocalAttachment(upload.key)"
             >
@@ -1485,6 +1545,7 @@ function updateOption(option: WritingOption, event: Event) {
           state.validationIssues.some((issue) => issue.field === 'option')
         "
         ref="optionFields"
+        :disabled="workspace.writing.replyBlocked.value"
       >
         <legend>{{ text.currentFormOptions }}</legend>
         <label v-for="option in currentOptions" :key="option.name">
@@ -1551,7 +1612,11 @@ function updateOption(option: WritingOption, event: Event) {
       <button
         v-if="state.context && !state.context.draft"
         class="primary-action"
-        :disabled="state.preparing || state.publishing"
+        :disabled="
+          workspace.writing.replyBlocked.value ||
+          state.preparing ||
+          state.publishing
+        "
         @click="requestReview(true)"
       >
         {{

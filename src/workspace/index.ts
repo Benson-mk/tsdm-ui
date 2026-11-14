@@ -28,6 +28,7 @@ import type {
   Section,
 } from "./navigation";
 export interface WorkspaceState {
+  replyRecovery: import("../workspace/reply-recovery").ReplyRecovery | null;
   section: Section;
   loading: boolean;
   result: ReadResult | null;
@@ -179,8 +180,9 @@ export function createWorkspace(
 
   const writing = createWriting(
     client,
-    () => {
-      record.schema = 4;
+    (disposed) => {
+      if (disposed) host.disposeReply?.(disposed.replyTarget!.threadId);
+      record.schema = 5;
       record.writing = writing.snapshot();
       record.retainedReplies = writing.retainedSnapshot();
       return persist();
@@ -211,6 +213,7 @@ export function createWorkspace(
     origin: null,
     documentNavigation: null,
     recoveryProblem: null,
+    replyRecovery: null,
   });
   const download = shallowRef<{
     status: "checking" | "ready" | "requested" | "failure";
@@ -686,17 +689,15 @@ export function createWorkspace(
     }
   }
   async function persist() {
-    if (
-      record.schema !== 4 &&
-      (record.writing?.action === "private-message" ||
-        record.writing?.privateAttempts?.length)
-    )
-      record.schema = 3;
+    record.writing = writing.snapshot();
+    record.retainedReplies = writing.retainedSnapshot();
+    record.schema = 5;
     record.favoriteAttempts = JSON.parse(
       JSON.stringify(favorite.value.attempts),
     );
     const current = ++saveSequence;
     const context = record.writing;
+    const capturedWriting = JSON.stringify(context);
     // Private peer previews belong to this document, not page-session recovery.
     // Keep the safe destination and existing writing in the single record owner.
     const saved = await host.save({
@@ -712,7 +713,23 @@ export function createWorkspace(
         ]),
       ),
     });
-    if (current === saveSequence) {
+    const replyRecovery = host.replyRecovery?.() ?? null;
+    if (replyRecovery)
+      writing.pauseConflictedReplies(
+        replyRecovery.conflicts.map((row) => row.threadId),
+      );
+    state.value = { ...state.value, replyRecovery };
+    const adopted = replyRecovery
+      ? writing.applyReplyUpdates(replyRecovery.updates)
+      : [];
+    if (adopted.length) {
+      host.acceptReplyUpdates?.(adopted);
+      void persist();
+    }
+    if (
+      current === saveSequence &&
+      JSON.stringify(writing.snapshot()) === capturedWriting
+    ) {
       state.value = { ...state.value, recoveryAvailable: saved };
       writing.acknowledge(context?.id ?? null, context?.revision ?? 0, saved);
     }
@@ -1568,7 +1585,7 @@ export function createWorkspace(
         recovered.retainedReplies,
       );
       record.writing = writing.snapshot();
-      if (record.schema === 4)
+      if (record.schema === 4 || record.schema === 5)
         record.retainedReplies = writing.retainedSnapshot();
       const attempts = (recovered.favoriteAttempts ?? []).map((attempt) =>
         attempt.status === "pending"
@@ -1588,9 +1605,18 @@ export function createWorkspace(
       };
       if (normalizedWriting) void persist();
     }
+    const replyRecovery = host.replyRecovery?.() ?? null;
+    if (replyRecovery)
+      writing.pauseConflictedReplies(
+        replyRecovery.conflicts.map((row) => row.threadId),
+      );
+    state.value = { ...state.value, replyRecovery };
     // Initial document traversal must not save an empty provisional record.
     // Read the current key after loading; earlier history events need no replay.
     host.onPop(restoreHistory);
+    host.onReplyChange?.(() => {
+      void persist();
+    });
     const key = host.entryKey();
     if (key) {
       const entry = entryFor(key);

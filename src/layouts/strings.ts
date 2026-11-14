@@ -1,5 +1,24 @@
 import type { Preferences } from "../workspace/preferences";
 const english = {
+  localReplyAttention: "Local reply recovery needs attention",
+  localReplySaved: "Local reply draft saved in this browser profile.",
+  localReplyUnsaved:
+    "Local reply drafts could not be saved. Keep this page open and copy your writing; reply sending is paused. Previously saved writing may return after restart, including a discard that could not be saved.",
+  localReplyIncompatible:
+    "Stored local reply drafts are incompatible. Their raw data is retained; sending is paused.",
+  localReplyInspect: "Inspect retained local reply data",
+  localReplyRaw: "Retained local reply data",
+  localReplyConflict: "Conflicting local reply drafts",
+  localReplyPaused:
+    "Both versions are retained. Editing and submission are paused until the conflict is resolved.",
+  localReplyVersion: "Retained reply version {value}",
+  localReplyRemoved: "Deliberate local draft removal",
+  localReplyDetails: "Complete retained reply details",
+  localReplyLimits:
+    "Acknowledged ordinary replies survive supported browser restarts in this profile. This is local storage, not a backup or Forum draft. Clearing site data, private-profile closure or browser eviction can remove it. File bytes and sending authority are not retained.",
+  localReplyAcknowledged:
+    "Local reply revision {value} is acknowledged in this browser profile.",
+
   postURL: "Post URL",
   copyPostPermalink: "Copy permalink for post {value}",
   postPermalinkReload: "Refresh thread to verify this post permalink",
@@ -540,6 +559,23 @@ const english = {
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
+  localReplyAttention: "本地回复恢复需要处理",
+  localReplySaved: "本地回复草稿已保存在此浏览器配置中。",
+  localReplyUnsaved:
+    "无法保存本地回复草稿。请保持此页面打开并复制写作内容；回复发送已暂停。重启后可能恢复先前保存的写作内容，包括未能保存的丢弃操作。",
+  localReplyIncompatible:
+    "保存的本地回复草稿不兼容。原始数据仍保留；发送已暂停。",
+  localReplyInspect: "查看保留的本地回复数据",
+  localReplyRaw: "保留的本地回复数据",
+  localReplyConflict: "冲突的本地回复草稿",
+  localReplyPaused: "两个版本均已保留。解决冲突前，编辑和发送已暂停。",
+  localReplyVersion: "保留的回复版本 {value}",
+  localReplyRemoved: "已明确移除本地草稿",
+  localReplyDetails: "完整保留的回复详情",
+  localReplyLimits:
+    "已确认保存的普通回复可在支持的浏览器重启后从此配置恢复。这是本地存储，不是备份或论坛草稿。清除网站数据、关闭隐私配置或浏览器清理可能移除数据。文件字节和发送授权不会保留。",
+  localReplyAcknowledged: "本地回复版本 {value} 已在此浏览器配置中确认保存。",
+
   postURL: "帖子链接",
   copyPostPermalink: "复制帖子 {value} 的永久链接",
   postPermalinkReload: "请刷新主题以确认帖子永久链接",
@@ -1050,6 +1086,23 @@ const simplified: Strings = {
     "无法读取浏览器页面会话存储。当前内容仍可使用；刷新恢复不可用。",
 };
 const traditional: Strings = {
+  localReplyAttention: "本機回覆復原需要處理",
+  localReplySaved: "本機回覆草稿已儲存在此瀏覽器設定檔中。",
+  localReplyUnsaved:
+    "無法儲存本機回覆草稿。請保持此頁面開啟並複製寫作內容；回覆傳送已暫停。重新啟動後可能恢復先前儲存的寫作內容，包括未能儲存的捨棄操作。",
+  localReplyIncompatible:
+    "已儲存的本機回覆草稿不相容。原始資料仍保留；傳送已暫停。",
+  localReplyInspect: "檢視保留的本機回覆資料",
+  localReplyRaw: "保留的本機回覆資料",
+  localReplyConflict: "衝突的本機回覆草稿",
+  localReplyPaused: "兩個版本均已保留。解決衝突前，編輯和傳送已暫停。",
+  localReplyVersion: "保留的回覆版本 {value}",
+  localReplyRemoved: "已明確移除本機草稿",
+  localReplyDetails: "完整保留的回覆詳情",
+  localReplyLimits:
+    "已確認儲存的一般回覆可在支援的瀏覽器重新啟動後從此設定檔復原。這是本機儲存，不是備份或論壇草稿。清除網站資料、關閉私密設定檔或瀏覽器清理可能移除資料。檔案位元組和傳送授權不會保留。",
+  localReplyAcknowledged: "本機回覆版本 {value} 已在此瀏覽器設定檔中確認儲存。",
+
   postURL: "貼文連結",
   copyPostPermalink: "複製貼文 {value} 的永久連結",
   postPermalinkReload: "請重新整理主題以確認貼文永久連結",

@@ -428,6 +428,12 @@ export type AttachmentRemovalResult = {
   message: string;
   latest?: PreparedWriting;
 };
+/** Transient caller validity, checked after native preflight and before an effect.
+ * Never serialize this guard or treat it as forum authority. */
+export interface EffectGuard {
+  check(): Promise<boolean>;
+  current(): boolean;
+}
 export interface ForumClient {
   prepareReport(target: ReportTarget): Promise<ReportPreparation>;
   submitReport(form: ReportForm, intent: ReportIntent): Promise<ReportResult>;
@@ -450,12 +456,14 @@ export interface ForumClient {
     writing: PreparedWriting,
     id: string,
     checkOnly?: boolean,
+    guard?: EffectGuard,
   ): Promise<AttachmentRemovalResult>;
   uploadAttachment(
     writing: PreparedWriting,
     file: UploadFile,
     progress: (loaded: number) => void,
     signal: UploadCancellation,
+    guard?: EffectGuard,
   ): Promise<UploadResult>;
   resumeDraft(
     row: DraftRow,
@@ -525,7 +533,10 @@ export interface ForumClient {
   prepareThreadPublication(
     submission: ThreadSubmission,
   ): Promise<PublicationPreparationResult>;
-  publishThread(attempt: ThreadAttempt): Promise<ThreadAttempt>;
+  publishThread(
+    attempt: ThreadAttempt,
+    guard?: EffectGuard,
+  ): Promise<ThreadAttempt>;
   checkThreadResult(
     attempt: ThreadAttempt,
     candidateURL?: string,

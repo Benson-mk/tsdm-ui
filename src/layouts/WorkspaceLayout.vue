@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ReplyConflict from "../components/ReplyConflict.vue";
 import type { ViewPosition } from "../workspace/navigation";
 import {
   computed,
@@ -2670,6 +2671,36 @@ function boardIdFrom(url: string) {
       <p v-if="state.recoveryProblem?.kind === 'refused'" role="alert">
         {{ text.readRecoveryRefused }}
       </p>
+      <section
+        v-if="state.replyRecovery?.problem"
+        :aria-label="text.localReplyAttention"
+        role="region"
+      >
+        <p role="alert">
+          {{
+            state.replyRecovery.problem.kind === "incompatible"
+              ? text.localReplyIncompatible
+              : text.localReplyUnsaved
+          }}
+        </p>
+        <details v-if="state.replyRecovery.problem.raw !== null">
+          <summary>{{ text.localReplyInspect }}</summary>
+          <textarea
+            readonly
+            :aria-label="text.localReplyRaw"
+            :value="state.replyRecovery.problem.raw"
+            rows="8"
+          />
+        </details>
+      </section>
+      <ReplyConflict
+        v-for="row in state.replyRecovery?.conflicts.filter(
+          (item) => item.threadId !== writing.context?.replyTarget?.threadId,
+        ) ?? []"
+        :key="row.threadId"
+        :row="row"
+        :language="workspace.preferences.state.value.language"
+      />
       <p v-if="state.recoveryAvailable === false" class="recovery-note">
         {{ text.recoveryUnavailable }}
       </p>

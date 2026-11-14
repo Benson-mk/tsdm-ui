@@ -396,6 +396,7 @@ export function createUploadAuthoring(config: {
     file: UploadFile,
     progress: (loaded: number) => void,
     signal: UploadCancellation,
+    guard?: import("./types.js").EffectGuard,
   ): Promise<UploadResult> => {
     let sent = false;
     const fail = (message: string): UploadResult => ({
@@ -460,7 +461,12 @@ export function createUploadAuthoring(config: {
         return fail(
           "The current attachment count or daily quota is exhausted.",
         );
-      if (signal.aborted) return fail("Upload cancelled before sending.");
+      if (guard && (!(await guard.check()) || !guard.current()))
+        return fail(
+          "Local writing or recovery changed during preflight. Nothing was uploaded.",
+        );
+      if (signal.aborted || generation !== config.generation())
+        return fail("Upload cancelled before sending.");
       sent = true;
       const r = await config.transport.upload(
         p.url,
@@ -558,6 +564,7 @@ export function createAttachmentRemoval(config: {
     w: PreparedWriting,
     id: string,
     checkOnly = false,
+    guard?: import("./types.js").EffectGuard,
   ): Promise<import("./types.js").AttachmentRemovalResult> => {
     let sent = false;
     const unknown = (
@@ -632,6 +639,14 @@ export function createAttachmentRemoval(config: {
           "aids[]": id,
         }))
           remove.searchParams.set(k, v);
+        if (guard && (!(await guard.check()) || !guard.current()))
+          return unknown(
+            "Local writing or recovery changed during preflight. Nothing was removed.",
+          );
+        if (generation !== config.generation())
+          return unknown(
+            "The account changed before removal. Nothing was removed.",
+          );
         used.add(key);
         sent = true;
         try {

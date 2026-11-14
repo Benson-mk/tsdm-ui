@@ -480,7 +480,7 @@ test("J5.incompatible: preserve unknown recovery data until deliberate local res
   const stored = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
   );
-  expect(stored.schema).toBe(2);
+  expect(stored.schema).toBe(5);
   expect(stored.writing).toBeNull();
   await info.attach("incompatible-recovery-reset.png", {
     body: await page.screenshot(),
@@ -878,7 +878,7 @@ test("J5.uploaded-references: current-form uploaded identities survive recovery 
 test("J5.legacy-navigation: navigation-only recovery migrates without losing cached results", async ({
   page,
 }) => {
-  const script = `const raw=sessionStorage.getItem('tsdm.workspace.recovery');if(raw){const r=JSON.parse(raw);r.schema=1;delete r.writing;sessionStorage.setItem('tsdm.workspace.recovery',JSON.stringify(r));}`;
+  const script = `const raw=sessionStorage.getItem('tsdm.workspace.recovery');if(raw){const r=JSON.parse(raw);r.schema=1;delete r.writing;delete r.retainedReplies;delete r.replyCheckpoints;delete r.replyDisposals;sessionStorage.setItem('tsdm.workspace.recovery',JSON.stringify(r));}`;
   const requests = await open(page, undefined, script);
   await expect(
     page.getByRole("link", { name: "Autumn thread", exact: true }),
@@ -895,7 +895,7 @@ test("J5.legacy-navigation: navigation-only recovery migrates without losing cac
   const stored = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
   );
-  expect(stored.schema).toBe(4);
+  expect(stored.schema).toBe(5);
   expect(stored.writing.account.id).toBe("7");
   expect(Object.keys(stored.entries)).toHaveLength(1);
 });
@@ -1151,11 +1151,13 @@ test("J5.composing-section: section drawer waits for final composition input and
     .getByRole("dialog", { name: "Boards navigation", exact: true })
     .getByRole("button", { name: "Notices", exact: true })
     .click();
-  await expect(editor).toBeVisible();
+  await expect(editor).toBeHidden();
   await expect(
     page.getByRole("heading", { name: "Notices", exact: true, level: 1 }),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
+  await expect(page.locator(".pane-drawer")).toBeHidden();
+  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
+  await expect(editor).toBeVisible();
   await editor.focus();
   await expect(editor).toHaveValue(source + "中文");
   const retained = await page.evaluate(
@@ -1185,10 +1187,10 @@ for (const dialogName of ["Settings", "About this workspace"])
     await editor.dispatchEvent("compositionstart", { data: "中" });
     // dispatchEvent keeps the synthetic composition active; actual pointer/IME behavior is separately installed.
     await page
-      .getByRole("button", { name: dialogName, exact: true })
+      .getByRole("button", { name: "Settings", exact: true })
       .dispatchEvent("click");
     await expect(
-      page.getByRole("dialog", { name: dialogName, exact: true }),
+      page.getByRole("dialog", { name: "Settings", exact: true }),
     ).not.toBeVisible();
     await expect(editor).toBeVisible();
     await expect(
@@ -1210,8 +1212,12 @@ for (const dialogName of ["Settings", "About this workspace"])
       );
     }, source + "中");
     await expect(
-      page.getByRole("dialog", { name: dialogName, exact: true }),
+      page.getByRole("dialog", { name: "Settings", exact: true }),
     ).toBeVisible();
+    if (dialogName === "About this workspace")
+      await expect(
+        page.getByRole("heading", { name: dialogName, exact: true }),
+      ).toBeVisible();
     await page.keyboard.press("Escape");
     expect(await original!.evaluate((n) => n.isConnected)).toBe(true);
     await expect(editor).toHaveValue(source + "中");
@@ -1311,7 +1317,7 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
     expect(Math.min(...metrics.checkboxTargets)).toBeGreaterThanOrEqual(44);
     expect(metrics.ink).toBe(metrics.hostInk);
     expect(metrics.surface).toBe(metrics.hostSurface);
-    expect(metrics.font).toBeCloseTo((14 * sizes[i]!) / 100, 1);
+    expect(metrics.font).toBeCloseTo((18 * sizes[i]!) / 100, 1);
     measurements.push(metrics);
   }
   expect(measurements[1]!.labelSpacing).toBeLessThan(
@@ -1381,7 +1387,7 @@ test("J5.writing-locale: own writing and recovery labels follow all three interf
 test("J5.legacy-section-recovery: upgrading a navigation-only record preserves passive section history and the sole writing owner", async ({
   page,
 }, info) => {
-  const legacy = `const raw=sessionStorage.getItem('tsdm.workspace.recovery');if(raw){const r=JSON.parse(raw);if(!r.writing){r.schema=1;delete r.writing;sessionStorage.setItem('tsdm.workspace.recovery',JSON.stringify(r));}}`;
+  const legacy = `const raw=sessionStorage.getItem('tsdm.workspace.recovery');if(raw){const r=JSON.parse(raw);if(!r.writing){r.schema=1;delete r.writing;delete r.retainedReplies;delete r.replyCheckpoints;delete r.replyDisposals;sessionStorage.setItem('tsdm.workspace.recovery',JSON.stringify(r));}}`;
   const requests = await open(page, undefined, legacy);
   await page
     .getByRole("navigation", { name: "Main destinations", exact: true })
@@ -1404,7 +1410,7 @@ test("J5.legacy-section-recovery: upgrading a navigation-only record preserves p
   const record = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
   );
-  expect(record.schema).toBe(2);
+  expect(record.schema).toBe(5);
   expect(record.writing.source).toBe(source);
   expect(
     Object.values(record.entries).some(
@@ -1485,6 +1491,9 @@ for (const entry of ["return", "new"] as const)
           ? reader
           : board(),
     );
+    await expect(
+      page.getByRole("link", { name: "Autumn thread", exact: true }),
+    ).toBeVisible();
     const editor = page.getByLabel("Complete source", { exact: true });
     if (entry === "return") {
       await page
@@ -1753,7 +1762,7 @@ test("J5.search-writing: edited search criteria and the sole writing context sha
   });
   expect(recovered.writing).toEqual(original);
   expect(recovered.search).toEqual(searchBefore);
-  expect(recovered.schema).toBe(2);
+  expect(recovered.schema).toBe(5);
   expect(recovered.keys).toEqual(["tsdm.workspace.recovery"]);
   expect(recovered.raw).not.toContain("SEARCH-SECRET");
   expect(recovered.raw).not.toContain("SECRET-TOKEN");
@@ -1819,11 +1828,13 @@ test("J5.composing-search: Search drawer waits for final composition input and r
     .getByRole("dialog", { name: "Boards navigation", exact: true })
     .getByRole("button", { name: "Search", exact: true })
     .click();
-  await expect(editor).toBeVisible();
+  await expect(editor).toBeHidden();
   await expect(
     page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
+  await expect(page.locator(".pane-drawer")).toBeHidden();
+  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
+  await expect(editor).toBeVisible();
   await editor.focus();
   await expect(editor).toHaveValue(source + "中文");
   const retained = await page.evaluate(
@@ -1928,6 +1939,9 @@ test("J5.schema1-search-writing: prewriting Search results and edited criteria m
     );
     record.schema = 1;
     delete record.writing;
+    delete record.retainedReplies;
+    delete record.replyCheckpoints;
+    delete record.replyDisposals;
     sessionStorage.setItem("tsdm.workspace.recovery", JSON.stringify(record));
     return record;
   });
@@ -1951,7 +1965,7 @@ test("J5.schema1-search-writing: prewriting Search results and edited criteria m
   const migrated = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
   );
-  expect(migrated.schema).toBe(2);
+  expect(migrated.schema).toBe(5);
   expect(migrated.writing.source).toBe(source);
   for (const [key, entry] of Object.entries(before.entries))
     expect(migrated.entries[key].result).toEqual(
