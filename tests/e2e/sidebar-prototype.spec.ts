@@ -221,7 +221,7 @@ test("PROTOTYPE.reading: reference list spacing and single compact context badge
   expect.soft((await measure(page, ".results-pane")).paddingLeft).toBe(24);
   expect.soft((await measure(page, ".results-pane h1")).fontSize).toBe(30);
   const row = await measure(page, ".thread-row");
-  expect.soft(row.paddingLeft).toBe(16);
+  expect.soft(row.paddingLeft).toBe(8);
   const badge = await measure(page, ".context-kind");
   expect.soft(badge.radius).toBe("8px");
   expect.soft(badge.height).toBeLessThanOrEqual(44);
@@ -241,13 +241,18 @@ test("PROTOTYPE.writing: compact reference actions retain source, destination an
     .click();
   const source = await selectSourceEditor(page);
   await source.fill("A retained reply 中文");
+  await page.getByRole("button", { name: "Reply tools", exact: true }).click();
   await capture(page, info, "compact", requests);
   const expand = page.getByRole("button", {
     name: "Expand writing",
     exact: true,
   });
   expect.soft((await expand.boundingBox())!.width).toBe(44);
-  await expect.soft(page.locator(".writing-destination")).toBeInViewport();
+  // General reply destination remains accessible; #95 omits the persistent sender/destination form.
+  await expect(page.locator(".writing-destination")).toHaveClass(/sr-only/);
+  await expect(
+    page.getByRole("group", { name: "Writing destination", exact: true }),
+  ).toContainText("Thread 42");
   const review = page.getByRole("button", {
     name: "Send reply",
     exact: true,

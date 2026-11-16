@@ -1,3 +1,8 @@
+import { refreshReplyFromNative } from "./editor-controls";
+import { chooseAttachments } from "./editor-controls";
+import { revealWritingOptions } from "./editor-controls";
+import { writingDetailAction } from "./editor-controls";
+import { waitForReplySaved } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { selectSourceEditor, revealWritingDetails } from "./editor-controls";
@@ -402,11 +407,7 @@ test("UX111.ack-change: typing before reservation acknowledgement cancels withou
   const fixture = await open(page);
   const source = await selectSourceEditor(page);
   await source.fill("Original before delayed acknowledgement");
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await holdReservationCompletion(page);
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect
@@ -445,11 +446,7 @@ test("UX111.ack-selection: changing only the source selection before acknowledge
   const fixture = await open(page);
   const source = await selectSourceEditor(page);
   await source.fill("Selection remains authored intent");
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await holdReservationCompletion(page);
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect
@@ -479,11 +476,7 @@ test("UX111.pending-refused: a refused registry write retains the only input and
   const fixture = await open(page);
   const source = await selectSourceEditor(page);
   await source.fill("Only recoverable input before quota refusal");
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (value, key) {
@@ -525,11 +518,7 @@ test("UX111.completion-refused: actual callback remains visibly unsaved beside n
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect.poll(() => posts(fixture).length).toBe(1);
     await source.fill("Newer source survives result save refusal");
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     await page.evaluate(() => {
       const put = IDBObjectStore.prototype.put;
       IDBObjectStore.prototype.put = function (value, key) {
@@ -584,6 +573,7 @@ test("UX111.target-navigation: post target and options remain immutable while ne
     .click();
   const source = await selectSourceEditor(page);
   await source.fill("Original post-target submission");
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   let release = () => {};
   fixture.postGate = new Promise<void>((resolve) => {
@@ -596,6 +586,7 @@ test("UX111.target-navigation: post target and options remain immutable while ne
     await page
       .getByRole("button", { name: "Remove reply target", exact: true })
       .click();
+    await revealWritingOptions(page);
     await page.getByLabel("Signature", { exact: true }).check();
     await page.locator('[data-thread-id="43"] .subject').click();
     await page
@@ -641,12 +632,8 @@ test("UX111.original-actor: another account can continue newer writing but canno
   await expect(page.getByText("Reply rejected", { exact: true })).toBeVisible();
   fixture.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // A fixture-only account change becomes observable through native reading.
+  await refreshReplyFromNative(page);
   await source.fill("Newer shared writing by account 8");
   await expect(
     page.getByText("Original sending account: Writer 7 (7)", { exact: true }),
@@ -700,11 +687,7 @@ test("UX111.old110: actual previous executable refuses schema3 intact and cannot
     page.getByText("Reply outcome unknown", { exact: true }),
   ).toBeVisible();
   await source.fill("Newer writing seen by actual old110");
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const before = await rawReplyRows(page);
   await info.attach("schema3-before-old110.json", {
     body: before,
@@ -792,11 +775,7 @@ for (const refusal of ["read", "open"] as const) {
     await (
       await selectSourceEditor(page)
     ).fill("Newer source survives unavailable old host");
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     const raw = await rawReplyRows(page);
     await page.addInitScript((mode) => {
       const open = IDBFactory.prototype.open,
@@ -979,11 +958,7 @@ test("UX111.simultaneous: actual tabs with suppressed notifications preserve inp
   await (
     await selectSourceEditor(page)
   ).fill("Same deliberate reply in competing tabs");
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const second = await context.newPage();
   await second.goto(threadURL("42"));
   await expect(await selectSourceEditor(second)).toHaveValue(
@@ -1062,11 +1037,7 @@ for (const malformed of [
     await expect(
       page.getByText("Reply rejected", { exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     const raw = await page.evaluate(async (mode) => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
         const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
@@ -1147,21 +1118,14 @@ for (const outcome of ["rejected", "lost"] as const) {
     await (
       await selectSourceEditor(page)
     ).fill("Acknowledged setup before actual110 reload");
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     fixture.useScript("/private/tmp/tsdm-ui-111-baseline/dist/tsdm-ui.user.js");
     await page.reload();
     await (await selectSourceEditor(page)).fill(`Original110 ${outcome} reply`);
     await revealWritingDetails(page);
-    await page
-      .getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Check current account and form")
+    ).click();
     fixture.replyOutcome = outcome;
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect.poll(() => posts(fixture).length).toBe(1);
@@ -1174,23 +1138,16 @@ for (const outcome of ["rejected", "lost"] as const) {
         )
         .first(),
     ).toBeVisible();
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     fixture.useScript("dist/tsdm-ui.user.js");
     await page.reload();
     await (
       await selectSourceEditor(page)
     ).fill("Newer111 writing after actual110 migration");
     await revealWritingDetails(page);
-    await page
-      .getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Check current account and form")
+    ).click();
     fixture.replyOutcome = "accepted";
     if (outcome === "rejected") {
       await expect(
@@ -1240,11 +1197,7 @@ for (const failure of ["readback", "checkpoint"] as const) {
     const fixture = await open(page);
     const source = await selectSourceEditor(page);
     await source.fill(`Original input before registry ${failure} refusal`);
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     await page.evaluate((mode) => {
       const put = IDBObjectStore.prototype.put,
         transaction = IDBDatabase.prototype.transaction,
@@ -1329,11 +1282,7 @@ test("UX111.legacy-addressed: actual110 failed addressed reply retains original 
   await expect(
     page.getByText(/forum explicitly refused validation/).first(),
   ).toBeVisible();
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   fixture.useScript("dist/tsdm-ui.user.js");
   await page.goto(threadURL("42"));
   await (await selectSourceEditor(page)).fill("Newer addressed draft");
@@ -1405,8 +1354,9 @@ test("UX111.blank-intent-edit: empty newer source still preserves changed target
   await page
     .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "newer-intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("Only newer draft file"),
@@ -1478,11 +1428,7 @@ for (const peer of [
     await expect(
       page.getByText(/forum explicitly refused validation/).first(),
     ).toBeVisible();
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     await page.evaluate(async (peer) => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
         const r = indexedDB.open("tsdm.workspace.reply-drafts", 1);
@@ -1626,11 +1572,7 @@ test("UX111.legacy-not-sent: actual110 preflight cancellation remains recoverabl
         .getByText(/Local writing or recovery changed during preflight/)
         .first(),
     ).toBeVisible();
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     expect(posts(fixture)).toHaveLength(0);
     await info.attach("actual110-not-sent-row.json", {
       body: await rawReplyRows(page),
@@ -1731,11 +1673,7 @@ test("UX111.late-ancestor: competing risk confirmations create one successor and
     await (
       await selectSourceEditor(second)
     ).fill("Newer writing while both requests exist");
-    await expect(
-      second.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(second);
     const third = await page.context().newPage();
     await third.goto(threadURL("42"));
     await third
@@ -1940,11 +1878,7 @@ for (const actor of ["7", "8"] as const) {
     await expect(
       page.getByText(/forum explicitly refused validation/).first(),
     ).toBeVisible();
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     fixture.member = actor;
     fixture.useScript("dist/tsdm-ui.user.js");
     await page.goto(threadURL("42"));
@@ -2009,21 +1943,13 @@ for (const failure of ["checkpoint", "changed-check"] as const) {
     await expect(
       page.getByText(/forum explicitly refused validation/).first(),
     ).toBeVisible();
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     fixture.useScript("dist/tsdm-ui.user.js");
     await page.goto(threadURL("42"));
     await (
       await selectSourceEditor(page)
     ).fill("Newer source during legacy race");
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     fixture.replyOutcome = "accepted";
     if (failure === "checkpoint") {
       await page.evaluate(() => {
@@ -2156,21 +2082,13 @@ test("UX111.legacy-contention: genuine tabs racing legacy enrollment can admit a
   await expect(
     page.getByText(/forum explicitly refused validation/).first(),
   ).toBeVisible();
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   fixture.useScript("dist/tsdm-ui.user.js");
   await page.goto(threadURL("42"));
   await (
     await selectSourceEditor(page)
   ).fill("Newer writing remains after legacy contention");
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const second = await context.newPage();
   await second.goto(threadURL("42"));
   await expect(await selectSourceEditor(second)).toHaveValue(

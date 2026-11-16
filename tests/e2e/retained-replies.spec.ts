@@ -1,3 +1,8 @@
+import { refreshReplyFromNative } from "./editor-controls";
+import { chooseAttachments } from "./editor-controls";
+import { revealWritingOptions } from "./editor-controls";
+import { writingDetailAction } from "./editor-controls";
+import { waitForReplySaved } from "./editor-controls";
 import { test, expect, chromium, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import type { ReplyRow } from "../../src/workspace/reply-recovery";
@@ -198,6 +203,7 @@ test("UX106.switch: retain each thread's literal source, addressed target and op
     await selectSourceEditor(page)
   ).fill("[b]Thread A literal writing[/b]\n[unknown]保留 A[/unknown]");
   await revealWritingTools(page);
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await choose(page, "43");
   await expect(
@@ -251,7 +257,7 @@ test("UX106.reload: recover every thread and selected attachment intent without 
       .click();
     await (await selectSourceEditor(page)).fill(`Page-session writing ${id}`);
     await revealWritingTools(page);
-    await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+    await chooseAttachments(page, {
       name: `intent-${id}.txt`,
       mimeType: "text/plain",
       buffer: Buffer.from(`PRIVATE_UNUPLOADED_BYTES_${id}`),
@@ -401,23 +407,16 @@ test("UX106.account: automatic account changes share one thread slot and keep im
   );
   await revealWritingTools(page);
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(
-    page.getByLabel("Select attachments", { exact: true }),
+    page.getByRole("button", { name: "Select attachments", exact: true }),
   ).toBeEnabled();
   state.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // A fixture-only account change becomes observable through native reading.
+  await refreshReplyFromNative(page);
   await expect(
     page.getByRole("button", {
       name: "Prepare text copy for current account",
@@ -434,29 +433,22 @@ test("UX106.account: automatic account changes share one thread slot and keep im
   );
   await revealWritingTools(page);
   await expect(
-    page.getByLabel("Select attachments", { exact: true }),
+    page.getByRole("button", { name: "Select attachments", exact: true }),
   ).toBeEnabled();
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await page.reload();
   await expect(await selectSourceEditor(page)).toHaveValue(
     "Newer A draft without silent B replacement",
   );
   await revealWritingTools(page);
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(
-    page.getByLabel("Select attachments", { exact: true }),
+    page.getByRole("button", { name: "Select attachments", exact: true }),
   ).toBeEnabled();
   await expect(
     page.getByText(/current account differs from Writer 7/),
@@ -469,14 +461,10 @@ test("UX106.account: automatic account changes share one thread slot and keep im
   );
   await revealWritingTools(fresh);
   await revealWritingDetails(fresh);
-  await fresh
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // This fresh tab has already loaded native board/thread account evidence.
+  await refreshReplyFromNative(fresh);
   await expect(
-    fresh.getByLabel("Select attachments", { exact: true }),
+    fresh.getByRole("button", { name: "Select attachments", exact: true }),
   ).toBeEnabled();
   const recovered = await fresh.evaluate(
     () =>
@@ -565,6 +553,7 @@ test("UX106.indicators: cleared submitted input loses the badge while newer text
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await revealWritingTools(page);
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await expect(row).not.toContainText("Local draft");
   await (await selectSourceEditor(page)).fill("A confirmed reply with options");
@@ -583,6 +572,7 @@ test("UX106.indicators: cleared submitted input loses the badge while newer text
     page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
   ).toHaveValue("A confirmed reply with options");
   await revealWritingTools(page);
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).check();
   await expect(row).not.toContainText("Local draft");
   await expect(page.getByLabel("Signature", { exact: true })).toBeChecked();
@@ -598,9 +588,10 @@ test("UX106.indicators: cleared submitted input loses the badge while newer text
   await expect(row).toContainText("Local draft");
   await (await selectSourceEditor(page)).fill("");
   await expect(row).not.toContainText("Local draft");
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await expect(row).not.toContainText("Local draft");
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "new-intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("New intent"),
@@ -792,8 +783,9 @@ for (const refused of [false, true]) {
       await selectSourceEditor(page)
     ).fill("Existing thread A writing must not be replaced");
     await revealWritingTools(page);
+    await revealWritingOptions(page);
     await page.getByLabel("Signature", { exact: true }).uncheck();
-    await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+    await chooseAttachments(page, {
       name: "retained-intent.txt",
       mimeType: "text/plain",
       buffer: Buffer.from("Retained intent"),
@@ -862,7 +854,7 @@ test("UX106.attachments: selected bytes survive switching, upload/removal keep o
     .click();
   await (await selectSourceEditor(page)).fill("Attachment writing A ");
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("EXACT_SELECTED_A_BYTES"),
@@ -1373,6 +1365,7 @@ test("UX107.fresh-tab: recover acknowledged per-thread reply source, target and 
     await selectSourceEditor(page)
   ).fill("[b]Restart retained A[/b]\nLiteral [unknown]原文[/unknown]");
   await revealWritingTools(page);
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await choose(page, "43");
   await page
@@ -1380,9 +1373,7 @@ test("UX107.fresh-tab: recover acknowledged per-thread reply source, target and 
     .click();
   await (await selectSourceEditor(page)).fill("Independent thread B survives");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const fresh = await context.newPage();
   await fresh.goto(boardURL);
   await expect(fresh.locator(".thread-row")).toHaveCount(3);
@@ -1428,9 +1419,7 @@ test("UX107.conflict: retain both tabs' competing source and pause editing and r
     .click();
   await (await selectSourceEditor(page)).fill("Common observed draft");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -1446,9 +1435,7 @@ test("UX107.conflict: retain both tabs' competing source and pause editing and r
   });
   await (await selectSourceEditor(page)).fill("First tab competing writing");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await otherEditor.fill("Second tab competing writing");
   await expect(
     other.getByRole("region", { name: "Conflicting local reply drafts" }),
@@ -1479,7 +1466,7 @@ test("UX107.conflict: retain both tabs' competing source and pause editing and r
   await other.reload();
   await expect(
     other.getByRole("region", { name: "Conflicting local reply drafts" }),
-  ).toContainText("Both versions are retained");
+  ).toContainText("Choose a version to continue. Other versions are kept.");
   await expect(
     other
       .getByRole("region", { name: "Conflicting local reply drafts" })
@@ -1505,11 +1492,7 @@ test("UX107.clean-remote: a clean second tab adopts the current draft while unre
     .click();
   await (await selectSourceEditor(page)).fill("Observed common source");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -1557,11 +1540,7 @@ test("UX107.preflight-conflict: a competing draft detected during final native p
     .click();
   await (await selectSourceEditor(page)).fill("Original submitted source");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -1631,13 +1610,11 @@ for (const operation of ["upload", "remove"] as const) {
     ).fill("Attachment effect owner source");
     await revealWritingTools(page);
     if (operation === "remove") {
-      await page
-        .getByLabel("Select attachments", { exact: true })
-        .setInputFiles({
-          name: "intent.txt",
-          mimeType: "text/plain",
-          buffer: Buffer.from("UNUPLOADED_GUARDED_BYTES"),
-        });
+      await chooseAttachments(page, {
+        name: "intent.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("UNUPLOADED_GUARDED_BYTES"),
+      });
       await page
         .getByRole("button", { name: "Upload intent.txt", exact: true })
         .click();
@@ -1649,11 +1626,7 @@ for (const operation of ["upload", "remove"] as const) {
       ).toBeVisible();
     }
     await revealWritingDetails(page);
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     const other = await context.newPage();
     await other.goto(boardURL);
     await choose(other, "42");
@@ -1661,13 +1634,11 @@ for (const operation of ["upload", "remove"] as const) {
       "Attachment effect owner source",
     );
     if (operation === "upload")
-      await page
-        .getByLabel("Select attachments", { exact: true })
-        .setInputFiles({
-          name: "intent.txt",
-          mimeType: "text/plain",
-          buffer: Buffer.from("UNUPLOADED_GUARDED_BYTES"),
-        });
+      await chooseAttachments(page, {
+        name: "intent.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("UNUPLOADED_GUARDED_BYTES"),
+      });
     let release!: () => void;
     state.gate = {
       thread: "42",
@@ -1753,11 +1724,7 @@ test("UX107.disposal: acknowledged deliberate non-reply replacement does not res
     await selectSourceEditor(page)
   ).fill("Deliberately discarded ordinary source");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   await page
     .getByRole("button", {
@@ -1771,11 +1738,9 @@ test("UX107.disposal: acknowledged deliberate non-reply replacement does not res
       exact: true,
     }),
   ).toBeVisible();
-  await expect(
-    page.getByText("Browser recovery is up to date for this page session.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.locator(".source-writing .writing-recovery")).toHaveCount(
+    0,
+  );
   const fresh = await context.newPage();
   await fresh.goto(boardURL);
   await choose(fresh, "42");
@@ -1798,11 +1763,7 @@ test("UX107.incompatible: incompatible durable data stays inspectable without an
     await selectSourceEditor(page)
   ).fill("Recoverable writing in incompatible durable row");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await page.evaluate(async () => {
     const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -1867,11 +1828,7 @@ for (const failure of [
       await selectSourceEditor(page)
     ).fill("Previously acknowledged durable writing");
     await revealWritingDetails(page);
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     await page.evaluate((mode) => {
       const original = IDBDatabase.prototype.transaction;
       IDBDatabase.prototype.transaction = function (names, access, options) {
@@ -1938,11 +1895,7 @@ for (const failure of ["readback", "checkpoint"] as const) {
       await selectSourceEditor(page)
     ).fill("Before late acknowledgement failure");
     await revealWritingDetails(page);
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     await page.evaluate((mode) => {
       const originalTransaction = IDBDatabase.prototype.transaction,
         originalSet = Storage.prototype.setItem;
@@ -2002,11 +1955,7 @@ for (const failure of ["readback", "checkpoint"] as const) {
       (window as unknown as { restore107Host(): void }).restore107Host();
       window.dispatchEvent(new Event("focus"));
     });
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     await expect(
       page.getByRole("region", { name: "Conflicting local reply drafts" }),
     ).toHaveCount(0);
@@ -2033,16 +1982,12 @@ test("UX107.file-capability: another tab recovers only attachment intent without
     .click();
   await (await selectSourceEditor(page)).fill("Selected attachment intent");
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "local-intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("PRIVATE_LOCAL_BYTES_MUST_NOT_BECOME_DURABLE"),
   });
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -2053,11 +1998,7 @@ test("UX107.file-capability: another tab recovers only attachment intent without
   await expect(
     other.getByRole("button", { name: "Upload local-intent.txt", exact: true }),
   ).toHaveCount(0);
-  await expect(
-    other.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(other);
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(
     page.getByRole("button", { name: "Upload local-intent.txt", exact: true }),
@@ -2078,12 +2019,13 @@ test("UX107.delayed-latest-session: reload during native storage contention reta
       .click();
     await (await selectSourceEditor(page)).fill(`Acknowledged ${id}`);
     await revealWritingDetails(page);
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
   }
+  const priorCheckpoints = await page.evaluate(
+    () =>
+      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
+        .replyCheckpoints,
+  );
   await page.evaluate(async () => {
     const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -2109,9 +2051,23 @@ test("UX107.delayed-latest-session: reload during native storage contention reta
     await selectSourceEditor(page)
   ).fill("Latest B and latest navigation while commit waits");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText(/has not yet acknowledged these changes/),
-  ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+            .source,
+      ),
+    )
+    .toBe("Latest B and latest navigation while commit waits");
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
+          .replyCheckpoints,
+    ),
+  ).toEqual(priorCheckpoints);
+  await expect(page.locator(".writing-recovery")).toHaveCount(0);
   await page.reload();
   await expect(
     page.getByText("This navigation snapshot is unavailable.", { exact: true }),
@@ -2151,19 +2107,14 @@ test("UX107.process-restart: source target options and unavailable file intent s
       await selectSourceEditor(first)
     ).fill("[b]Actual process restart writing[/b]\n原文");
     await revealWritingTools(first);
+    await revealWritingOptions(first);
     await first.getByLabel("Signature", { exact: true }).uncheck();
-    await first
-      .getByLabel("Select attachments", { exact: true })
-      .setInputFiles({
-        name: "restart-intent.txt",
-        mimeType: "text/plain",
-        buffer: Buffer.from("NEVER_DURABLE_FILE_BYTES_107"),
-      });
-    await expect(
-      first.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await chooseAttachments(first, {
+      name: "restart-intent.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("NEVER_DURABLE_FILE_BYTES_107"),
+    });
+    await waitForReplySaved(first);
     await info.attach("before-process-close.png", {
       body: await first.screenshot(),
       contentType: "image/png",
@@ -2253,11 +2204,7 @@ for (const schema of [2, 3, 4] as const) {
       await selectSourceEditor(page)
     ).fill(`Legacy ${schema} literal [b]source[/b]`);
     await revealWritingDetails(page);
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     const raw = await page.evaluate((version) => {
       const record = JSON.parse(
         sessionStorage.getItem("tsdm.workspace.recovery")!,
@@ -2304,29 +2251,28 @@ for (const schema of [2, 3, 4] as const) {
         `Legacy ${schema} literal [b]source[/b]`,
       );
       await revealWritingDetails(recovered);
-      await expect(
-        recovered.getByText(
-          "Local reply draft saved in this browser profile.",
-          { exact: true },
-        ),
-      ).toBeVisible();
-      const durable = await recovered.evaluate(async () => {
-        const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
-        const db = await new Promise<IDBDatabase>((resolve, reject) => {
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
+      // This fixture deliberately includes discarded nested authority fields.
+      // Observe the projected native row, not equality with its legacy options.
+      const readDurable = () =>
+        recovered.evaluate(async () => {
+          const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
+          const db = await new Promise<IDBDatabase>((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          const rows = await new Promise<unknown>((resolve, reject) => {
+            const read = db
+              .transaction("threads")
+              .objectStore("threads")
+              .getAll();
+            read.onsuccess = () => resolve(read.result);
+            read.onerror = () => reject(read.error);
+          });
+          db.close();
+          return JSON.stringify(rows);
         });
-        const rows = await new Promise<unknown>((resolve, reject) => {
-          const read = db
-            .transaction("threads")
-            .objectStore("threads")
-            .getAll();
-          read.onsuccess = () => resolve(read.result);
-          read.onerror = () => reject(read.error);
-        });
-        db.close();
-        return JSON.stringify(rows);
-      });
+      await expect.poll(readDurable).toContain(`Legacy ${schema} literal`);
+      const durable = await readDurable();
       expect(durable).not.toMatch(/INJECTED_|formhash|"cookie"|"bytes"/);
       expect(durable).toContain(`Legacy ${schema} literal`);
       await test.info().attach(`legacy-${schema}-durable.json`, {
@@ -2356,11 +2302,7 @@ test("UX107.queued-branches: native storage contention retains the latest alread
     .click();
   await (await selectSourceEditor(page)).fill("Shared before queued edits");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -2444,11 +2386,7 @@ test("UX107.after-dispatch: a conflict retains the active immutable publication 
     .click();
   await (await selectSourceEditor(page)).fill("Original immutable sent source");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -2489,19 +2427,12 @@ test("UX107.after-dispatch: a conflict retains the active immutable publication 
     name: "Conflicting local reply drafts",
   });
   await expect(conflict.getByRole("textbox")).toHaveCount(2);
-  for (const summary of await conflict
-    .getByText("Complete retained reply details", { exact: true })
-    .all())
-    await summary.click();
-  const versions = await conflict
-    .getByRole("textbox", {
-      name: "Complete retained reply details",
-      exact: true,
-    })
-    .evaluateAll((fields) =>
-      fields.map((field) => (field as HTMLTextAreaElement).value),
-    );
-  const raw = versions.map((version) => JSON.parse(version));
+  await expect(
+    conflict.getByText("Complete retained reply details", { exact: true }),
+  ).toHaveCount(0);
+  const raw = (await storedReply(page)).variants.map(
+    (variant) => variant.context!,
+  );
   expect(
     raw.some(
       (version) => version.source === "Competing writing after dispatch",
@@ -2544,20 +2475,12 @@ test("UX107.independent-conflict: a retained conflict in another thread cannot b
     .click();
   await (await selectSourceEditor(page)).fill("Shared before conflict");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
   await (await selectSourceEditor(page)).fill("First thread version A");
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await (await selectSourceEditor(other)).fill("First thread version B");
   await expect(
     other.getByRole("region", { name: "Conflicting local reply drafts" }),
@@ -2570,11 +2493,7 @@ test("UX107.independent-conflict: a retained conflict in another thread cannot b
     await selectSourceEditor(other)
   ).fill("Independent thread deliberate reply");
   await revealWritingDetails(other);
-  await expect(
-    other.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(other);
   await other.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(other.getByText(/Confirmed stored reply/)).toBeVisible();
   const posts = state.requests.filter((request) => request.method === "POST");
@@ -2595,11 +2514,7 @@ test("UX107.live-owner: live notification preserves the pending owner's exact ob
     .click();
   await (await selectSourceEditor(page)).fill("Live observed immutable reply");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -2655,11 +2570,7 @@ for (const unsafe of ["url", "attachment-field", "option-name"] as const) {
       await selectSourceEditor(page)
     ).fill("Literal source: formhash=AUTHOR_TEXT_MUST_SURVIVE");
     await revealWritingDetails(page);
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     const raw = await page.evaluate((kind) => {
       const record = JSON.parse(
         sessionStorage.getItem("tsdm.workspace.recovery")!,
@@ -2755,11 +2666,7 @@ test("UX107.independent-recovery: incompatible page-session state cannot hide or
     await selectSourceEditor(page)
   ).fill("Durable writing independent of corrupt navigation");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const raw = '{"schema":999,"recoverable":"future session data must survive"}';
   await page.addInitScript(
     (value) => sessionStorage.setItem("tsdm.workspace.recovery", value),
@@ -2793,11 +2700,7 @@ test("UX107.independent-recovery: incompatible page-session state cannot hide or
     })
     .click();
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const fresh = await context.newPage();
   await fresh.goto(boardURL);
   await choose(fresh, "42");
@@ -2831,11 +2734,7 @@ test("UX107.unequal-history: recovered uncertain and actual confirmed observatio
     await selectSourceEditor(page)
   ).fill("Same source distinct attempt observations");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   let release!: () => void;
   state.postGate = new Promise<void>((resolve) => {
     release = resolve;
@@ -2855,11 +2754,7 @@ test("UX107.unequal-history: recovered uncertain and actual confirmed observatio
   await expect(
     restored.getByText("Reply outcome unknown", { exact: true }),
   ).toBeVisible();
-  await expect(
-    restored.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(restored);
   const recoveredAttempt = await restored.evaluate(
     () =>
       JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
@@ -2929,28 +2824,23 @@ test("UX107.stale-disposal: explicit stale replacement preserves unseen competin
     .click();
   await (await selectSourceEditor(page)).fill("Shared before stale discard");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
   await (
     await selectSourceEditor(page)
   ).fill("Unseen competing draft survives stale disposal");
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await other.getByRole("button", { name: "New thread", exact: true }).click();
   await other
     .getByRole("button", {
       name: "Discard local changes and prepare",
       exact: true,
     })
+    .click();
+  await other
+    .getByRole("button", { name: /^Reply recovery · [0-9]+$/, exact: true })
     .click();
   const conflict = other.getByRole("region", {
     name: "Conflicting local reply drafts",
@@ -2964,6 +2854,9 @@ test("UX107.stale-disposal: explicit stale replacement preserves unseen competin
       ),
   ).toContain("Unseen competing draft survives stale disposal");
   await other.reload();
+  await other
+    .getByRole("button", { name: /^Reply recovery · [0-9]+$/, exact: true })
+    .click();
   await expect(
     other
       .getByRole("region", { name: "Conflicting local reply drafts" })
@@ -2990,16 +2883,12 @@ test("UX107.stale-control: a stale enabled attachment control cannot mutate paus
     .click();
   await (await selectSourceEditor(page)).fill("Shared attachment writing");
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "paused-intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("local file intent"),
   });
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -3007,11 +2896,7 @@ test("UX107.stale-control: a stale enabled attachment control cannot mutate paus
   await (
     await selectSourceEditor(page)
   ).fill("Competing owner attachment writing");
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await editor.fill("Paused attachment branch");
   await expect(
     other.getByRole("region", { name: "Conflicting local reply drafts" }),
@@ -3051,11 +2936,7 @@ test("UX107.future-database: a future database version is refused without replac
     await selectSourceEditor(page)
   ).fill("Future database still owns this writing");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await page.evaluate(async () => {
     const request = indexedDB.open("tsdm.workspace.reply-drafts", 2);
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -3110,11 +2991,9 @@ test("UX107.nonreply-scope: durable reply-store refusal leaves new-thread page-s
     await selectSourceEditor(page)
   ).fill("Nonreply writing remains page-session scoped");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Browser recovery is up to date for this page session.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.locator(".source-writing .writing-recovery")).toHaveCount(
+    0,
+  );
   await expect(
     page.getByText(/Local reply drafts could not be saved/).first(),
   ).toBeVisible();
@@ -3146,22 +3025,14 @@ for (const phase of ["preparation", "acknowledgement"] as const) {
       await selectSourceEditor(page)
     ).fill("Shared before delayed continuation");
     await revealWritingDetails(page);
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     const other = await context.newPage();
     await other.goto(boardURL);
     await choose(other, "42");
     await (
       await selectSourceEditor(page)
     ).fill("Captured owner before delayed continuation");
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     let release!: () => void;
     if (phase === "preparation") {
       const before = state.requests.length;
@@ -3271,11 +3142,7 @@ test("UX107.legacy-divergence: schema4 writing without a known baseline preserve
     await selectSourceEditor(page)
   ).fill("Already acknowledged durable source");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const legacy = await page.evaluate(() => {
     const record = JSON.parse(
       sessionStorage.getItem("tsdm.workspace.recovery")!,

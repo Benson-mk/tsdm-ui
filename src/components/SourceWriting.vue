@@ -1,5 +1,14 @@
 <script setup lang="ts">
 import ReplyConflict from "./ReplyConflict.vue";
+import ReplyToolbarPopover from "./ReplyToolbarPopover.vue";
+import {
+  ToolbarButton,
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+  DropdownMenuPortal,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "reka-ui";
 import { privateWritingText } from "./private-writing-text";
 import PrivateAttemptHistory from "./PrivateAttemptHistory.vue";
 import { computed, ref, watch, nextTick, type DeepReadonly } from "vue";
@@ -22,6 +31,7 @@ const props = defineProps<{
   expanded: boolean;
   elsewhere?: boolean;
   category?: CategoryRole;
+  portal: HTMLElement;
 }>();
 const emit = defineEmits<{ resize: [expanded: boolean] }>();
 const editor = ref<InstanceType<typeof PostEditor> | null>(null);
@@ -45,6 +55,13 @@ watch(
 const detailsOpen = ref(false);
 const toolsOpen = ref(false);
 const previewOpen = ref(false);
+const sourceMode = computed(() => editor.value?.editorMode === "source");
+watch(sourceMode, (value) => {
+  if (!value) previewOpen.value = false;
+});
+const optionsOpen = ref(false);
+const optionsTarget = ref<HTMLElement | null>(null);
+const attachmentPicker = ref<HTMLInputElement | null>(null);
 const ordinaryReply = computed(() =>
   ["reply", "quick-quote"].includes(ownerState.value.context?.action ?? ""),
 );
@@ -168,6 +185,12 @@ watch(
     else if (state.value.validationIssues[0]?.field === "category")
       categoryInput.value?.focus();
     else if (state.value.validationIssues[0]?.field === "option") {
+      if (ordinaryReply.value) {
+        toolsOpen.value = true;
+        optionsOpen.value = true;
+        await nextTick();
+        await nextTick();
+      }
       const name = state.value.validationIssues[0].name;
       Array.from(
         optionFields.value?.querySelectorAll<HTMLElement>(
@@ -520,56 +543,23 @@ function updateOption(option: WritingOption, event: Event) {
         {{ insert(text.draftIdentity, state.context.draft.threadId) }}
       </p>
       <section
-        v-show="
-          !ordinaryReply ||
-          expanded ||
-          toolsOpen ||
+        v-if="
           state.recoveryAvailable === false ||
-          workspace.state.value.recoveryProblem
+          workspace.state.value.recoveryProblem ||
+          (ordinaryReply && workspace.state.value.replyRecovery?.problem)
         "
         class="writing-recovery"
         :aria-label="text.writingRecovery"
       >
-        <p :role="state.recoveryAvailable === false ? 'alert' : 'status'">
+        <p
+          :role="
+            ordinaryReply || state.recoveryAvailable === false
+              ? 'alert'
+              : 'status'
+          "
+        >
           {{ recoverySummary }}
         </p>
-        <details>
-          <summary>{{ text.writingRecoveryDetails }}</summary>
-          <p v-if="state.recoveryAvailable === false">
-            {{
-              insert(
-                text.writingRecoveryRevisions,
-                state.context.revision,
-              ).replace("{acknowledged}", String(state.acknowledged))
-            }}
-          </p>
-          <p
-            v-else-if="state.acknowledged === state.context.revision"
-            role="status"
-          >
-            {{
-              insert(
-                ordinaryReply
-                  ? text.localReplyAcknowledged
-                  : text.writingAcknowledged,
-                state.acknowledged,
-              )
-            }}
-          </p>
-          <p v-else role="status">
-            {{
-              insert(text.writingPending, state.context.revision).replace(
-                "{acknowledged}",
-                String(state.acknowledged),
-              )
-            }}
-          </p>
-          <p>
-            {{
-              ordinaryReply ? text.localReplyLimits : text.writingRecoveryLimits
-            }}
-          </p>
-        </details>
       </section>
       <p v-if="state.context.redPacket" role="alert">
         {{ text.writingFinancialConsequences }}
@@ -699,10 +689,11 @@ function updateOption(option: WritingOption, event: Event) {
         :key="state.context.id + workspace.writing.editorGeneration.value"
         :workspace="workspace"
         :expanded="expanded"
+        :portal="portal"
         :reply="ordinaryReply"
         :tools-open="toolsOpen"
       >
-        <template v-if="ordinaryReply" #leading>
+        <template v-if="ordinaryReply && !expanded" #leading>
           <button
             class="icon-button reply-plus"
             :aria-label="replyText('Reply tools')"
@@ -743,21 +734,102 @@ function updateOption(option: WritingOption, event: Event) {
           </button>
         </template>
         <template v-if="ordinaryReply" #tools>
-          <div class="writing-actions">
-            <button
-              :aria-expanded="previewOpen"
-              @click="previewOpen = !previewOpen"
+          <ToolbarButton
+            :disabled="
+              !state.accountVerified || state.publishing || state.composing
+            "
+            :aria-label="attachment('Select attachments')"
+            :title="attachment('Select attachments')"
+            @mousedown.prevent
+            @click="attachmentPicker?.click()"
+            ><WorkspaceIcon name="attachment"
+          /></ToolbarButton>
+          <input
+            ref="attachmentPicker"
+            class="reply-attachment-picker"
+            aria-hidden="true"
+            tabindex="-1"
+            hidden
+            type="file"
+            multiple
+            :aria-label="attachment('Select attachments')"
+            :disabled="
+              !state.accountVerified || state.publishing || state.composing
+            "
+            @change="selectAttachments"
+          />
+          <ReplyToolbarPopover
+            v-model:open="optionsOpen"
+            :label="text.currentFormOptions"
+            icon="settings"
+            :portal="portal"
+            :disabled="state.composing"
+            ><div ref="optionsTarget"
+          /></ReplyToolbarPopover>
+          <DropdownMenuRoot
+            v-if="
+              sourceMode ||
+              workspace.writing.replyFormCheckNeeded.value ||
+              state.context.replyTarget?.postId
+            "
+            :modal="false"
+          >
+            <ToolbarButton as-child :disabled="state.composing"
+              ><DropdownMenuTrigger
+                :disabled="state.composing"
+                :aria-label="replyText('More writing actions')"
+                :title="replyText('More writing actions')"
+                @mousedown.prevent
+                ><WorkspaceIcon name="more" /></DropdownMenuTrigger
+            ></ToolbarButton>
+            <DropdownMenuPortal :to="portal"
+              ><DropdownMenuContent
+                class="thread-options-menu"
+                :side-offset="8"
+                align="end"
+                :collision-padding="12"
+                @close-auto-focus.prevent="editor?.focus()"
+              >
+                <DropdownMenuItem
+                  v-if="sourceMode"
+                  @select="previewOpen = !previewOpen"
+                  >{{ replyText("Preview") }}</DropdownMenuItem
+                >
+                <DropdownMenuItem
+                  v-if="workspace.writing.replyFormCheckNeeded.value"
+                  :disabled="
+                    workspace.writing.replyBlocked.value ||
+                    workspace.writing.replyPublicationBlocked.value ||
+                    state.preparing ||
+                    state.publishing
+                  "
+                  @select="workspace.writing.check()"
+                  >{{ text.checkWriting }}</DropdownMenuItem
+                >
+                <DropdownMenuItem
+                  v-if="state.context.replyTarget?.postId"
+                  :disabled="
+                    workspace.writing.replyBlocked.value ||
+                    state.preparing ||
+                    state.publishing
+                  "
+                  @select="
+                    workspace.writing.prepare(state.context.board.id, false, {
+                      threadId: state.context.replyTarget.threadId,
+                      postId: null,
+                      author: '',
+                      authorId: null,
+                    })
+                  "
+                  >{{ text.ordinaryReply }}</DropdownMenuItem
+                >
+              </DropdownMenuContent></DropdownMenuPortal
             >
-              {{ replyText("Preview") }}
-            </button>
-            <button @click="workspace.writing.hide()">
-              {{ text.returnReading }}
-            </button>
-          </div>
+          </DropdownMenuRoot>
         </template>
       </PostEditor>
       <section
-        v-if="ordinaryReply && previewOpen"
+        v-if="ordinaryReply && sourceMode && previewOpen"
         class="reply-preview"
         :aria-label="replyText('Preview')"
       >
@@ -786,7 +858,7 @@ function updateOption(option: WritingOption, event: Event) {
         />
       </section>
       <details
-        v-show="!ordinaryReply || expanded || toolsOpen"
+        v-if="!ordinaryReply"
         class="writing-details"
         @toggle="detailsOpen = ($event.target as HTMLDetailsElement).open"
       >
@@ -1505,7 +1577,9 @@ function updateOption(option: WritingOption, event: Event) {
             {{ attachment("Keep server file") }}
           </button>
         </div>
-        <label v-show="expanded || detailsOpen || toolsOpen"
+        <label
+          v-if="!ordinaryReply"
+          v-show="expanded || detailsOpen || toolsOpen"
           >{{ attachment("Select attachments")
           }}<input
             type="file"
@@ -1692,73 +1766,77 @@ function updateOption(option: WritingOption, event: Event) {
       <p v-for="hint in state.context.redPacket?.hints" :key="hint">
         {{ hint }}
       </p>
-      <fieldset
-        v-show="
-          expanded ||
-          toolsOpen ||
-          detailsOpen ||
-          state.validationIssues.some((issue) => issue.field === 'option')
-        "
-        ref="optionFields"
-        :disabled="workspace.writing.replyBlocked.value"
-      >
-        <legend>{{ text.currentFormOptions }}</legend>
-        <label v-for="option in currentOptions" :key="option.name">
-          <template v-if="option.kind === 'checkbox'"
-            ><input
-              type="checkbox"
-              v-bind="optionAttributes(option.name)"
-              :aria-label="optionCaption(option as WritingOption)"
-              :checked="option.checked"
-              :value="option.value"
-              :disabled="option.disabled"
-              @change="updateOption(option as WritingOption, $event)"
-            />{{ optionCaption(option as WritingOption) }}</template
-          >
-          <template v-else
-            >{{ optionCaption(option as WritingOption)
-            }}<select
-              v-if="option.kind === 'select'"
-              v-bind="optionAttributes(option.name)"
-              :aria-label="optionCaption(option as WritingOption)"
-              :value="option.value"
-              :disabled="option.disabled"
-              @change="updateOption(option as WritingOption, $event)"
+      <Teleport :to="optionsTarget ?? portal" :disabled="!ordinaryReply">
+        <fieldset
+          v-show="
+            ordinaryReply
+              ? optionsOpen
+              : expanded ||
+                toolsOpen ||
+                detailsOpen ||
+                state.validationIssues.some((issue) => issue.field === 'option')
+          "
+          ref="optionFields"
+          :disabled="workspace.writing.replyBlocked.value"
+        >
+          <legend>{{ text.currentFormOptions }}</legend>
+          <label v-for="option in currentOptions" :key="option.name">
+            <template v-if="option.kind === 'checkbox'"
+              ><input
+                type="checkbox"
+                v-bind="optionAttributes(option.name)"
+                :aria-label="optionCaption(option as WritingOption)"
+                :checked="option.checked"
+                :value="option.value"
+                :disabled="option.disabled"
+                @change="updateOption(option as WritingOption, $event)"
+              />{{ optionCaption(option as WritingOption) }}</template
             >
-              <option
-                v-for="choice in option.choices"
-                :key="choice.value"
-                :value="choice.value"
-                :disabled="choice.disabled"
+            <template v-else
+              >{{ optionCaption(option as WritingOption)
+              }}<select
+                v-if="option.kind === 'select'"
+                v-bind="optionAttributes(option.name)"
+                :aria-label="optionCaption(option as WritingOption)"
+                :value="option.value"
+                :disabled="option.disabled"
+                @change="updateOption(option as WritingOption, $event)"
               >
-                {{ choice.label }}
-              </option></select
-            ><input
-              v-else
-              v-bind="optionAttributes(option.name)"
-              :aria-label="optionCaption(option as WritingOption)"
-              :value="option.value"
-              :disabled="option.disabled"
-              :maxlength="option.maxLength ?? undefined"
-              :type="option.minimum !== undefined ? 'number' : 'text'"
-              :min="option.minimum"
-              :max="option.maximum"
-              :step="option.step"
-              @input="updateOption(option as WritingOption, $event)"
-          /></template>
-          <span
-            v-if="optionIssue(option.name)"
-            :id="optionErrorId(option.name)"
-            role="alert"
-            >{{
-              validationText(
-                optionIssue(option.name)!,
-                workspace.preferences.state.value.language,
-              )
-            }}</span
-          >
-        </label>
-      </fieldset>
+                <option
+                  v-for="choice in option.choices"
+                  :key="choice.value"
+                  :value="choice.value"
+                  :disabled="choice.disabled"
+                >
+                  {{ choice.label }}
+                </option></select
+              ><input
+                v-else
+                v-bind="optionAttributes(option.name)"
+                :aria-label="optionCaption(option as WritingOption)"
+                :value="option.value"
+                :disabled="option.disabled"
+                :maxlength="option.maxLength ?? undefined"
+                :type="option.minimum !== undefined ? 'number' : 'text'"
+                :min="option.minimum"
+                :max="option.maximum"
+                :step="option.step"
+                @input="updateOption(option as WritingOption, $event)"
+            /></template>
+            <span
+              v-if="optionIssue(option.name)"
+              :id="optionErrorId(option.name)"
+              role="alert"
+              >{{
+                validationText(
+                  optionIssue(option.name)!,
+                  workspace.preferences.state.value.language,
+                )
+              }}</span
+            >
+          </label>
+        </fieldset>
+      </Teleport>
     </div>
     <div v-if="!ordinaryReply" class="composer-submit-row">
       <span v-if="expanded" class="composer-help">{{

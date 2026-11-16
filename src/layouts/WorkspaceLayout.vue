@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ReplyConflict from "../components/ReplyConflict.vue";
+import ReplyRecoveryDialog from "../components/ReplyRecoveryDialog.vue";
 import type { ViewPosition } from "../workspace/navigation";
 import {
   computed,
@@ -45,23 +45,6 @@ import { nativeDestination } from "../hosts/browser";
 import { strings, insert, description } from "./strings";
 import type { Section } from "../workspace/navigation";
 const props = defineProps<{ workspace: Workspace; portal: HTMLElement }>();
-const replyResolutionFeedback = ref<HTMLElement | null>(null);
-watch(
-  () => props.workspace.replyResolution.value,
-  async (resolution) => {
-    if (
-      !resolution ||
-      resolution.busy ||
-      resolution.threadId ===
-        props.workspace.writing.state.value.context?.replyTarget?.threadId
-    )
-      return;
-    await nextTick();
-    replyResolutionFeedback.value?.focus({ preventScroll: true });
-    replyResolutionFeedback.value?.scrollIntoView({ block: "nearest" });
-  },
-  { flush: "post" },
-);
 const state = props.workspace.state;
 const history = props.workspace.threadHistory.state;
 const boardChecks = props.workspace.boardChecks.state;
@@ -2491,6 +2474,7 @@ function boardIdFrom(url: string) {
             text.threadsPane
           }}</span>
         </button>
+        <ReplyRecoveryDialog :workspace="workspace" :portal="portal" />
         <a
           class="header-action"
           :aria-label="text.native"
@@ -2711,52 +2695,6 @@ function boardIdFrom(url: string) {
           />
         </details>
       </section>
-      <ReplyConflict
-        v-for="row in state.replyRecovery?.conflicts.filter(
-          (item) => item.threadId !== writing.context?.replyTarget?.threadId,
-        ) ?? []"
-        :key="row.threadId"
-        :row="row"
-        :busy="workspace.replyResolution.value?.busy ?? false"
-        :language="workspace.preferences.state.value.language"
-        @discard="(row, version) => workspace.discardReply(row, version)"
-        @choose="
-          (row, version) =>
-            workspace.chooseReply(JSON.parse(JSON.stringify(row)), version)
-        "
-      />
-      <ReplyConflict
-        v-for="row in state.replyRecovery?.alternatives.filter(
-          (item) => item.threadId !== writing.context?.replyTarget?.threadId,
-        ) ?? []"
-        :key="'alternative-' + row.threadId"
-        :row="row"
-        alternatives
-        :language="workspace.preferences.state.value.language"
-        :busy="workspace.replyResolution.value?.busy ?? false"
-        @discard="(row, version) => workspace.discardReply(row, version)"
-        @choose="
-          (row, version) =>
-            workspace.chooseReply(JSON.parse(JSON.stringify(row)), version)
-        "
-      />
-      <p
-        v-if="
-          workspace.replyResolution.value &&
-          workspace.replyResolution.value.threadId !==
-            writing.context?.replyTarget?.threadId
-        "
-        ref="replyResolutionFeedback"
-        role="status"
-        tabindex="-1"
-      >
-        {{
-          description(
-            workspace.replyResolution.value.message,
-            workspace.preferences.state.value.language,
-          )
-        }}
-      </p>
       <p
         v-if="
           state.recoveryAvailable === false &&
@@ -3577,7 +3515,13 @@ function boardIdFrom(url: string) {
         v-show="conversationVisible"
         ref="conversationRegion"
         class="conversation-region"
-        :class="{ 'writing-wide': writingWide }"
+        :class="{
+          'writing-wide': writingWide,
+          'reply-editing-expanded':
+            writing.visible &&
+            writingExpanded &&
+            ['reply', 'quick-quote'].includes(writing.context?.action ?? ''),
+        }"
         :data-writing-visible="!!writing.context && writing.visible"
       >
         <section
@@ -3860,7 +3804,6 @@ function boardIdFrom(url: string) {
                       ? boardIdFrom(reading.thread.parent.url)
                       : null
                   "
-                  :filters="threadFilters"
                 />
               </header>
               <ContentView
@@ -4197,6 +4140,7 @@ function boardIdFrom(url: string) {
           v-show="writing.visible"
           :key="writing.context.id"
           :workspace="workspace"
+          :portal="portal"
           :expanded="writingExpanded"
           :elsewhere="writingElsewhere"
           :category="writingCategory"

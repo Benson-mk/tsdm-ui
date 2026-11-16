@@ -1,4 +1,9 @@
-import { revealWritingTools, selectSourceEditor } from "./editor-controls";
+import { compactReplyBesideReader } from "./editor-controls";
+import {
+  revealWritingTools,
+  selectSourceEditor,
+  writingDetailAction,
+} from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 
@@ -26,31 +31,37 @@ export async function writingPresentationRoundTrip(
   for (const width of [390, 768, 1440])
     await page.setViewportSize({ width, height: 900 });
   if (viewport) await page.setViewportSize(viewport);
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
-  const retained = page.locator(".retained-writing");
-  await expect(page.locator(".bottom-resume")).toBeVisible();
-  if (
-    before.attempts?.some((a: { status: string }) =>
-      ["pending", "uncertain", "moderation"].includes(a.status),
-    ) ||
-    before.draftAttempts?.some((a: { status: string }) =>
-      ["pending", "uncertain", "moderation"].includes(a.status),
+  if (await page.locator(".reply-composer").count()) {
+    // Ordinary Hide/Resume was removed. Exercise Compact/Expand with the same editor.
+    await compactReplyBesideReader(page);
+    await page
+      .getByRole("button", { name: "Expand writing", exact: true })
+      .click();
+  } else {
+    await (await writingDetailAction(page, "Return to reading")).click();
+    const retained = page.locator(".retained-writing");
+    await expect(page.locator(".bottom-resume")).toBeVisible();
+    if (
+      before.attempts?.some((a: { status: string }) =>
+        ["pending", "uncertain", "moderation"].includes(a.status),
+      ) ||
+      before.draftAttempts?.some((a: { status: string }) =>
+        ["pending", "uncertain", "moderation"].includes(a.status),
+      )
     )
-  )
-    await expect(
-      retained.getByText(
-        /retained operation is pending or its outcome needs checking/,
-      ),
-    ).toBeVisible();
-  if (before.redPacket)
-    await expect(
-      retained.getByText(/Red-packet writing is retained/),
-    ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+      await expect(
+        retained.getByText(
+          /retained operation is pending or its outcome needs checking/,
+        ),
+      ).toBeVisible();
+    if (before.redPacket)
+      await expect(
+        retained.getByText(/Red-packet writing is retained/),
+      ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Return to writing", exact: true })
+      .click();
+  }
   expect(await read()).toEqual(before);
   if (info)
     await info.attach("presentation-retained-writing.json", {
@@ -66,8 +77,12 @@ export async function richRoundTrip(page: Page, source: string) {
   const editor = page.getByLabel("Complete source", { exact: true });
   await expect(editor).toHaveValue(source);
   await revealWritingTools(page);
+  const ordinary = !!(await page.locator(".reply-composer").count());
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", {
+      name: ordinary ? "Switch to visual editor" : "Visual editor",
+      exact: true,
+    })
     .click();
   const visual = page.getByRole("textbox", {
     name: "Visual post content",
@@ -76,7 +91,10 @@ export async function richRoundTrip(page: Page, source: string) {
   await expect(visual.locator("table")).toHaveCount(1);
   await expect(visual.locator("td")).toHaveCount(2);
   await page
-    .getByRole("button", { name: "Source editor", exact: true })
+    .getByRole("button", {
+      name: ordinary ? "Switch to source editor" : "Source editor",
+      exact: true,
+    })
     .click();
   await expect(editor).toHaveValue(source);
   await editor.focus();
@@ -126,12 +144,17 @@ export async function richRoundTrip(page: Page, source: string) {
   await page.getByLabel("Text size", { exact: true }).fill("100");
   await closeSettingsToWorkspace(page);
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+  if (ordinary) {
+    await compactReplyBesideReader(page);
+    await page
+      .getByRole("button", { name: "Expand writing", exact: true })
+      .click();
+  } else {
+    await (await writingDetailAction(page, "Return to reading")).click();
+    await page
+      .getByRole("button", { name: "Return to writing", exact: true })
+      .click();
+  }
   await expect(editor).toHaveValue(source);
   await page.reload();
   await selectSourceEditor(page);

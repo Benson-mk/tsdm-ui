@@ -1,7 +1,7 @@
 import {
   selectSourceEditor,
   revealWritingTools,
-  revealWritingDetails,
+  chooseAttachments,
 } from "./editor-controls";
 import { writingDetailAction, writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
@@ -338,9 +338,7 @@ async function select(
   buffer = Buffer.from("Attachment fixture.\n"),
   mimeType = "text/plain",
 ) {
-  await page
-    .getByLabel("Select attachments", { exact: true })
-    .setInputFiles({ name, mimeType, buffer });
+  await chooseAttachments(page, { name, mimeType, buffer });
 }
 async function upload(page: Page, name = "note.txt") {
   await page
@@ -640,9 +638,31 @@ for (const context of ["new-thread", "reply", "quote"] as const) {
         exact: true,
       })
       .click();
-    await expect(
-      page.getByText("Saved association verified · note.txt", { exact: true }),
-    ).toBeVisible();
+    if (context === "new-thread")
+      await expect(
+        page.getByText("Saved association verified · note.txt", {
+          exact: true,
+        }),
+      ).toBeVisible();
+    else {
+      const submission = page.getByRole("article", {
+        name: "Reply submission",
+        exact: true,
+      });
+      await expect(
+        submission.getByText("Confirmed reply", { exact: true }),
+      ).toBeVisible();
+      await expect(submission).toContainText("note.txt");
+      await expect(
+        submission.getByRole("textbox", {
+          name: "Submitted reply source",
+          exact: true,
+        }),
+      ).toHaveValue(new URLSearchParams(state.saves[0]).get("message")!);
+      await expect(
+        page.getByLabel("Complete source", { exact: true }),
+      ).toHaveValue("");
+    }
     expect(state.stored).toEqual(["88"]);
     expect(state.saves).toHaveLength(1);
     expect(state.uploads).toHaveLength(1);
@@ -1161,7 +1181,7 @@ for (const route of [
     const source = page.getByLabel("Complete source", { exact: true });
     await source.fill(combinedSource);
     await source.press("ControlOrMeta+End");
-    await revealAdvanced(page);
+    await revealAdvanced(page, "Mentions");
     await page
       .getByLabel("Find a person to mention", { exact: true })
       .fill("Other author");
@@ -1189,13 +1209,9 @@ for (const route of [
     await expect(source).toHaveValue(expected);
     await richRoundTrip(page, expected);
     if (!edit && route !== "new-thread") {
-      await revealWritingDetails(page);
-      await page
-        .getByRole("button", {
-          name: "Check current account and form",
-          exact: true,
-        })
-        .click();
+      await (
+        await writingDetailAction(page, "Check current account and form")
+      ).click();
       await expect(source).toHaveValue(expected);
     }
     expect(state.saves).toHaveLength(0);
@@ -1235,14 +1251,31 @@ for (const route of [
         combinedSource + "\nNative supplement boundary\n" + expected,
       );
       await expect(
-        page.getByRole("button", { name: "Check result", exact: true }),
+        page.getByRole("button", { name: "Check reply status", exact: true }),
       ).toBeVisible();
-    } else {
+    } else if (edit || route === "new-thread") {
       await expect(
         page.getByText("Saved association verified · note.txt", {
           exact: true,
         }),
       ).toBeVisible();
+    }
+    if (!edit && route !== "new-thread") {
+      const submission = page.getByRole("article", {
+        name: "Reply submission",
+        exact: true,
+      });
+      await expect(submission).toContainText("note.txt");
+      if (route !== "reply-merged")
+        await expect(
+          submission.getByText("Confirmed reply", { exact: true }),
+        ).toBeVisible();
+      await expect(
+        submission.getByRole("textbox", {
+          name: "Submitted reply source",
+          exact: true,
+        }),
+      ).toHaveValue(expected);
     }
     await expect(source).toHaveValue(expected + "Later local text");
     const sent = new URLSearchParams(state.saves[0]);
@@ -1338,6 +1371,9 @@ test("J5.integrated-upload-replaced-owner: delayed upload cannot install into de
       exact: true,
     })
     .click();
+  await expect(
+    page.getByRole("button", { name: "Review publication", exact: true }),
+  ).toBeVisible();
   await page
     .getByLabel("Complete source", { exact: true })
     .fill(combinedSource + "New owner");
@@ -2894,7 +2930,7 @@ for (const phase of ["review", "preflight"]) {
   }
 }
 
-test("UX61.attachment-uncertainty: upload outcome and recovery details retain original attachment attempt without save removal or retry", async ({
+test("UX61.attachment-uncertainty: upload outcome remains visible and retains original attachment attempt without save removal or retry", async ({
   page,
 }, info) => {
   const state = await fixture(page);
@@ -2911,8 +2947,7 @@ test("UX61.attachment-uncertainty: upload outcome and recovery details retain or
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     ),
     requests = state.requests.length;
-  await page.getByText("Recovery details", { exact: true }).click();
-  await page.getByText("Recovery details", { exact: true }).click();
+  await expect(page.locator(".writing-recovery")).toHaveCount(0);
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
@@ -2984,7 +3019,7 @@ test("UX101.uploaded-retarget: actual uploaded reference survives held addressed
     page.getByText("Inline referenced · note.txt", { exact: true }),
   ).toBeVisible();
   await revealWritingTools(page);
-  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await (await writingDetailAction(page, "Preview")).click();
   await expect(editor).toHaveValue(uploaded + " Later authored text");
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),

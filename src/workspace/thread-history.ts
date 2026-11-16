@@ -97,7 +97,14 @@ export function createThreadHistory(
   let key = "";
   let pages = new Set<string>();
   let postPages = new Map<string, string>();
-  let membership = new Map<string, { url: string; ids: Set<string> }>();
+  let membership = new Map<
+    string,
+    {
+      url: string;
+      ids: Set<string>;
+      filters: ThreadResult["thread"]["filters"];
+    }
+  >();
   let seen = new Set<string>();
   let newestObservation: ThreadResult | null = null;
   let newestSeen: Set<string> | null = null;
@@ -229,6 +236,7 @@ export function createThreadHistory(
               {
                 url: result.thread.url,
                 ids: new Set(result.thread.posts.map((post) => post.id)),
+                filters: result.thread.filters,
               },
             ],
           ]
@@ -372,6 +380,7 @@ export function createThreadHistory(
     membership.set(result.thread.pages.current, {
       url: result.thread.url,
       ids: new Set(result.thread.posts.map((post) => post.id)),
+      filters: result.thread.filters,
     });
     for (const post of result.thread.posts) seen.add(post.id);
     const incoming =
@@ -647,6 +656,7 @@ export function createThreadHistory(
     membership.set(result.thread.pages.current, {
       url: result.thread.url,
       ids: new Set(result.thread.posts.map((post) => post.id)),
+      filters: result.thread.filters,
     });
     for (const post of incoming) seen.add(post.id);
     const retained = new Set(
@@ -738,6 +748,15 @@ export function createThreadHistory(
     revealArrivals,
     target,
     sourceFor: (postId: string) => postPages.get(postId) ?? null,
+    filtersFor(postId: string) {
+      // Read the range ref so source metadata changes invalidate menu computations.
+      if (!state.value.result?.thread.posts.some((post) => post.id === postId))
+        return [];
+      const url = postPages.get(postId);
+      return (
+        [...membership.values()].find((page) => page.url === url)?.filters ?? []
+      );
+    },
     remember,
     rememberedPosition: () => position,
     find: (url: string, account: string) =>

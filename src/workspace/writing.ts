@@ -322,9 +322,20 @@ export function createWriting(
       ? (captureOperation(context)?.writing.account ?? { kind: "unknown" })
       : undefined;
   });
+  // Presentation-only form recheck affordance; it grants no publishing authority.
+  const replyFormFailure = shallowRef<string | null>(null);
+  const replyFormCheckNeeded = computed(() => {
+    const context = state.value.context;
+    return (
+      !!context &&
+      isOrdinaryReply(context) &&
+      (!state.value.accountVerified || replyFormFailure.value === context.id)
+    );
+  });
   const retainedReplies = shallowRef<Record<string, PublicWritingContext>>({});
   let selectedReplyThread: string | null = null;
   function replaced(previous: WritingContext | null) {
+    replyFormFailure.value = null;
     const next = state.value.context;
     return changed(
       previous &&
@@ -431,6 +442,7 @@ export function createWriting(
     editorSession = null;
     editorContext = "";
     retainedReplies.value = retained;
+    replyFormFailure.value = null;
     state.value = {
       ...state.value,
       context: next,
@@ -1658,6 +1670,7 @@ export function createWriting(
         };
         return;
       }
+      replyFormFailure.value = null;
       state.value = {
         ...state.value,
         context: {
@@ -2950,6 +2963,11 @@ export function createWriting(
       };
       return;
     }
+    if (isOrdinaryReply(context) && !local)
+      replyFormFailure.value =
+        result.kind === "ready" || result.kind === "conflict"
+          ? null
+          : context.id;
     state.value = {
       ...state.value,
       preparing: false,
@@ -3718,6 +3736,8 @@ export function createWriting(
       observe(result.account, result.kind === "prepared");
     }
     if (current !== sequence || state.value.context?.id !== original.id) return;
+    if (isOrdinaryReply(original))
+      replyFormFailure.value = result.kind === "prepared" ? null : original.id;
     if (result.kind !== "prepared") {
       state.value = {
         ...state.value,
@@ -3887,6 +3907,7 @@ export function createWriting(
     contextAttemptHistory,
     registeredSends: readonly(registeredSends),
     replyBlocked,
+    replyFormCheckNeeded,
     replyPublicationBlocked,
     replySendBlocked,
     editorGeneration,
@@ -3934,6 +3955,7 @@ export function createWriting(
               ? editorSession?.state.mode
               : undefined;
           ++sequence;
+          replyFormFailure.value = null;
           editorGeneration.value++;
           editorSession?.dispose();
           editorSession = null;
@@ -4130,6 +4152,7 @@ export function createWriting(
         privateReviewConsumed: false,
         privateReplacement: null,
       };
+      replyFormFailure.value = null;
       uploadBytes.clear();
       const all = [context, ...retained];
       const pending = all.some(

@@ -9,13 +9,15 @@ const english = {
   localReplyDiscard: "Discard version {value}",
   localReplyDiscardConfirm: "Discard this retained version",
   localReplyDiscardWarning:
-    "This removes only the displayed retained version from this browser. Copy any needed content first. It cannot remove a different or newly changed version.",
+    "Discard this version? Copy any text you need first.",
   localReplyDiscardSource: "Version selected for discard",
   localReplyKeep: "Keep this version",
 
+  replyRecoveryDialog: "Reply recovery",
+  replyRecoveryDialogDescription: "Saved reply versions from other threads.",
   localReplyAlternatives: "Recoverable reply versions",
   localReplyChoiceDisclosure:
-    "Choose a version to continue. Every other version remains recoverable until you explicitly discard it. Nothing is sent.",
+    "Choose a version to continue. Other versions are kept.",
   localReplyContinue: "Continue with version {value}",
   localReplyContinueEmpty: "Continue without this draft",
 
@@ -28,11 +30,17 @@ const english = {
   localReplyInspect: "Inspect retained local reply data",
   localReplyRaw: "Retained local reply data",
   localReplyConflict: "Conflicting local reply drafts",
-  localReplyPaused:
-    "Both versions are retained. Editing and submission are paused until the conflict is resolved.",
+  localReplyPaused: "Editing and sending are paused.",
   localReplyVersion: "Retained reply version {value}",
   localReplyRemoved: "Deliberate local draft removal",
   localReplyDetails: "Complete retained reply details",
+  localReplyOptions: "Options",
+  localReplyOn: "On",
+  localReplyOff: "Off",
+  localReplyUnavailable: "Unavailable",
+  localReplyAttachmentReference: "Attachment reference #{value}",
+  localReplyUploader: "Uploaded by user {value}",
+  localReplyUploaderUnknown: "Uploader unknown",
   localReplyLimits:
     "Acknowledged ordinary replies survive supported browser restarts in this profile. This is local storage, not a backup or Forum draft. Clearing site data, private-profile closure or browser eviction can remove it. File bytes and sending authority are not retained.",
   localReplyAcknowledged:
@@ -588,14 +596,14 @@ const simplified: Strings = {
 
   localReplyDiscard: "丢弃版本 {value}",
   localReplyDiscardConfirm: "丢弃此保留版本",
-  localReplyDiscardWarning:
-    "仅从此浏览器移除显示的保留版本。请先复制需要的内容。不会移除其他版本或新改动的版本。",
+  localReplyDiscardWarning: "丢弃此版本？请先复制需要的文字。",
   localReplyDiscardSource: "准备丢弃的版本",
   localReplyKeep: "保留此版本",
 
+  replyRecoveryDialog: "回复恢复",
+  replyRecoveryDialogDescription: "其他主题中已保存的回复版本。",
   localReplyAlternatives: "可恢复的回复版本",
-  localReplyChoiceDisclosure:
-    "选择要继续的版本。其他版本会保留，直到你明确丢弃。不会发送任何内容。",
+  localReplyChoiceDisclosure: "选择要继续的版本。其他版本会保留。",
   localReplyContinue: "继续使用版本 {value}",
   localReplyContinueEmpty: "继续而不使用此草稿",
 
@@ -608,10 +616,17 @@ const simplified: Strings = {
   localReplyInspect: "查看保留的本地回复数据",
   localReplyRaw: "保留的本地回复数据",
   localReplyConflict: "冲突的本地回复草稿",
-  localReplyPaused: "两个版本均已保留。解决冲突前，编辑和发送已暂停。",
+  localReplyPaused: "编辑和发送已暂停。",
   localReplyVersion: "保留的回复版本 {value}",
   localReplyRemoved: "已明确移除本地草稿",
   localReplyDetails: "完整保留的回复详情",
+  localReplyOptions: "选项",
+  localReplyOn: "开启",
+  localReplyOff: "关闭",
+  localReplyUnavailable: "不可用",
+  localReplyAttachmentReference: "附件引用 #{value}",
+  localReplyUploader: "上传者用户 {value}",
+  localReplyUploaderUnknown: "上传者未知",
   localReplyLimits:
     "已确认保存的普通回复可在支持的浏览器重启后从此配置恢复。这是本地存储，不是备份或论坛草稿。清除网站数据、关闭隐私配置或浏览器清理可能移除数据。文件字节和发送授权不会保留。",
   localReplyAcknowledged: "本地回复版本 {value} 已在此浏览器配置中确认保存。",
@@ -1135,14 +1150,14 @@ const traditional: Strings = {
 
   localReplyDiscard: "捨棄版本 {value}",
   localReplyDiscardConfirm: "捨棄此保留版本",
-  localReplyDiscardWarning:
-    "僅從此瀏覽器移除顯示的保留版本。請先複製需要的內容。不會移除其他版本或新改動的版本。",
+  localReplyDiscardWarning: "捨棄此版本？請先複製需要的文字。",
   localReplyDiscardSource: "準備捨棄的版本",
   localReplyKeep: "保留此版本",
 
+  replyRecoveryDialog: "回覆復原",
+  replyRecoveryDialogDescription: "其他主題中已儲存的回覆版本。",
   localReplyAlternatives: "可復原的回覆版本",
-  localReplyChoiceDisclosure:
-    "選擇要繼續的版本。其他版本會保留，直到你明確捨棄。不會傳送任何內容。",
+  localReplyChoiceDisclosure: "選擇要繼續的版本。其他版本會保留。",
   localReplyContinue: "繼續使用版本 {value}",
   localReplyContinueEmpty: "繼續而不使用此草稿",
 
@@ -1155,10 +1170,17 @@ const traditional: Strings = {
   localReplyInspect: "檢視保留的本機回覆資料",
   localReplyRaw: "保留的本機回覆資料",
   localReplyConflict: "衝突的本機回覆草稿",
-  localReplyPaused: "兩個版本均已保留。解決衝突前，編輯和傳送已暫停。",
+  localReplyPaused: "編輯和傳送已暫停。",
   localReplyVersion: "保留的回覆版本 {value}",
   localReplyRemoved: "已明確移除本機草稿",
   localReplyDetails: "完整保留的回覆詳情",
+  localReplyOptions: "選項",
+  localReplyOn: "開啟",
+  localReplyOff: "關閉",
+  localReplyUnavailable: "無法使用",
+  localReplyAttachmentReference: "附件引用 #{value}",
+  localReplyUploader: "上傳者使用者 {value}",
+  localReplyUploaderUnknown: "上傳者不明",
   localReplyLimits:
     "已確認儲存的一般回覆可在支援的瀏覽器重新啟動後從此設定檔復原。這是本機儲存，不是備份或論壇草稿。清除網站資料、關閉私密設定檔或瀏覽器清理可能移除資料。檔案位元組和傳送授權不會保留。",
   localReplyAcknowledged: "本機回覆版本 {value} 已在此瀏覽器設定檔中確認儲存。",

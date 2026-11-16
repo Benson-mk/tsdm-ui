@@ -633,13 +633,21 @@ export function createReplyDraftStore() {
             request.transaction?.abort();
             return;
           }
+          const current = row.variants[0]?.context;
           const send = row.sends?.find(
             (item) => item.attempt.id === expected.attempt.id,
           );
           if (
             row.variants.length !== 1 ||
             row.variants[0]!.version !== parent ||
-            canonical(row.variants[0]!.context) !== canonical(context) ||
+            !current ||
+            // Save acknowledgement excludes only this local editor position.
+            // Authored identity/history and the expected operation stay exact.
+            canonical({
+              ...current,
+              revision: context.revision,
+              selection: context.selection,
+            }) !== canonical(context) ||
             canonical(send) !== canonical(expected) ||
             !send ||
             !["rejected", "not-sent"].includes(send.attempt.status)

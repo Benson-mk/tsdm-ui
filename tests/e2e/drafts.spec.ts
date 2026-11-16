@@ -1554,7 +1554,7 @@ test("UX61.forum-draft-local: known draft identity and unsaved-change explanatio
     page.getByText("Browser recovery is up to date for this page session.", {
       exact: true,
     }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     page.getByText(
       "Changes here are local. Sending or saving a forum draft is a separate action.",
@@ -1566,7 +1566,7 @@ test("UX61.forum-draft-local: known draft identity and unsaved-change explanatio
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     ),
     reads = state.reads.length;
-  await page.getByText("Recovery details", { exact: true }).click();
+  await expect(page.locator(".writing-recovery details")).toHaveCount(0);
   expect(
     await page.evaluate(
       () =>

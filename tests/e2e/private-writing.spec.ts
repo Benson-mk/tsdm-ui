@@ -1048,7 +1048,7 @@ test("J77.private-unqualified-markup: potential private formatting remains edita
   expect(server.posts).toHaveLength(0);
 });
 
-test("J77.public-private-history: explicit private replacement keeps the original public uncertain attempt inspectable and recoverable without retargeting or resend", async ({
+test("J77.public-private-history: unsettled public replacement is refused and original attempt plus newer writing remain recoverable", async ({
   page,
 }) => {
   const server = await open(page, `${origin}/forum.php?mod=viewthread&tid=42`);
@@ -1089,6 +1089,9 @@ test("J77.public-private-history: explicit private replacement keeps the origina
       () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
     ),
   ).writing.attempts[0];
+  await (
+    await selectSourceEditor(page)
+  ).fill("Newer public draft survives private navigation");
   await page
     .getByRole("navigation", { name: "Main destinations", exact: true })
     .getByRole("button", { name: "Messages", exact: true })
@@ -1118,26 +1121,23 @@ test("J77.public-private-history: explicit private replacement keeps the origina
     })
     .click();
   await expect(
-    page.getByRole("textbox", { name: "Private message text", exact: true }),
-  ).toHaveValue("");
-  const history = page.getByRole("region", {
-    name: "Original public publication attempt",
-    exact: true,
-  });
-  await expect(history).toContainText(
-    "Original public reply remains identifiable",
-  );
-  await expect(
-    history.getByRole("button", {
-      name: "Check original public result",
-      exact: true,
-    }),
+    page.getByText(
+      "This reply has an unsettled operation. Check its original result before discarding or replacing it. Your writing is retained.",
+      { exact: true },
+    ),
   ).toBeVisible();
-  await history
-    .getByText("Inspect original public writing", { exact: true })
+  await expect(
+    page.getByRole("textbox", { name: "Private message text", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Keep current writing", exact: true })
     .click();
-  await history.getByText("Complete prepared source", { exact: true }).click();
-  await expect(history.locator(".prepared-source")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Newer public draft survives private navigation",
+  );
   const after = JSON.parse(
     await page.evaluate(
       () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
@@ -1145,12 +1145,32 @@ test("J77.public-private-history: explicit private replacement keeps the origina
   );
   expect(after.schema).toBe(6);
   expect(after.writing.attempts[0]).toEqual(original);
-  await page.reload();
+  expect(after.writing.replyTarget.threadId).toBe("42");
+  expect(server.posts).toHaveLength(1);
+  // Reading private content is allowed; destructive replacement is not. Return through native navigation.
+  await page.goto(`${origin}/forum.php?mod=viewthread&tid=42`);
   await page.addScriptTag({
     content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
-  await expect(history).toContainText(
-    "Original public reply remains identifiable",
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Newer public draft survives private navigation",
+  );
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Original public reply remains identifiable");
+  await expect(
+    page.getByRole("button", { name: "Check reply status", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send reply", exact: true }),
+  ).toBeDisabled();
+  const recovered = JSON.parse(
+    await page.evaluate(
+      () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
+    ),
+  );
+  expect(recovered.writing.attempts[0].publication).toEqual(
+    original.publication,
   );
   expect(server.posts).toHaveLength(1);
 });

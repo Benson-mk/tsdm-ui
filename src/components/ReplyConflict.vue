@@ -2,7 +2,9 @@
 import { computed, ref, nextTick, type DeepReadonly } from "vue";
 import { hasReplyHold, type ReplyRow } from "../workspace/reply-recovery";
 import type { Preferences } from "../workspace/preferences";
-import { strings } from "../layouts/strings";
+import { strings, insert } from "../layouts/strings";
+import { attachmentText } from "./attachment-text";
+import type { WritingOption, WritingUpload } from "../forum-client";
 const props = defineProps<{
   row: DeepReadonly<ReplyRow>;
   language: Preferences["language"];
@@ -32,6 +34,59 @@ const versions = computed(() =>
   props.alternatives ? (props.row.retained ?? []) : props.row.variants,
 );
 const text = computed(() => strings(props.language));
+function optionValue(option: DeepReadonly<WritingOption>) {
+  return option.kind === "checkbox"
+    ? option.checked
+      ? text.value.localReplyOn
+      : text.value.localReplyOff
+    : option.kind === "select"
+      ? (option.choices.find((choice) => choice.value === option.value)
+          ?.label ?? text.value.localReplyUnavailable)
+      : option.value || text.value.noReferences;
+}
+function fileStatus(upload: DeepReadonly<WritingUpload>) {
+  return attachmentText(
+    {
+      selected: "Selected",
+      uploading: "Uploading",
+      uploaded: "Uploaded, unassociated",
+      associated: "Saved association verified",
+      uncertain: "Upload outcome uncertain",
+      rejected: "Upload refused",
+      reselect: "Unavailable",
+      removed: "Server file removed",
+      removing: "Removing server file",
+      "removal-uncertain": "Server removal uncertain",
+    }[upload.status],
+    props.language,
+  );
+}
+function attachmentDiffers(
+  upload: DeepReadonly<WritingUpload>,
+  version: string,
+  field: "serverId" | "ownerId",
+) {
+  if (!upload.serverId) return false;
+  return versions.value.some(
+    (other) =>
+      other.version !== version &&
+      other.context?.uploads?.some(
+        (file) =>
+          file.name === upload.name &&
+          file.size === upload.size &&
+          file.status === upload.status &&
+          (file[field] ?? null) !== (upload[field] ?? null),
+      ),
+  );
+}
+function unnamedReferences(
+  context: NonNullable<DeepReadonly<ReplyRow>["variants"][number]["context"]>,
+) {
+  return context.uploadedReferences.filter(
+    (id) =>
+      !context.uploads?.some((upload) => upload.serverId === id && upload.name),
+  );
+}
 </script>
 <template>
   <section
@@ -44,7 +99,11 @@ const text = computed(() => strings(props.language));
   >
     <p v-if="!alternatives" role="alert">{{ text.localReplyPaused }}</p>
     <p>{{ text.localReplyChoiceDisclosure }}</p>
-    <div v-for="(variant, index) in versions" :key="variant.version">
+    <div
+      v-for="(variant, index) in versions"
+      :key="variant.version"
+      class="reply-version"
+    >
       <p>
         {{ text.localReplyVersion.replace("{value}", String(index + 1)) }} ·
         {{ row.threadId
@@ -83,15 +142,68 @@ const text = computed(() => strings(props.language));
       <p v-if="hasReplyHold(variant.context, row.sends ?? [])">
         {{ text.localReplyUnsettledVersion }}
       </p>
-      <details>
-        <summary>{{ text.localReplyDetails }}</summary>
-        <textarea
-          readonly
-          :aria-label="text.localReplyDetails"
-          :value="JSON.stringify(variant.context, null, 2)"
-          rows="6"
-        />
-      </details>
+      <div v-if="variant.context" class="reply-version-context">
+        <p>
+          {{ variant.context.board.label }} ·
+          {{ insert(text.writingThread, row.threadId) }}
+        </p>
+        <p v-if="variant.context.replyTarget?.postId">
+          {{
+            insert(
+              text.addressedTo,
+              variant.context.replyTarget.author,
+            ).replace("{post}", variant.context.replyTarget.postId)
+          }}
+        </p>
+        <ul
+          v-if="variant.context.options.some((option) => !option.disabled)"
+          :aria-label="text.localReplyOptions"
+        >
+          <li
+            v-for="option in variant.context.options.filter(
+              (option) => !option.disabled,
+            )"
+            :key="option.name"
+          >
+            {{ option.label }}: {{ optionValue(option) }}
+          </li>
+        </ul>
+        <ul
+          v-if="
+            variant.context.uploads?.length ||
+            unnamedReferences(variant.context).length
+          "
+          :aria-label="text.attachments"
+        >
+          <li v-for="upload in variant.context.uploads" :key="upload.key">
+            {{ upload.name }} · {{ fileStatus(upload) }} · {{ upload.size }} B
+            <template
+              v-if="attachmentDiffers(upload, variant.version, 'serverId')"
+            >
+              ·
+              {{
+                text.localReplyAttachmentReference.replace(
+                  "{value}",
+                  upload.serverId!,
+                )
+              }}
+            </template>
+            <template
+              v-if="attachmentDiffers(upload, variant.version, 'ownerId')"
+            >
+              ·
+              {{
+                upload.ownerId
+                  ? text.localReplyUploader.replace("{value}", upload.ownerId)
+                  : text.localReplyUploaderUnknown
+              }}
+            </template>
+          </li>
+          <li v-for="id in unnamedReferences(variant.context)" :key="id">
+            {{ text.localReplyAttachmentReference.replace("{value}", id) }}
+          </li>
+        </ul>
+      </div>
     </div>
     <div
       v-if="confirmation"

@@ -1,3 +1,4 @@
+import { compactReplyBesideReader } from "./editor-controls";
 import { selectSourceEditor } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
@@ -454,9 +455,9 @@ for (const mode of [
   "public",
   "private",
   "placeholder",
-  "hidden-writing",
+  "compact-writing",
 ] as const)
-  test(`IM73.bottom-owner-${mode}: reading and retained status stay above the safe bottom when no composer is visible`, async ({
+  test(`IM73.bottom-owner-${mode}: reading and retained writing respect the active bottom owner`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -473,7 +474,6 @@ for (const mode of [
           : threadURL,
     );
     if (mode === "placeholder") {
-      await expect(page.locator(".reader-placeholder")).toBeHidden();
       const results = page.locator(".results-pane");
       const last = results.getByRole("link", {
         name: "Complete listening title 29 音樂",
@@ -497,7 +497,7 @@ for (const mode of [
     let writing:
       | import("@playwright/test").ElementHandle<SVGElement | HTMLElement>
       | null = null;
-    if (mode === "hidden-writing") {
+    if (mode === "compact-writing") {
       await page
         .getByRole("button", { name: "Reply to this post", exact: true })
         .first()
@@ -505,10 +505,8 @@ for (const mode of [
       const source = await selectSourceEditor(page);
       await source.fill("Hidden retained [quote]exact[/quote]");
       writing = await source.elementHandle();
-      await page
-        .getByRole("button", { name: "Return to reading", exact: true })
-        .click();
-      await expect(source).toBeHidden();
+      await compactReplyBesideReader(page);
+      await expect(source).toBeVisible();
     }
     const reader = page.locator(
       mode === "private" ? ".private-reading-pane" : ".reading-pane",
@@ -521,9 +519,9 @@ for (const mode of [
           ? reader
               .getByRole("button", { name: "Reply to this post", exact: true })
               .last()
-          : mode === "hidden-writing"
+          : mode === "compact-writing"
             ? page.getByRole("button", {
-                name: "Return to writing",
+                name: "Expand writing",
                 exact: true,
               })
             : reader.locator("p");
@@ -560,15 +558,11 @@ for (const mode of [
       contentType: "application/json",
     });
     expect(action!.y + action!.height).toBeLessThanOrEqual(861);
-    expect(
-      mode === "hidden-writing"
-        ? geometry.status.bottom
-        : geometry.reader.bottom,
-    ).toBeLessThanOrEqual(860);
+    expect(geometry.reader.bottom).toBeLessThanOrEqual(860);
     const before = ledger.length;
-    if (mode === "hidden-writing") {
+    if (mode === "compact-writing") {
       await page
-        .getByRole("button", { name: "Return to writing", exact: true })
+        .getByRole("button", { name: "Expand writing", exact: true })
         .click();
       await expect(
         page.getByLabel("Complete source", { exact: true }),

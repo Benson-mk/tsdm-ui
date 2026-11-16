@@ -205,9 +205,18 @@ for (const kind of ["published", "moderation"] as const)
     await expect(
       page.getByRole("article", { name: "Post 101", exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "Post 101", exact: true }),
-    ).toHaveAttribute("href", draftURL + "#pid101");
+    // #104 makes post numbers copy controls, including results reached by recovery.
+    await page
+      .context()
+      .grantPermissions(["clipboard-read", "clipboard-write"]);
+    const beforeCopy = state.reads.length;
+    await page
+      .getByRole("button", { name: "Copy permalink for post 101", exact: true })
+      .click();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe(`${origin}/forum.php?mod=redirect&goto=findpost&ptid=42&pid=101`);
+    expect(state.reads).toHaveLength(beforeCopy);
     await expect(
       page
         .getByRole("alert")

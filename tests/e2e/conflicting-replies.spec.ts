@@ -1,3 +1,7 @@
+import { refreshReplyFromNative } from "./editor-controls";
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
+import { chooseAttachments, revealWritingOptions } from "./editor-controls";
+import { waitForReplySaved } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import {
@@ -131,9 +135,7 @@ test("UX109.choose: keyboard choice resumes exact selected draft and retains the
     .click();
   await (await selectSourceEditor(page)).fill("Common draft");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -142,9 +144,7 @@ test("UX109.choose: keyboard choice resumes exact selected draft and retains the
   const first = "[b]First competing 原文[/b]\n[unknown]keep exact[/unknown]";
   const second = "Second competing [quote]untouched[/quote]";
   await (await selectSourceEditor(page)).fill(first);
-  await expect(
-    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await otherEditor.fill(second);
   const conflict = other.getByRole("region", {
     name: "Conflicting local reply drafts",
@@ -185,9 +185,7 @@ test("UX109.choose: keyboard choice resumes exact selected draft and retains the
   await expect(alternatives.getByRole("textbox")).toHaveValue(second);
   await (await selectSourceEditor(other)).fill(first + "\nResumed typing");
   await revealWritingDetails(other);
-  await expect(
-    other.getByText(/recovery is up to date|draft.*saved.*browser/i),
-  ).toBeVisible();
+  await waitForReplySaved(other);
   await other.reload();
   await expect(await selectSourceEditor(other)).toHaveValue(
     first + "\nResumed typing",
@@ -235,9 +233,7 @@ async function conflictingPair(
     .click();
   await (await selectSourceEditor(page)).fill("Common observed draft");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -252,9 +248,7 @@ async function conflictingPair(
     );
   }
   await (await selectSourceEditor(page)).fill("First retained source");
-  await expect(
-    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await editor.fill("Second retained source");
   const conflict = other.getByRole("region", {
     name: "Conflicting local reply drafts",
@@ -360,9 +354,7 @@ test("UX109.unsettled: choosing clean text preserves the original uncertain atte
     await selectSourceEditor(page)
   ).fill("Original submitted immutable 原文");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText(/recovery is up to date|draft.*saved.*browser/i),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -685,11 +677,7 @@ test("UX109.epoch: typing during retained-version handoff is immediately preserv
     "First retained source",
   );
   await revealWritingDetails(other);
-  await expect(
-    other.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(other);
   await holdNextWriteCompletion(other);
   await continueSource(alternatives, "Second retained source");
   await expect
@@ -992,11 +980,7 @@ test("UX109.tombstone: explicit no-draft choice keeps the other version discover
     .click();
   await (await selectSourceEditor(page)).fill("Common before disposal");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -1020,6 +1004,9 @@ test("UX109.tombstone: explicit no-draft choice keeps the other version discover
   const conflict = other.getByRole("region", {
     name: "Conflicting local reply drafts",
   });
+  await other
+    .getByRole("button", { name: "Reply recovery · 2", exact: true })
+    .click();
   await expect(conflict).toBeVisible();
   await conflict
     .getByRole("button", { name: "Continue without this draft", exact: true })
@@ -1032,9 +1019,16 @@ test("UX109.tombstone: explicit no-draft choice keeps the other version discover
   const alternatives = fresh.getByRole("region", {
     name: "Recoverable reply versions",
   });
+  await fresh
+    .getByRole("button", { name: "Reply recovery · 1", exact: true })
+    .click();
   await expect(alternatives.getByRole("textbox")).toHaveValue(
     "Source preserved against stale disposal",
   );
+  await fresh
+    .getByRole("dialog", { name: "Reply recovery", exact: true })
+    .getByRole("button", { name: "Close", exact: true })
+    .click();
   await fresh
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
@@ -1076,11 +1070,7 @@ test("UX109.foreign-pending: selection normalizes only its operational descendan
     .click();
   await (await selectSourceEditor(page)).fill("Immutable original sent source");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -1197,8 +1187,9 @@ test("UX109.target-intent: selected target/options/literal source remain exact a
     "[quote][b]原文[/b][/quote]\n[unknown]protected text[/unknown]";
   await (await selectSourceEditor(page)).fill(common);
   await revealWritingTools(page);
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "choice-intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("Only first tab owns these bytes"),
@@ -1289,6 +1280,11 @@ test("UX109.narrow: conflict source and keyboard actions fit a narrow enlarged-t
 }) => {
   const { other, conflict } = await conflictingPair(page, context);
   await other.setViewportSize({ width: 390, height: 844 });
+  // Browser resize resolves before the workspace applies narrow docking.
+  await expect(other.locator(".workspace-body")).toHaveAttribute(
+    "data-boards-collapsed",
+    "true",
+  );
   await conflict.evaluate((node) => {
     (node as HTMLElement).style.fontSize = "200%";
   });
@@ -1397,11 +1393,7 @@ test("UX109.history-epoch: an original result arriving during handoff is retaine
     await selectSourceEditor(page)
   ).fill("Original history-only update source");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   const other = await context.newPage();
   await other.goto(boardURL);
   await choose(other, "42");
@@ -1436,11 +1428,7 @@ test("UX109.history-epoch: an original result arriving during handoff is retaine
   await expect(conflict).toBeVisible();
   await continueSource(conflict, "");
   await revealWritingDetails(other);
-  await expect(
-    other.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(other);
   const before = JSON.parse(await readReplyRows(other))[0].variants[0].context;
   const request = state.requests.find((r) => r.method === "POST")!;
   state.saved.set("42", new URLSearchParams(request.body!));
@@ -1490,3 +1478,293 @@ test("UX109.history-epoch: an original result arriving during handoff is retaine
   );
   expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(1);
 });
+
+test("UX112.owner-revision-conflict: another thread's real competing versions are chosen in the popup without replacing the active draft", async ({
+  page,
+  context,
+}) => {
+  const { state, other, conflict } = await conflictingPair(page, context);
+  await choose(other, "43");
+  await other
+    .getByRole("button", { name: "Reply to thread", exact: true })
+    .click();
+  const source = await selectSourceEditor(other);
+  await source.fill("Keep thread43 draft exact");
+  await expect(conflict).toHaveCount(0);
+  await other
+    .getByRole("button", { name: "Reply recovery · 2", exact: true })
+    .click();
+  const dialog = other.getByRole("dialog", {
+    name: "Reply recovery",
+    exact: true,
+  });
+  await expect(dialog).toBeVisible();
+  await continueSource(
+    dialog.getByRole("region", {
+      name: "Conflicting local reply drafts",
+      exact: true,
+    }),
+    "First retained source",
+  );
+  await expect(dialog.getByRole("status")).toContainText(
+    "Selected version resumed",
+  );
+  await expect(dialog.getByRole("status")).toBeFocused();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(source).toHaveValue("Keep thread43 draft exact");
+  const saved = JSON.parse(await readReplyRows(other));
+  expect(
+    saved.find((row: { threadId: string }) => row.threadId === "42").variants[0]
+      .context.source,
+  ).toBe("First retained source");
+  expect(
+    state.requests.filter((request) => request.method === "POST"),
+  ).toHaveLength(0);
+});
+
+for (const width of [1440, 390])
+  test(`UX112.choice-context-${width}: same-text versions reveal human target options and named attachment differences without diagnostic JSON`, async ({
+    page,
+    context,
+  }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    await context.addInitScript(() =>
+      Object.defineProperty(window, "BroadcastChannel", {
+        value: undefined,
+        configurable: true,
+      }),
+    );
+    const state = await open(page);
+    await choose(page, "42");
+    await page
+      .getByRole("button", { name: "Post 4201 actions", exact: true })
+      .click();
+    await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
+    await (await selectSourceEditor(page)).fill("Same retained source 完整");
+    await chooseAttachments(page, {
+      name: "addressed.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("first local file"),
+    });
+    await waitForReplySaved(page);
+    const other = await context.newPage();
+    await other.setViewportSize({ width, height: 900 });
+    await other.goto(boardURL);
+    await choose(other, "42");
+    await selectSourceEditor(other);
+    await other
+      .getByRole("button", { name: "Remove reply target", exact: true })
+      .click();
+    await other
+      .getByRole("button", { name: "Remove addressed.txt", exact: true })
+      .click();
+    await chooseAttachments(other, {
+      name: "ordinary.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("second local file"),
+    });
+    await waitForReplySaved(other);
+    await revealWritingOptions(page);
+    await page.getByLabel("Signature", { exact: true }).uncheck();
+    await page.keyboard.press("Escape");
+    await expect
+      .poll(
+        async () => JSON.parse(await readReplyRows(page))[0].variants.length,
+      )
+      .toBe(2);
+    await other.evaluate(() => window.dispatchEvent(new Event("focus")));
+    const conflict = other.getByRole("region", {
+      name: "Conflicting local reply drafts",
+      exact: true,
+    });
+    await expect(conflict).toBeVisible();
+    const cards = conflict.locator(".reply-version");
+    await expect(cards).toHaveCount(2);
+    const addressed = cards.filter({ hasText: "addressed.txt" }),
+      ordinary = cards.filter({ hasText: "ordinary.txt" });
+    await expect(addressed).toContainText("Other author");
+    await expect(addressed).toContainText("Post 4201");
+    await expect(addressed).toContainText("Signature: Off");
+    await expect(ordinary).toContainText("Signature: On");
+    await expect(addressed).toContainText("Unavailable");
+    await expect(cards.getByRole("textbox")).toHaveCount(2);
+    await expect(
+      conflict.getByText("Complete retained reply details", { exact: true }),
+    ).toHaveCount(0);
+    expect(await conflict.innerText()).not.toMatch(
+      /formhash|fingerprint|acknowledged|contextId/,
+    );
+    const before = JSON.parse(await readReplyRows(other))[0];
+    await info.attach("human-choice.png", {
+      body: await other.screenshot(),
+      contentType: "image/png",
+    });
+    await addressed
+      .getByRole("button", { name: /^Continue with version/ })
+      .click();
+    await expect(await selectSourceEditor(other)).toHaveValue(
+      "Same retained source 完整",
+    );
+    await revealWritingOptions(other);
+    await expect(
+      other.getByLabel("Signature", { exact: true }),
+    ).not.toBeChecked();
+    await other.keyboard.press("Escape");
+    await expect(
+      other.getByLabel("Reattach addressed.txt", { exact: true }),
+    ).toBeVisible();
+    const after = JSON.parse(await readReplyRows(other))[0];
+    expect(after.retained).toHaveLength(1);
+    expect(after.retained[0].context.uploads[0].name).toBe("ordinary.txt");
+    expect(after.variants[0].context.replyTarget.postId).toBe("4201");
+    expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(0);
+    await info.attach("human-choice-state.json", {
+      body: JSON.stringify({ before, after, requests: state.requests }),
+      contentType: "application/json",
+    });
+  });
+
+// Failure inventory: actual uploaded files can share visible name/size/status
+// while their uninserted server references and uploader ownership differ. Choice
+// must expose that distinction and preserve the unchosen exact file intent.
+for (const language of ["en", "zh-CN", "zh-TW"] as const)
+  test(`UX112.choice-attachment-identity-${language}: same-name uploaded references remain distinguishable without raw draft diagnostics`, async ({
+    page,
+    context,
+  }, info) => {
+    await context.addInitScript(() =>
+      Object.defineProperty(window, "BroadcastChannel", {
+        value: undefined,
+        configurable: true,
+      }),
+    );
+    const state = await open(page);
+    await choose(page, "42");
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    await (
+      await selectSourceEditor(page)
+    ).fill("Same source without inserted references");
+    for (const member of ["7", "8"]) {
+      state.member = member;
+      await refreshReplyFromNative(page);
+      await chooseAttachments(page, {
+        name: "intent.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("same-size-bytes"),
+      });
+      await page
+        .getByRole("button", { name: "Upload intent.txt", exact: true })
+        .click();
+      await expect
+        .poll(
+          async () =>
+            JSON.parse(await readReplyRows(page))[0].variants[0].context
+              .uploadedReferences.length,
+        )
+        .toBe(member === "7" ? 1 : 2);
+      await waitForReplySaved(page);
+    }
+    await expect(await selectSourceEditor(page)).toHaveValue(
+      "Same source without inserted references",
+    );
+    state.member = "9";
+    await page.reload();
+    await selectSourceEditor(page);
+    const other = await context.newPage();
+    await other.goto(boardURL);
+    await choose(other, "42");
+    await selectSourceEditor(other);
+    await expect(
+      other.getByRole("button", { name: "Remove intent.txt", exact: true }),
+    ).toHaveCount(2);
+    await page
+      .getByRole("button", { name: "Remove intent.txt", exact: true })
+      .nth(0)
+      .click();
+    await waitForReplySaved(page);
+    await other
+      .getByRole("button", { name: "Remove intent.txt", exact: true })
+      .nth(1)
+      .click();
+    await expect(other.locator(".reply-conflict .reply-version")).toHaveCount(
+      2,
+    );
+    if (language !== "en") {
+      await openSettings(other);
+      await other.locator("#interface-language").selectOption(language);
+      await closeSettingsToWorkspace(other);
+      await other.setViewportSize({ width: 390, height: 900 });
+    }
+    const labels = {
+      en: { reference: "Attachment reference #", owner: "Uploaded by user " },
+      "zh-CN": { reference: "附件引用 #", owner: "上传者用户 " },
+      "zh-TW": { reference: "附件引用 #", owner: "上傳者使用者 " },
+    }[language];
+    const cards = other.locator(".reply-conflict .reply-version"),
+      first = cards.filter({ hasText: `${labels.reference}88` }),
+      second = cards.filter({ hasText: `${labels.reference}89` });
+    await expect(first).toHaveCount(1);
+    await expect(second).toHaveCount(1);
+    await expect(first).toContainText(`${labels.owner}7`);
+    await expect(second).toContainText(`${labels.owner}8`);
+    expect(
+      await cards
+        .getByRole("textbox")
+        .evaluateAll((nodes) =>
+          nodes.map((node) => (node as HTMLTextAreaElement).value),
+        ),
+    ).toEqual([
+      "Same source without inserted references",
+      "Same source without inserted references",
+    ]);
+    expect((await cards.allInnerTexts()).join("\n")).not.toMatch(
+      /formhash|fingerprint|contextId/,
+    );
+    const before = JSON.parse(await readReplyRows(other))[0];
+    await first.scrollIntoViewIfNeeded();
+    await info.attach("attachment-identity-choice.png", {
+      body: await other.screenshot(),
+      contentType: "image/png",
+    });
+    await first
+      .getByRole("button", {
+        name: /^(Continue with version|继续使用版本|繼續使用版本)/,
+      })
+      .click();
+    await expect(
+      other.getByRole("region", {
+        name: /^(Conflicting local reply drafts|冲突的本地回复草稿|衝突的本機回覆草稿)$/,
+      }),
+    ).toHaveCount(0);
+    await waitForReplySaved(other);
+    expect(
+      JSON.parse(await readReplyRows(other))[0].variants[0].context
+        .uploadedReferences,
+    ).toEqual(["88"]);
+    await other.reload();
+    await expect(await selectSourceEditor(other)).toHaveValue(
+      "Same source without inserted references",
+    );
+    const after = JSON.parse(await readReplyRows(other))[0];
+    expect(after.variants[0].context.uploadedReferences).toEqual(["88"]);
+    expect(after.variants[0].context.uploads[0].ownerId).toBe("7");
+    expect(after.retained).toHaveLength(1);
+    expect(after.retained[0].context.uploadedReferences).toEqual(["89"]);
+    expect(after.retained[0].context.uploads[0].ownerId).toBe("8");
+    expect(
+      state.requests.filter(
+        (r) => r.method === "POST" && new URL(r.url).pathname !== "/misc.php",
+      ),
+    ).toEqual([]);
+    expect(
+      state.requests.filter(
+        (r) => new URL(r.url).searchParams.get("action") === "deleteattach",
+      ),
+    ).toEqual([]);
+    await info.attach("attachment-identity-choice.json", {
+      body: JSON.stringify({ before, after, requests: state.requests }),
+      contentType: "application/json",
+    });
+  });

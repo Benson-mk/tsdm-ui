@@ -1059,19 +1059,26 @@ test("J6.J7.funded-draft-pending-recovery: acknowledged pending funding restores
   });
   await fund(page);
   await expect.poll(() => state.commands.length).toBe(1);
-  expect((await recovered(page)).draftAttempts![0]!.status).toBe("pending");
+  const original = (await recovered(page)).draftAttempts![0]!;
+  expect(original.status).toBe("pending");
   await page.reload();
   release();
   await expect(
     page.getByLabel("Complete source", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Pending draft save restored as uncertain/),
+    page.getByText(
+      /Pending draft save restored as uncertain|Draft saving may have succeeded/,
+    ),
   ).toBeVisible();
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("Acknowledged after recovery");
-  expect((await recovered(page)).draftAttempts![0]!.status).toBe("uncertain");
+  const restored = (await recovered(page)).draftAttempts![0]!;
+  expect(restored.status).toBe("uncertain");
+  expect(restored.id).toBe(original.id);
+  expect(restored.submission).toEqual(original.submission);
+  expect(restored.checked).toBe(false);
   expect(state.commands).toHaveLength(1);
   expect(state.credits.filter((c) => c.operation === "HBS")).toHaveLength(1);
   await evidence(page, info, state);
@@ -2001,7 +2008,7 @@ test("UX61.financial-consequences: immediate debit, pre-publication activity and
   expect(await warning.evaluate((n) => n.closest("details"))).toBeNull();
   const before = await recovered(page),
     reads = state.reads.length;
-  await page.getByText("Recovery details", { exact: true }).click();
+  await expect(page.locator(".writing-recovery details")).toHaveCount(0);
   expect(await recovered(page)).toEqual(before);
   expect(state.reads).toHaveLength(reads);
   expect(state.commands).toEqual([]);

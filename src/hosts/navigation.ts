@@ -431,8 +431,15 @@ export function createBrowserNavigation(): NavigationHost {
       window.addEventListener("focus", action);
     },
     acceptReplyUpdates: (updates) => {
-      for (const update of updates)
+      for (const update of updates) {
+        // Accepted remote content replaces the local slot just like an explicit
+        // choice. Older queued captures must not re-author its previous value.
+        resolutionEpochs.set(
+          update.threadId,
+          (resolutionEpochs.get(update.threadId) ?? 0) + 1,
+        );
         checkpoints[update.threadId] = update.checkpoint;
+      }
     },
     recoveryProblem: () => problem,
     resetRecovery: () => {

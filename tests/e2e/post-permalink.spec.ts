@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { selectSourceEditor } from "./editor-controls";
 import { withRedirectFixture } from "../http-redirect-fixture";
 const origin = "https://www.tsdm39.com";
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -123,10 +124,7 @@ test("UX104.completion: exact referral-free post copy waits for completion and p
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  const editor = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const editor = await selectSourceEditor(page);
   await editor.fill("Keep authored text [quote]literal[/quote]");
   await expect(control(page)).toBeVisible();
   await control(page).focus();
@@ -360,7 +358,9 @@ test("UX104.legacy: actual earlier app recovery requires refresh before copying 
   await control(page).click();
   await expect.poll(() => writes(page)).toEqual([firstURL]);
   await finish(page);
-  await expect(editor).toHaveValue("Preserve replacement writing");
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Preserve replacement writing",
+  );
 });
 
 test("UX104.legacy-exact: qualified earlier native findpost URL removes referral without requiring refresh", async ({

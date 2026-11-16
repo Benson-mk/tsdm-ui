@@ -1,3 +1,4 @@
+import { waitForReplySaved } from "./editor-controls";
 import { chromium, test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -34,18 +35,21 @@ async function rawRows(page: Page) {
       }),
   );
 }
-test("UX111.process-restart: durable pending survives actual isolated Edge exit before cold app recovery without replay", async ({
+const restartChannel = process.env.TSDM_UI_RESTART_CHANNEL ?? "msedge";
+test(`UX111.process-restart: durable pending survives actual isolated ${restartChannel} exit before cold app recovery without replay`, async ({
   browserName,
 }, info) => {
   expect(browserName).toBe("chromium");
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
+  expect(["msedge", "chrome"]).toContain(restartChannel);
+  expect(process.env.TSDM_UI_CANDIDATE_SHA256).toMatch(/^[a-f0-9]{64}$/);
   expect(createHash("sha256").update(built).digest("hex")).toBe(
-    "3f38aee487a947adf19e3f87f42c72e9d0b8fea2084ec6d4018d1fcface0a2ac",
+    process.env.TSDM_UI_CANDIDATE_SHA256,
   );
   const profile = info.outputPath("pending-restart-profile");
   const launch = () =>
     chromium.launchPersistentContext(profile, {
-      channel: "msedge",
+      channel: restartChannel,
       headless: true,
       offline: true,
       viewport: { width: 1280, height: 900 },
@@ -105,11 +109,7 @@ test("UX111.process-restart: durable pending survives actual isolated Edge exit 
     await revealWritingTools(first);
     await first.getByLabel("Signature", { exact: true }).uncheck();
     await revealWritingDetails(first);
-    await expect(
-      first.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(first);
     const rawBefore = JSON.parse(await rawRows(first));
     expect(rawBefore).toHaveLength(1);
     expect(rawBefore[0].sends).toHaveLength(1);
@@ -196,6 +196,7 @@ test("UX111.process-restart: durable pending survives actual isolated Edge exit 
       contentType: "image/png",
     });
     await attachJSON("process-restart-observation.json", {
+      channel: restartChannel,
       closedFirstProcess: true,
       sameIsolatedProfile: true,
       initialSessionRecord: null,

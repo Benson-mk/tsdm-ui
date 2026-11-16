@@ -1,4 +1,4 @@
-import { clickThreadTool } from "./navigation-ui";
+import { clickThreadTool, confirmThreadPage } from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -856,7 +856,7 @@ for (const scenario of [
     body: `${account}<div id="messagetext">当前用户组没有权限</div>`,
     message:
       "The current account does not have permission to read this thread.",
-    accountLabel: "Snapshot from Reader Seven",
+    accountLabel: "Signed in as Reader Seven",
     changed: false,
   },
 ]) {
@@ -936,7 +936,7 @@ for (const scenario of [
       ).toBeVisible();
       await expect(
         page.getByText(
-          "Restored snapshot — account and content have not been rechecked.",
+          "Restored snapshot — retained content has not been rechecked.",
           { exact: true },
         ),
       ).toBeVisible();
@@ -1038,6 +1038,16 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
     .locator(".results-pane")
     .evaluate((node) => node.scrollTop);
   expect(originalOffset).toBeGreaterThan(0);
+  const rowAnchor = await page.locator(".results-pane").evaluate((pane) => {
+    const top = pane.getBoundingClientRect().top;
+    const row = [
+      ...pane.querySelectorAll<HTMLElement>("[data-thread-id]"),
+    ].find((row) => row.getBoundingClientRect().bottom > top + 1)!;
+    return {
+      id: row.dataset.threadId!,
+      offset: row.getBoundingClientRect().top - top,
+    };
+  });
   await selected.click();
   const results = page.getByRole("region", {
     name: "Thread results",
@@ -1063,9 +1073,14 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
   await expect(results).toBeVisible();
   await expect(reading).not.toBeVisible();
   await expect(selected).toHaveAttribute("aria-current", "true");
-  expect(
-    await page.locator(".results-pane").evaluate((node) => node.scrollTop),
-  ).toBe(originalOffset);
+  const returnedOffset = await page
+    .locator(`.results-pane [data-thread-id="${rowAnchor.id}"]`)
+    .evaluate(
+      (row) =>
+        row.getBoundingClientRect().top -
+        row.closest(".results-pane")!.getBoundingClientRect().top,
+    );
+  expect(Math.abs(returnedOffset - rowAnchor.offset)).toBeLessThanOrEqual(1);
   expect(requests).toHaveLength(2);
   expect(requests.effectful).toEqual([]);
   await page.keyboard.press("Escape");
@@ -1153,7 +1168,7 @@ test("J2.returned-touch-template: content selects directory, board and thread ad
     board: `${account}<div class="header"><h2>Music discussion</h2></div><ul class="threadlist_box"><li class="list_top"><div class="threadlist_tit"><a href="${threadURL}&mobile=2">Touch thread</a></div><span class="muser">Composer Nine</span><span class="mtime">2026-10-18</span><div class="threadlist_foot"><span class="mreply">4</span></div></li></ul>`,
     thread: `${account}<div id="pt"><a href="${boardURL}&mobile=2">Music discussion</a></div><div class="viewthread"><h1 class="view_tit">Touch thread</h1><div class="plc" id="pid321"><div class="authi"><a href="home.php?mod=space&uid=9">Composer Nine</a><span class="mtit"><span class="y">7</span></span><span class="mtime">2026-10-18</span></div><div class="message"><p>Complete touch-template post.</p></div></div></div><div class="page"><a href="${threadURL}&mobile=2&page=2">2</a></div>`,
   };
-  await open(page, `${directoryURL}?mobile=2`, (url) =>
+  const requests = await open(page, `${directoryURL}?mobile=2`, (url) =>
     url.searchParams.get("mod") === "forumdisplay"
       ? bodies.board
       : url.searchParams.get("mod") === "viewthread"
@@ -1175,11 +1190,10 @@ test("J2.returned-touch-template: content selects directory, board and thread ad
   await expect(
     page.getByText("Complete touch-template post.", { exact: true }),
   ).toBeVisible();
-  await expect(
-    page
-      .getByRole("navigation", { name: "Pages", exact: true })
-      .getByRole("link", { name: "2", exact: true }),
-  ).toHaveAttribute("href", `${threadURL}&mobile=2&page=2`);
+  await confirmThreadPage(page, 2);
+  expect(
+    requests.some((url) => url.includes("mobile=2") && url.includes("page=2")),
+  ).toBe(true);
 });
 test("J2.directory-pages: returned group pages remain navigable and are not replaced by invented counts", async ({
   page,

@@ -1,4 +1,8 @@
-import { clickThreadTool } from "./navigation-ui";
+import { refreshReplyFromNative } from "./editor-controls";
+import { chooseAttachments } from "./editor-controls";
+import { revealWritingOptions } from "./editor-controls";
+import { writingDetailAction } from "./editor-controls";
+import { waitForReplySaved } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -155,6 +159,7 @@ test("UX108.account-roundtrip: retain one literal reply lineage across A to B to
     "[b]Shared A draft[/b]\n[quote]literal quoted words[/quote]\n[unknown]保留[/unknown]";
   await (await selectSourceEditor(page)).fill(source);
   await revealWritingTools(page);
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   const readDraft = () =>
     page.evaluate(
@@ -166,22 +171,20 @@ test("UX108.account-roundtrip: retain one literal reply lineage across A to B to
   for (const member of ["8", "7"]) {
     state.member = member;
     await revealWritingDetails(page);
-    await page
-      .getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      })
-      .click();
+    // Observe the changed native account/file state through actual read-only thread refresh.
+    await refreshReplyFromNative(page);
     await expect(await selectSourceEditor(page)).toHaveValue(source);
     await expect(
       page.getByText(/current account differs from Writer/),
     ).toHaveCount(0);
+    await revealWritingOptions(page);
     await expect(
       page.getByLabel("Signature", { exact: true }),
     ).not.toBeChecked();
+    await page.keyboard.press("Escape");
     expect((await readDraft()).account.id).toBe("7");
     await expect(
-      page.getByLabel("Select attachments", { exact: true }),
+      page.getByRole("button", { name: "Select attachments", exact: true }),
     ).toBeEnabled();
     expect((await readDraft()).id).toBe(originalId);
     await expect(
@@ -217,33 +220,36 @@ test("UX108.publication-actor: revoke A authority then send explicitly as B whil
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect.poll(() => state.requests.length).toBeGreaterThan(before);
   state.member = "8";
-  await clickThreadTool(page, "Refresh thread");
+  await refreshReplyFromNative(page);
   await expect(page.locator(".writing-destination")).toContainText(
     "Writer 8 (8)",
   );
+  const originalResponse = page.waitForResponse(
+    (r) => new URL(r.url()).searchParams.get("mod") === "post",
+  );
   state.gate = null;
   release();
+  await (await originalResponse).finished();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await waitForReplySaved(page);
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeEnabled();
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // The released old response carried A. A fresh native read re-observes B before a new Send.
+  await refreshReplyFromNative(page);
   expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(0);
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.saved.get("42")?.get("message")).toBe(source);
   expect(state.saved.get("42")?.get("reppost")).toBe("4201");
   state.member = "7";
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await page.reload();
   await expect(await selectSourceEditor(page)).toHaveValue("");
   await expect(
@@ -280,14 +286,10 @@ test("UX108.upload-owner: explicit B upload keeps B provenance in A's shared com
   await (await selectSourceEditor(page)).fill("Shared attachment content");
   state.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("B selected content"),
@@ -329,7 +331,7 @@ test("UX108.attachment-availability: permissive lists cannot transfer ownership 
     .click();
   await (await selectSourceEditor(page)).fill("Preserved text with attachment");
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("A selected content"),
@@ -345,12 +347,8 @@ test("UX108.attachment-availability: permissive lists cannot transfer ownership 
   );
   state.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await expect(
     page.getByRole("button", { name: "Insert intent.txt", exact: true }),
   ).toHaveCount(0);
@@ -365,22 +363,20 @@ test("UX108.attachment-availability: permissive lists cannot transfer ownership 
     }),
   ).toHaveCount(0);
   state.member = "7";
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await expect(
     page.getByRole("button", { name: "Insert intent.txt", exact: true }),
   ).toBeVisible();
   state.uploaded = false;
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Same-actor reading can retain a valid attachment proof. Cold recovery genuinely
+  // requires fresh form/attachment verification and preserves the original intent.
+  await waitForReplySaved(page);
+  await page.reload();
+  await selectSourceEditor(page);
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(
     page.getByText("Unavailable · intent.txt", { exact: true }),
   ).toBeVisible();
@@ -408,7 +404,7 @@ test("UX108.reattach-spans: explicit B replacement changes only balanced literal
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("A bytes"),
@@ -424,12 +420,8 @@ test("UX108.reattach-spans: explicit B replacement changes only balanced literal
   await (await selectSourceEditor(page)).fill(source);
   state.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await expect(
     page.getByText(/Reattach replaces.*including quoted and code examples/),
   ).toBeVisible();
@@ -480,7 +472,7 @@ test("UX108.remove-intent: unavailable Remove deletes only its literal spans wit
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("A bytes"),
@@ -507,12 +499,8 @@ test("UX108.remove-intent: unavailable Remove deletes only its literal spans wit
   );
   state.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await page
     .getByRole("button", { name: "Remove intent.txt", exact: true })
     .click();
@@ -546,15 +534,9 @@ test("UX108.actor-tools: B retargets mentions and explicitly removes its server 
   await (await selectSourceEditor(page)).fill("Retained words ");
   state.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole("button", { name: "Refresh thread", exact: true })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
+  // refreshReplyFromNative already loaded this current actor's thread controls.
   await expect(
     page.getByRole("heading", { name: "Thread 42", exact: true }),
   ).toBeVisible();
@@ -568,7 +550,7 @@ test("UX108.actor-tools: B retargets mentions and explicitly removes its server 
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     );
   await expect.poll(async () => (await read()).replyTarget.postId).toBe("4201");
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -579,7 +561,7 @@ test("UX108.actor-tools: B retargets mentions and explicitly removes its server 
   await expect(await selectSourceEditor(page)).toHaveValue(
     "Retained words @\u2063Other author\u2063 ",
   );
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "owned.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("B file"),
@@ -629,7 +611,7 @@ for (const provenance of [
       await selectSourceEditor(page)
     ).fill("[b]Provenance source stays intact[/b]");
     await revealWritingTools(page);
-    await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+    await chooseAttachments(page, {
       name: "intent.txt",
       mimeType: "text/plain",
       buffer: Buffer.from("Captured fixture bytes"),
@@ -676,12 +658,8 @@ for (const provenance of [
         "[b]Provenance source stays intact[/b]",
       );
       await revealWritingDetails(restored);
-      await restored
-        .getByRole("button", {
-          name: "Check current account and form",
-          exact: true,
-        })
-        .click();
+      // Fresh native navigation has already established account evidence.
+      await refreshReplyFromNative(restored);
       if (provenance === "schema6-null") {
         await expect(
           restored.getByText("Unavailable · intent.txt", { exact: true }),
@@ -742,7 +720,7 @@ test("UX108.actual107-upgrade: old checkpoints and heads survive owner materiali
     .click();
   await (await selectSourceEditor(page)).fill("Actual107 legacy content");
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "legacy.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("Legacy107 bytes"),
@@ -753,6 +731,9 @@ test("UX108.actual107-upgrade: old checkpoints and heads survive owner materiali
   await expect(
     page.getByRole("button", { name: "Insert legacy.txt", exact: true }),
   ).toBeVisible();
+  // Upload completion precedes durable acknowledgement. Capture the actual old
+  // checkpoint only after its uploaded reference is committed, before upgrading.
+  await waitForReplySaved(page);
   const oldSession = await page.evaluate(() =>
     sessionStorage.getItem("tsdm.workspace.recovery")!,
   );
@@ -767,12 +748,9 @@ test("UX108.actual107-upgrade: old checkpoints and heads survive owner materiali
     "Actual107 legacy content",
   );
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(
     page.getByRole("button", { name: "Insert legacy.txt", exact: true }),
   ).toBeVisible();
@@ -800,18 +778,20 @@ test("UX108.actual107-upgrade: old checkpoints and heads survive owner materiali
     state.member = member;
     for (const tab of [page, clean]) {
       await revealWritingDetails(tab);
-      await tab
-        .getByRole("button", {
-          name: "Check current account and form",
-          exact: true,
-        })
-        .click();
+      // Observe the changed native account/file state through actual read-only thread refresh.
+      await refreshReplyFromNative(tab);
     }
   }
   expect(await readReplyRows(page)).toBe(oldRows);
   await (
     await selectSourceEditor(page)
   ).fill("Genuine current authored successor");
+  // Remote adoption installs its new editor context in Visual. Wait for that
+  // observed successor before selecting Source; selecting the old context can
+  // otherwise race the legitimate replacement and leave a stale-mode assertion.
+  await expect(
+    clean.getByRole("textbox", { name: "Visual post content", exact: true }),
+  ).toHaveText("Genuine current authored successor");
   await expect(await selectSourceEditor(clean)).toHaveValue(
     "Genuine current authored successor",
   );
@@ -880,7 +860,7 @@ test("UX108.lost-local-bytes: reload retains named intent, local reattachment se
   const source = "[b]Preserved local writing[/b]\n[quote]Quoted words[/quote]";
   await (await selectSourceEditor(page)).fill(source);
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "lost.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("PRIVATE_LOST_BYTES_108"),
@@ -889,11 +869,7 @@ test("UX108.lost-local-bytes: reload retains named intent, local reattachment se
     page.getByRole("button", { name: "Upload lost.txt", exact: true }),
   ).toBeVisible();
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await page.reload();
   await expect(await selectSourceEditor(page)).toHaveValue(source);
   await revealWritingTools(page);
@@ -906,18 +882,15 @@ test("UX108.lost-local-bytes: reload retains named intent, local reattachment se
   ).toBeVisible();
   state.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(
-    page.getByRole("button", {
+    page.getByRole("menuitem", {
       name: "Check current account and form",
       exact: true,
     }),
-  ).toBeEnabled();
+  ).toHaveCount(0);
   await expect(page.locator(".writing-destination")).toContainText(
     "Writer 8 (8)",
   );
@@ -936,11 +909,7 @@ test("UX108.lost-local-bytes: reload retains named intent, local reattachment se
   expect(raw).not.toContain("PRIVATE_NEW_BYTES_108");
   expect(raw).not.toContain("PRIVATE_LOST_BYTES_108");
   await revealWritingDetails(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await page.reload();
   await revealWritingTools(page);
   await page
@@ -948,12 +917,9 @@ test("UX108.lost-local-bytes: reload retains named intent, local reattachment se
     .click();
   await expect(await selectSourceEditor(page)).toHaveValue(source);
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await expect(page.locator(".writing-destination")).toContainText(
     "Writer 8 (8)",
   );
@@ -977,7 +943,7 @@ test("UX108.repaired-payload: a visual-mode replacement adopts the qualified ref
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("A content"),
@@ -992,17 +958,13 @@ test("UX108.repaired-payload: a visual-mode replacement adopts the qualified ref
     await selectSourceEditor(page)
   ).fill("[b]Before[/b] [attach] 88 [/attach] after");
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
     .click();
   state.member = "8";
   state.nextReferenceKind = "attachimg";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await page.getByLabel("Reattach intent.txt", { exact: true }).setInputFiles({
     name: "replacement.txt",
     mimeType: "text/plain",
@@ -1019,12 +981,8 @@ test("UX108.repaired-payload: a visual-mode replacement adopts the qualified ref
     await selectSourceEditor(page)
   ).fill("Newer writing remains during original attachment check");
   state.member = "7";
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await expect(
     page.getByRole("button", {
       name: "Check stored bytes replacement.txt",
@@ -1032,12 +990,8 @@ test("UX108.repaired-payload: a visual-mode replacement adopts the qualified ref
     }),
   ).toBeDisabled();
   state.member = "8";
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await page
     .getByRole("button", {
       name: "Check stored bytes replacement.txt",
@@ -1099,13 +1053,9 @@ for (const durable of ["present", "empty"] as const) {
     ).fill("New B owner in stable A composition");
     state.member = "8";
     await revealWritingDetails(page);
-    await page
-      .getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      })
-      .click();
-    await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+    // Observe the changed native account/file state through actual read-only thread refresh.
+    await refreshReplyFromNative(page);
+    await chooseAttachments(page, {
       name: "new.txt",
       mimeType: "text/plain",
       buffer: Buffer.from("New B bytes"),
@@ -1170,12 +1120,8 @@ test("UX108.shared-confirmed-indicator: confirmed B reply in A lineage is no lon
   );
   state.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await expect(page.locator(".writing-destination")).toContainText(
     "Writer 8 (8)",
   );
@@ -1203,7 +1149,7 @@ async function unavailableServerIntent(page: Page) {
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "intent.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("original bytes"),
@@ -1219,12 +1165,8 @@ async function unavailableServerIntent(page: Page) {
   ).fill("[b]Keep[/b] [attach]88[/attach] tail");
   state.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await expect(page.locator(".writing-destination")).toContainText(
     "Writer 8 (8)",
   );
@@ -1265,12 +1207,8 @@ for (const change of ["source", "account"] as const) {
       await (await selectSourceEditor(page)).fill(source);
     else {
       state.member = "7";
-      await page
-        .getByRole("button", {
-          name: "Check current account and form",
-          exact: true,
-        })
-        .click();
+      // Observe the changed native account/file state through actual read-only thread refresh.
+      await refreshReplyFromNative(page);
       await expect(page.locator(".writing-destination")).toContainText(
         "Writer 7 (7)",
       );
@@ -1327,11 +1265,7 @@ test("UX108.repair-storage-refusal: refused checkpoint prevents replacement uplo
   page,
 }) => {
   const state = await unavailableServerIntent(page);
-  await expect(
-    page.getByText("Local reply draft saved in this browser profile.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await waitForReplySaved(page);
   await page.evaluate(() => {
     const original = IDBDatabase.prototype.transaction;
     Object.defineProperty(window, "refused111Writes", {
@@ -1494,22 +1428,19 @@ for (const observation of ["guest", "unknown", "refused-B"] as const) {
     ).toBeVisible();
     state.member = observation === "refused-B" ? "8" : observation;
     state.refusedReply = observation === "refused-B";
-    await clickThreadTool(page, "Refresh thread");
+    await refreshReplyFromNative(page);
     state.gate = null;
     release();
     await revealWritingDetails(page);
-    await page
-      .getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      })
-      .click();
+    await (
+      await writingDetailAction(page, "Check current account and form")
+    ).click();
     await expect(
       page.getByRole("button", { name: "Send reply", exact: true }),
     ).toBeVisible();
     await expect(await selectSourceEditor(page)).toHaveValue(source);
     await expect(
-      page.getByLabel("Select attachments", { exact: true }),
+      page.getByRole("button", { name: "Select attachments", exact: true }),
     ).toBeDisabled();
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect(
@@ -1527,12 +1458,8 @@ for (const kind of ["kind", "controls"] as const) {
     state.member = "7";
     if (kind === "kind") state.uploads.set("88", "attachimg");
     else state.attachmentFieldsMissing = true;
-    await page
-      .getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      })
-      .click();
+    // Observe the changed native account/file state through actual read-only thread refresh.
+    await refreshReplyFromNative(page);
     await expect(page.locator(".writing-destination")).toContainText(
       "Writer 7 (7)",
     );
@@ -1589,12 +1516,8 @@ test("UX108.file-read-actor-race: replacement bytes delivered after an actor cha
     )
     .toBe(true);
   state.member = "7";
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Observe the changed native account/file state through actual read-only thread refresh.
+  await refreshReplyFromNative(page);
   await expect(page.locator(".writing-destination")).toContainText(
     "Writer 7 (7)",
   );
@@ -1778,7 +1701,7 @@ for (const pending of ["review", "mention"] as const) {
       await expect.poll(() => state.requests.length).toBeGreaterThan(count);
     } else {
       state.mentionGate = gate;
-      await revealAdvanced(page);
+      await revealAdvanced(page, "Mentions");
       await page
         .getByLabel("Find a person to mention", { exact: true })
         .fill("Other author");
@@ -1792,22 +1715,41 @@ for (const pending of ["review", "mention"] as const) {
         .toBe(true);
     }
     state.member = "8";
-    await clickThreadTool(page, "Refresh thread");
+    await refreshReplyFromNative(page);
     await expect(page.locator(".writing-destination")).toContainText(
       "Writer 8 (8)",
     );
+    const oldResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return pending === "mention"
+        ? url.pathname === "/plugin.php"
+        : url.searchParams.get("mod") === "post";
+    });
     release();
     state.gate = null;
     state.mentionGate = null;
-    // A fresh deliberate form check also provides a completion boundary for the
-    // old response; neither old result may become a usable control afterward.
-    await revealWritingDetails(page);
-    await page
-      .getByRole("button", {
-        name: "Check current account and form",
+    // Await the held external result; a successful actor refresh no longer offers Check.
+    await oldResponse;
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    // The delayed form can leave account evidence unverified. It must not publish
+    // before a fresh native reading observation restores B.
+    expect(
+      state.requests.filter(
+        (r) => r.method === "POST" && new URL(r.url).pathname !== "/plugin.php",
+      ),
+    ).toHaveLength(0);
+    await expect(
+      page.getByRole("region", {
+        name: "Prepared publication review",
         exact: true,
-      })
-      .click();
+      }),
+    ).toHaveCount(0);
+    await refreshReplyFromNative(page);
     await expect(page.locator(".writing-destination")).toContainText(
       "Writer 8 (8)",
     );
@@ -1861,12 +1803,8 @@ test("UX108.raw-crlf-repair: repair preserves exact recovered CRLF bytes and Uni
   await selectSourceEditor(recovered);
   await revealWritingTools(recovered);
   await revealWritingDetails(recovered);
-  await recovered
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // The restored tab already navigated to fresh native content; observe B explicitly.
+  await refreshReplyFromNative(recovered);
   await expect(recovered.locator(".writing-destination")).toContainText(
     "Writer 8 (8)",
   );
@@ -1920,12 +1858,10 @@ test("UX108.composing-actor: observed actor change preserves in-progress editor 
   await editor.dispatchEvent("compositionstart", { data: "編" });
   state.member = "8";
   await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await expect(
+    page.getByRole("button", { name: "More writing actions", exact: true }),
+  ).toBeDisabled();
+  await refreshReplyFromNative(page);
   await expect(page.locator(".writing-destination")).toContainText(
     "Writer 8 (8)",
   );

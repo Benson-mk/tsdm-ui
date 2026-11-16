@@ -3245,7 +3245,7 @@ input {
 }
 .reply-composer > .writing-content {
   flex: 0 1 auto;
-  min-height: 0;
+  min-height: 64px;
 }
 .reply-composer .reply-input-row {
   display: grid;
@@ -3269,7 +3269,7 @@ input {
 .reply-composer .reply-input-shell textarea {
   height: auto;
   min-height: 44px;
-  max-height: 140px;
+  max-height: min(140px, max(44px, calc(var(--view-height, 100dvh) * 0.2)));
   border: 0;
   outline: 0;
   padding: 10px;
@@ -3440,4 +3440,194 @@ input {
 }
 .reply-risk-dialog {
   max-width: min(32rem, calc(100vw - 2rem));
+}
+
+/* Expanded ordinary editing borrows the full thread column without remounting it. */
+.conversation-region.reply-editing-expanded
+  > :not(.source-writing, .conversation-status) {
+  display: none;
+}
+:host .conversation-region.reply-editing-expanded > .reply-composer {
+  flex: 1 1 0;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+}
+.reply-editing-expanded .reply-composer > .writing-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.reply-editing-expanded .post-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+.reply-editing-expanded .reply-input-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  flex: 1 0 220px;
+  align-items: stretch;
+}
+.reply-editing-expanded .reply-input-shell {
+  display: flex;
+  flex-direction: column;
+}
+.reply-editing-expanded .reply-source-label,
+.reply-editing-expanded .visual-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.reply-editing-expanded .reply-composer .reply-input-shell textarea,
+.reply-editing-expanded .reply-composer .reply-input-shell .ProseMirror {
+  flex: 1;
+  min-height: 220px;
+  max-height: none;
+  field-sizing: fixed;
+}
+.reply-editing-expanded .reply-review {
+  align-self: end;
+}
+.reply-icon-tools.editor-controls {
+  flex: none;
+  max-height: none;
+  overflow: visible;
+}
+.reply-icon-tools > .writing-actions,
+.reply-icon-tools > .common-formatting {
+  display: inline-flex;
+  flex-wrap: wrap;
+  vertical-align: middle;
+  gap: 4px;
+}
+.reply-icon-tools > .writing-actions > button,
+.reply-icon-tools > .common-formatting > button {
+  min-width: 40px;
+  min-height: 40px;
+}
+.reply-icon-tools .workspace-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.reply-recovery-dialog {
+  width: min(640px, calc(var(--view-width, 100vw) - 32px));
+}
+.reply-recovery-dialog .reply-conflict {
+  min-width: 0;
+  margin-block: 16px;
+}
+.reply-recovery-dialog textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.reply-recovery-dialog button {
+  min-height: 44px;
+  white-space: normal;
+}
+.reply-recovery-trigger {
+  gap: 4px;
+}
+
+.reply-icon-tools .advanced-authoring > summary {
+  box-sizing: border-box;
+}
+.reply-icon-tools .composer-help {
+  margin-block: 4px;
+}
+.reply-icon-tools > .writing-actions {
+  padding-block: 0;
+}
+
+/* Reading yields its column, but the original submission controls stay usable. */
+.reply-editing-expanded
+  > :is(.reading-pane, .reader-placeholder):has(> .reply-sends) {
+  display: contents;
+}
+.reply-editing-expanded
+  > :is(.reading-pane, .reader-placeholder)
+  > :not(.reply-sends) {
+  display: none;
+}
+.reply-editing-expanded
+  > :is(.reading-pane, .reader-placeholder)
+  > .reply-sends {
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(270px, calc(var(--view-height, 100dvh) * 0.3));
+  overflow: auto;
+}
+
+.reply-editing-toolbar,
+.reply-editing-toolbar > [role="group"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.reply-editing-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+}
+.reply-editing-toolbar .workspace-icon {
+  width: 20px;
+  height: 20px;
+}
+.reply-editing-toolbar [data-state="on"] {
+  background: var(--ink);
+  color: var(--surface);
+}
+.reply-toolbar-popover {
+  z-index: 60;
+  box-sizing: border-box;
+  width: min(360px, calc(var(--view-width, 100vw) - 24px));
+  max-height: min(70dvh, var(--reka-popover-content-available-height));
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--boundary);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 32px #0002;
+}
+.reply-toolbar-popover h3 {
+  margin: 0 0 12px;
+}
+.reply-toolbar-popover .editor-tools {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.reply-toolbar-popover legend {
+  display: none;
+}
+.reply-toolbar-commands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.reply-toolbar-popover button {
+  min-height: 40px;
+}
+.reply-toolbar-popover input,
+.reply-toolbar-popover select {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.source-writing .reply-editing-toolbar input.reply-attachment-picker {
+  display: none;
+}
+
+.reply-version-context {
+  overflow-wrap: anywhere;
+}
+.reply-version-context p,
+.reply-version-context ul {
+  margin-block: 0.4rem;
 }

@@ -103,10 +103,12 @@ durable schema or stored authorization is added.
 
 Changed writing/selection, retargeting, account evidence or recovery can cancel a
 pre-dispatch activation; discovering an initially unverified actor cannot silently
-authorize that actor. Preview is optional and inert. Visual Enter sends and
-Shift+Enter inserts a represented newline; complete BBCode uses Enter for newline
-and Ctrl/Cmd+Enter for Send. Only actual editor surfaces own these shortcuts, with
-composition confirmation guarded. Nonreply authoring keeps its prior review policy.
+authorize that actor. Preview is optional and inert. The owner's #112 revision
+supersedes the original visual-Enter shortcut: both visual and complete BBCode
+editors use Ctrl/Cmd+Enter for Send; plain Enter and Shift+Enter insert newlines.
+Only actual editor surfaces own these shortcuts, with composition confirmation
+and key repeat guarded. Toolbar controls and parameter inputs do not send.
+Nonreply authoring keeps its prior review policy.
 Checked-uncertain recovery retains explicit duplicate-risk acceptance, whose
 ordinary action now truthfully accepts and sends. Pending-next-draft presentation
 and the per-thread unsettled-send registry remain #111 scope. Evidence, the root's

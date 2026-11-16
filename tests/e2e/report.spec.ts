@@ -1,37 +1,20 @@
+import { loadThreadRange } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-const origin = "https://www.tsdm39.com";
-const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
-const nativeReasons =
-  "var reasons = ['广告垃圾','违规内容','恶意灌水','重复发帖','其他'];\nvar reasonstring = '';\nfor (i=0; i<reasons.length; i++) {\nreasonstring += '<label><input type=\"radio\" name=\"report_select\" class=\"pr\" onclick=\"' + (i < reasons.length -1 ? '$(\\'report_message\\').innerHTML=this.value;' : '') + '$(\\'report_other\\').style.display=\\'' + (i < reasons.length -1 ? 'none' : '') + '\\';$(\\'report_msg\\').style.display=\\'' + (i < reasons.length -1 ? 'none' : '') + '\\'\" value=\"' + reasons[i] + '\"> ' + reasons[i] + '</label><br />';\n}\n$('report_reasons').innerHTML = reasonstring;\n";
+import {
+  origin,
+  threadURL,
+  createReportFixture,
+  renderReportResponse,
+} from "./report-fixture";
 const ledger = new WeakMap<
   Page,
   { url: string; method: string; body: string | null }[]
 >();
-async function open(page: Page) {
+async function open(page: Page, adjacent = false) {
   const requests: { url: string; method: string; body: string | null }[] = [];
   ledger.set(page, requests);
-  const state = {
-    member: "7",
-    available: true,
-    refused: false,
-    wrongTarget: false,
-    formActor: 7,
-    hashMismatch: false,
-    script: nativeReasons,
-    extra: "",
-    outcome: "success",
-    action: "misc.php?mod=report",
-    token: "SYNTHETIC_TOKEN",
-    selectedField: "reportsubmit",
-    reportValue: "true",
-    limit: "200",
-    keyup: "dstrLenCalc(this, 'checklen');",
-    header: "",
-    disabled: false,
-    handler:
-      "if(!$('report_message').value) return false;ajaxpost(this.id, 'form_miscreport101');",
-  };
+  const state = createReportFixture();
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const r = route.request(),
@@ -47,56 +30,13 @@ async function open(page: Page) {
         body: `<html><body onkeydown="if(event.keyCode==27) return false;"><script src="${origin}/__entry.js"></script></body></html>`,
       });
     requests.push({ url: u.href, method: r.method(), body: r.postData() });
-    if (u.pathname === "/misc.php") {
-      if (r.method() === "POST") {
-        if (state.outcome === "lost") return route.abort();
-        return route.fulfill({
-          contentType: "text/html; charset=utf-8",
-          body:
-            state.outcome === "rejected"
-              ? '<div class="alert_error">举报被拒绝</div>'
-              : '<div class="alert_right">举报成功</div>',
-        });
-      }
-      const hidden = {
-        referer: threadURL,
-        [state.selectedField]: state.reportValue,
-        rtype: "post",
-        rid: state.wrongTarget ? "999" : "101",
-        fid: "5",
-        url: threadURL,
-        inajax: "1",
-        handlekey: "miscreport101",
-        formhash: state.token,
-      };
-      const body = state.refused
-        ? '<div class="alert_error">没有权限举报</div>'
-        : `<form id="form_miscreport101" method="post" action="${state.action}" onsubmit="${state.handler}">${Object.entries(
-            hidden,
-          )
-            .map(([k, v]) => `<input type="hidden" name="${k}" value="${v}">`)
-            .join(
-              "",
-            )}<div id="report_reasons"></div><div id="report_other"><textarea id="report_message" name="message" onfocus="this.innerHTML='';this.focus=null;this.className='reasonarea pt mtn'" onkeyup="${state.keyup}" ${state.disabled ? "disabled" : ""}>请填写举报内容</textarea></div><div id="report_msg"><span class="z">还可输入 <strong id="checklen">${state.limit}</strong> 个字符</span></div><button id="report_submit" type="submit" value="true">举报</button>${state.extra}</form><script>${state.script}</script>`;
-      return route.fulfill({
-        contentType: "application/json; charset=utf-8",
-        body: JSON.stringify({
-          ok: 1,
-          type: "result",
-          schema: 13,
-          kind: "page",
-          uid: state.formActor,
-          formhash: state.hashMismatch ? "OTHER" : state.token,
-          document: state.header + body,
-        }),
-      });
-    }
-    return route.fulfill({
-      contentType: "application/json; charset=utf-8",
-      body: JSON.stringify({
-        document: `<div id="um"><strong><a href="home.php?mod=space&uid=${state.member}">Member ${state.member}</a></strong></div><div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Board</a></div><div id="postlist"><h1 id="thread_subject">Report target</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=8">Other author</a></div><a id="postnum101"><em>1</em>#</a><div class="pcb"><p>Exact post body</p></div><div class="po"><div class="pob">${state.available ? `<a href="javascript:;" onclick="showWindow('miscreport101', 'misc.php?mod=report&rtype=post&rid=101&tid=42&fid=5', 'get', -1);return false;">举报</a>` : ""}</div></div></div></div>`,
-      }),
-    });
+    const response = renderReportResponse(
+      state,
+      { url: r.url(), method: r.method(), body: r.postData() },
+      adjacent,
+    );
+    if (response.abort) return route.abort();
+    return route.fulfill(response);
   });
   await page.goto(threadURL);
   await expect(
@@ -501,4 +441,30 @@ test("UX103.legacy-snapshot: absent optional report capability is honest until a
   await expect(dialog.getByRole("radio")).toHaveCount(5);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   expect(requests.filter((r) => r.method === "POST")).toEqual([]);
+});
+
+test("UX112.adjacent-report: an appended post discovers its own fresh source form without sending", async ({
+  page,
+}) => {
+  const { requests } = await open(page, true);
+  await loadThreadRange(page, "later");
+  await expect(
+    page.getByRole("article", { name: "Post 101", exact: true }),
+  ).toHaveCount(1);
+  await page
+    .getByRole("button", { name: "Post 201 actions", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Report", exact: true }).click();
+  const dialog = page.getByRole("dialog", {
+    name: "Report post 201",
+    exact: true,
+  });
+  await expect(dialog.getByRole("radio")).toHaveCount(5);
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(requests.filter((r) => r.method === "POST")).toEqual([]);
+  expect(
+    requests
+      .filter((r) => new URL(r.url).searchParams.get("mod") === "viewthread")
+      .at(-1)?.url,
+  ).toContain("page=2");
 });

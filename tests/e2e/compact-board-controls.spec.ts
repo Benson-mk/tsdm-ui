@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { selectSourceEditor } from "./editor-controls";
 test.beforeEach(async ({ browser }, info) => {
   info.annotations.push({
     type: "browser-version",
@@ -268,6 +269,7 @@ for (const width of [905, 390])
       await page
         .getByRole("button", { name: "Reply to thread", exact: true })
         .click();
+      await selectSourceEditor(page);
       const source = page.getByRole("textbox", {
         name: "Complete source",
         exact: true,

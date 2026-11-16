@@ -1,3 +1,5 @@
+import { compactReplyBesideReader } from "./editor-controls";
+import { selectSourceEditor } from "./editor-controls";
 import { expectThreadCheckMode, openThreadMore } from "./navigation-ui";
 import { setAutomaticChecks } from "./navigation-ui";
 import { openThreadPages, loadThreadRange } from "./navigation-ui";
@@ -557,17 +559,15 @@ test("IM71.preparation-priority: deliberate reply preparation discards delayed r
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Retained source [quote]authored[/quote]");
+  await (
+    await selectSourceEditor(page)
+  ).fill("Retained source [quote]authored[/quote]");
   release();
   await page.waitForTimeout(100);
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Retained source [quote]authored[/quote]",
   );
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   await expect(page.locator("#pid108")).toHaveCount(0);
   expect(requests).toHaveLength(3);
   expect(requests.every((value) => value.startsWith("GET "))).toBe(true);

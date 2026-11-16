@@ -19,17 +19,30 @@ const props = defineProps<{
   post: DeepReadonly<Post>;
   threadId: string;
   boardId: string | null;
-  filters: readonly { url: string; label: string; authorId: string | null }[];
 }>();
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
 const label = computed(() => insert(text.value.postActions, props.post.id));
-const filter = computed(() =>
-  props.filters.find(
-    (f) => f.authorId !== null && f.authorId === props.post.authorId,
-  ),
-);
+const filter = computed(() => {
+  const reading = props.workspace.threadHistory.state.value.result;
+  if (!reading || props.post.authorId === null) return;
+  return props.workspace.threadHistory
+    .filtersFor(props.post.id)
+    .find((candidate) => {
+      const url = new URL(candidate.url);
+      return (
+        url.origin === new URL(reading.thread.url).origin &&
+        url.searchParams.get("tid") === props.threadId &&
+        url.searchParams.get("authorid") === props.post.authorId &&
+        new Set(
+          reading.thread.posts
+            .filter((post) => post.authorId === props.post.authorId)
+            .map((post) => post.author),
+        ).size === 1
+      );
+    });
+});
 const open = ref(false);
 const trigger = ref<InstanceType<typeof DropdownMenuTrigger> | null>(null);
 const boundary = ref<HTMLElement | null>(null);
@@ -54,7 +67,9 @@ function report() {
     return;
   void props.workspace.openReport({
     url: props.post.reportURL,
-    threadURL: reading.thread.url,
+    threadURL:
+      props.workspace.threadHistory.sourceFor(props.post.id) ??
+      reading.thread.url,
     threadId: props.threadId,
     postId: props.post.id,
     boardId: props.boardId,
@@ -67,7 +82,9 @@ function rate() {
   if (!props.post.rateURL || reading?.account.kind !== "member") return;
   void props.workspace.openRating({
     url: props.post.rateURL,
-    threadURL: reading.thread.url,
+    threadURL:
+      props.workspace.threadHistory.sourceFor(props.post.id) ??
+      reading.thread.url,
     threadId: props.threadId,
     postId: props.post.id,
     author: props.post.author,

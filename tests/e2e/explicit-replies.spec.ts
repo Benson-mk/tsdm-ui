@@ -1,9 +1,13 @@
+import { refreshReplyFromNative } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import {
   selectSourceEditor,
   revealWritingTools,
-  revealWritingDetails,
+  writingDetailAction,
+  revealWritingOptions,
+  revealReplyGroup,
+  chooseAttachments,
 } from "./editor-controls";
 import {
   openSettings,
@@ -110,6 +114,7 @@ test("UX110.one-send: explicit addressed Send binds exact source options target 
     "[b]One explicit reply[/b]\n[quote]保留原文[/quote]\n[unknown]literal[/unknown]";
   await (await selectSourceEditor(page)).fill(source);
   await revealWritingTools(page);
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await expect(page.locator(".reply-preview")).toHaveCount(0);
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
@@ -142,13 +147,13 @@ test("UX110.one-send: explicit addressed Send binds exact source options target 
   ).toHaveValue(source);
 });
 
-test("UX110.visual-keys: Shift Enter inserts an exact newline and Enter sends the visual reply", async ({
+test("UX110.visual-keys: Shift Enter inserts an exact newline and modifier Enter sends the visual reply", async ({
   page,
 }) => {
   const state = await open(page);
   await (await selectSourceEditor(page)).fill("First line");
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
     .click();
   const visual = page.getByRole("textbox", {
     name: "Visual post content",
@@ -157,7 +162,7 @@ test("UX110.visual-keys: Shift Enter inserts an exact newline and Enter sends th
   await visual.press("Shift+Enter");
   await visual.pressSequentially("Second line");
   expect(posts(state)).toHaveLength(0);
-  await visual.press("Enter");
+  await visual.press("Control+Enter");
   await expect.poll(() => posts(state).length).toBe(1);
   expect(new URLSearchParams(posts(state)[0]!.body ?? "").get("message")).toBe(
     "First line\nSecond line",
@@ -196,14 +201,14 @@ test("UX110.mode-hints: compact accessible descriptions and visible tools follow
     name: "Visual post content",
     exact: true,
   });
-  const visualHint = "Enter: send · Shift+Enter: new line";
+  const visualHint = "Enter: new line · Ctrl/⌘+Enter: send";
   const sourceHint = "Enter: new line · Ctrl/⌘+Enter: send";
   await expect(visual).toHaveAccessibleDescription(visualHint);
   await expect(page.getByText(visualHint, { exact: true })).toBeHidden();
   await page.getByRole("button", { name: "Reply tools", exact: true }).click();
   await expect(page.getByText(visualHint, { exact: true })).toBeVisible();
   await page
-    .getByRole("button", { name: "Source editor", exact: true })
+    .getByRole("button", { name: "Switch to source editor", exact: true })
     .click();
   const source = page.getByRole("textbox", {
     name: "Complete source",
@@ -225,7 +230,7 @@ test("UX110.mode-hints: compact accessible descriptions and visible tools follow
   await revealWritingTools(page);
   await expect(page.getByText(sourceHint, { exact: true })).toBeVisible();
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
     .click();
   await expect(visual).toHaveAccessibleDescription(visualHint);
   await expect(page.getByText(visualHint, { exact: true })).toBeVisible();
@@ -261,9 +266,10 @@ for (const change of ["source", "options", "selection"] as const) {
     await sendButton(page).click();
     await expect.poll(() => replyGets(state)).toBeGreaterThan(before);
     if (change === "source") await source.fill("Later independent writing");
-    else if (change === "options")
+    else if (change === "options") {
+      await revealWritingOptions(page);
       await page.getByLabel("Signature", { exact: true }).uncheck();
-    else {
+    } else {
       await source.focus();
       await source.press("ArrowLeft");
     }
@@ -345,14 +351,31 @@ for (const phase of ["prepare", "preflight"] as const) {
             exact: true,
           }),
         ).toHaveValue("Exact refused reply");
-      await expect(
-        phase === "prepare"
-          ? page.locator(".source-writing")
-          : page.getByRole("article", {
-              name: "Reply submission",
-              exact: true,
-            }),
-      ).toContainText(/changed|权限不足|account/i);
+      if (phase === "prepare" && fault === "form") {
+        await expect(
+          page.getByRole("dialog", {
+            name: "Current form options",
+            exact: true,
+          }),
+        ).toBeVisible();
+        const option = page.getByLabel("Signature", { exact: true });
+        await expect(option).toHaveAttribute("aria-invalid", "true");
+        await expect(option).toBeFocused();
+        await expect(option).toHaveAccessibleDescription(
+          "Choose an available option.",
+        );
+        await expect(page.locator(".conversation-status")).toContainText(
+          "Correct the highlighted fields required by the current native form.",
+        );
+      } else
+        await expect(
+          phase === "prepare"
+            ? page.locator(".conversation-status")
+            : page.getByRole("article", {
+                name: "Reply submission",
+                exact: true,
+              }),
+        ).toContainText(/changed|权限不足|account/i);
       delete state.respond;
     });
   }
@@ -433,7 +456,7 @@ for (const mode of ["visual", "source"] as const) {
     await (await selectSourceEditor(page)).fill("Base ");
     if (mode === "visual")
       await page
-        .getByRole("button", { name: "Visual editor", exact: true })
+        .getByRole("button", { name: "Switch to visual editor", exact: true })
         .click();
     const input = page.getByRole("textbox", {
       name: mode === "visual" ? "Visual post content" : "Complete source",
@@ -448,12 +471,12 @@ for (const mode of ["visual", "source"] as const) {
     });
     await input.dispatchEvent("keydown", {
       key: "Enter",
-      ctrlKey: mode === "source",
+      ctrlKey: true,
       isComposing: true,
     });
     await input.dispatchEvent("keydown", {
       key: "Enter",
-      ctrlKey: mode === "source",
+      ctrlKey: true,
       keyCode: 229,
     });
     expect(posts(state)).toHaveLength(0);
@@ -479,7 +502,7 @@ for (const mode of ["visual", "source"] as const) {
           cancelable: true,
         }),
       );
-    }, mode === "source");
+    }, true);
     expect(posts(state)).toHaveLength(0);
     await expect(sendButton(page)).toBeEnabled();
     const afterConfirmation = await observedSource();
@@ -487,7 +510,7 @@ for (const mode of ["visual", "source"] as const) {
       body: JSON.stringify({ mode, afterCommit, afterConfirmation }),
       contentType: "application/json",
     });
-    await input.press(mode === "visual" ? "Enter" : "Control+Enter");
+    await input.press("Control+Enter");
     await expect(
       page.getByText(/Confirmed stored reply in thread 42/),
     ).toBeVisible();
@@ -506,14 +529,15 @@ test("UX110.tool-keys: tool inputs and repeated or unsupported editor keys canno
   const source = await selectSourceEditor(page);
   await source.fill("Tool focus is not Send");
   await revealWritingTools(page);
-  await page.locator(".advanced-authoring > summary").click();
-  await page.getByRole("button", { name: "Link URL", exact: true }).click();
-  const url = page.getByRole("textbox", { name: "Link URL", exact: true });
-  await url.fill("https://example.com/");
-  await url.press("Enter");
-  await url.press("Control+Enter");
-  await url.press("Meta+Enter");
+  for (const key of ["Enter", "Control+Enter", "Meta+Enter"]) {
+    await revealReplyGroup(page, "Insert");
+    await page.getByRole("button", { name: "Link URL", exact: true }).click();
+    const url = page.getByRole("textbox", { name: "Link URL", exact: true });
+    await url.fill("https://example.com/");
+    await url.press(key);
+  }
   expect(posts(state)).toHaveLength(0);
+  await selectSourceEditor(page);
   await source.dispatchEvent("keydown", {
     key: "Enter",
     ctrlKey: true,
@@ -522,7 +546,7 @@ test("UX110.tool-keys: tool inputs and repeated or unsupported editor keys canno
   await source.press("Alt+Control+Enter");
   expect(posts(state)).toHaveLength(0);
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
     .click();
   const visual = page.getByRole("textbox", {
     name: "Visual post content",
@@ -539,7 +563,7 @@ test("UX110.confirmation-order: Enter immediately after compositionend does not 
   const state = await open(page);
   await (await selectSourceEditor(page)).fill("Confirmed 你好");
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
     .click();
   const visual = page.getByRole("textbox", {
     name: "Visual post content",
@@ -578,6 +602,10 @@ test("UX110.uncertain-resend: checked uncertainty requires explicit duplicate-ri
     return response;
   };
   await sendButton(page).click();
+  await expect.poll(() => posts(state).length).toBe(1);
+  await expect(
+    page.getByText("Reply outcome unknown", { exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Check reply status", exact: true })
     .click();
@@ -719,13 +747,8 @@ test("UX110.current-actor: shared historical provenance stays A while explicit S
   const state = await open(page);
   await (await selectSourceEditor(page)).fill("Shared writing by current B");
   state.member = "8";
-  await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Refresh observes the changed actor without a publication.
+  await refreshReplyFromNative(page);
   await expect(page.locator(".writing-destination")).toContainText(
     "Writer 8 (8)",
   );
@@ -750,13 +773,8 @@ test("UX110.unknown-actor: a newly discovered identity cannot inherit an unverif
   const source = await selectSourceEditor(page);
   await source.fill("Keep exact source while actor is unknown");
   state.member = "unknown";
-  await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  // Refresh observes the changed actor without a publication.
+  await refreshReplyFromNative(page);
   await expect(sendButton(page)).toBeEnabled();
   state.member = "7";
   await sendButton(page).click();
@@ -782,7 +800,7 @@ test("UX110.optional-preview: inert source-faithful Preview neither sends nor ch
     "[b]Optional inspection[/b]\n[url=https://example.test/]Inert link[/url]\n[img]https://example.test/a.png[/img]\n[unknown]保留[/unknown]";
   const source = await selectSourceEditor(page);
   await source.fill(literal);
-  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await (await writingDetailAction(page, "Preview")).click();
   const preview = page.locator(".reply-preview");
   await expect(preview).toBeVisible();
   await expect(preview).toContainText("Optional inspection");
@@ -808,7 +826,7 @@ test("UX110.unresolved: visual literal interpretation blocks Send until explicit
   const state = await open(page);
   await (await selectSourceEditor(page)).fill("[B]retained[/B]");
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
     .click();
   const visual = page.getByRole("textbox", {
     name: "Visual post content",
@@ -849,7 +867,7 @@ test("UX110.local-attachment: pending and reload-unavailable file intent block p
     await selectSourceEditor(page)
   ).fill("Keep reply around lost attachment");
   await revealWritingTools(page);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "pending.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("Fixture attachment bytes"),
@@ -865,13 +883,9 @@ test("UX110.local-attachment: pending and reload-unavailable file intent block p
   await expect(
     page.getByText("Unavailable · pending.txt", { exact: true }),
   ).toBeVisible();
-  await revealWritingDetails(page);
-  await page
-    .getByRole("button", {
-      name: "Check current account and form",
-      exact: true,
-    })
-    .click();
+  await (
+    await writingDetailAction(page, "Check current account and form")
+  ).click();
   await sendButton(page).click();
   await expect(sendButton(page)).toBeEnabled();
   expect(posts(state)).toHaveLength(0);
@@ -890,17 +904,17 @@ test("UX110.local-attachment: pending and reload-unavailable file intent block p
 for (const [language, visualHint, sourceHint, sourceLabel, visualButton] of [
   [
     "zh-CN",
-    "Enter：发送 · Shift+Enter：换行",
+    "Enter：换行 · Ctrl/⌘+Enter：发送",
     "Enter：换行 · Ctrl/⌘+Enter：发送",
     "完整源码",
-    "可视编辑",
+    "切换到可视编辑",
   ],
   [
     "zh-TW",
-    "Enter：傳送 · Shift+Enter：換行",
+    "Enter：換行 · Ctrl/⌘+Enter：傳送",
     "Enter：換行 · Ctrl/⌘+Enter：傳送",
     "完整原始碼",
-    "視覺編輯",
+    "切換至視覺編輯",
   ],
 ]) {
   test(`UX110.hints-${language}: current-mode guidance remains localized across compact and expanded presentation`, async ({
@@ -970,7 +984,7 @@ for (const [structure, initial, expected, selector] of [
     const state = await open(page);
     await (await selectSourceEditor(page)).fill(initial!);
     await page
-      .getByRole("button", { name: "Visual editor", exact: true })
+      .getByRole("button", { name: "Switch to visual editor", exact: true })
       .click();
     const visual = page.getByRole("textbox", {
       name: "Visual post content",
@@ -981,7 +995,7 @@ for (const [structure, initial, expected, selector] of [
     await visual.press("Shift+Enter");
     await visual.pressSequentially("Second");
     expect(posts(state)).toHaveLength(0);
-    await visual.press("Enter");
+    await visual.press("Control+Enter");
     await expect(
       page.getByText(/Confirmed stored reply in thread 42/),
     ).toBeVisible();

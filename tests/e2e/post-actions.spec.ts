@@ -1,3 +1,5 @@
+import { revealWritingDetails } from "./editor-controls";
+import { chooseAttachments } from "./editor-controls";
 import { selectSourceEditor } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -188,8 +190,8 @@ test("UX101.retarget: same-thread target and removal preserve authored quotes an
     "My authored text\n[quote=Literal author]Keep this exact literal quote[/quote]",
   );
   const body = await editor.inputValue();
-  await page.locator(".writing-details > summary").click();
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await revealWritingDetails(page);
+  await chooseAttachments(page, {
     name: "retained.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("selected bytes"),
@@ -338,8 +340,8 @@ test("UX101.race: newer target and general reply win over held preparation while
     .click();
   const editor = await selectSourceEditor(page);
   await editor.fill("Before waiting");
-  await page.locator(".writing-details > summary").click();
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await revealWritingDetails(page);
+  await chooseAttachments(page, {
     name: "waiting.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("local"),
@@ -659,7 +661,10 @@ test("UX101.editor: retarget preserves source selection, undo and active visual 
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Compact writing", exact: true })
     .click();
   await (
     await menu(page)

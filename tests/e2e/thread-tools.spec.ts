@@ -1,3 +1,5 @@
+import { compactReplyBesideReader } from "./editor-controls";
+import { selectSourceEditor } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { readableLines, expectPreservedReadingLine } from "./readable-lines";
@@ -439,12 +441,11 @@ test("UI85.guards: More same-thread order and history navigation preserve retain
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Retained 中文 source [b]exact[/b]");
   const before = await source.inputValue();
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   await page.getByRole("button", { name: "More thread options" }).click();
   await page
     .getByRole("menuitem", { name: "Refresh thread", exact: true })
@@ -481,12 +482,8 @@ for (const rich of [false, true])
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await expect(
-      page.getByLabel("Complete source", { exact: true }),
-    ).toBeVisible();
-    await page
-      .getByRole("button", { name: "Return to reading", exact: true })
-      .click();
+    await expect(await selectSourceEditor(page)).toBeVisible();
+    await compactReplyBesideReader(page);
     const pane = page.locator(".reading-pane");
     await pane.evaluate((e) => {
       e.scrollTop = 33;
@@ -556,7 +553,7 @@ for (const rich of [false, true])
   });
 
 for (const retainedBoard of [false, true])
-  test(`UI85.cached-native-inline-${retainedBoard ? "board" : "direct"}: guarded cross-thread return at a narrower viewport preserves the same real first line and offset`, async ({
+  test(`UI85.cached-native-inline-${retainedBoard ? "board" : "direct"}: independently retained cross-thread return at a narrower viewport preserves the same real first line and offset`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width: 1119, height: 629 });
@@ -600,12 +597,8 @@ for (const retainedBoard of [false, true])
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page
-      .getByLabel("Complete source", { exact: true })
-      .fill("Unsent preserved source");
-    await page
-      .getByRole("button", { name: "Return to reading", exact: true })
-      .click();
+    await (await selectSourceEditor(page)).fill("Unsent preserved source");
+    await compactReplyBesideReader(page);
     if (retainedBoard) {
       await page.locator(".reader-breadcrumb .board-context-link").click();
       await expect(page.locator(".results-pane .subject")).toBeVisible();
@@ -631,12 +624,12 @@ for (const retainedBoard of [false, true])
       await pane
         .getByRole("link", { name: "Other thread", exact: true })
         .click();
-    await page
-      .getByRole("button", {
+    await expect(
+      page.getByRole("button", {
         name: "Keep writing and read thread",
         exact: true,
-      })
-      .click();
+      }),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("heading", { name: "Another source thread", exact: true }),
     ).toBeVisible();
@@ -652,9 +645,12 @@ for (const retainedBoard of [false, true])
     });
     await artifact(page, info, requests);
     expectPreservedReadingLine(before, after);
-    await page
-      .getByRole("button", { name: "Return to writing", exact: true })
-      .click();
+    const resume = page.getByRole("button", {
+      name: "Return to writing",
+      exact: true,
+    });
+    if (await resume.isVisible()) await resume.click();
+    await selectSourceEditor(page);
     await expect(
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveValue("Unsent preserved source");
@@ -744,12 +740,11 @@ test("UX100.writing: pending page choices and explicit Go preserve the real edit
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Preserve page jump 中文 [b]writing[/b]");
   const before = await source.inputValue();
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   const trigger = page.locator(".reader-page-trigger");
   const dialog = page.getByRole("dialog", {
     name: "Thread pages",

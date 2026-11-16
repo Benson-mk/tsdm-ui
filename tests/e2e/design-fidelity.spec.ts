@@ -139,11 +139,11 @@ test("DESIGN.chrome: quiet controls, compact taxonomy, rounded list selection an
     .soft((await style(page, ".workspace > header button")).background)
     .toBe("rgba(0, 0, 0, 0)");
   expect.soft((await style(page, ".boards-navigation h2")).size).toBe(12);
-  expect.soft((await style(page, ".thread-row")).radius).toBe("8px");
+  expect.soft((await style(page, ".thread-row")).radius).toBe("0px");
   expect
     .soft((await style(page, ".conversation-heading .context-kind")).size)
     .toBe(12);
-  expect.soft((await style(page, ".history-controls")).size).toBe(12);
+  expect.soft((await style(page, ".history-controls")).height).toBe(0);
   expect.soft((await style(page, ".post-actions button")).size).toBe(14);
   expect
     .soft((await style(page, ".post-actions button")).background)
@@ -174,11 +174,13 @@ test("DESIGN.composer: compact reply exposes editor and review together, expansi
   const input = await selectSourceEditor(page);
   await input.fill("A retained reply 中文");
   const node = await input.elementHandle();
+  // Source mode is selected through compact tools; close those tools before measuring rest.
+  await page.getByRole("button", { name: "Reply tools", exact: true }).click();
   await capture(page, info, "compact-reply");
   expect
     .soft((await style(page, ".source-writing")).height)
-    // The sidebar prototype reserves 324px for its visible target and reply controls.
-    .toBeLessThanOrEqual(324);
+    // Parent #95 supersedes the prototype form with one compact input/action row.
+    .toBeLessThanOrEqual(105);
   const review = page.getByRole("button", {
     name: "Send reply",
     exact: true,
@@ -192,10 +194,12 @@ test("DESIGN.composer: compact reply exposes editor and review together, expansi
   expect(
     await input.evaluate((current, previous) => current === previous, node),
   ).toBe(true);
-  // Parent #81 decision13 intentionally replaces the old bottom-only cap.
+  // Parent #95 keeps expanded ordinary replies in the reader column at every width.
   const aside = (await page.locator(".source-writing").boundingBox())!;
   const reader = (await page.locator(".reading-pane").boundingBox())!;
-  expect(aside.x).toBeGreaterThanOrEqual(reader.x + reader.width);
+  expect(aside.x).toBe(reader.x);
+  expect(aside.width).toBe(reader.width);
+  expect(aside.y).toBeGreaterThanOrEqual(reader.y + reader.height - 1);
   expect(reader.width).toBeGreaterThanOrEqual(320);
   expect(aside.width).toBeGreaterThanOrEqual(280);
   await expect(input).toBeInViewport();

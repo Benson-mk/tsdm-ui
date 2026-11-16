@@ -1,3 +1,7 @@
+import { selectSourceEditor } from "./editor-controls";
+import { writingDetailAction } from "./editor-controls";
+import { revealReplyGroup } from "./editor-controls";
+import { chooseAttachments } from "./editor-controls";
 import { readableLines, expectPreservedReadingLine } from "./readable-lines";
 
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
@@ -163,7 +167,7 @@ test.afterEach(async ({ page }, info) => {
     });
 });
 
-test("UI105.resting: visual reply uses one row and expands within the same reader", async ({
+test("UI105.resting: compact reply returns to the exact reading line after full-column editing", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -208,19 +212,15 @@ test("UI105.resting: visual reply uses one row and expands within the same reade
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();
+  // The owner's #112 revision gives expanded editing the full column.
+  // Reading stays mounted and must return to this exact line when compacted.
+  await expect(pane).toBeHidden();
   const expanded = await readableLines(page);
-  expectPreservedReadingLine(before, expanded);
-  const readerBox = await pane.boundingBox(),
-    writerBox = await page.locator(".source-writing").boundingBox();
-  expect(writerBox!.y).toBeGreaterThanOrEqual(
-    readerBox!.y + readerBox!.height - 1,
-  );
-  expect(readerBox!.height).toBeGreaterThanOrEqual(96);
   await page
     .getByRole("button", { name: "Compact writing", exact: true })
     .click();
   const after = await readableLines(page);
-  expectPreservedReadingLine(expanded, after);
+  expectPreservedReadingLine(before, after);
   expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
   await expect(visual).toHaveText("Retained visual reply");
   expect(server.requests.every((request) => request.method === "GET")).toBe(
@@ -239,7 +239,7 @@ test("UI105.continuity: protected source, selected range, undo, addressed target
   await enter(page, "addressed");
   await page.getByRole("button", { name: "Reply tools", exact: true }).click();
   await page
-    .getByRole("button", { name: "Source editor", exact: true })
+    .getByRole("button", { name: "Switch to source editor", exact: true })
     .click();
   const source = page.getByLabel("Complete source", { exact: true });
   const original =
@@ -249,11 +249,12 @@ test("UI105.continuity: protected source, selected range, undo, addressed target
     node.setSelectionRange(0, 8),
   );
   await source.dispatchEvent("select");
+  await revealReplyGroup(page, "Text formatting");
   await page.getByRole("button", { name: "Bold", exact: true }).click();
   const formatted =
     "[b]Selected[/b] 中文\n[unknown=raw]untouched[/unknown]\n[b]bold[/b]";
   await expect(source).toHaveValue(formatted);
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "保留附件.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("retained bytes"),
@@ -261,9 +262,7 @@ test("UI105.continuity: protected source, selected range, undo, addressed target
   await expect(
     page.getByText("Selected · 保留附件.txt", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Source editor", exact: true })
-    .click();
+  await selectSourceEditor(page);
   await source.evaluate((node: HTMLTextAreaElement) =>
     node.setSelectionRange(3, 11),
   );
@@ -285,7 +284,7 @@ test("UI105.continuity: protected source, selected range, undo, addressed target
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await expect(source).toHaveValue(formatted);
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
     .click();
   await expect(
     page.getByText(
@@ -294,7 +293,7 @@ test("UI105.continuity: protected source, selected range, undo, addressed target
     ),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Source editor", exact: true })
+    .getByRole("button", { name: "Switch to source editor", exact: true })
     .click();
   await expect(source).toHaveValue(formatted);
   await page
@@ -364,18 +363,16 @@ for (const width of [1440, 905, 390])
         await page
           .getByRole("button", { name: "Reply tools", exact: true })
           .click();
-        await page
-          .getByLabel("Select attachments", { exact: true })
-          .setInputFiles({
-            name: "需要保留的附件.txt",
-            mimeType: "text/plain",
-            buffer: Buffer.from("owner review fixture"),
-          });
+        await chooseAttachments(page, {
+          name: "需要保留的附件.txt",
+          mimeType: "text/plain",
+          buffer: Buffer.from("owner review fixture"),
+        });
         await page
           .getByRole("button", { name: "Reply tools", exact: true })
           .click();
       }
-      const directory = "evidence/runs/ui-ux-105-owner-review";
+      const directory = `evidence/runs/ui-ux-105-owner-review-${createHash("sha256").update(readFileSync("dist/tsdm-ui.user.js")).digest("hex")}`;
       mkdirSync(directory, { recursive: true });
       const capture = async (mode: string) => {
         await page.locator(".source-writing .primary-action").focus();
@@ -411,7 +408,9 @@ for (const width of [1440, 905, 390])
           });
         expect(geometry.review.bottom).toBeLessThanOrEqual(900);
         expect(geometry.review.top).toBeGreaterThanOrEqual(geometry.writer.top);
-        expect(geometry.reader.height).toBeGreaterThanOrEqual(96);
+        if (mode === "compact")
+          expect(geometry.reader.height).toBeGreaterThanOrEqual(96);
+        else expect(geometry.reader.height).toBe(0);
         expect(geometry.pageWidth).toBeLessThanOrEqual(width);
         expect(
           geometry.scrollOwners.every(
@@ -455,10 +454,8 @@ test("UI105.tools-preview: compact tools execute full commands and optional iner
   await enter(page, "reply");
   await page.getByRole("button", { name: "Reply tools", exact: true }).click();
   const source = page.getByLabel("Complete source", { exact: true });
-  const sourceMode = page.getByRole("button", {
-    name: "Source editor",
-    exact: true,
-  });
+  // Source is selected once; repeating a mode selection is no longer an action.
+  await selectSourceEditor(page);
   const cases = [
     { label: "Italic", expected: "[i]Text[/i]" },
     { label: "Unordered list", expected: "[list][*]Text[/list]" },
@@ -482,21 +479,17 @@ test("UI105.tools-preview: compact tools execute full commands and optional iner
   ];
   const observed = [];
   for (const item of cases) {
-    await sourceMode.click();
+    await selectSourceEditor(page);
     await source.fill("Text");
     await source.selectText();
-    if (
-      [
-        "Color",
-        "Link URL",
-        "Named quote",
-        "Reply-to-view hidden block",
-      ].includes(item.label)
-    ) {
-      const advanced = page.locator(".advanced-authoring");
-      if ((await advanced.getAttribute("open")) === null)
-        await advanced.locator("summary").click();
-    }
+    await revealReplyGroup(
+      page,
+      ["Italic", "Color"].includes(item.label)
+        ? "Text formatting"
+        : item.label === "Unordered list"
+          ? "Paragraph"
+          : "Insert",
+    );
     await page.getByRole("button", { name: item.label, exact: true }).click();
     if (item.value) {
       await page.getByLabel(item.label, { exact: true }).fill(item.value);
@@ -504,7 +497,8 @@ test("UI105.tools-preview: compact tools execute full commands and optional iner
         .getByRole("button", { name: `Apply ${item.label}`, exact: true })
         .click();
     }
-    await sourceMode.click();
+    await page.keyboard.press("Escape");
+    await selectSourceEditor(page);
     await expect(source).toHaveValue(item.expected);
     observed.push({ command: item.label, source: await source.inputValue() });
   }
@@ -512,13 +506,14 @@ test("UI105.tools-preview: compact tools execute full commands and optional iner
     "[table][tr][td]A[/td][td]B[/td][/tr][tr][td]C[/td][td]D[/td][/tr][/table]",
   );
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
     .click();
   const body = page.getByRole("textbox", {
     name: "Visual post content",
     exact: true,
   });
   await body.locator("td").first().click();
+  await revealReplyGroup(page, "Table");
   await page
     .getByLabel("Table operation", { exact: true })
     .selectOption({ label: "Add row after" });
@@ -526,12 +521,12 @@ test("UI105.tools-preview: compact tools execute full commands and optional iner
     .getByRole("button", { name: "Apply table operation", exact: true })
     .click();
   await expect(body.locator("tr")).toHaveCount(3);
-  await sourceMode.click();
+  await selectSourceEditor(page);
   await expect(source).toHaveValue(
     "[table][tr][td]A[/td][td]B[/td][/tr][tr][td][/td][td][/td][/tr][tr][td]C[/td][td]D[/td][/tr][/table]",
   );
   await source.fill("[b]Preview exact[/b] [unknown]raw[/unknown]");
-  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await (await writingDetailAction(page, "Preview")).click();
   const preview = page.getByRole("region", { name: "Preview", exact: true });
   await expect(preview).toContainText("Preview exact");
   await expect(preview).toContainText("[unknown]raw[/unknown]");
@@ -570,7 +565,7 @@ test("UI105.keyboard-growth: compact input grows, plus enters tools, Escape rest
   expect(grown).toBeLessThanOrEqual(140);
   await plus.click();
   await expect(
-    page.getByRole("button", { name: "Visual editor", exact: true }),
+    page.getByRole("button", { name: "Switch to source editor", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(visual).toBeFocused();
@@ -608,7 +603,7 @@ test("UI105.attachment-chip: a selected attachment has one visible status chip a
   await open(page, false, true);
   await enter(page, "reply");
   await page.getByRole("button", { name: "Reply tools", exact: true }).click();
-  await page.getByLabel("Select attachments", { exact: true }).setInputFiles({
+  await chooseAttachments(page, {
     name: "chip.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("selected file"),

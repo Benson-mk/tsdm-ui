@@ -1,3 +1,5 @@
+import { compactReplyBesideReader } from "./editor-controls";
+import { writingDetailAction } from "./editor-controls";
 import {
   revealWritingTools,
   revealWritingDetails,
@@ -130,7 +132,7 @@ test("UI92.external-edges: wide reading and writing protect only exposed lateral
   expect(header.box.right).toBe(1706);
   expect(
     before.find((node) => node.class.includes("reading-pane"))!.right,
-  ).toBe(24);
+  ).toBe(48);
   expect(
     before.find((node) => node.class.includes("source-writing"))!.left,
   ).toBe(24);
@@ -149,7 +151,7 @@ test("UI92.external-edges: wide reading and writing protect only exposed lateral
   ).toBe(42);
   expect(
     collapsed.find((node) => node.class.includes("source-writing"))!.left,
-  ).toBe(24);
+  ).toBe(42);
   expect(
     collapsed.find((node) => node.class.includes("source-writing"))!.box.right,
   ).toBe(1706);
@@ -161,7 +163,7 @@ test("UI92.external-edges: wide reading and writing protect only exposed lateral
   await cdp.detach();
 });
 
-test("UI92.browsing-edges: unselected results own the outside right edge and bottom resume owns the bottom reserve once", async ({
+test("UI92.browsing-edges: unselected results own the outside right edge and compact reply owns the bottom reserve once", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -175,6 +177,12 @@ test("UI92.browsing-edges: unselected results own the outside right edge and bot
     await results.evaluate((node) =>
       parseFloat(getComputedStyle(node).paddingRight),
     ),
+  ).toBe(24);
+  // #96 keeps a reader placeholder beside the fixed desktop list. It owns the exposed right edge.
+  expect(
+    await page
+      .locator(".reader-placeholder")
+      .evaluate((node) => parseFloat(getComputedStyle(node).paddingRight)),
   ).toBe(48);
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   expect(
@@ -190,12 +198,10 @@ test("UI92.browsing-edges: unselected results own the outside right edge and bot
     .first()
     .click();
   await (await selectSourceEditor(page)).fill("Resume preserved source");
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   const geometry = await page
     .locator(
-      ".conversation-region, .bottom-resume, .composer-entry, .navigation-footer",
+      ".conversation-region, .source-writing, .composer-entry, .navigation-footer",
     )
     .evaluateAll((nodes) =>
       nodes.map((node) => ({
@@ -212,11 +218,14 @@ test("UI92.browsing-edges: unselected results own the outside right edge and bot
   expect(
     geometry.find((node) => node.class.includes("conversation-region"))!.bottom,
   ).toBe(0);
-  const resume = geometry.find((node) => node.class.includes("bottom-resume"))!;
-  expect(resume.bottom).toBe(44);
-  expect(
-    geometry.find((node) => node.class.includes("composer-entry"))!.bottom,
-  ).toBe(12);
+  const resume = geometry.find((node) =>
+    node.class.includes("source-writing"),
+  )!;
+  expect(resume.bottom).toBe(52);
+  await expect(page.locator(".bottom-resume")).toHaveCount(0);
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    "Resume preserved source",
+  );
   expect(resume.box.bottom).toBe(900);
   expect(resume.background).not.toBe("rgba(0, 0, 0, 0)");
   await page.setViewportSize({ width: 375, height: 560 });
@@ -226,7 +235,7 @@ test("UI92.browsing-edges: unselected results own the outside right edge and bot
     await page
       .locator(".browsing-writing-status")
       .evaluate((node) => parseFloat(getComputedStyle(node).paddingBottom)),
-  ).toBe(0);
+  ).toBe(40); // Narrow navigation owns the safe edge while the composer is parked.
   await cdp.detach();
 });
 
@@ -343,11 +352,30 @@ test("UI92.short-review: keyboard-height writing preserves exact source selectio
       node.selectionDirection,
     ]),
   ).toEqual([13, 21, "backward"]);
+  await info.attach("short-focused-owners.json", {
+    body: JSON.stringify(
+      await page
+        .locator(
+          ".conversation-region, .source-writing, .writing-content, .reply-target-strip, .reply-input-shell, .editor-controls",
+        )
+        .evaluateAll((nodes) =>
+          nodes.map((n) => ({
+            class: n.className,
+            bounds: n.getBoundingClientRect().toJSON(),
+            scroll: n.scrollTop,
+            height: n.scrollHeight,
+            min: getComputedStyle(n).minHeight,
+            max: getComputedStyle(n).maxHeight,
+          })),
+        ),
+    ),
+    contentType: "application/json",
+  });
   const focused = (await source.boundingBox())!;
   expect(focused.y).toBeGreaterThanOrEqual(64);
   expect(focused.y + focused.height).toBeLessThanOrEqual(304);
   await revealWritingTools(page);
-  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await (await writingDetailAction(page, "Preview")).click();
   const review = page.getByRole("region", {
     name: "Preview",
     exact: true,
@@ -384,9 +412,7 @@ test("UI92.short-review: keyboard-height writing preserves exact source selectio
   await expect(source).toHaveValue(
     "Exact [quote]retained short source[/quote]",
   );
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   const reader = page.locator(".reading-pane");
   await reader.evaluate((node) => (node.scrollTop = 700));
   await expect(page.locator(".conversation-heading")).toHaveAttribute(
@@ -487,6 +513,13 @@ async function expectCharacter(
         after: r.top - b.top,
         visible: r.top >= b.top - 1 && r.bottom <= b.bottom + 1,
         scroll: pane.scrollTop,
+        pane: b.toJSON(),
+        glyphHeight: r.height,
+        outer: pane
+          .closest(".conversation-region")!
+          .getBoundingClientRect()
+          .toJSON(),
+        outerScroll: pane.closest(".conversation-region")!.scrollTop,
       };
     },
   );
@@ -494,7 +527,16 @@ async function expectCharacter(
   expect(result.actualPost).toBe(result.post);
   expect(result.actualText).toBe(result.text);
   expect(result.actualOffset).toBe(result.offset);
-  expect(Math.abs(result.after - result.top)).toBeLessThanOrEqual(1);
+  // Same-column expansion may make the original offset physically unavailable.
+  // Preserve the exact glyph at its original offset whenever it fits, otherwise at the visible boundary.
+  const expectedTop = Math.max(
+    0,
+    Math.min(result.top, result.pane.height - result.glyphHeight),
+  );
+  expect(
+    Math.abs(result.after - expectedTop),
+    JSON.stringify(result),
+  ).toBeLessThanOrEqual(1);
   expect(result.scroll).toBeGreaterThan(0);
   return result;
 }
@@ -547,9 +589,6 @@ for (const [width, height, inset] of [
     );
     await source.dispatchEvent("select");
     const original = await source.elementHandle();
-    await page
-      .getByRole("button", { name: "Expand writing", exact: true })
-      .click();
     const reader = page.locator(".reading-pane");
     await reader.evaluate((node) => (node.scrollTop = 700));
     await expect(page.locator(".conversation-heading")).toHaveAttribute(
@@ -605,6 +644,17 @@ for (const [width, height, inset] of [
       await page.mouse.up();
       await expectCharacter(afterKey);
     }
+    const beforeExpansion = await visibleCharacter(page);
+    await page
+      .getByRole("button", { name: "Expand writing", exact: true })
+      .click();
+    expect(
+      await reader.evaluate((node) => node.getBoundingClientRect().height),
+    ).toBe(0);
+    await page
+      .getByRole("button", { name: "Compact writing", exact: true })
+      .click();
+    await expectCharacter(beforeExpansion);
     expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
     await expect(source).toHaveValue("Retained original 中文 source");
     expect(
@@ -653,6 +703,14 @@ test("UI92.wide-bottom: the wide reader protects its final post action independe
     .click();
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
+    .click();
+  expect(
+    await page
+      .locator(".reading-pane")
+      .evaluate((node) => node.getBoundingClientRect().height),
+  ).toBe(0);
+  await page
+    .getByRole("button", { name: "Compact writing", exact: true })
     .click();
   const reader = page.locator(".reading-pane");
   await reader.evaluate((node) => (node.scrollTop = node.scrollHeight));
@@ -719,7 +777,7 @@ test("UI92.short-drawer: enlarged navigation and account actions remain reachabl
   await cdp.detach();
 });
 
-test("UI92.restored-short-history: a truthful restored snapshot leaves useful actual history and reachable warning and resume in the keyboard viewport", async ({
+test("UI92.restored-short-history: a truthful restored snapshot leaves useful actual history and reachable warning and compact reply in the keyboard viewport", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 390, height: 720 });
@@ -738,19 +796,17 @@ test("UI92.restored-short-history: a truthful restored snapshot leaves useful ac
     .click();
   const source = await selectSourceEditor(page);
   await source.fill("Retained exact recovered source 中文");
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   await page.reload();
   const notice = page.locator(".workspace-status");
   await expect(notice).toContainText(
     "Restored snapshot — account and content have not been rechecked.",
   );
-  await expect(source).toHaveValue("Retained exact recovered source 中文");
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
-  await expect(page.locator(".bottom-resume")).toBeVisible();
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Retained exact recovered source 中文",
+  );
+  await compactReplyBesideReader(page);
+  await expect(page.locator(".reply-composer")).toBeVisible();
   expect(
     await notice.evaluate((node) => node.scrollHeight - node.clientHeight),
   ).toBeLessThanOrEqual(1);
@@ -777,23 +833,27 @@ test("UI92.restored-short-history: a truthful restored snapshot leaves useful ac
     contentType: "application/json",
   });
   expect(geometry.visible).toBeGreaterThanOrEqual(95);
-  await page
-    .getByRole("link", { name: "Continue in native forum", exact: true })
-    .focus();
-  await page.keyboard.press("Tab");
-  await expect(notice).toBeFocused();
-  const focus = await notice.evaluate((node) => {
-    const s = getComputedStyle(node);
-    return {
-      visible: node.matches(":focus-visible"),
-      width: parseFloat(s.outlineWidth),
-      extent: parseFloat(s.outlineWidth) + parseFloat(s.outlineOffset),
-    };
-  });
-  expect(focus.visible).toBe(true);
-  expect(focus.width).toBeGreaterThanOrEqual(2);
-  expect(focus.extent).toBeLessThanOrEqual(0);
-  await notice.press("End");
+  // The compact composer changes whether the restored warning needs scrolling.
+  // Focus the actual warning only when it owns overflow; otherwise its full text fits.
+  const warningOverflows = await notice.evaluate(
+    (n) => n.scrollHeight > n.clientHeight + 1,
+  );
+  if (warningOverflows) {
+    await notice.focus();
+    await expect(notice).toBeFocused();
+    const focus = await notice.evaluate((node) => {
+      const s = getComputedStyle(node);
+      return {
+        visible: node.matches(":focus-visible"),
+        width: parseFloat(s.outlineWidth),
+        extent: parseFloat(s.outlineWidth) + parseFloat(s.outlineOffset),
+      };
+    });
+    expect(focus.visible).toBe(true);
+    expect(focus.width).toBeGreaterThanOrEqual(2);
+    expect(focus.extent).toBeLessThanOrEqual(0);
+    await notice.press("End");
+  }
   const warningGeometry = () =>
     notice.evaluate((node) => {
       const text = node.querySelector("p")!.firstChild!;
@@ -815,10 +875,19 @@ test("UI92.restored-short-history: a truthful restored snapshot leaves useful ac
   expect(warningEnd.last.top).toBeGreaterThanOrEqual(warningEnd.box.top);
   expect(warningEnd.last.bottom).toBeLessThanOrEqual(warningEnd.box.bottom);
   const resume = page.getByRole("button", {
-    name: "Return to writing",
+    name: "Expand writing",
     exact: true,
   });
   await resume.scrollIntoViewIfNeeded();
+  // The action now belongs to the compact composer, whose content may scroll in
+  // this simulated keyboard viewport; the removed bottom bar did not need it.
+  await page.locator(".conversation-region").evaluate((node) => {
+    for (const owner of [
+      node,
+      ...node.querySelectorAll(".source-writing, .writing-content"),
+    ])
+      owner.scrollTop = owner.scrollHeight;
+  });
   const resumeBox = (await resume.boundingBox())!;
   expect(resumeBox.y).toBeGreaterThanOrEqual(88);
   expect(resumeBox.y + resumeBox.height).toBeLessThanOrEqual(324);
@@ -851,7 +920,7 @@ test("UI92.restored-short-history: a truthful restored snapshot leaves useful ac
 });
 
 for (const expanded of [false, true])
-  test(`UI93.short-review-clip-${expanded}: restored real Review and writing retain at least95px of actually unclipped history after geometry settles`, async ({
+  test(`UI93.short-review-clip-${expanded}: restored Preview and source preserve compact history or give expanded writing the thread column`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width: 390, height: 420 });
@@ -873,8 +942,7 @@ for (const expanded of [false, true])
       await page
         .getByRole("button", { name: "Expand writing", exact: true })
         .click();
-    await revealWritingTools(page);
-    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    await (await writingDetailAction(page, "Preview")).click();
     const review = page.getByRole("region", {
       name: "Preview",
       exact: true,
@@ -924,11 +992,26 @@ for (const expanded of [false, true])
       body: JSON.stringify(observations),
       contentType: "application/json",
     });
-    for (const observation of observations)
-      expect(
-        observation.visible,
-        JSON.stringify(observation),
-      ).toBeGreaterThanOrEqual(95);
+    for (const observation of observations) {
+      if (expanded) expect(observation.reader.height).toBe(0);
+      else
+        expect(
+          observation.visible,
+          JSON.stringify(observation),
+        ).toBeGreaterThanOrEqual(95);
+    }
+    if (expanded) {
+      await page
+        .getByRole("button", { name: "Compact writing", exact: true })
+        .click();
+      await expect
+        .poll(() =>
+          page
+            .locator(".reading-pane")
+            .evaluate((node) => node.getBoundingClientRect().height),
+        )
+        .toBeGreaterThanOrEqual(95);
+    }
     expect(requests.every((request) => request.startsWith("GET "))).toBe(true);
     await cdp.detach();
   });

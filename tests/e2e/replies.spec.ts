@@ -1,3 +1,7 @@
+import { compactReplyBesideReader } from "./editor-controls";
+import { revealWritingOptions } from "./editor-controls";
+import { writingDetailAction } from "./editor-controls";
+import { waitForReplySaved } from "./editor-controls";
 import type { ThreadAttempt } from "../../src/forum-client";
 import type { ReplyRow } from "../../src/workspace/reply-recovery";
 import { selectSourceEditor } from "./editor-controls";
@@ -243,6 +247,7 @@ test("J4.reply-current: preserve complete source/current options and open indepe
     .click();
   await (await selectSourceEditor(page)).fill(source);
   await revealWritingTools(page);
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
 
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
@@ -299,12 +304,8 @@ test("J4.quote-target: authored quote blocks survive general and addressed retar
     page.getByText("Addressed to Other author · Post 101", { exact: true }),
   ).toBeVisible();
   await (await selectSourceEditor(page)).fill(source);
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Reply to thread", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
+  await (await writingDetailAction(page, "Start an ordinary reply")).click();
   await expect(
     page.getByRole("group", { name: "Reply target", exact: true }),
   ).toHaveCount(0);
@@ -362,7 +363,7 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   await (
     await selectSourceEditor(page)
   ).fill("Literal @Other author stays literal. ");
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -383,8 +384,8 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   await revealWritingDetails(page);
   await expect(
     page
-      .locator(".writing-details")
-      .getByText(/notification delivery is unverified/),
+      .getByRole("region", { name: "Reply submissions", exact: true })
+      .getByText(/not proof of a merge rule or notification delivery/),
   ).toBeVisible();
   await info.attach("mentions.png", {
     body: await page.screenshot(),
@@ -717,7 +718,7 @@ test("J4.reply-mention-drift: selected UID changing before send refuses without 
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -776,12 +777,7 @@ for (const mutation of [
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
     await (await selectSourceEditor(page)).fill(source);
-    await page.getByText("Recovery details", { exact: true }).click();
-    await expect(
-      page.getByText("Local reply draft saved in this browser profile.", {
-        exact: true,
-      }),
-    ).toBeVisible();
+    await waitForReplySaved(page);
     const rejected = await page.evaluate((mutation) => {
       const key = "tsdm.workspace.recovery",
         record = JSON.parse(sessionStorage.getItem(key)!);
@@ -992,7 +988,7 @@ test("J4.reply-mention-context: retargeting writing while lookup is pending clea
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -1002,9 +998,7 @@ test("J4.reply-mention-context: retargeting writing while lookup is pending clea
       state.requests.some((r) => new URL(r.url).pathname === "/plugin.php"),
     )
     .toBe(true);
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   await page
     .getByRole("article", { name: "Post 101", exact: true })
     .getByRole("button", { name: "Reply to this post", exact: true })
@@ -1015,7 +1009,7 @@ test("J4.reply-mention-context: retargeting writing while lookup is pending clea
   ).toBeVisible();
   release();
   state.mentionGate = null;
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await expect(
     page.getByRole("button", { name: "Find mention", exact: true }),
   ).toBeEnabled();
@@ -1025,7 +1019,7 @@ test("J4.reply-mention-context: retargeting writing while lookup is pending clea
       exact: true,
     }),
   ).toHaveCount(0);
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -1060,7 +1054,7 @@ async function readySupplement(page: Page) {
   await (
     await selectSourceEditor(page)
   ).fill("[quote]Additional own source[/quote]\nLiteral @Writer 7 stays. ");
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Writer 7");
@@ -1274,7 +1268,7 @@ test("J4.reply-native-person-link: a new reply preserves complete source with se
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
   await (await selectSourceEditor(page)).fill("Literal @Writer 7. ");
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Writer 7");
@@ -1395,20 +1389,19 @@ for (const addressed of [false, true])
       field.dispatchEvent(new Event("select", { bubbles: true }));
     });
     await (await writingTool(page, "Bold")).click();
-    await (await writingTool(page, "Visual editor")).click();
+    // Formatting already entered Visual mode; assert its content below.
+    await page.keyboard.press("Escape");
     await expect(
       page
         .getByRole("textbox", { name: "Visual post content", exact: true })
         .getByText("formatted", { exact: true }),
     ).toHaveCSS("font-weight", "700");
-    await (await writingTool(page, "Source editor")).click();
+    await (await writingTool(page, "Switch to source editor")).click();
     const expected = source + " [b]formatted[/b]";
     await expect(complete).toHaveValue(expected);
+    await compactReplyBesideReader(page);
     await page
-      .getByRole("button", { name: "Return to reading", exact: true })
-      .click();
-    await page
-      .getByRole("button", { name: "Return to writing", exact: true })
+      .getByRole("button", { name: "Expand writing", exact: true })
       .click();
     await expect(complete).toHaveValue(expected);
 
