@@ -1424,7 +1424,7 @@ select {
   margin-bottom: 8px;
   border-radius: 0;
   border: 0;
-  box-shadow: none;
+  box-shadow: var(--floating-shadow);
   overflow-wrap: anywhere;
 }
 .conversation-region > .reader-placeholder {

@@ -74,3 +74,39 @@ publication was performed. Screenshots, request ledgers and hashed receipts are
 retained under the listed evidence/run directories. Final documentation and an
 algebraically equivalent fixture expression cleanup followed the last test;
 production bytes remain the tested and installed candidate.
+
+## Owner correction: shadows on thread rows
+
+The first follow-up applied the shadow only to the pane and explicitly disabled
+it on board thread rows. The owner rejected that interpretation. Apply the
+documented `--floating-shadow` to the thread rows themselves, retaining the8px
+whitespace, zero decorative borders and existing selection/input/focus rules.
+This latest instruction supersedes the earlier flat-row shadow exclusion.
+
+Before changing CSS, update the four complete-app expectations to require the
+documented row shadow in normal themes and its browser-enforced absence in
+forced colors. Preserve all existing icon, selection, focus and geometry checks.
+
+Additional distinct trade-off: individual row shadows make each thread more
+visually prominent than the previous flat stream. Forced colors still rely on
+whitespace, system colors and explicit selection/focus because shadows are disabled.
+
+Correction verified:
+
+- Edge red `2026-11-16T08-06-31.695Z` observes `box-shadow: none` on the thread row.
+- Edge green `2026-11-16T08-07-19.380Z` passes all5 affected cases, requiring the
+  exact6% documented shadow on selected and unselected rows, zero row borders,
+  icon controls, narrow/enlarged layout and preserved theme/keyboard boundaries.
+- Build, scoped lint/format and whitespace checks pass. The production correction
+  is exactly one CSS declaration; only test formatting and this ledger followed.
+- Installed Edge source readback matches all2,454,676 characters of candidate
+  `8db22dbd2a00a7d6ecbd237047a466e2bb6478e43f4d9aa35da603010f5f20f6`.
+  Opening the Tampermonkey dashboard restored the previously timing-out MCP
+  connection. A dedicated real-board tab visibly confirms individual row shadows
+  and whitespace. The temporary manager/check tabs were closed; existing user
+  pages were not reloaded or edited. Chrome was not rerun for this paint-only fix.
+
+- [x] Thread rows themselves use the documented floating shadow plus whitespace.
+- [x] Decorative row borders remain absent; selection/input/focus rules are preserved.
+- [x] Selected/unselected, narrow/enlarged, Dark/forced-color Edge checks pass.
+- [x] Updated installed Edge script is read back exactly and visually verified.

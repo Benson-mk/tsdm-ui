@@ -688,6 +688,14 @@ for (const variant of ["desktop", "narrow", "dark", "forced"] as const)
         name: "Ordinary discussion 42",
         exact: true,
       });
+      await expect(pane.locator('.thread-row[data-thread-id="42"]')).toHaveCSS(
+        "box-shadow",
+        variant === "forced" ? "none" : "rgba(0, 0, 0, 0.06) 0px 4px 16px 0px",
+      );
+      await info.attach("unselected-list.png", {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
       await subject.click();
       await expect(
         page.getByRole("heading", { name: "Reading 42", exact: true }),
@@ -699,7 +707,10 @@ for (const variant of ["desktop", "narrow", "dark", "forced"] as const)
       await expect(subject).toHaveAttribute("aria-current", "true");
       const row = pane.locator('.thread-row[data-thread-id="42"]');
       await expect(row).toHaveCSS("border-bottom-width", "0px");
-      await expect(row).toHaveCSS("box-shadow", "none");
+      await expect(row).toHaveCSS(
+        "box-shadow",
+        variant === "forced" ? "none" : "rgba(0, 0, 0, 0.06) 0px 4px 16px 0px",
+      );
       await filters.focus();
       await page.keyboard.press("Enter");
       await expect(
