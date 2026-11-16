@@ -1,5 +1,82 @@
 import type { Preferences } from "../workspace/preferences";
 const english = {
+  localReplyConflictSummary: "Draft conflict: choose a version to continue.",
+  localReplyUnsettledVersion:
+    "This version retains an unsettled operation. Continue with it to inspect its original status; it cannot be discarded while unresolved. Some attachment outcomes may require native continuation.",
+  localReplyUnsettled:
+    "Another retained version has an unsettled operation. Choose that version and check its original result before sending or discarding it.",
+
+  localReplyDiscard: "Discard version {value}",
+  localReplyDiscardConfirm: "Discard this retained version",
+  localReplyDiscardWarning:
+    "Discard this version? Copy any text you need first.",
+  localReplyDiscardSource: "Version selected for discard",
+  localReplyKeep: "Keep this version",
+
+  replyRecoveryDialog: "Reply recovery",
+  replyRecoveryDialogDescription: "Saved reply versions from other threads.",
+  localReplyAlternatives: "Recoverable reply versions",
+  localReplyChoiceDisclosure:
+    "Choose a version to continue. Other versions are kept.",
+  localReplyContinue: "Continue with version {value}",
+  localReplyContinueEmpty: "Continue without this draft",
+
+  localReplyAttention: "Local reply recovery needs attention",
+  localReplySaved: "Local reply draft saved in this browser profile.",
+  localReplyUnsaved:
+    "Local reply drafts could not be saved. Keep this page open and copy your writing; reply sending is paused. Previously saved writing may return after restart, including a discard that could not be saved.",
+  localReplyIncompatible:
+    "Stored local reply drafts are incompatible. Their raw data is retained; sending is paused.",
+  localReplyInspect: "Inspect retained local reply data",
+  localReplyRaw: "Retained local reply data",
+  localReplyConflict: "Conflicting local reply drafts",
+  localReplyPaused: "Editing and sending are paused.",
+  localReplyVersion: "Retained reply version {value}",
+  localReplyRemoved: "Deliberate local draft removal",
+  localReplyDetails: "Complete retained reply details",
+  localReplyOptions: "Options",
+  localReplyOn: "On",
+  localReplyOff: "Off",
+  localReplyUnavailable: "Unavailable",
+  localReplyAttachmentReference: "Attachment reference #{value}",
+  localReplyUploader: "Uploaded by user {value}",
+  localReplyUploaderUnknown: "Uploader unknown",
+  localReplyLimits:
+    "Acknowledged ordinary replies survive supported browser restarts in this profile. This is local storage, not a backup or Forum draft. Clearing site data, private-profile closure or browser eviction can remove it. File bytes and sending authority are not retained.",
+  localReplyAcknowledged:
+    "Local reply revision {value} is acknowledged in this browser profile.",
+
+  postURL: "Post URL",
+  copyPostPermalink: "Copy permalink for post {value}",
+  postPermalinkReload: "Refresh thread to verify this post permalink",
+  reportSubmit: "Submit report",
+  reportSubmitting: "Submitting this report once…",
+  reportUncertain:
+    "Report result uncertain. Independent report status is unavailable. The forum may have received it; it will not be retried.",
+  reportRejected: "Report rejected: ",
+  postReportUnverified: "Availability not verified",
+  reportTitle: "Report post {value}",
+  reportDescription: "A report sends this post to forum moderators.",
+  reportChecking: "Checking current report choices…",
+  reportActor: "Reporting as member {value}",
+  reportContent: "Report content",
+  ratingTitle: "Rate post {value}",
+  ratingDescription:
+    "{author} · Thread {thread} · Post {post}. Rating changes this post’s forum scores and uses your daily rating allowance.",
+  ratingActor: "Rating as member {value}",
+  ratingChecking: "Checking current rating choices…",
+  ratingSubmitting: "Submitting this rating once…",
+  ratingReason: "Reason (optional)",
+  ratingSuggested: "Suggested reason",
+  ratingChoose: "Choose a suggested reason",
+  ratingNotify: "Notify the post author",
+  ratingSubmit: "Submit rating",
+  ratingRange: "{min} to {max}; {remaining} remaining today",
+  ratingConfirmed: "Rating confirmed by a fresh forum rating log.",
+  ratingUncertain:
+    "Rating result uncertain. The forum may have applied it. Check the native rating log; this rating will not be retried.",
+  ratingRejected: "Rating rejected: ",
+
   moreThreadOptions: "More thread options",
   threadOptions: "Thread options",
   pageAndOptions: "Page and thread options",
@@ -249,6 +326,16 @@ const english = {
   threadResults: "Thread results",
   subordinateBoards: "Subordinate boards",
   boardFilters: "Board filters",
+  filterReward: "Reward",
+  filterHelp:
+    "Choose a change, then Apply. Choosing another option replaces the pending choice. Only combinations offered by the forum are available.",
+  filterUnavailable: "Reload this board to review filter changes.",
+  filterNext: "After Apply:",
+  filterAll: "All threads",
+  filterReplaces: "Replaces these active criteria:",
+  filterApply: "Apply",
+  filterCancel: "Cancel",
+  filterClear: "Clear",
   filterCategory: "Category",
   filterOrder: "Order",
   filterType: "Thread type",
@@ -257,11 +344,15 @@ const english = {
 
   criteria: "Effective criteria",
   page: "Page",
+  localReplyDraft: "Local draft",
   pinned: "Pinned",
+  pinnedThreads: "Pinned threads",
   moved: "Moved",
   replies: "replies",
   views: "views",
-  lastReply: "Last reply to {value}",
+  lastReply: "Latest reply",
+  latestAuthorUnavailable: "Replier unavailable",
+  latestTimeUnavailable: "Time unavailable",
   boardPages: "Board pages",
   threadReading: "Thread reading",
   threadHistory: "Thread history",
@@ -273,6 +364,9 @@ const english = {
     "Checks use the source-supported newest thread boundary or first board page with the current filter and order. The first distant check establishes a baseline; earlier unseen content is not counted as new.",
   checkDetails: "Check details",
   boardRetry: "Retry available in {value} minutes.",
+  retryCheck: "Retry check",
+  threadCheckUnavailable:
+    "Checks unavailable: no supported newest-page target.",
   checkNewThreads: "Check for new threads",
   boardChecking: "Checking board…",
   boardCheckFailed: "Board check failed.",
@@ -364,11 +458,24 @@ const english = {
   findMention: "Find mention",
   mentionPerson: "Mention {value} (UID {id})",
   quickQuote: "Reply to this post",
+  postActions: "Post {value} actions",
+  postReply: "Reply",
+  onlyPostAuthor: "Show only this author's posts",
+  postRate: "Rate",
+  postReport: "Report",
+  postActionUnavailable: "Not available in this version",
+  replyTarget: "Reply target",
+  insertQuotedPost: "Insert quoted post text",
+  quotePostExplanation:
+    "Append an authored quotation of visible text. Formatting and native notification behavior are not copied.",
+  removeReplyTarget: "Remove reply target",
+  replyExcerptUnavailable: "Post excerpt unavailable",
+  postFilterUnavailable: "Native author filter unavailable",
   writingDestination: "Writing destination",
   reviewDestination: "Review destination",
   writingThread: "Thread {value}",
   addressedExplanation:
-    "Starts with a blank body and addresses one author/post. No quoted text is inserted. Additional quote blocks do not change this target; notification delivery is unverified.",
+    "Addresses one author/post and preserves existing writing; a new reply starts blank. No quoted text is inserted. Additional quote blocks do not change this target; notification delivery is unverified.",
   addressedTo: "Addressed to {value} · Post {post}",
   replyDeliveryUnknown:
     "Quoted source does not change the addressed post. Quote and mention notification delivery is unverified.",
@@ -397,6 +504,8 @@ const english = {
   newThreadIn: "New thread in {value}",
   writingAs: "Writing as {value}",
   writingBoard: "Board {value}",
+  sharedReplyPaused:
+    "Sending paused. Check the current account and form; your shared reply is retained.",
   writingPaused:
     "Sending paused — the current account has not been rechecked. Original writing remains bound to {value}.",
   writingAccountChanged:
@@ -479,6 +588,80 @@ const english = {
 };
 type Strings = { [Key in keyof typeof english]: string };
 const simplified: Strings = {
+  localReplyConflictSummary: "草稿冲突：请选择要继续的版本。",
+  localReplyUnsettledVersion:
+    "此版本保留未确定的操作。继续使用此版本以检查原始状态；结果未确定前不能丢弃。部分附件操作可能需要前往原生论坛处理。",
+  localReplyUnsettled:
+    "另一保留版本有未确定的操作。请选择该版本并检查原始结果，再发送或丢弃。",
+
+  localReplyDiscard: "丢弃版本 {value}",
+  localReplyDiscardConfirm: "丢弃此保留版本",
+  localReplyDiscardWarning: "丢弃此版本？请先复制需要的文字。",
+  localReplyDiscardSource: "准备丢弃的版本",
+  localReplyKeep: "保留此版本",
+
+  replyRecoveryDialog: "回复恢复",
+  replyRecoveryDialogDescription: "其他主题中已保存的回复版本。",
+  localReplyAlternatives: "可恢复的回复版本",
+  localReplyChoiceDisclosure: "选择要继续的版本。其他版本会保留。",
+  localReplyContinue: "继续使用版本 {value}",
+  localReplyContinueEmpty: "继续而不使用此草稿",
+
+  localReplyAttention: "本地回复恢复需要处理",
+  localReplySaved: "本地回复草稿已保存在此浏览器配置中。",
+  localReplyUnsaved:
+    "无法保存本地回复草稿。请保持此页面打开并复制写作内容；回复发送已暂停。重启后可能恢复先前保存的写作内容，包括未能保存的丢弃操作。",
+  localReplyIncompatible:
+    "保存的本地回复草稿不兼容。原始数据仍保留；发送已暂停。",
+  localReplyInspect: "查看保留的本地回复数据",
+  localReplyRaw: "保留的本地回复数据",
+  localReplyConflict: "冲突的本地回复草稿",
+  localReplyPaused: "编辑和发送已暂停。",
+  localReplyVersion: "保留的回复版本 {value}",
+  localReplyRemoved: "已明确移除本地草稿",
+  localReplyDetails: "完整保留的回复详情",
+  localReplyOptions: "选项",
+  localReplyOn: "开启",
+  localReplyOff: "关闭",
+  localReplyUnavailable: "不可用",
+  localReplyAttachmentReference: "附件引用 #{value}",
+  localReplyUploader: "上传者用户 {value}",
+  localReplyUploaderUnknown: "上传者未知",
+  localReplyLimits:
+    "已确认保存的普通回复可在支持的浏览器重启后从此配置恢复。这是本地存储，不是备份或论坛草稿。清除网站数据、关闭隐私配置或浏览器清理可能移除数据。文件字节和发送授权不会保留。",
+  localReplyAcknowledged: "本地回复版本 {value} 已在此浏览器配置中确认保存。",
+
+  postURL: "帖子链接",
+  copyPostPermalink: "复制帖子 {value} 的永久链接",
+  postPermalinkReload: "请刷新主题以确认帖子永久链接",
+  reportSubmit: "提交举报",
+  reportSubmitting: "正在提交本次举报，不会重复发送…",
+  reportUncertain:
+    "举报结果不确定。无法独立查询举报状态，论坛可能已收到举报；不会重复发送。",
+  reportRejected: "举报被拒绝：",
+  postReportUnverified: "尚未确认举报可用性",
+  reportTitle: "举报帖子 {value}",
+  reportDescription: "举报会将此帖发送给论坛版主。",
+  reportChecking: "正在检查当前举报选项…",
+  reportActor: "举报账户：{value}",
+  reportContent: "举报内容",
+  ratingTitle: "为帖子 {value} 评分",
+  ratingDescription:
+    "{author} · 主题 {thread} · 帖子 {post}。评分将修改帖子的论坛积分并使用今日评分额度。",
+  ratingActor: "评分账户：{value}",
+  ratingChecking: "正在检查当前评分选项…",
+  ratingSubmitting: "正在提交本次评分，不会重复发送…",
+  ratingReason: "理由（可选）",
+  ratingSuggested: "可选评分理由",
+  ratingChoose: "选择评分理由",
+  ratingNotify: "通知帖子作者",
+  ratingSubmit: "提交评分",
+  ratingRange: "{min} 至 {max}；今日剩余 {remaining}",
+  ratingConfirmed: "已通过最新论坛评分记录确认评分。",
+  ratingUncertain:
+    "评分结果不确定，论坛可能已接受。请查看原版评分记录；本次评分不会重试。",
+  ratingRejected: "评分被拒绝：",
+
   moreThreadOptions: "更多主题选项",
   threadOptions: "主题选项",
   pageAndOptions: "分页和主题选项",
@@ -714,6 +897,16 @@ const simplified: Strings = {
   threadResults: "主题列表",
   subordinateBoards: "子版块",
   boardFilters: "版块筛选",
+  filterReward: "悬赏",
+  filterHelp:
+    "选择一项更改，然后应用。选择另一选项会替换待应用的选项；仅支持论坛提供的组合。",
+  filterUnavailable: "请刷新版块以查看筛选更改。",
+  filterNext: "应用后：",
+  filterAll: "全部主题",
+  filterReplaces: "替换以下当前条件：",
+  filterApply: "应用",
+  filterCancel: "取消",
+  filterClear: "清除",
   filterCategory: "分类",
   filterOrder: "排序",
   filterType: "主题类型",
@@ -722,11 +915,15 @@ const simplified: Strings = {
 
   criteria: "当前有效条件",
   page: "第",
+  localReplyDraft: "本地草稿",
   pinned: "置顶",
+  pinnedThreads: "置顶主题",
   moved: "已移动",
   replies: "回复",
   views: "浏览",
-  lastReply: "{value} 的最新回复",
+  lastReply: "最新回复",
+  latestAuthorUnavailable: "回复者不可用",
+  latestTimeUnavailable: "时间不可用",
   boardPages: "版块分页",
   threadReading: "主题阅读",
   threadHistory: "主题历史",
@@ -738,6 +935,8 @@ const simplified: Strings = {
     "检查源页面支持的主题最新边界或当前筛选与排序的版块首页。首次远端检查建立基准；不将之前未见的内容计为新增内容。",
   checkDetails: "检查详情",
   boardRetry: "{value} 分钟后可重试。",
+  retryCheck: "重试检查",
+  threadCheckUnavailable: "无法检查：没有受支持的最新页目标。",
   checkNewThreads: "检查新主题",
   boardChecking: "正在检查版块…",
   boardCheckFailed: "版块检查失败，请手动重试。",
@@ -823,11 +1022,23 @@ const simplified: Strings = {
   findMention: "查找用户",
   mentionPerson: "提及 {value}（UID {id}）",
   quickQuote: "回复这篇帖子",
+  postActions: "帖子 {value} 操作",
+  postReply: "回复",
+  onlyPostAuthor: "只看该作者",
+  postRate: "评分",
+  postReport: "举报",
+  postActionUnavailable: "此版本暂不可用",
+  replyTarget: "回复对象",
+  insertQuotedPost: "插入帖子引用文字",
+  quotePostExplanation: "追加可见文字的引用；不复制原格式或原生通知行为。",
+  removeReplyTarget: "移除回复对象",
+  replyExcerptUnavailable: "帖子摘要不可用",
+  postFilterUnavailable: "原生作者筛选不可用",
   writingDestination: "写作目标",
   reviewDestination: "审阅目标",
   writingThread: "主题 {value}",
   addressedExplanation:
-    "以空白正文开始，仅指定一位作者和一篇帖子。不会自动插入引用文字。其他引用块不会改变此目标；无法保证通知送达。",
+    "指定一位作者和一篇帖子并保留现有写作；新回复以空白正文开始。不会自动插入引用文字。其他引用块不会改变此目标；无法保证通知送达。",
   addressedTo: "回复对象：{value} · 帖子 {post}",
   replyDeliveryUnknown:
     "引用源码不会更改回复对象。引用和提及的通知送达状态未确认。",
@@ -855,6 +1066,7 @@ const simplified: Strings = {
   newThreadIn: "在 {value} 中发表新主题",
   writingAs: "写作账号：{value}",
   writingBoard: "版块 {value}",
+  sharedReplyPaused: "发送已暂停。请检查当前账号和表单；共享回复仍保留。",
   writingPaused:
     "发送已暂停 — 当前账号尚未重新检查。原写作内容仍属于 {value}。",
   writingAccountChanged:
@@ -930,6 +1142,80 @@ const simplified: Strings = {
     "无法读取浏览器页面会话存储。当前内容仍可使用；刷新恢复不可用。",
 };
 const traditional: Strings = {
+  localReplyConflictSummary: "草稿衝突：請選擇要繼續的版本。",
+  localReplyUnsettledVersion:
+    "此版本保留未確定的操作。繼續使用此版本以檢查原始狀態；結果未確定前不能捨棄。部分附件操作可能需要前往原生論壇處理。",
+  localReplyUnsettled:
+    "另一保留版本有未確定的操作。請選擇該版本並檢查原始結果，再傳送或捨棄。",
+
+  localReplyDiscard: "捨棄版本 {value}",
+  localReplyDiscardConfirm: "捨棄此保留版本",
+  localReplyDiscardWarning: "捨棄此版本？請先複製需要的文字。",
+  localReplyDiscardSource: "準備捨棄的版本",
+  localReplyKeep: "保留此版本",
+
+  replyRecoveryDialog: "回覆復原",
+  replyRecoveryDialogDescription: "其他主題中已儲存的回覆版本。",
+  localReplyAlternatives: "可復原的回覆版本",
+  localReplyChoiceDisclosure: "選擇要繼續的版本。其他版本會保留。",
+  localReplyContinue: "繼續使用版本 {value}",
+  localReplyContinueEmpty: "繼續而不使用此草稿",
+
+  localReplyAttention: "本機回覆復原需要處理",
+  localReplySaved: "本機回覆草稿已儲存在此瀏覽器設定檔中。",
+  localReplyUnsaved:
+    "無法儲存本機回覆草稿。請保持此頁面開啟並複製寫作內容；回覆傳送已暫停。重新啟動後可能恢復先前儲存的寫作內容，包括未能儲存的捨棄操作。",
+  localReplyIncompatible:
+    "已儲存的本機回覆草稿不相容。原始資料仍保留；傳送已暫停。",
+  localReplyInspect: "檢視保留的本機回覆資料",
+  localReplyRaw: "保留的本機回覆資料",
+  localReplyConflict: "衝突的本機回覆草稿",
+  localReplyPaused: "編輯和傳送已暫停。",
+  localReplyVersion: "保留的回覆版本 {value}",
+  localReplyRemoved: "已明確移除本機草稿",
+  localReplyDetails: "完整保留的回覆詳情",
+  localReplyOptions: "選項",
+  localReplyOn: "開啟",
+  localReplyOff: "關閉",
+  localReplyUnavailable: "無法使用",
+  localReplyAttachmentReference: "附件引用 #{value}",
+  localReplyUploader: "上傳者使用者 {value}",
+  localReplyUploaderUnknown: "上傳者不明",
+  localReplyLimits:
+    "已確認儲存的一般回覆可在支援的瀏覽器重新啟動後從此設定檔復原。這是本機儲存，不是備份或論壇草稿。清除網站資料、關閉私密設定檔或瀏覽器清理可能移除資料。檔案位元組和傳送授權不會保留。",
+  localReplyAcknowledged: "本機回覆版本 {value} 已在此瀏覽器設定檔中確認儲存。",
+
+  postURL: "貼文連結",
+  copyPostPermalink: "複製貼文 {value} 的永久連結",
+  postPermalinkReload: "請重新整理主題以確認貼文永久連結",
+  reportSubmit: "提交舉報",
+  reportSubmitting: "正在提交本次舉報，不會重複發送…",
+  reportUncertain:
+    "舉報結果不確定。無法獨立查詢舉報狀態，論壇可能已收到舉報；不會重複發送。",
+  reportRejected: "舉報被拒絕：",
+  postReportUnverified: "尚未確認舉報可用性",
+  reportTitle: "舉報帖子 {value}",
+  reportDescription: "舉報會將此帖發送給論壇版主。",
+  reportChecking: "正在檢查目前舉報選項…",
+  reportActor: "舉報帳戶：{value}",
+  reportContent: "舉報內容",
+  ratingTitle: "為帖子 {value} 評分",
+  ratingDescription:
+    "{author} · 主題 {thread} · 帖子 {post}。評分將修改帖子的論壇積分並使用今日評分額度。",
+  ratingActor: "評分帳戶：{value}",
+  ratingChecking: "正在檢查目前評分選項…",
+  ratingSubmitting: "正在提交本次評分，不會重複發送…",
+  ratingReason: "理由（可選）",
+  ratingSuggested: "可選評分理由",
+  ratingChoose: "選擇評分理由",
+  ratingNotify: "通知帖子作者",
+  ratingSubmit: "提交評分",
+  ratingRange: "{min} 至 {max}；今日剩餘 {remaining}",
+  ratingConfirmed: "已透過最新論壇評分記錄確認評分。",
+  ratingUncertain:
+    "評分結果不確定，論壇可能已接受。請查看原版評分記錄；本次評分不會重試。",
+  ratingRejected: "評分被拒絕：",
+
   moreThreadOptions: "更多主題選項",
   threadOptions: "主題選項",
   pageAndOptions: "分頁與主題選項",
@@ -1166,6 +1452,16 @@ const traditional: Strings = {
   threadResults: "主題清單",
   subordinateBoards: "子版塊",
   boardFilters: "版塊篩選",
+  filterReward: "懸賞",
+  filterHelp:
+    "選擇一項變更，然後套用。選擇另一選項會取代待套用的選項；僅支援論壇提供的組合。",
+  filterUnavailable: "請重新整理版塊以查看篩選變更。",
+  filterNext: "套用後：",
+  filterAll: "全部主題",
+  filterReplaces: "取代以下目前條件：",
+  filterApply: "套用",
+  filterCancel: "取消",
+  filterClear: "清除",
   filterCategory: "分類",
   filterOrder: "排序",
   filterType: "主題類型",
@@ -1174,11 +1470,15 @@ const traditional: Strings = {
 
   criteria: "目前有效條件",
   page: "第",
+  localReplyDraft: "本機草稿",
   pinned: "置頂",
+  pinnedThreads: "置頂主題",
   moved: "已移動",
   replies: "回覆",
   views: "瀏覽",
-  lastReply: "{value} 的最新回覆",
+  lastReply: "最新回覆",
+  latestAuthorUnavailable: "回覆者無法取得",
+  latestTimeUnavailable: "時間無法取得",
   boardPages: "版塊分頁",
   threadReading: "主題閱讀",
   threadHistory: "主題歷史",
@@ -1190,6 +1490,8 @@ const traditional: Strings = {
     "檢查來源頁面支援的主題最新邊界或目前篩選與排序的版塊首頁。首次遠端檢查建立基準；不將先前未見的內容計為新增內容。",
   checkDetails: "檢查詳情",
   boardRetry: "{value} 分鐘後可重試。",
+  retryCheck: "重試檢查",
+  threadCheckUnavailable: "無法檢查：沒有受支援的最新頁目標。",
   checkNewThreads: "檢查新主題",
   boardChecking: "正在檢查版塊…",
   boardCheckFailed: "版塊檢查失敗，請手動重試。",
@@ -1275,11 +1577,23 @@ const traditional: Strings = {
   findMention: "尋找用戶",
   mentionPerson: "提及 {value}（UID {id}）",
   quickQuote: "回覆這篇帖子",
+  postActions: "帖子 {value} 操作",
+  postReply: "回覆",
+  onlyPostAuthor: "只看該作者",
+  postRate: "評分",
+  postReport: "檢舉",
+  postActionUnavailable: "此版本暫不可用",
+  replyTarget: "回覆對象",
+  insertQuotedPost: "插入帖子引用文字",
+  quotePostExplanation: "附加可見文字的引用；不複製原格式或原生通知行為。",
+  removeReplyTarget: "移除回覆對象",
+  replyExcerptUnavailable: "帖子摘要不可用",
+  postFilterUnavailable: "原生作者篩選不可用",
   writingDestination: "寫作目標",
   reviewDestination: "檢閱目標",
   writingThread: "主題 {value}",
   addressedExplanation:
-    "以空白內文開始，僅指定一位作者和一篇帖子。不會自動插入引用文字。其他引用區塊不會改變此目標；無法保證通知送達。",
+    "指定一位作者和一篇帖子並保留現有寫作；新回覆以空白內文開始。不會自動插入引用文字。其他引用區塊不會改變此目標；無法保證通知送達。",
   addressedTo: "回覆對象：{value} · 帖子 {post}",
   replyDeliveryUnknown:
     "引用原始碼不會更改回覆對象。引用和提及的通知送達狀態未確認。",
@@ -1307,6 +1621,7 @@ const traditional: Strings = {
   newThreadIn: "在 {value} 中發表新主題",
   writingAs: "寫作帳號：{value}",
   writingBoard: "版塊 {value}",
+  sharedReplyPaused: "傳送已暫停。請檢查目前帳號及表單；共用回覆仍保留。",
   writingPaused:
     "傳送已暫停 — 目前帳號尚未重新檢查。原寫作內容仍屬於 {value}。",
   writingAccountChanged:
@@ -1393,6 +1708,118 @@ export const insert = (pattern: string, value: string | number) =>
   pattern.replace("{value}", String(value));
 
 const descriptions: Record<string, readonly [string, string]> = {
+  "Pending reply restored as Unknown. Nothing was replayed; check its original status.":
+    [
+      "待处理的回复已恢复为结果未知。未重新发送；请检查原回复状态。",
+      "待處理的回覆已復原為結果未知。未重新傳送；請檢查原回覆狀態。",
+    ],
+  "Reply was not sent because pending recovery, writing or the account changed. Your input is retained.":
+    [
+      "因待处理恢复记录、写作内容或账户发生变化，回复未发送。您的输入已保留。",
+      "因待處理復原紀錄、寫作內容或帳號發生變化，回覆未傳送。您的輸入已保留。",
+    ],
+  "The reply outcome is retained in this tab but could not be durably acknowledged. Check its original status; no retry was sent.":
+    [
+      "回复结果保留在此标签页中，但无法确认持久保存。请检查原回复状态；未重试发送。",
+      "回覆結果保留在此分頁中，但無法確認持久儲存。請檢查原回覆狀態；未重試傳送。",
+    ],
+  "The failed reply is a recoverable version. Choose it to edit, or keep writing your newer draft. Nothing was sent.":
+    [
+      "失败的回复已保留为可恢复版本。您可选择编辑该版本，或继续撰写较新草稿。未发送任何内容。",
+      "失敗的回覆已保留為可復原版本。您可選擇編輯該版本，或繼續撰寫較新草稿。未傳送任何內容。",
+    ],
+  "The writing or saved reply changed, or recovery failed. Your newer draft is retained; try Edit again.":
+    [
+      "写作内容或已保存的回复发生变化，或恢复失败。较新草稿已保留；请再次尝试编辑。",
+      "寫作內容或已儲存的回覆發生變化，或復原失敗。較新草稿已保留；請再次嘗試編輯。",
+    ],
+  "The original reply status changed. Check it again before accepting duplicate risk.":
+    [
+      "原回复状态已改变。接受重复风险前请再次检查。",
+      "原回覆狀態已改變。接受重複風險前請再次檢查。",
+    ],
+  "The historical failure could not be acknowledged unchanged. Check its original status; no retry was sent and your newer draft is retained.":
+    [
+      "无法确认历史失败记录保持不变。请检查原回复状态；未重试发送，较新草稿已保留。",
+      "無法確認歷史失敗紀錄保持不變。請檢查原回覆狀態；未重試傳送，較新草稿已保留。",
+    ],
+  "The original reply could not be prepared under its original account. Your newer draft is retained; nothing was retried.":
+    [
+      "无法使用原账户准备原回复。较新草稿已保留；未重试发送。",
+      "無法使用原帳號準備原回覆。較新草稿已保留；未重試傳送。",
+    ],
+  "The original reply is Sending. Newer writing is retained.": [
+    "正在发送原回复。较新的写作内容已保留。",
+    "正在傳送原回覆。較新的寫作內容已保留。",
+  ],
+  "This status observation is retained in this tab but could not be durably acknowledged. Check the original status again before retrying.":
+    [
+      "本次状态观察保留在此标签页中，但无法确认持久保存。重试前请再次检查原回复状态。",
+      "本次狀態觀察保留在此分頁中，但無法確認持久儲存。重試前請再次檢查原回覆狀態。",
+    ],
+  "Choosing this version…": ["正在选择此版本…", "正在選擇此版本…"],
+  "Selected version resumed. Other versions remain recoverable.": [
+    "已继续所选版本。其他版本仍可恢复。",
+    "已繼續所選版本。其他版本仍可復原。",
+  ],
+  "The choice could not be saved. Your writing remains available.": [
+    "无法保存此次选择。写作内容仍保留。",
+    "無法儲存此次選擇。寫作內容仍保留。",
+  ],
+  "The drafts changed. Inspect the current versions and choose again.": [
+    "草稿已改变。请查看当前版本后重新选择。",
+    "草稿已變更。請檢視目前版本後重新選擇。",
+  ],
+  "Discarding the selected retained version…": [
+    "正在丢弃所选保留版本…",
+    "正在捨棄所選保留版本…",
+  ],
+  "The selected retained version was discarded.": [
+    "已丢弃所选保留版本。",
+    "已捨棄所選保留版本。",
+  ],
+  "The discard could not be saved. The version remains recoverable.": [
+    "无法保存丢弃操作。此版本仍可恢复。",
+    "無法儲存捨棄操作。此版本仍可復原。",
+  ],
+  "The drafts changed. Inspect the current versions before discarding.": [
+    "草稿已改变。请查看当前版本后再丢弃。",
+    "草稿已變更。請檢視目前版本後再捨棄。",
+  ],
+  "This reply has an unsettled operation. Check its original result before discarding or replacing it. Your writing is retained.":
+    [
+      "此回复有未确定的操作。请先检查原始结果，再丢弃或替换。写作内容已保留。",
+      "此回覆有未確定的操作。請先檢查原始結果，再捨棄或取代。寫作內容已保留。",
+    ],
+
+  "Check the current account and form before reviewing this shared reply.": [
+    "预览此共享回复前，请检查当前账号和表单。",
+    "預覽此共用回覆前，請檢查目前帳號及表單。",
+  ],
+  "The writing or account changed while reading the replacement. Choose it again.":
+    [
+      "读取替代文件时，内容或账号已改变。请重新选择。",
+      "讀取替代檔案時，內容或帳號已變更。請重新選擇。",
+    ],
+  "The replacement file could not be read. Original attachment intent is retained.":
+    [
+      "无法读取替代文件。原附件意图仍保留。",
+      "無法讀取替代檔案。原附件意圖仍保留。",
+    ],
+  "Recovery or writing changed. No replacement was uploaded.": [
+    "恢复存储或内容已改变。未上传替代文件。",
+    "復原儲存或內容已變更。未上傳替代檔案。",
+  ],
+  "The replacement upload reached the forum, but writing or authority changed. Original intent and the separate upload result are retained; nothing was retried.":
+    [
+      "替代文件已到达论坛，但内容或权限已改变。原附件意图和独立上传结果均已保留；未重试任何操作。",
+      "替代檔案已到達論壇，但內容或權限已變更。原附件意圖及獨立上傳結果均已保留；未重試任何操作。",
+    ],
+  "Unavailable attachment intent and its exact references removed locally. No server file was deleted.":
+    [
+      "已在本地移除不可用附件及其完整引用。未删除服务器文件。",
+      "已在本機移除無法使用的附件及其完整引用。未刪除伺服器檔案。",
+    ],
   "The private conversation could not be confirmed. Continue in the native forum.":
     [
       "无法确认此私人交谈。请前往原生论坛。",
@@ -2338,6 +2765,16 @@ const descriptions: Record<string, readonly [string, string]> = {
       "先前尝试可能已产生主题。再次发送前，请检查结果并明确接受重复风险。",
       "先前嘗試可能已產生主題。再次傳送前，請檢查結果並明確接受重複風險。",
     ],
+  "The sending account was not verified when Send was activated. Check the current account, then choose Send again. Your reply is retained.":
+    [
+      "点击发送时尚未验证当前发送账号。请检查当前账号后重新选择发送。回复已保留。",
+      "按下傳送時尚未驗證目前傳送帳號。請檢查目前帳號後重新選擇傳送。回覆已保留。",
+    ],
+  "The reply or sending account changed during preparation. Nothing was sent. Choose Send again for the current reply.":
+    [
+      "准备期间回复或发送账号已改变。未发送任何内容。请重新选择发送当前回复。",
+      "準備期間回覆或傳送帳號已改變。未傳送任何內容。請重新選擇傳送目前回覆。",
+    ],
   "Writing changed during publication preparation. Review the current revision again.":
     [
       "准备发布期间写作内容已变化。请重新检查当前版本。",
@@ -2866,6 +3303,10 @@ const descriptions: Record<string, readonly [string, string]> = {
   "The native form does not provide unambiguous complete source and options.": [
     "原版表单未提供明确完整的源码和选项。",
     "原版表單未提供明確完整的原始碼和選項。",
+  ],
+  "The writing context or account changed. The reply target was not changed.": [
+    "写作内容或账号已更改。回复对象未改变。",
+    "寫作內容或帳號已更改。回覆對象未改變。",
   ],
   "Writing changed while the new form was loading. Return to it or deliberately prepare replacement again.":
     [

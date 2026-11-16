@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import WorkspaceIcon from "./WorkspaceIcon.vue";
+import ReplyToolbarPopover from "./ReplyToolbarPopover.vue";
+import { ToolbarRoot, ToolbarButton } from "reka-ui";
 import {
   computed,
   nextTick,
@@ -30,28 +33,43 @@ const props = defineProps<{
   workspace: Workspace;
   expanded: boolean;
   plain?: boolean;
+  reply?: boolean;
+  toolsOpen?: boolean;
+  portal?: HTMLElement;
 }>();
 const writing = props.workspace.writing;
 const session = writing.editor();
+const blocked = writing.replyBlocked;
+watch(blocked, () => view?.setProps({ editable: () => !blocked.value }));
 const state = shallowRef<EditorSnapshot>(session.state);
 const text = computed(() =>
   strings(props.workspace.preferences.state.value.language),
 );
 const source = ref<HTMLTextAreaElement | null>(null);
+const controls = ref<HTMLElement | null>(null);
 const sourceError = ref<HTMLParagraphElement | null>(null);
 const sourceIssue = computed(() =>
   writing.state.value.validationIssues.find(
     (issue) => issue.field === "source",
   ),
 );
+const inputDescription = computed(() =>
+  [
+    props.reply ? "reply-shortcut" : "",
+    sourceIssue.value ? "writing-source-error" : "",
+  ]
+    .filter(Boolean)
+    .join(" "),
+);
 function editorAttributes() {
   return {
     role: "textbox",
     "aria-label": t("Visual post content"),
     "aria-multiline": "true",
-    ...(sourceIssue.value
-      ? { "aria-invalid": "true", "aria-describedby": "writing-source-error" }
+    ...(inputDescription.value
+      ? { "aria-describedby": inputDescription.value }
       : {}),
+    ...(sourceIssue.value ? { "aria-invalid": "true" } : {}),
   };
 }
 watch(
@@ -63,6 +81,17 @@ let view: EditorView | null = null;
 let unsubscribe = () => {};
 const t = (value: string) =>
   editorText(value, props.workspace.preferences.state.value.language);
+const nextMode = computed(() =>
+  state.value.mode === "visual" ? "source" : "visual",
+);
+const modeSwitchLabel = computed(() =>
+  t(
+    nextMode.value === "source"
+      ? "Switch to source editor"
+      : "Switch to visual editor",
+  ),
+);
+const shortcutHint = computed(() => t("Enter: new line · Ctrl/⌘+Enter: send"));
 const inputMessage = ref("");
 const argument = ref("");
 const activeTool = ref<string | null>(null);
@@ -109,7 +138,7 @@ const commonTools = [
   ["ul", "Unordered list"],
   ["ol", "Ordered list"],
   ["code", "Code"],
-];
+] as const;
 const advancedGroups = [
   {
     name: "Text appearance",
@@ -144,6 +173,63 @@ const advancedGroups = [
     ],
   },
 ];
+const replyGroups = [
+  {
+    name: "Text formatting",
+    icon: "b",
+    tools: [
+      ...commonTools.slice(0, 4),
+      ...advancedGroups[0]!.tools.slice(0, 5),
+    ],
+  },
+  {
+    name: "Paragraph",
+    icon: "ul",
+    tools: [
+      commonTools[4],
+      commonTools[5],
+      ...advancedGroups[0]!.tools.slice(5),
+    ],
+  },
+  {
+    name: "Insert",
+    icon: "plus",
+    tools: [
+      ...advancedGroups[1]!.tools,
+      ...advancedGroups[2]!.tools,
+      commonTools[6],
+    ],
+  },
+] as const;
+function replyTool(name: string, close: (restore?: boolean) => void) {
+  if (state.value.composing) return;
+  if (parameterized.includes(name)) {
+    chooseTool(name);
+    void nextTick(() =>
+      props.portal
+        ?.querySelector<HTMLInputElement>("[data-tool-argument]")
+        ?.focus(),
+    );
+  } else {
+    close(false);
+    chooseTool(name);
+  }
+}
+function parameterEnter(
+  event: KeyboardEvent,
+  close: (restore?: boolean) => void,
+) {
+  if (
+    event.isComposing ||
+    event.keyCode === 229 ||
+    state.value.composing ||
+    !activeTool.value
+  )
+    return;
+  event.preventDefault();
+  close(false);
+  apply(activeTool.value);
+}
 const parameterized = [
   "font",
   "size",
@@ -188,7 +274,18 @@ function focus(automaticEntry = false, showValidation = false) {
     if (showValidation) sourceError.value?.scrollIntoView({ block: "nearest" });
   });
 }
-defineExpose({ focus });
+function focusTools() {
+  void nextTick(() =>
+    controls.value
+      ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus(),
+  );
+}
+defineExpose({
+  focus,
+  focusTools,
+  editorMode: computed(() => state.value.mode),
+});
 watch(
   () => writing.state.value.visible,
   (visible) => {
@@ -264,6 +361,30 @@ function apply(name: string) {
     });
   focus();
 }
+function replyShortcut(event: KeyboardEvent): boolean {
+  if (
+    !props.reply ||
+    event.key !== "Enter" ||
+    event.defaultPrevented ||
+    event.altKey ||
+    event.isComposing ||
+    event.keyCode === 229 ||
+    state.value.composing ||
+    writing.state.value.composing
+  )
+    return false;
+  const modified = event.ctrlKey || event.metaKey;
+  const send = modified && !event.shiftKey;
+  const newline = state.value.mode === "visual" && !modified;
+  if (!send && !newline) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  if (!blocked.value) {
+    if (newline) session.command("paste", { text: "\n" });
+    else if (!event.repeat) void writing.sendReply();
+  }
+  return true;
+}
 function composition(value: boolean) {
   if (value) {
     session.setComposing(true);
@@ -290,6 +411,7 @@ onMounted(() => {
       .map((name) => [name, renderNode]),
   );
   view = new EditorView(mount.value, {
+    editable: () => !blocked.value,
     state: session.pmState,
     plugins: [
       new Plugin({
@@ -314,9 +436,23 @@ onMounted(() => {
     nodeViews: nodes,
     markViews: { format: editorMark, literal: editorMark },
     dispatchTransaction: (transaction) => {
+      if (blocked.value && transaction.docChanged) return;
       session.dispatch(transaction);
     },
     handleKeyDown: (editor, event) => {
+      // ProseMirror handles active native composition before this callback.
+      // Its base Enter must not add a paragraph for a confirmation key that
+      // arrives just after compositionend, while our composition guard remains.
+      if (
+        props.reply &&
+        event.key === "Enter" &&
+        (event.isComposing ||
+          event.keyCode === 229 ||
+          state.value.composing ||
+          writing.state.value.composing)
+      )
+        return true;
+      if (replyShortcut(event)) return true;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
         travel(event.shiftKey ? "redo" : "undo");
         return true;
@@ -415,149 +551,372 @@ onBeforeUnmount(() => {
 </script>
 <template>
   <div class="post-editor">
-    <div v-show="expanded" class="writing-actions">
-      <button
-        v-if="!plain"
-        :aria-pressed="state.mode === 'visual'"
-        @click="mode('visual')"
-      >
-        {{ t("Visual editor") }}
-      </button>
-      <button
-        v-if="!plain"
-        :aria-pressed="state.mode === 'source'"
-        @click="mode('source')"
-      >
-        {{ t("Source editor") }}
-      </button>
-      <button
-        :disabled="!state.canUndo || state.composing"
-        @click="travel('undo')"
-      >
-        {{ t("Undo") }}
-      </button>
-      <button
-        :disabled="!state.canRedo || state.composing"
-        @click="travel('redo')"
-      >
-        {{ t("Redo") }}
-      </button>
-    </div>
     <div
-      v-if="!plain"
-      v-show="expanded"
-      class="editor-tools common-formatting"
-      role="group"
-      :aria-label="t('Common formatting')"
+      v-show="expanded || toolsOpen"
+      ref="controls"
+      class="editor-controls"
+      :class="{ 'reply-icon-tools': reply && expanded }"
     >
-      <button
-        v-for="item in commonTools"
-        :key="item[0]"
-        :disabled="state.composing"
-        @mousedown.prevent
-        @click="chooseTool(item[0]!)"
+      <ToolbarRoot
+        v-if="reply && portal"
+        class="reply-editing-toolbar"
+        :aria-label="t('Reply editing')"
+        loop
       >
-        {{ t(item[1]!) }}
-      </button>
-    </div>
-    <details v-if="!plain" v-show="expanded" class="advanced-authoring">
-      <summary>{{ t("Advanced authoring tools") }}</summary>
-      <fieldset
-        v-for="group in advancedGroups"
-        :key="group.name"
-        class="editor-tools"
-        :disabled="state.composing"
-      >
-        <legend>{{ t(group.name) }}</legend>
-        <button
-          v-for="item in group.tools"
-          :key="item[0]"
-          :aria-expanded="
-            parameterized.includes(item[0]!)
-              ? activeTool === item[0]
-              : undefined
-          "
+        <ToolbarButton
+          :disabled="state.composing"
+          :aria-label="modeSwitchLabel"
+          :title="modeSwitchLabel"
           @mousedown.prevent
-          @click="chooseTool(item[0]!)"
+          @click="mode(nextMode)"
+          ><WorkspaceIcon :name="state.mode"
+        /></ToolbarButton>
+        <ToolbarButton
+          :disabled="!state.canUndo || state.composing"
+          :aria-label="t('Undo')"
+          :title="t('Undo')"
+          @mousedown.prevent
+          @click="travel('undo')"
+          ><WorkspaceIcon name="undo"
+        /></ToolbarButton>
+        <ToolbarButton
+          :disabled="!state.canRedo || state.composing"
+          :aria-label="t('Redo')"
+          :title="t('Redo')"
+          @mousedown.prevent
+          @click="travel('redo')"
+          ><WorkspaceIcon name="redo"
+        /></ToolbarButton>
+        <ReplyToolbarPopover
+          v-for="group in replyGroups"
+          :key="group.name"
+          :label="t(group.name)"
+          :icon="group.icon"
+          :portal="portal"
+          :disabled="blocked || state.composing"
         >
-          {{ t(item[1]!) }}
-        </button>
-        <div
-          v-if="
-            activeTool &&
-            group.tools.some((item) => item[0] === activeTool) &&
-            parameterized.includes(activeTool)
-          "
-          class="editor-tool-argument"
+          <template #default="{ close }">
+            <div class="reply-toolbar-commands">
+              <button
+                v-for="item in group.tools"
+                :key="item[0]"
+                :aria-expanded="
+                  parameterized.includes(item[0]!)
+                    ? activeTool === item[0]
+                    : undefined
+                "
+                @mousedown.prevent
+                @click="replyTool(item[0]!, close)"
+              >
+                {{ t(item[1]!) }}
+              </button>
+            </div>
+            <div
+              v-if="
+                activeTool &&
+                group.tools.some((item) => item[0] === activeTool) &&
+                parameterized.includes(activeTool)
+              "
+              class="editor-tool-argument"
+            >
+              <label
+                >{{
+                  t(
+                    group.tools.find((item) => item[0] === activeTool)?.[1] ??
+                      "",
+                  )
+                }}<input
+                  v-model="argument"
+                  data-tool-argument
+                  @keydown.enter="parameterEnter($event, close)"
+              /></label>
+              <button
+                @mousedown.prevent
+                @click="
+                  close(false);
+                  apply(activeTool!);
+                "
+              >
+                {{ t("Apply") }}
+                {{
+                  t(
+                    group.tools.find((item) => item[0] === activeTool)?.[1] ??
+                      "",
+                  )
+                }}
+              </button>
+            </div>
+          </template>
+        </ReplyToolbarPopover>
+        <ReplyToolbarPopover
+          :label="t('Table')"
+          icon="table"
+          :portal="portal"
+          :disabled="blocked || state.composing"
+          ><template #default="{ close }">
+            <fieldset
+              class="editor-tools"
+              :disabled="blocked || state.composing"
+            >
+              <legend>{{ t("Table") }}</legend>
+              <label
+                >{{ t("Table rows")
+                }}<input v-model="rows" type="number" min="1" max="20"
+              /></label>
+              <label
+                >{{ t("Table columns")
+                }}<input v-model="columns" type="number" min="1" max="20"
+              /></label>
+              <button
+                @mousedown.prevent
+                @click="
+                  close(false);
+                  tableAction(true);
+                "
+              >
+                {{ t("Insert table") }}
+              </button>
+              <label
+                >{{ t("Table operation")
+                }}<select
+                  v-model="tableOperation"
+                  :aria-label="t('Table operation')"
+                >
+                  <option
+                    v-for="item in tableOperations"
+                    :key="item[0]"
+                    :value="item[0]"
+                  >
+                    {{ t(item[1] ?? "") }}
+                  </option>
+                </select></label
+              >
+              <button
+                @mousedown.prevent
+                @click="
+                  close(false);
+                  tableAction();
+                "
+              >
+                {{ t("Apply table operation") }}
+              </button>
+            </fieldset>
+          </template></ReplyToolbarPopover
         >
-          <label
-            >{{
-              t(group.tools.find((item) => item[0] === activeTool)?.[1] ?? "")
-            }}<input v-model="argument"
-          /></label>
-          <button @mousedown.prevent @click="apply(activeTool)">
-            {{ t("Apply") }}
-            {{
-              t(group.tools.find((item) => item[0] === activeTool)?.[1] ?? "")
-            }}
+        <ReplyToolbarPopover
+          :label="text.mentions"
+          icon="mention"
+          :portal="portal"
+          :disabled="blocked || state.composing"
+          ><template #default="{ close }">
+            <fieldset class="editor-tools" :disabled="blocked">
+              <legend>{{ text.mentions }}</legend>
+              <label
+                >{{ text.findMentionPerson }}<input v-model="mentionQuery"
+              /></label>
+              <button
+                :disabled="
+                  writing.state.value.findingMention ||
+                  writing.state.value.publishing
+                "
+                @click="writing.searchMention(mentionQuery)"
+              >
+                {{ text.findMention }}
+              </button>
+              <button
+                v-for="person in writing.state.value.mentionPeople"
+                :key="person.id"
+                @click="
+                  close(false);
+                  writing.insertMention(person.id);
+                  focus();
+                "
+              >
+                {{
+                  text.mentionPerson
+                    .replace("{value}", person.name)
+                    .replace("{id}", person.id)
+                }}
+              </button>
+            </fieldset>
+          </template></ReplyToolbarPopover
+        >
+        <slot name="tools" />
+      </ToolbarRoot>
+      <template v-else>
+        <div class="writing-actions">
+          <button
+            v-if="!plain"
+            :aria-label="t('Visual editor')"
+            :title="t('Visual editor')"
+            :aria-pressed="state.mode === 'visual'"
+            @click="mode('visual')"
+          >
+            <WorkspaceIcon v-if="reply && expanded" name="visual" />
+            <template v-else>{{ t("Visual editor") }}</template>
+          </button>
+          <button
+            v-if="!plain"
+            :aria-label="t('Source editor')"
+            :title="t('Source editor')"
+            :aria-pressed="state.mode === 'source'"
+            @click="mode('source')"
+          >
+            <WorkspaceIcon v-if="reply && expanded" name="source" />
+            <template v-else>{{ t("Source editor") }}</template>
+          </button>
+          <button
+            :aria-label="t('Undo')"
+            :title="t('Undo')"
+            :disabled="!state.canUndo || state.composing"
+            @click="travel('undo')"
+          >
+            <WorkspaceIcon v-if="reply && expanded" name="undo" />
+            <template v-else>{{ t("Undo") }}</template>
+          </button>
+          <button
+            :aria-label="t('Redo')"
+            :title="t('Redo')"
+            :disabled="!state.canRedo || state.composing"
+            @click="travel('redo')"
+          >
+            <WorkspaceIcon v-if="reply && expanded" name="redo" />
+            <template v-else>{{ t("Redo") }}</template>
           </button>
         </div>
-      </fieldset>
-      <fieldset class="editor-tools" :disabled="state.composing">
-        <legend>{{ t("Table") }}</legend>
-        <label
-          >{{ t("Table rows")
-          }}<input v-model="rows" type="number" min="1" max="20"
-        /></label>
-        <label
-          >{{ t("Table columns")
-          }}<input v-model="columns" type="number" min="1" max="20"
-        /></label>
-        <button @mousedown.prevent @click="tableAction(true)">
-          {{ t("Insert table") }}
-        </button>
-        <label
-          >{{ t("Table operation")
-          }}<select v-model="tableOperation" :aria-label="t('Table operation')">
-            <option
-              v-for="item in tableOperations"
+        <div
+          v-if="!plain"
+          class="editor-tools common-formatting"
+          role="group"
+          :aria-label="t('Common formatting')"
+        >
+          <button
+            v-for="item in commonTools"
+            :key="item[0]"
+            :aria-label="t(item[1])"
+            :title="t(item[1])"
+            :disabled="blocked || state.composing"
+            @mousedown.prevent
+            @click="chooseTool(item[0]!)"
+          >
+            <WorkspaceIcon v-if="reply && expanded" :name="item[0]" />
+            <template v-else>{{ t(item[1]!) }}</template>
+          </button>
+        </div>
+        <details v-if="!plain" class="advanced-authoring">
+          <summary>{{ t("Advanced authoring tools") }}</summary>
+          <fieldset
+            v-for="group in advancedGroups"
+            :key="group.name"
+            class="editor-tools"
+            :disabled="blocked || state.composing"
+          >
+            <legend>{{ t(group.name) }}</legend>
+            <button
+              v-for="item in group.tools"
               :key="item[0]"
-              :value="item[0]"
+              :aria-expanded="
+                parameterized.includes(item[0]!)
+                  ? activeTool === item[0]
+                  : undefined
+              "
+              @mousedown.prevent
+              @click="chooseTool(item[0]!)"
             >
-              {{ t(item[1] ?? "") }}
-            </option>
-          </select></label
-        >
-        <button @mousedown.prevent @click="tableAction()">
-          {{ t("Apply table operation") }}
-        </button>
-      </fieldset>
-      <fieldset class="editor-tools">
-        <legend>{{ text.mentions }}</legend>
-        <label
-          >{{ text.findMentionPerson }}<input v-model="mentionQuery"
-        /></label>
-        <button
-          :disabled="
-            writing.state.value.findingMention || writing.state.value.publishing
-          "
-          @click="writing.searchMention(mentionQuery)"
-        >
-          {{ text.findMention }}
-        </button>
-        <button
-          v-for="person in writing.state.value.mentionPeople"
-          :key="person.id"
-          @click="writing.insertMention(person.id)"
-        >
-          {{
-            text.mentionPerson
-              .replace("{value}", person.name)
-              .replace("{id}", person.id)
-          }}
-        </button>
-      </fieldset>
-    </details>
+              {{ t(item[1]!) }}
+            </button>
+            <div
+              v-if="
+                activeTool &&
+                group.tools.some((item) => item[0] === activeTool) &&
+                parameterized.includes(activeTool)
+              "
+              class="editor-tool-argument"
+            >
+              <label
+                >{{
+                  t(
+                    group.tools.find((item) => item[0] === activeTool)?.[1] ??
+                      "",
+                  )
+                }}<input v-model="argument"
+              /></label>
+              <button @mousedown.prevent @click="apply(activeTool)">
+                {{ t("Apply") }}
+                {{
+                  t(
+                    group.tools.find((item) => item[0] === activeTool)?.[1] ??
+                      "",
+                  )
+                }}
+              </button>
+            </div>
+          </fieldset>
+          <fieldset class="editor-tools" :disabled="blocked || state.composing">
+            <legend>{{ t("Table") }}</legend>
+            <label
+              >{{ t("Table rows")
+              }}<input v-model="rows" type="number" min="1" max="20"
+            /></label>
+            <label
+              >{{ t("Table columns")
+              }}<input v-model="columns" type="number" min="1" max="20"
+            /></label>
+            <button @mousedown.prevent @click="tableAction(true)">
+              {{ t("Insert table") }}
+            </button>
+            <label
+              >{{ t("Table operation")
+              }}<select
+                v-model="tableOperation"
+                :aria-label="t('Table operation')"
+              >
+                <option
+                  v-for="item in tableOperations"
+                  :key="item[0]"
+                  :value="item[0]"
+                >
+                  {{ t(item[1] ?? "") }}
+                </option>
+              </select></label
+            >
+            <button @mousedown.prevent @click="tableAction()">
+              {{ t("Apply table operation") }}
+            </button>
+          </fieldset>
+          <fieldset class="editor-tools" :disabled="blocked">
+            <legend>{{ text.mentions }}</legend>
+            <label
+              >{{ text.findMentionPerson }}<input v-model="mentionQuery"
+            /></label>
+            <button
+              :disabled="
+                writing.state.value.findingMention ||
+                writing.state.value.publishing
+              "
+              @click="writing.searchMention(mentionQuery)"
+            >
+              {{ text.findMention }}
+            </button>
+            <button
+              v-for="person in writing.state.value.mentionPeople"
+              :key="person.id"
+              @click="writing.insertMention(person.id)"
+            >
+              {{
+                text.mentionPerson
+                  .replace("{value}", person.name)
+                  .replace("{id}", person.id)
+              }}
+            </button>
+          </fieldset>
+        </details>
+        <slot name="tools" />
+      </template>
+      <p v-if="reply" id="reply-shortcut" class="composer-help">
+        {{ shortcutHint }}
+      </p>
+    </div>
     <p
       v-if="!plain && state.issues.some((issue) => issue.kind === 'protected')"
       role="status"
@@ -608,38 +967,55 @@ onBeforeUnmount(() => {
               "Enter private message text before review.",
               workspace.preferences.state.value.language,
             )
-          : validationText(
-              sourceIssue,
-              workspace.preferences.state.value.language,
-            )
+          : reply && sourceIssue.code === "required"
+            ? t("Enter reply text before sending.")
+            : validationText(
+                sourceIssue,
+                workspace.preferences.state.value.language,
+              )
       }}
     </p>
-    <div v-show="state.mode === 'visual'" ref="mount" class="visual-editor" />
-    <label v-show="state.mode === 'source'"
-      >{{
-        plain
-          ? privateWritingText(
-              "Private message text",
-              workspace.preferences.state.value.language,
-            )
-          : text.completeSource
-      }}<textarea
-        ref="source"
-        :aria-invalid="sourceIssue ? 'true' : undefined"
-        :aria-describedby="sourceIssue ? 'writing-source-error' : undefined"
-        :value="state.display"
-        :rows="expanded ? 14 : 6"
-        spellcheck="false"
-        @input="input"
-        @select="selected"
-        @keyup="selected"
-        @click="selected"
-        @blur="selected"
-        @compositionstart.stop="composition(true)"
-        @compositionend.stop="composition(false)"
-        @keydown.meta.z.prevent="travel($event.shiftKey ? 'redo' : 'undo')"
-        @keydown.ctrl.z.prevent="travel($event.shiftKey ? 'redo' : 'undo')"
-      />
-    </label>
+    <div :class="reply ? 'reply-input-row' : undefined">
+      <slot name="leading" />
+      <div :class="reply ? 'reply-input-shell' : undefined">
+        <div
+          v-show="state.mode === 'visual'"
+          ref="mount"
+          class="visual-editor"
+        />
+        <label
+          v-show="state.mode === 'source'"
+          :class="{ 'reply-source-label': reply }"
+          >{{
+            plain
+              ? privateWritingText(
+                  "Private message text",
+                  workspace.preferences.state.value.language,
+                )
+              : text.completeSource
+          }}<textarea
+            ref="source"
+            :readonly="blocked"
+            :aria-invalid="sourceIssue ? 'true' : undefined"
+            :aria-describedby="inputDescription || undefined"
+            :value="state.display"
+            :rows="reply ? 1 : expanded ? 14 : 6"
+            spellcheck="false"
+            @input="input"
+            @select="selected"
+            @keyup="selected"
+            @click="selected"
+            @blur="selected"
+            @compositionstart.stop="composition(true)"
+            @compositionend.stop="composition(false)"
+            @keydown.enter="replyShortcut"
+            @keydown.meta.z.prevent="travel($event.shiftKey ? 'redo' : 'undo')"
+            @keydown.ctrl.z.prevent="travel($event.shiftKey ? 'redo' : 'undo')"
+          />
+        </label>
+        <slot name="expansion" />
+      </div>
+      <slot name="trailing" />
+    </div>
   </div>
 </template>

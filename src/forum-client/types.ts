@@ -66,6 +66,8 @@ export interface WritingUpload {
     | "removing"
     | "removal-uncertain"
     | "removed";
+  /** Captured uploader provenance; null is explicitly unknown, absence is legacy. */
+  ownerId?: string | null;
   serverId?: string;
   referenceKind?: "attach" | "attachimg";
   originalSha256?: string;
@@ -87,6 +89,13 @@ export type UploadResult =
       message: string;
       id?: string;
     };
+export interface ReplyAttachmentCheck {
+  account: Account;
+  generation: number;
+  accountVerified: boolean;
+  usableKeys: string[];
+  message: string;
+}
 export interface ForumTransport {
   upload?(
     url: string,
@@ -122,6 +131,8 @@ export type ContentNode =
       children: readonly ContentNode[];
     };
 export interface Post {
+  rateURL?: string;
+  reportURL?: string;
   redPacketThreadId?: string;
   id: string;
   author: string;
@@ -219,6 +230,8 @@ export interface ThreadRow extends ForumLink {
   replies: string;
   views: string;
   lastPost: ForumLink | null;
+  /** Native latest-reply cell metadata; absent on legacy or unsupported sources. */
+  latestReply?: { author: string | null; time: string | null };
 }
 /** Native source-menu provenance; semantics never inferred from link labels. */
 export interface BoardFilterGroup {
@@ -231,6 +244,16 @@ export interface BoardFilterGroup {
 export interface Board {
   id: string;
   title: string;
+  /** Native heading statistics, separate from its board-name anchor. */
+  statistics?: string;
+  /** Same-board native heading destination, only when it clears criteria. */
+  clearFilter?: ForumLink;
+  /** Exact returned destinations and their complete criteria; never compose URLs. */
+  filterChoices?: {
+    url: string;
+    criteria: ForumLink[];
+    removed: ForumLink[];
+  }[];
   url: string;
   boards: BoardLink[];
   threads: ThreadRow[];
@@ -414,7 +437,17 @@ export type AttachmentRemovalResult = {
   message: string;
   latest?: PreparedWriting;
 };
+/** Transient caller validity, checked after native preflight and before an effect.
+ * Never serialize this guard or treat it as forum authority. */
+export interface EffectGuard {
+  check(): Promise<boolean>;
+  current(): boolean;
+}
 export interface ForumClient {
+  prepareReport(target: ReportTarget): Promise<ReportPreparation>;
+  submitReport(form: ReportForm, intent: ReportIntent): Promise<ReportResult>;
+  prepareRating(target: RatingTarget): Promise<RatingPreparation>;
+  submitRating(form: RatingForm, intent: RatingIntent): Promise<RatingResult>;
   sendPrivateMessage(
     review: PrivateReview,
     attempt: PrivateAttempt,
@@ -432,12 +465,17 @@ export interface ForumClient {
     writing: PreparedWriting,
     id: string,
     checkOnly?: boolean,
+    guard?: EffectGuard,
   ): Promise<AttachmentRemovalResult>;
+  checkReplyAttachments?(
+    writing: PreparedWriting,
+  ): Promise<ReplyAttachmentCheck>;
   uploadAttachment(
     writing: PreparedWriting,
     file: UploadFile,
     progress: (loaded: number) => void,
     signal: UploadCancellation,
+    guard?: EffectGuard,
   ): Promise<UploadResult>;
   resumeDraft(
     row: DraftRow,
@@ -507,7 +545,10 @@ export interface ForumClient {
   prepareThreadPublication(
     submission: ThreadSubmission,
   ): Promise<PublicationPreparationResult>;
-  publishThread(attempt: ThreadAttempt): Promise<ThreadAttempt>;
+  publishThread(
+    attempt: ThreadAttempt,
+    guard?: EffectGuard,
+  ): Promise<ThreadAttempt>;
   checkThreadResult(
     attempt: ThreadAttempt,
     candidateURL?: string,
@@ -856,3 +897,76 @@ export type FavoritePreparation =
   | { kind: "ready"; command: FavoriteCommand }
   | { kind: "already"; message: string; pages: Favorites[] }
   | { kind: "unavailable"; message: string };
+
+/** Current native rating controls; opaque authority is kept inside the client. */
+export interface RatingTarget {
+  url: string;
+  threadURL: string;
+  threadId: string;
+  postId: string;
+  author: string;
+  accountId: string;
+}
+export interface RatingForm {
+  reasons: string[];
+  id: string;
+  target: RatingTarget;
+  scores: {
+    name: string;
+    label: string;
+    minimum: number;
+    maximum: number;
+    remaining: number;
+  }[];
+  notify: boolean;
+  notice: string;
+  generation: number;
+}
+export type RatingPreparation =
+  | { kind: "ready"; form: RatingForm }
+  | { kind: "unavailable"; message: string };
+
+export interface RatingIntent {
+  scores: Record<string, number>;
+  reason: string;
+  notify: boolean;
+}
+export interface RatingResult {
+  kind: "confirmed" | "rejected" | "uncertain" | "not-sent";
+  message: string;
+  intent: RatingIntent;
+  target: RatingTarget;
+}
+
+/** Source-qualified post reporting; authority tokens remain inside the client. */
+export interface ReportTarget {
+  url: string;
+  threadURL: string;
+  threadId: string;
+  postId: string;
+  boardId: string;
+  author: string;
+  accountId: string;
+}
+export interface ReportForm {
+  id: string;
+  target: ReportTarget;
+  reasons: string[];
+  maximum: number;
+  generation: number;
+}
+export type ReportPreparation =
+  | { kind: "ready"; form: ReportForm }
+  | { kind: "unavailable"; message: string };
+
+export interface ReportIntent {
+  reason: string;
+  message: string;
+}
+/** No confirmed variant until an independent report-status source is qualified. */
+export interface ReportResult {
+  kind: "rejected" | "uncertain" | "not-sent";
+  message: string;
+  intent: ReportIntent;
+  target: ReportTarget;
+}

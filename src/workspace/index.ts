@@ -3,6 +3,11 @@ import { createPrivateHistory, privateContext } from "./private-history";
 import { createThreadHistory, threadContext } from "./thread-history";
 import type { DownloadHost, PreparedFile } from "../hosts/download";
 import { createWriting } from "./writing";
+import {
+  hasReplyHold,
+  type ReplyRow,
+  type ReplyUpdate,
+} from "./reply-recovery";
 import { shallowRef, readonly, nextTick, watch } from "vue";
 import { createPreferences, type PreferenceHost } from "./preferences";
 import {
@@ -11,6 +16,14 @@ import {
   type ForumClient,
   type ReadResult,
   type DraftListResult,
+  type ReportIntent,
+  type ReportResult,
+  type ReportTarget,
+  type ReportPreparation,
+  type RatingTarget,
+  type RatingIntent,
+  type RatingResult,
+  type RatingPreparation,
 } from "../forum-client";
 import type {
   NavigationEntry,
@@ -20,6 +33,7 @@ import type {
   Section,
 } from "./navigation";
 export interface WorkspaceState {
+  replyRecovery: import("../workspace/reply-recovery").ReplyRecovery | null;
   section: Section;
   loading: boolean;
   result: ReadResult | null;
@@ -69,6 +83,64 @@ export function createWorkspace(
   preferenceHost: PreferenceHost,
   downloads?: DownloadHost,
 ) {
+  const report = shallowRef<{
+    target: ReportTarget;
+    loading: boolean;
+    preparation: ReportPreparation | null;
+    result: ReportResult | null;
+  } | null>(null);
+  let reportSequence = 0;
+  async function openReport(target: ReportTarget) {
+    const current = ++reportSequence;
+    report.value = { target, loading: true, preparation: null, result: null };
+    const preparation = await client.prepareReport(target);
+    if (current === reportSequence)
+      report.value = { target, loading: false, preparation, result: null };
+  }
+  async function submitReport(intent: ReportIntent) {
+    const prior = report.value;
+    if (
+      !prior ||
+      prior.loading ||
+      prior.result ||
+      prior.preparation?.kind !== "ready"
+    )
+      return;
+    report.value = { ...prior, loading: true };
+    const current = reportSequence;
+    const result = await client.submitReport(prior.preparation.form, intent);
+    if (current === reportSequence)
+      report.value = { ...prior, loading: false, result };
+  }
+  const rating = shallowRef<{
+    target: RatingTarget;
+    loading: boolean;
+    preparation: RatingPreparation | null;
+    result: RatingResult | null;
+  } | null>(null);
+  let ratingSequence = 0;
+  async function openRating(target: RatingTarget) {
+    const current = ++ratingSequence;
+    rating.value = { target, loading: true, preparation: null, result: null };
+    const preparation = await client.prepareRating(target);
+    if (current === ratingSequence)
+      rating.value = { target, loading: false, preparation, result: null };
+  }
+  async function submitRating(intent: RatingIntent) {
+    const prior = rating.value;
+    if (
+      !prior ||
+      prior.loading ||
+      prior.result ||
+      prior.preparation?.kind !== "ready"
+    )
+      return;
+    rating.value = { ...prior, loading: true };
+    const current = ratingSequence;
+    const result = await client.submitRating(prior.preparation.form, intent);
+    if (current === ratingSequence)
+      rating.value = { ...prior, loading: false, result };
+  }
   const preferences = createPreferences(preferenceHost);
   // Latest accepted account observation, distinct from retained public results.
   // Null means no fresh observation yet (e.g. restored page-session state).
@@ -113,8 +185,11 @@ export function createWorkspace(
 
   const writing = createWriting(
     client,
-    () => {
+    (disposed) => {
+      if (disposed) host.disposeReply?.(disposed.replyTarget!.threadId);
+      record.schema = 6;
       record.writing = writing.snapshot();
+      record.retainedReplies = writing.retainedSnapshot();
       return persist();
     },
     (account) => {
@@ -124,6 +199,7 @@ export function createWorkspace(
       await loadDrafts();
       await openThread(url, null, contextId);
     },
+    host,
   );
   const state = shallowRef<WorkspaceState>({
     section: "boards",
@@ -143,6 +219,7 @@ export function createWorkspace(
     origin: null,
     documentNavigation: null,
     recoveryProblem: null,
+    replyRecovery: null,
   });
   const download = shallowRef<{
     status: "checking" | "ready" | "requested" | "failure";
@@ -617,17 +694,84 @@ export function createWorkspace(
         };
     }
   }
-  async function persist() {
+  const replyResolution = shallowRef<{
+    threadId: string;
+    busy: boolean;
+    message: string;
+  } | null>(null);
+  async function chooseReply(row: ReplyRow, version: string) {
     if (
-      record.writing?.action === "private-message" ||
-      record.writing?.privateAttempts?.length
+      !host.chooseReply ||
+      replyResolution.value?.busy ||
+      !writing.canChooseReply(row.threadId)
     )
-      record.schema = 3;
+      return;
+    const before = JSON.parse(JSON.stringify(writing.replySlot(row.threadId)));
+    const observed = JSON.parse(JSON.stringify(row));
+    replyResolution.value = {
+      threadId: row.threadId,
+      busy: true,
+      message: "Choosing this version…",
+    };
+    const result = await host.chooseReply(observed, version);
+    let adopted = false;
+    if (result.kind === "chosen") {
+      const update: ReplyUpdate = {
+        threadId: row.threadId,
+        before,
+        context: result.context,
+        checkpoint: result.checkpoint,
+      };
+      const accepted = writing.applyReplyUpdates([update], true);
+      adopted = accepted.length === 1;
+      if (adopted) host.acceptReplyUpdates?.(accepted);
+    }
+    replyResolution.value = {
+      threadId: row.threadId,
+      busy: false,
+      message: adopted
+        ? "Selected version resumed. Other versions remain recoverable."
+        : result.kind === "refused"
+          ? "The choice could not be saved. Your writing remains available."
+          : "The drafts changed. Inspect the current versions and choose again.",
+    };
+    // A refused adoption must preserve the latest exact local writing/history now,
+    // under its unchanged parent, even if no further keystroke or event arrives.
+    await persist();
+  }
+  async function discardReply(row: ReplyRow, version: string) {
+    if (!host.discardReply || replyResolution.value?.busy) return;
+    replyResolution.value = {
+      threadId: row.threadId,
+      busy: true,
+      message: "Discarding the selected retained version…",
+    };
+    const result = await host.discardReply(
+      JSON.parse(JSON.stringify(row)),
+      version,
+    );
+    replyResolution.value = {
+      threadId: row.threadId,
+      busy: false,
+      message:
+        result === "discarded"
+          ? "The selected retained version was discarded."
+          : result === "refused"
+            ? "The discard could not be saved. The version remains recoverable."
+            : "The drafts changed. Inspect the current versions before discarding.",
+    };
+    await persist();
+  }
+  async function persist() {
+    record.writing = writing.snapshot();
+    record.retainedReplies = writing.retainedSnapshot();
+    record.schema = 6;
     record.favoriteAttempts = JSON.parse(
       JSON.stringify(favorite.value.attempts),
     );
     const current = ++saveSequence;
     const context = record.writing;
+    const capturedWriting = JSON.stringify(context);
     // Private peer previews belong to this document, not page-session recovery.
     // Keep the safe destination and existing writing in the single record owner.
     const saved = await host.save({
@@ -643,7 +787,31 @@ export function createWorkspace(
         ]),
       ),
     });
-    if (current === saveSequence) {
+    const replyRecovery = host.replyRecovery?.() ?? null;
+    writing.observeReplySends();
+    if (replyRecovery)
+      writing.pauseConflictedReplies(
+        replyRecovery.conflicts.map((row) => row.threadId),
+        replyRecovery.alternatives
+          .filter((row) =>
+            row.retained?.some((variant) =>
+              hasReplyHold(variant.context, row.sends ?? []),
+            ),
+          )
+          .map((row) => row.threadId),
+      );
+    state.value = { ...state.value, replyRecovery };
+    const adopted = replyRecovery
+      ? writing.applyReplyUpdates(replyRecovery.updates)
+      : [];
+    if (adopted.length) {
+      host.acceptReplyUpdates?.(adopted);
+      void persist();
+    }
+    if (
+      current === saveSequence &&
+      JSON.stringify(writing.snapshot()) === capturedWriting
+    ) {
       state.value = { ...state.value, recoveryAvailable: saved };
       writing.acknowledge(context?.id ?? null, context?.revision ?? 0, saved);
     }
@@ -757,6 +925,8 @@ export function createWorkspace(
       documentNavigation: null,
       origin: originContext(entry),
     };
+    if (state.value.reading)
+      writing.selectThread(state.value.reading.thread.id);
     void nextTick().then(() => {
       view?.restore(
         entry.position,
@@ -1046,6 +1216,8 @@ export function createWorkspace(
         restored: false,
         destination: entry.destination,
       };
+      if (state.value.reading)
+        writing.selectThread(state.value.reading.thread.id);
       void nextTick().then(() => {
         view?.restore(
           entry.position,
@@ -1110,6 +1282,7 @@ export function createWorkspace(
       requested?.url.searchParams.get("tid");
     if (
       context &&
+      !writing.canSelectThread() &&
       context.id !== retainedContextId &&
       (((requested?.kind === "thread" || requested?.kind === "redirect") &&
         requestedThread !== state.value.reading?.thread.id) ||
@@ -1137,7 +1310,10 @@ export function createWorkspace(
       updateAnchor(requested.url.hash);
       return;
     }
-    if (["thread", "redirect"].includes(requested?.kind ?? "")) writing.hide();
+    if (["thread", "redirect"].includes(requested?.kind ?? "")) {
+      writing.hide();
+      if (requestedThread) writing.selectThread(requestedThread);
+    }
     capture();
     const previous = entryFor(state.value.key);
     if (previous && selection) previous.selection = selection;
@@ -1486,7 +1662,13 @@ export function createWorkspace(
     state.value = { ...state.value, recoveryProblem: host.recoveryProblem() };
     if (recovered) {
       record = recovered;
-      writing.restore(recovered.writing);
+      const normalizedWriting = writing.restore(
+        recovered.writing,
+        recovered.retainedReplies,
+      );
+      record.writing = writing.snapshot();
+      if (record.schema === 4 || record.schema === 5 || record.schema === 6)
+        record.retainedReplies = writing.retainedSnapshot();
       const attempts = (recovered.favoriteAttempts ?? []).map((attempt) =>
         attempt.status === "pending"
           ? {
@@ -1503,10 +1685,28 @@ export function createWorkspace(
         attempts,
         message: attempts.at(-1)?.message ?? "",
       };
+      if (normalizedWriting) void persist();
     }
+    const replyRecovery = host.replyRecovery?.() ?? null;
+    if (replyRecovery)
+      writing.pauseConflictedReplies(
+        replyRecovery.conflicts.map((row) => row.threadId),
+        replyRecovery.alternatives
+          .filter((row) =>
+            row.retained?.some((variant) =>
+              hasReplyHold(variant.context, row.sends ?? []),
+            ),
+          )
+          .map((row) => row.threadId),
+      );
+    state.value = { ...state.value, replyRecovery };
+    writing.observeReplySends();
     // Initial document traversal must not save an empty provisional record.
     // Read the current key after loading; earlier history events need no replay.
     host.onPop(restoreHistory);
+    host.onReplyChange?.(() => {
+      void persist();
+    });
     const key = host.entryKey();
     if (key) {
       const entry = entryFor(key);
@@ -1678,6 +1878,24 @@ export function createWorkspace(
     void persist();
   }
   return {
+    report: readonly(report),
+    openReport,
+    submitReport,
+    closeReport: () => {
+      if (report.value?.loading && report.value.preparation?.kind === "ready")
+        return;
+      reportSequence++;
+      report.value = null;
+    },
+    rating: readonly(rating),
+    openRating,
+    submitRating,
+    closeRating: () => {
+      if (rating.value?.loading && rating.value.preparation?.kind === "ready")
+        return;
+      ratingSequence++;
+      rating.value = null;
+    },
     preferences,
     saveReadingPosition: () => {
       if (
@@ -1763,6 +1981,9 @@ export function createWorkspace(
       if (pending)
         void openThread(pending.url, pending.selection, pending.contextId);
     },
+    chooseReply,
+    discardReply,
+    replyResolution: readonly(replyResolution),
     openThread,
     refresh,
     updateAnchor,

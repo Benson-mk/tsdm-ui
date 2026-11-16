@@ -1,3 +1,6 @@
+import { compactReplyBesideReader } from "./editor-controls";
+import { selectSourceEditor } from "./editor-controls";
+import { writingDetailAction } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import {
@@ -143,7 +146,7 @@ test.afterEach(async ({ page }, info) => {
   });
 });
 for (const width of [375, 779, 1706])
-  test(`UI93.integrated-${width}: grouped browse through continuous history, confirmed tools, updates and immutable retained Review`, async ({
+  test(`UI93.integrated-${width}: grouped browse through continuous history, confirmed tools, updates and inert Preview with exact retained source`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width, height: 900 });
@@ -193,6 +196,7 @@ for (const width of [375, 779, 1706])
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
+    await selectSourceEditor(page);
     const source = page.getByLabel("Complete source", { exact: true });
     await source.fill(sourceText);
     await source.evaluate((n: HTMLTextAreaElement) =>
@@ -205,7 +209,7 @@ for (const width of [375, 779, 1706])
       .click();
     await page.setViewportSize({ width: 1706, height: 900 });
     const resize = page.getByRole("separator", {
-      name: "Resize Writing",
+      name: "Resize Threads",
       exact: true,
     });
     await expect(resize).toBeVisible();
@@ -213,6 +217,9 @@ for (const width of [375, 779, 1706])
     await resize.press("ArrowLeft");
     await expect(source).toHaveValue(sourceText);
     expect(await selection(page)).toEqual(selected);
+    await page
+      .getByRole("button", { name: "Compact writing", exact: true })
+      .click();
     await confirmThreadPage(page, 3);
     await expect(page.locator("#pid300")).toBeVisible();
     await (
@@ -323,41 +330,25 @@ for (const width of [375, 779, 1706])
     }
     if (await resume.isVisible()) await resume.click();
     await expect(source).toBeVisible();
-    await source.press("Control+Enter");
-    const review = page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    });
+    await (await writingDetailAction(page, "Preview")).click();
+    const review = page.getByRole("region", { name: "Preview", exact: true });
     await expect(review).toBeVisible();
-    expect(await review.locator(".prepared-source").textContent()).toBe(
-      sourceText,
-    );
-    await expect(review).toContainText(
-      "Music discussion · Board 5 · Thread 42",
-    );
-    await expect(review).toContainText("Writing as Writer Seven (7)");
+    await expect(review).toContainText("Exact integrated reply");
+    await expect(source).toHaveValue(sourceText);
     await openSettings(page);
     await page.getByRole("radio", { name: "Alias", exact: true }).check();
     await closeSettingsToWorkspace(page);
     await page.setViewportSize({ width: 734, height: 560 });
     await review
-      .getByRole("button", {
-        name: "Cancel review and return to writing",
-        exact: true,
-      })
+      .getByRole("button", { name: "Close preview", exact: true })
       .scrollIntoViewIfNeeded();
-    expect(await review.locator(".prepared-source").textContent()).toBe(
-      sourceText,
-    );
-    await info.attach("integrated-review.png", {
+    await expect(source).toHaveValue(sourceText);
+    await info.attach("integrated-preview.png", {
       body: await page.screenshot(),
       contentType: "image/png",
     });
     await review
-      .getByRole("button", {
-        name: "Cancel review and return to writing",
-        exact: true,
-      })
+      .getByRole("button", { name: "Close preview", exact: true })
       .click();
     await expect(source).toHaveValue(sourceText);
     expect(f.requests.every((r) => r.method === "GET")).toBe(true);
@@ -387,11 +378,10 @@ test("UI93.recovery-error: an integrated unsent reply reloads passively with tru
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill(sourceText);
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   const prior = f.requests.length;
   await page.reload();
   await expect(page.locator(".navigation-account")).toHaveText(
@@ -409,13 +399,12 @@ test("UI93.recovery-error: an integrated unsent reply reloads passively with tru
     exact: true,
   });
   if (await resume.isVisible()) await resume.click();
+  await selectSourceEditor(page);
   await expect(source).toHaveValue(sourceText);
   await expect(
     page.getByRole("group", { name: "Writing destination", exact: true }),
   ).toContainText("Thread 42");
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   f.fail = true;
   await (
     await openThreadMore(page)

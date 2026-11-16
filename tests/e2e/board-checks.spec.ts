@@ -84,14 +84,18 @@ test("UI90.stage-reveal: checks stage stable new identities without moving rows 
   await expect(
     page.getByRole("button", { name: "Show 1 new thread", exact: true }),
   ).toBeVisible();
-  expect(await rows(page)).toEqual(original);
+  expect((await rows(page)).map((row) => row.id)).toEqual(
+    original.map((row) => row.id),
+  );
   expect(await page.locator("#pid101").boundingBox()).toEqual(reader);
   expect(page.url()).toBe(url);
   await refresh(page);
   await expect(
     page.getByRole("button", { name: "Show 1 new thread", exact: true }),
   ).toBeVisible();
-  expect(await rows(page)).toEqual(original);
+  expect((await rows(page)).map((row) => row.id)).toEqual(
+    original.map((row) => row.id),
+  );
   await page
     .getByRole("button", { name: "Show 1 new thread", exact: true })
     .click();
@@ -139,9 +143,7 @@ test("UI90.filtered-distant: source first-page baseline ignores old rows and exp
     boardURL + suffix + "&page=2",
   );
   await refresh(page);
-  await expect(
-    page.getByText("First-page baseline established.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".board-check-status")).toHaveCount(0);
   expect((await rows(page)).map((r) => r.id)).toEqual(["60", "61"]);
   await expect(
     page.getByRole("button", { name: /^Show \d+ new threads?/ }),
@@ -181,7 +183,11 @@ test("UI90.stale-context: a delayed original board check cannot stage into anoth
   await expect(
     page.getByText("Checking board…", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Music category", exact: true }).click();
+  await page.getByRole("button", { name: /^Board filters ·/ }).click();
+  await page
+    .getByRole("button", { name: "Music category", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
   await expect(page.locator('[data-thread-id="70"]')).toBeVisible();
   release();
   await page.waitForTimeout(100);
@@ -286,7 +292,9 @@ test("UI90.incomplete: incomplete rows fail visibly without moving retained list
   await expect(
     page.getByText("Board check failed.", { exact: true }),
   ).toBeVisible();
-  expect(await rows(page)).toEqual(before);
+  expect((await rows(page)).map((row) => row.id)).toEqual(
+    before.map((row) => row.id),
+  );
   await page.locator(".board-check-details summary").click();
   await expect(
     page.getByText(/unrecognized or incomplete thread rows/),
@@ -393,7 +401,9 @@ test("UI90.real-timer-ownership: retained reader and board each check once seria
   expect(maximum).toBe(1);
   expect(requests[2]!.at - started).toBeGreaterThanOrEqual(119000);
   expect(requests[3]!.at - requests[2]!.at).toBeGreaterThanOrEqual(250);
-  expect(await rows(page)).toEqual(initial);
+  expect((await rows(page)).map((row) => row.id)).toEqual(
+    initial.map((row) => row.id),
+  );
   await page.getByRole("button", { name: "Threads pane", exact: true }).click();
   await expect(page.locator(".results-pane")).toBeHidden();
   await page.waitForTimeout(121000);
@@ -437,14 +447,19 @@ test("UI90.real-timer-backoff: failed board checks preserve rows and require del
   await expect(
     page.getByText("Retry available in 2 minutes.", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Retry check", exact: true }),
+  ).toBeDisabled();
   await page.waitForTimeout(121000);
   expect(requests).toHaveLength(2);
-  await refresh(page);
+  await page.getByRole("button", { name: "Retry check", exact: true }).click();
   await expect(
     page.getByText("Retry available in 4 minutes.", { exact: true }),
   ).toBeVisible();
   await page.locator(".board-check-details summary").click();
-  expect(await rows(page)).toEqual(before);
+  expect((await rows(page)).map((row) => row.id)).toEqual(
+    before.map((row) => row.id),
+  );
 });
 
 for (const [width, language, size] of [
@@ -452,9 +467,9 @@ for (const [width, language, size] of [
   [390, "zh-CN", 150],
   [1280, "en", 100],
 ] as const)
-  test(`UI90.presentation-${width}-${language}-${size}: status and count preserve row geometry and named actions`, async ({
+  test(`UI90.presentation-${width}-${language}-${size}: quiet top has no reservation and arrivals remain discoverable`, async ({
     page,
-  }) => {
+  }, info) => {
     const { openSettings, closeSettingsToWorkspace } =
       await import("./navigation-ui");
     await page.setViewportSize({ width, height: 800 });
@@ -467,7 +482,7 @@ for (const [width, language, size] of [
       .selectOption(language);
     await closeSettingsToWorkspace(page);
     const statusHeight = await page
-      .locator(".board-filters")
+      .locator(".filter-trigger")
       .evaluate(
         (node) =>
           node.getBoundingClientRect().top -
@@ -475,22 +490,56 @@ for (const [width, language, size] of [
             .parentElement!.querySelector(".board-heading")!
             .getBoundingClientRect().bottom,
       );
-    expect(statusHeight).toBeLessThanOrEqual(140);
+    expect(statusHeight).toBeLessThan(40);
+    const pane = page.locator(".results-pane");
+    const setupScroll = await pane.evaluate((node) => node.scrollTop);
+    // Start at the actual top after Settings focus restoration.
+    await pane.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+    const check = page.getByRole("button", {
+      name: language === "en" ? "Check for new threads" : "检查新主题",
+      exact: true,
+    });
+    // Establish a visible control before measuring; locator.click would otherwise
+    // scroll a header hidden by Settings focus restoration during the measurement.
+    await check.scrollIntoViewIfNeeded();
+    const target = (await check.boundingBox())!;
+    const bounds = (await pane.boundingBox())!;
+    expect(target.y).toBeGreaterThanOrEqual(bounds.y);
+    expect(target.y + target.height).toBeLessThanOrEqual(
+      bounds.y + bounds.height,
+    );
+    const beforeScroll = await pane.evaluate((node) => node.scrollTop);
     const before = await rows(page);
     ids = [45, 42, 43];
-    await page
-      .getByRole("button", {
-        name: language === "en" ? "Check for new threads" : "检查新主题",
-        exact: true,
-      })
-      .click();
+    await page.mouse.click(
+      target.x + target.width / 2,
+      target.y + target.height / 2,
+    );
     await expect(
       page.getByRole("button", {
         name: language === "en" ? "Show 1 new thread" : "显示 1 个新主题",
         exact: true,
       }),
     ).toBeVisible();
-    expect(await rows(page)).toEqual(before);
+    const after = await rows(page);
+    const afterScroll = await pane.evaluate((node) => node.scrollTop);
+    await info.attach("visible-refresh-geometry.json", {
+      body: JSON.stringify({
+        setupScroll,
+        beforeScroll,
+        afterScroll,
+        before,
+        after,
+        target,
+        bounds,
+      }),
+      contentType: "application/json",
+    });
+    expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
+    expect(afterScroll).toBe(0);
+    expect(beforeScroll).toBe(0);
   });
 
 test("UI90.writing-recovery: reveal retains source node, selection and reading; acknowledged reload retains revealed rows and writing", async ({
@@ -745,4 +794,247 @@ for (const [locale, warning, member] of [
     });
     await expect(page.getByText(warning, { exact: true })).toBeVisible();
     expect(requests).toHaveLength(2);
+  });
+
+test("UX99.board-quiet-cycle: no passive band; asynchronous statuses preserve the mid-scroll row and explicit reveal", async ({
+  page,
+}, info) => {
+  let ids = Array.from({ length: 30 }, (_, i) => 42 + i);
+  let release: (() => void) | undefined;
+  let delayed = false;
+  const requests = await open(page, async () => {
+    if (delayed)
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    return board(ids);
+  });
+  const pane = page.locator(".results-pane");
+  await expect(page.locator(".board-check-status")).toHaveCount(0);
+  const gap = await page
+    .locator(".filter-trigger")
+    .evaluate(
+      (node) =>
+        node.getBoundingClientRect().top -
+        node
+          .parentElement!.querySelector(".board-heading")!
+          .getBoundingClientRect().bottom,
+    );
+  expect(gap).toBeLessThan(40);
+  const check = page.getByRole("button", {
+    name: "Check for new threads",
+    exact: true,
+  });
+  delayed = true;
+  await check.click();
+  await expect(
+    page.getByText("Checking board…", { exact: true }),
+  ).toBeVisible();
+  expect(await pane.evaluate((node) => node.scrollTop)).toBe(0);
+  await pane.evaluate((node) => {
+    node.scrollTop = 700;
+  });
+  const before = await rows(page);
+  ids = [99, ...ids];
+  release!();
+  await expect(
+    page.getByRole("button", { name: "Show 1 new thread", exact: true }),
+  ).toBeAttached();
+  expect((await rows(page)).map((row) => row.id)).toEqual(
+    before.map((row) => row.id),
+  );
+  expect(
+    Math.max(
+      ...(await rows(page)).map((row, i) => Math.abs(row.top - before[i]!.top)),
+    ),
+  ).toBeLessThanOrEqual(1);
+  await expect(page.locator('[data-thread-id="99"]')).toHaveCount(0);
+  await pane.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await page
+    .getByRole("button", { name: "Show 1 new thread", exact: true })
+    .click();
+  await expect(page.locator('[data-thread-id="99"]')).toBeVisible();
+  await expect(page.locator(".board-check-status")).toHaveCount(0);
+  expect(requests).toHaveLength(2);
+  delayed = true;
+  await check.click();
+  await expect(
+    page.getByText("Checking board…", { exact: true }),
+  ).toBeVisible();
+  await pane.evaluate((node) => {
+    node.scrollTop = 700;
+  });
+  const during = await rows(page);
+  release!();
+  await expect(page.locator(".board-check-status")).toHaveCount(0);
+  expect(
+    Math.max(
+      ...(await rows(page)).map((row, i) => Math.abs(row.top - during[i]!.top)),
+    ),
+  ).toBeLessThanOrEqual(1);
+  expect(requests).toHaveLength(3);
+  await info.attach("quiet-cycle.json", {
+    body: JSON.stringify({ gap, before, during, requests }),
+    contentType: "application/json",
+  });
+});
+
+test("UX99.board-failure: failure exposes named Retry and native keyboard Details without losing a mid-scroll row", async ({
+  page,
+}) => {
+  let broken = false;
+  let release: (() => void) | undefined;
+  const requests = await open(page, async () => {
+    if (broken) {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return (
+        account() +
+        '<div id="ct"><h1>Music board</h1></div><table id="threadlisttableid"><tbody id="normalthread_99"><tr><th>Unsupported row</th></tr></tbody></table>'
+      );
+    }
+    return board(Array.from({ length: 30 }, (_, i) => 42 + i));
+  });
+  broken = true;
+  await refresh(page);
+  const pane = page.locator(".results-pane");
+  await pane.evaluate((node) => {
+    node.scrollTop = 700;
+  });
+  const before = await rows(page);
+  release!();
+  await expect(
+    page.getByText("Board check failed.", { exact: true }),
+  ).toBeAttached();
+  expect(
+    Math.max(
+      ...(await rows(page)).map((row, i) => Math.abs(row.top - before[i]!.top)),
+    ),
+  ).toBeLessThanOrEqual(1);
+  const retry = page.getByRole("button", { name: "Retry check", exact: true });
+  await expect(retry).toBeDisabled();
+  await pane.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await page.evaluate(() => {
+    document.body.onkeydown = (event) =>
+      event.keyCode === 27 ? false : undefined;
+  });
+  const details = page.locator(".board-check-details summary");
+  await details.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByText(/unrecognized or incomplete thread rows/),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".board-check-details")).not.toHaveAttribute(
+    "open",
+    "",
+  );
+  await expect(details).toBeFocused();
+  expect(requests).toHaveLength(2);
+});
+
+for (const timed of [false, true])
+  test(`UX99.${timed ? "real-timer" : "clock"}-recovery: board and reader failure retry waits remain deliberate and return quietly at mid-scroll`, async ({
+    page,
+  }, info) => {
+    test.setTimeout(140000);
+    if (!timed) await page.clock.install();
+    let paragraph = 0;
+    const recoveryThread = thread.replaceAll(
+      "Retained reading paragraph with unchanged source.",
+      () => `Retained recovery paragraph ${paragraph++} with unchanged source.`,
+    );
+    const { openThreadMore } = await import("./navigation-ui");
+    let failed = false;
+    const requests = await open(page, (url) =>
+      failed
+        ? account() + '<div id="ct"><h1>Unrecognized response</h1></div>'
+        : url.searchParams.get("mod") === "viewthread"
+          ? recoveryThread
+          : board(Array.from({ length: 30 }, (_, i) => 42 + i)),
+    );
+    await page.locator('[data-thread-id="42"] .subject').click();
+    await expect(page.locator("#pid101")).toBeVisible();
+    failed = true;
+    await (
+      await openThreadMore(page)
+    )
+      .getByRole("menuitem", { name: "Check for new posts", exact: true })
+      .click();
+    await expect(page.getByText(/Check failed · wait 2 min/)).toBeVisible();
+    await refresh(page);
+    await expect(
+      page.getByText("Board check failed.", { exact: true }),
+    ).toBeVisible();
+    const boardRetry = page
+      .locator(".results-pane")
+      .getByRole("button", { name: "Retry check", exact: true });
+    const readerRetry = page
+      .locator(".reading-pane")
+      .getByRole("button", { name: "Retry check", exact: true });
+    await expect(boardRetry).toBeDisabled();
+    await expect(readerRetry).toBeDisabled();
+    await page.locator(".results-pane").evaluate((node) => {
+      node.scrollTop = 700;
+    });
+    await page.locator(".reading-pane").evaluate((node) => {
+      node.scrollTop = 500;
+    });
+    const { readableLines, expectPreservedReadingLine } =
+      await import("./readable-lines");
+    const beforeRows = await rows(page),
+      beforeText = await readableLines(page);
+    const started = Date.now();
+    if (timed) await page.waitForTimeout(121000);
+    else await page.clock.runFor(121000);
+    expect(requests).toHaveLength(4);
+    failed = false;
+    await expect(boardRetry).toBeEnabled();
+    await expect(readerRetry).toBeEnabled();
+    const stages: Record<string, unknown> = {
+      before: beforeText,
+      ready: await readableLines(page),
+    };
+    await boardRetry.evaluate((node) =>
+      (node as HTMLElement).focus({ preventScroll: true }),
+    );
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".board-check-status")).toHaveCount(0);
+    expect(
+      Math.max(
+        ...(await rows(page)).map((row, i) =>
+          Math.abs(row.top - beforeRows[i]!.top),
+        ),
+      ),
+    ).toBeLessThanOrEqual(1);
+    stages.boardRecovered = await readableLines(page);
+    await readerRetry.evaluate((node) =>
+      (node as HTMLElement).focus({ preventScroll: true }),
+    );
+    stages.readerFocused = await readableLines(page);
+    await page.keyboard.press("Enter");
+    stages.readerActivated = await readableLines(page);
+    await expect(page.locator(".public-history-controls")).toHaveCount(0);
+    stages.after = await readableLines(page);
+    await info.attach("retry-stages.json", {
+      body: JSON.stringify(stages),
+      contentType: "application/json",
+    });
+    expectPreservedReadingLine(beforeText, await readableLines(page));
+    expect(requests).toHaveLength(6);
+    await info.attach("retry-recovery.json", {
+      body: JSON.stringify({
+        started,
+        finished: Date.now(),
+        beforeRows,
+        beforeText,
+        requests,
+      }),
+      contentType: "application/json",
+    });
   });

@@ -1,4 +1,4 @@
-import { isWritingContext } from "../workspace/writing";
+import { isWritingContext, isOrdinaryReply } from "../workspace/writing";
 import { describeDestination } from "../forum-client";
 import type { NavigationRecord } from "../workspace/navigation";
 
@@ -384,6 +384,17 @@ function result(value: unknown): boolean {
       object(b) &&
       id(b.id) &&
       string(b.title) &&
+      (b.statistics === undefined || string(b.statistics)) &&
+      (b.clearFilter === undefined || link(b.clearFilter)) &&
+      (b.filterChoices === undefined ||
+        list(
+          b.filterChoices,
+          (choice) =>
+            object(choice) &&
+            destination(choice.url) &&
+            list(choice.criteria, link) &&
+            list(choice.removed, link),
+        )) &&
       destination(b.url) &&
       list(b.boards, boardLink) &&
       list(
@@ -400,7 +411,12 @@ function result(value: unknown): boolean {
           string(row.date) &&
           string(row.replies) &&
           string(row.views) &&
-          (row.lastPost === null || link(row.lastPost)),
+          (row.lastPost === null || link(row.lastPost)) &&
+          (row.latestReply === undefined ||
+            (object(row.latestReply) &&
+              (row.latestReply.author === null ||
+                string(row.latestReply.author)) &&
+              (row.latestReply.time === null || string(row.latestReply.time)))),
       ) &&
       list(b.filters, link) &&
       (b.filterGroups === undefined ||
@@ -462,7 +478,8 @@ function result(value: unknown): boolean {
 export function isNavigationRecord(value: unknown): value is NavigationRecord {
   if (
     !object(value) ||
-    (value.schema !== 2 && value.schema !== 3) ||
+    typeof value.schema !== "number" ||
+    ![2, 3, 4, 5, 6].includes(value.schema) ||
     !object(value.entries)
   )
     return false;
@@ -474,6 +491,65 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
   )
     return false;
   if (!(value.writing === null || isWritingContext(value.writing)))
+    return false;
+  if (value.schema === 4 || value.schema === 5 || value.schema === 6) {
+    if (!Array.isArray(value.retainedReplies)) return false;
+    const threads = new Set<string>();
+    const identities = new Set<string>();
+    if (value.writing && isWritingContext(value.writing)) {
+      identities.add(value.writing.id);
+      if (isOrdinaryReply(value.writing))
+        threads.add(value.writing.replyTarget!.threadId);
+    }
+    for (const reply of value.retainedReplies) {
+      if (
+        !isWritingContext(reply) ||
+        !isOrdinaryReply(reply) ||
+        threads.has(reply.replyTarget!.threadId) ||
+        identities.has(reply.id)
+      )
+        return false;
+      threads.add(reply.replyTarget!.threadId);
+      identities.add(reply.id);
+    }
+  } else if (value.retainedReplies !== undefined) return false;
+  if (value.schema === 6) {
+    const current = [
+      value.writing,
+      ...(Array.isArray(value.retainedReplies) ? value.retainedReplies : []),
+    ];
+    if (
+      current.some(
+        (context) =>
+          isWritingContext(context) &&
+          isOrdinaryReply(context) &&
+          context.uploads?.some(
+            (upload) => upload.serverId && upload.ownerId === undefined,
+          ),
+      )
+    )
+      return false;
+  }
+  if (
+    (value.schema === 5 || value.schema === 6) &&
+    (!object(value.replyCheckpoints) ||
+      !Object.entries(value.replyCheckpoints).every(
+        ([thread, checkpoint]) =>
+          id(thread) &&
+          object(checkpoint) &&
+          key(checkpoint.version) &&
+          string(checkpoint.fingerprint) &&
+          /^[a-f0-9]{64}$/.test(checkpoint.fingerprint),
+      ))
+  )
+    return false;
+  if (
+    (value.schema === 5 || value.schema === 6) &&
+    value.replyDisposals !== undefined &&
+    (!Array.isArray(value.replyDisposals) ||
+      !value.replyDisposals.every(id) ||
+      new Set(value.replyDisposals).size !== value.replyDisposals.length)
+  )
     return false;
   if (
     value.favoriteAttempts !== undefined &&
@@ -648,6 +724,8 @@ export function isNavigationRecord(value: unknown): value is NavigationRecord {
         position.scrollTop >= 0 &&
         (position.readingPaneTop === undefined ||
           finite(position.readingPaneTop)) &&
+        (position.resultsPaneTop === undefined ||
+          finite(position.resultsPaneTop)) &&
         (position.readingRegionScrollTop === undefined ||
           (finite(position.readingRegionScrollTop) &&
             position.readingRegionScrollTop >= 0)) &&

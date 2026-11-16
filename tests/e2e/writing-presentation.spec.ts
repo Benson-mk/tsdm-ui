@@ -1,3 +1,6 @@
+import { compactReplyBesideReader } from "./editor-controls";
+import { revealWritingOptions } from "./editor-controls";
+import { selectSourceEditor, writingDetailAction } from "./editor-controls";
 import { readableLines, expectPreservedReadingLine } from "./readable-lines";
 import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
@@ -15,7 +18,7 @@ type Entry =
 const states = new WeakMap<Page, ReturnType<typeof fixtureState>>();
 function fixtureState() {
   return {
-    requests: [] as { url: string; method: string }[],
+    requests: [] as { url: string; method: string; body: string | null }[],
     member: "7",
     refused: false,
     openingOwned: false,
@@ -49,7 +52,11 @@ async function open(
         contentType: "text/html; charset=utf-8",
         body: `<html><body><script src="${origin}/__entry.js"></script></body></html>`,
       });
-    state.requests.push({ url: url.href, method: request.method() });
+    state.requests.push({
+      url: url.href,
+      method: request.method(),
+      body: request.postData(),
+    });
     if (request.method() !== "GET")
       return route.fulfill({
         status: 500,
@@ -85,7 +92,7 @@ async function open(
   ).toBeVisible();
   return state;
 }
-async function enter(page: Page, entry: Entry) {
+async function enter(page: Page, entry: Entry, sourceMode = true) {
   if (entry === "new-thread") {
     await revealNavigation(page);
     await page.getByRole("button", { name: "New thread", exact: true }).click();
@@ -102,6 +109,7 @@ async function enter(page: Page, entry: Entry) {
       })
       .first()
       .click();
+  if (sourceMode) await selectSourceEditor(page);
 }
 async function stored(page: Page) {
   return page.evaluate(
@@ -160,6 +168,8 @@ test("UI87.compact: concise destination and input lead to Review while expansion
   await page.setViewportSize({ width: 1000, height: 900 });
   const server = await open(page, false, true);
   await enter(page, "addressed");
+  await selectSourceEditor(page);
+  await page.getByRole("button", { name: "Reply tools", exact: true }).click();
   const writer = page.getByRole("region", {
     name: "Writing context",
     exact: true,
@@ -184,7 +194,13 @@ test("UI87.compact: concise destination and input lead to Review while expansion
   await expect(
     writer.getByText("Advanced authoring tools", { exact: true }),
   ).toBeHidden();
-  await expect(writer.getByText("Details", { exact: true })).toBeVisible();
+  await expect(writer.getByText("Details", { exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "Reply tools", exact: true }).click();
+  await expect(writer.getByText("Details", { exact: true })).toHaveCount(0);
+  await expect(
+    writer.getByRole("button", { name: "Text formatting", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Reply tools", exact: true }).click();
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Concise reply 中文");
   await expect(
@@ -194,13 +210,22 @@ test("UI87.compact: concise destination and input lead to Review while expansion
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();
-  for (const name of ["Bold", "Undo", "Redo", "Visual editor", "Source editor"])
+  for (const name of [
+    "Text formatting",
+    "Paragraph",
+    "Insert",
+    "Table",
+    "Mentions",
+    "Undo",
+    "Redo",
+    "Switch to visual editor",
+  ])
     await expect(
       writer.getByRole("button", { name, exact: true }),
     ).toBeVisible();
-  await writer.getByText("Advanced authoring tools", { exact: true }).click();
+  await writer.getByRole("button", { name: "Table", exact: true }).click();
   await expect(
-    writer.getByRole("button", { name: "Insert table", exact: true }),
+    page.getByRole("button", { name: "Insert table", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Compact writing", exact: true })
@@ -227,7 +252,7 @@ const profiles = [
     compact: "Compact writing",
     body: "Complete source",
     visual: "Visual post content",
-    visualMode: "Visual editor",
+    visualMode: "Switch to visual editor",
     sourceMode: "Source editor",
     reading: "Return to reading",
     resume: "Return to writing",
@@ -244,7 +269,7 @@ const profiles = [
     compact: "紧凑写作",
     body: "完整源码",
     visual: "可视帖子内容",
-    visualMode: "可视编辑",
+    visualMode: "切换到可视编辑",
     sourceMode: "源码编辑",
     reading: "返回阅读",
     resume: "返回写作",
@@ -261,7 +286,7 @@ const profiles = [
     compact: "精簡寫作",
     body: "完整原始碼",
     visual: "視覺文章內容",
-    visualMode: "視覺編輯",
+    visualMode: "切換至視覺編輯",
     sourceMode: "原始碼編輯",
     reading: "返回閱讀",
     resume: "返回寫作",
@@ -278,7 +303,7 @@ const profiles = [
     compact: "Compact writing",
     body: "Complete source",
     visual: "Visual post content",
-    visualMode: "Visual editor",
+    visualMode: "Switch to visual editor",
     sourceMode: "Source editor",
     reading: "Return to reading",
     resume: "Return to writing",
@@ -309,7 +334,19 @@ for (const profile of profiles)
         profile,
       );
       const state = await open(page);
-      await page.locator("#pid101").getByRole("button").first().click();
+      await page
+        .locator("#pid101")
+        .getByRole("button", {
+          name:
+            profile.language === "zh-CN"
+              ? "回复这篇帖子"
+              : profile.language === "zh-TW"
+                ? "回覆這篇帖子"
+                : "Reply to this post",
+          exact: true,
+        })
+        .click();
+      await selectSourceEditor(page);
       const source = page.getByLabel(profile.body, { exact: true });
       await expect(source).toBeFocused();
       await source.fill(retained);
@@ -341,7 +378,7 @@ for (const profile of profiles)
         const geometry = await source.evaluate((node: HTMLTextAreaElement) => {
           const style = getComputedStyle(node);
           const pane = node.closest(".source-writing")!;
-          const strip = pane.querySelector(".writing-presentation-actions")!;
+          const row = pane.querySelector(".reply-input-row")!;
           const lineTop =
             node.getBoundingClientRect().top +
             parseFloat(style.borderTopWidth) +
@@ -351,7 +388,12 @@ for (const profile of profiles)
             sourceTop: node.getBoundingClientRect().top,
             lineTop,
             lineBottom: lineTop + parseFloat(style.lineHeight),
-            stripBottom: strip.getBoundingClientRect().bottom,
+            visibleTop: Math.max(
+              pane.getBoundingClientRect().top,
+              pane.querySelector(".writing-content")!.getBoundingClientRect()
+                .top,
+              row.getBoundingClientRect().top,
+            ),
             paneBottom: pane.getBoundingClientRect().bottom,
             selectionStart: node.selectionStart,
             selectionEnd: node.selectionEnd,
@@ -363,9 +405,7 @@ for (const profile of profiles)
         });
         expect(geometry.selectionStart).toBe(0);
         expect(geometry.selectionEnd).toBe(1);
-        expect(geometry.lineTop).toBeGreaterThanOrEqual(
-          geometry.stripBottom + 1,
-        );
+        expect(geometry.lineTop).toBeGreaterThanOrEqual(geometry.visibleTop);
         expect(geometry.lineBottom).toBeLessThanOrEqual(geometry.paneBottom);
       };
       const expand = page.getByRole("button", {
@@ -402,19 +442,21 @@ for (const profile of profiles)
       for (const width of [768, 390, profile.width])
         await page.setViewportSize({ width, height: profile.height });
       expect(await stored(page)).toEqual(before);
+      // Removed Hide/Resume is superseded by a deliberate Expand/Compact roundtrip.
       await page
-        .getByRole("button", { name: profile.reading, exact: true })
+        .getByRole("button", { name: profile.expand, exact: true })
         .click();
-      await expect(editor).toBeHidden();
+      await page
+        .getByRole("button", { name: profile.compact, exact: true })
+        .click();
+      await expect(editor).toBeVisible();
+      await expect(page.locator(".bottom-resume")).toHaveCount(0);
       await expect(
-        page.locator(".bottom-resume").getByRole("group", {
+        page.locator(".source-writing").getByRole("group", {
           name: /Writing destination|写作目标|寫作目標/,
           exact: true,
         }),
       ).toContainText("Writer Seven");
-      await page
-        .getByRole("button", { name: profile.resume, exact: true })
-        .click();
       await expect(editor).toBeFocused();
       await expectFocusedSourceClear("resumed");
       expect(await stored(page)).toEqual(before);
@@ -464,6 +506,7 @@ for (const entry of ["new-thread", "edit-opening", "edit-reply"] as const)
       "Long mixed-language prose 測試 https://example.test/".repeat(70) +
       "\n[table][tr][td]A[/td][td]B[/td][/tr][/table]";
     await source.fill(long);
+    await revealWritingOptions(page);
     await page.getByLabel("Signature", { exact: true }).uncheck();
     if (entry !== "edit-reply") {
       await page
@@ -488,14 +531,11 @@ for (const entry of ["new-thread", "edit-opening", "edit-reply"] as const)
       await expect(page.getByLabel("Title", { exact: true })).toHaveCount(0);
     await revealWritingDetails(page);
     await expect(
-      page.getByRole("button", {
-        name: "Check current account and form",
-        exact: true,
-      }),
+      await writingDetailAction(page, "Check current account and form"),
     ).toBeEnabled();
     expect(state.requests).toHaveLength(reads);
   });
-test("UX57.composition: programmatic presentation requests defer while composition remains active without replacing source or stealing focus", async ({
+test("UX57.composition: size requests defer and grouped actions stay blocked while composition remains active without replacing source or stealing focus", async ({
   page,
 }) => {
   const state = await open(page);
@@ -519,14 +559,16 @@ test("UX57.composition: programmatic presentation requests defer while compositi
   ).toBeVisible();
   await expect(source).toBeFocused();
   await source.dispatchEvent("compositionstart", { data: "試" });
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .dispatchEvent("click");
+  await expect(
+    page.getByRole("button", { name: "More writing actions", exact: true }),
+  ).toBeDisabled();
   await expect(source).toBeVisible();
   await source.dispatchEvent("compositionend", { data: "試" });
-  await expect(source).toBeHidden();
+  await expect(source).toBeVisible();
+  await compactReplyBesideReader(page);
+  await expect(source).toBeVisible();
   await page
-    .getByRole("button", { name: "Return to writing", exact: true })
+    .getByRole("button", { name: "Expand writing", exact: true })
     .click();
   await expect(source).toBeFocused();
   expect(await stored(page)).toEqual(before);
@@ -541,17 +583,12 @@ test("UX57.retained-warning: compact reading entry discloses destination while a
   await page
     .getByLabel("Complete source", { exact: true })
     .fill("Retained [attach]321[/attach]");
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
-  const retained = page.getByRole("region", {
-    name: "Retained writing",
-    exact: true,
-  });
+  await compactReplyBesideReader(page);
+  const retained = page.locator(".reply-composer");
   await expect(retained.getByRole("alert")).toContainText("321");
   await expect(
     page
-      .locator(".bottom-resume")
+      .locator(".reply-composer")
       .getByRole("group", { name: "Writing destination", exact: true }),
   ).toContainText("Writer Seven");
   await expect(retained.getByRole("alert")).toBeVisible();
@@ -559,7 +596,7 @@ test("UX57.retained-warning: compact reading entry discloses destination while a
 
 for (const mode of ["source", "visual"] as const)
   for (const action of ["compact", "expand", "reading"] as const)
-    test(`UX57.browser-composition-${action}-${mode}: deliberate pointer presentation ends the candidate and retains raw input, committed text and continued editing`, async ({
+    test(`UX57.browser-composition-${action}-${mode}: presentation preserves raw input and continued editing with explicit composition completion before grouped actions`, async ({
       page,
     }, info) => {
       const server = await open(page);
@@ -573,7 +610,7 @@ for (const mode of ["source", "visual"] as const)
       if (mode === "visual") {
         await revealWritingTools(page);
         await page
-          .getByRole("button", { name: "Visual editor", exact: true })
+          .getByRole("button", { name: "Switch to visual editor", exact: true })
           .click();
         if (action === "expand")
           await page
@@ -649,17 +686,24 @@ for (const mode of ["source", "visual"] as const)
             event.type === "compositionstart" && event.trusted,
         ),
       ).toBe(true);
-      await page
-        .getByRole("button", {
-          name:
-            action === "compact"
-              ? "Compact writing"
-              : action === "expand"
-                ? "Expand writing"
-                : "Return to reading",
-          exact: true,
-        })
-        .click();
+      if (action === "reading") {
+        await expect(
+          page.getByRole("button", {
+            name: /Switch to (source|visual) editor/,
+            exact: true,
+          }),
+        ).toBeDisabled();
+        await expect(editor).toBeFocused();
+        await browser.send("Input.insertText", { text: "nei ho" });
+        await compactReplyBesideReader(page);
+      } else {
+        await page
+          .getByRole("button", {
+            name: action === "compact" ? "Compact writing" : "Expand writing",
+            exact: true,
+          })
+          .click();
+      }
       const afterPointer = await page
         .locator(".source-writing")
         .evaluate((writing) => {
@@ -675,9 +719,9 @@ for (const mode of ["source", "visual"] as const)
           };
         });
       if (action === "reading") {
-        await expect(editor).toBeHidden();
+        await expect(editor).toBeVisible();
         await page
-          .getByRole("button", { name: "Return to writing", exact: true })
+          .getByRole("button", { name: "Expand writing", exact: true })
           .click();
       } else
         await expect(
@@ -689,7 +733,7 @@ for (const mode of ["source", "visual"] as const)
       if (mode === "visual") {
         await revealWritingTools(page);
         await page
-          .getByRole("button", { name: "Source editor", exact: true })
+          .getByRole("button", { name: "Switch to source editor", exact: true })
           .click();
       }
       const finalSource = await source.inputValue();
@@ -832,7 +876,7 @@ for (const size of [
   { width: 1440, height: 900 },
   { width: 390, height: 600 },
 ])
-  test(`IM72.docked-${size.width}: compact and expanded writing stay below usable reading with one retained editor`, async ({
+  test(`IM72.docked-${size.width}: compact writing shares reading and expanded writing fills its column with one retained editor`, async ({
     page,
   }, info) => {
     await page.setViewportSize(size);
@@ -867,7 +911,7 @@ for (const size of [
     );
     expect(compact.writer.height).toBeLessThanOrEqual(size.height * 0.46 + 1);
     expect(compact.reader.height).toBeGreaterThanOrEqual(96);
-    expect(compact.fieldMinimum).toBe(64);
+    expect(compact.fieldMinimum).toBe(44);
     await page
       .getByRole("button", { name: "Expand writing", exact: true })
       .click();
@@ -880,25 +924,20 @@ for (const size of [
       body: await page.screenshot(),
       contentType: "image/png",
     });
-    if (size.width < 1440)
-      expect(expanded.writer.top).toBeGreaterThanOrEqual(
-        expanded.reader.bottom - 1,
-      );
-    else expect(expanded.writer.top).toBeLessThan(expanded.reader.bottom);
-    expect(expanded.reader.height).toBeGreaterThanOrEqual(96);
-    if (size.width < 1440)
-      expect(expanded.writer.height).toBeLessThanOrEqual(
-        size.height * 0.46 + 1,
-      );
-    else expect(expanded.writer.height).toBeGreaterThan(size.height * 0.46);
-    expect(expanded.fieldMinimum).toBe(size.width < 560 ? 100 : 140);
+    expect(expanded.reader.height).toBe(0);
+    expect(expanded.writer.height).toBeGreaterThanOrEqual(size.height * 0.8);
+    expect(expanded.fieldMinimum).toBe(220);
+    await page
+      .getByRole("button", { name: "Compact writing", exact: true })
+      .click();
+    expect((await geometry()).reader.height).toBeGreaterThanOrEqual(96);
     expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
     expect(await stored(page)).toEqual(before);
     expect(server.requests).toHaveLength(requests);
   });
 
 for (const entry of ["reply", "addressed", "new-thread", "edit-reply"] as const)
-  test(`IM72.review-shortcut-${entry}: newline and IME remain input while modifier Enter only prepares one immutable review`, async ({
+  test(`IM72.review-shortcut-${entry}: newline and IME remain input while modifier Enter follows the current writing policy`, async ({
     page,
   }, info) => {
     const server = await open(page, false, true);
@@ -931,28 +970,53 @@ for (const entry of ["reply", "addressed", "new-thread", "edit-reply"] as const)
       page.getByRole("button", { name: "Undo", exact: true }),
     ).toBeEnabled();
     await source.press(entry === "reply" ? "Control+Enter" : "Meta+Enter");
-    const review = page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    });
-    await expect(review).toBeVisible();
-    await expect(review).toContainText("Keyboard review 中文");
-    const reviewed = (await review.textContent()) ?? "";
-    const after = server.requests.length;
-    await source.press("Control+Enter");
-    await source.press("Meta+Enter");
-    await expect(review).toHaveText(reviewed);
-    expect(server.requests).toHaveLength(after);
-    expect(server.requests.every((request) => request.method === "GET")).toBe(
-      true,
-    );
+    if (entry === "reply" || entry === "addressed") {
+      await expect
+        .poll(() => server.requests.filter((r) => r.method === "POST").length)
+        .toBe(1);
+      await expect(
+        page.getByRole("button", {
+          name: "Check reply status",
+          exact: true,
+        }),
+      ).toBeVisible();
+      const effect = server.requests.find((r) => r.method === "POST")!;
+      expect(new URLSearchParams(effect.body ?? "").get("message")).toBe(
+        "Keyboard review 中文\nx",
+      );
+      expect(new URLSearchParams(effect.body ?? "").get("reppid")).toBe(
+        entry === "addressed" ? "101" : null,
+      );
+      await source.press("Control+Enter");
+      await source.press("Meta+Enter");
+      expect(server.requests.filter((r) => r.method === "POST")).toHaveLength(
+        1,
+      );
+      await expect(source).toHaveValue("");
+    } else {
+      const review = page.getByRole("region", {
+        name: "Prepared publication review",
+        exact: true,
+      });
+      await expect(review).toBeVisible();
+      await expect(review).toContainText("Keyboard review 中文");
+      const reviewed = (await review.textContent()) ?? "";
+      const after = server.requests.length;
+      await source.press("Control+Enter");
+      await source.press("Meta+Enter");
+      await expect(review).toHaveText(reviewed);
+      expect(server.requests).toHaveLength(after);
+      expect(server.requests.every((request) => request.method === "GET")).toBe(
+        true,
+      );
+    }
     await info.attach("shortcut-review.png", {
       body: await page.screenshot(),
       contentType: "image/png",
     });
   });
 
-test("IM72.addressed-return: blank addressed source names the exact post and guarded ordinary reply never silently transfers quotes", async ({
+test("IM72.addressed-return: blank addressed source names the exact post and ordinary retarget preserves authored quotes", async ({
   page,
 }, info) => {
   const server = await open(page);
@@ -980,18 +1044,18 @@ test("IM72.addressed-return: blank addressed source names the exact post and gua
   const before = await stored(page),
     requests = server.requests.length;
   await revealWritingDetails(page);
-  await writing
-    .getByRole("button", { name: "Start an ordinary reply", exact: true })
-    .click();
+  await (await writingDetailAction(page, "Start an ordinary reply")).click();
   await expect(
-    page.getByRole("button", {
-      name: "Return",
-      exact: true,
-    }),
-  ).toBeVisible();
-  expect(await stored(page)).toEqual(before);
-  expect(server.requests).toHaveLength(requests);
-  await page.getByRole("button", { name: "Return", exact: true }).click();
+    page.getByRole("group", { name: "Reply target", exact: true }),
+  ).toHaveCount(0);
+  await expect
+    .poll(async () => (await stored(page)).replyTarget.postId)
+    .toBeNull();
+  expect((await stored(page)).id).toBe(before.id);
+  expect(server.requests).toHaveLength(requests + 1);
+  expect(server.requests.every((request) => request.method === "GET")).toBe(
+    true,
+  );
   await expect(source).toHaveValue(before.source);
   await info.attach("addressed-retained.json", {
     body: JSON.stringify({
@@ -1003,7 +1067,7 @@ test("IM72.addressed-return: blank addressed source names the exact post and gua
   });
 });
 
-test("IM72.visual-ime-shortcut: browser composition stays input and settled visual modifier Enter requests review without publication", async ({
+test("IM72.visual-ime-shortcut: browser composition stays input and settled visual modifier Enter sends exact committed source", async ({
   page,
 }, info) => {
   const server = await open(page, false, true);
@@ -1011,7 +1075,7 @@ test("IM72.visual-ime-shortcut: browser composition stays input and settled visu
   await page.getByLabel("Complete source", { exact: true }).fill("Base ");
   await revealWritingTools(page);
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
     .click();
   const visual = page.getByRole("textbox", {
     name: "Visual post content",
@@ -1037,17 +1101,19 @@ test("IM72.visual-ime-shortcut: browser composition stays input and settled visu
   await expect(
     page.getByRole("button", { name: "Undo", exact: true }),
   ).toBeEnabled();
-  await visual.press("Meta+Enter");
+  await visual.press("Control+Enter");
+  await expect
+    .poll(() => server.requests.filter((r) => r.method === "POST").length)
+    .toBe(1);
   await expect(
-    page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    }),
+    page.getByRole("button", { name: "Check reply status", exact: true }),
   ).toBeVisible();
-  expect((await stored(page)).source).toBe("Base 你好");
-  expect(server.requests.every((request) => request.method === "GET")).toBe(
-    true,
-  );
+  expect((await stored(page)).source).toBe("");
+  expect(
+    new URLSearchParams(
+      server.requests.find((r) => r.method === "POST")!.body ?? "",
+    ).get("message"),
+  ).toBe("Base 你好");
   await info.attach("visual-ime-review.json", {
     body: JSON.stringify({
       writing: await stored(page),
@@ -1062,12 +1128,13 @@ test("IM72.approval-keyboard-boundary: modifier Enter on the focused final appro
   page,
 }, info) => {
   const server = await open(page, false, true);
-  await enter(page, "reply");
+  await enter(page, "new-thread");
+  await page.getByLabel("Category", { exact: true }).selectOption("3");
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Separate approval only");
   await source.press("Control+Enter");
   const approval = page.getByRole("button", {
-    name: "Send reply",
+    name: "Publish thread",
     exact: true,
   });
   await expect(approval).toBeVisible();
@@ -1101,6 +1168,7 @@ test("IM72.short-enlarged: a short enlarged conversation retains history and a r
   );
   const server = await open(page);
   await page.getByRole("button", { name: "回覆主題", exact: true }).click();
+  await selectSourceEditor(page);
   const source = page.getByLabel("完整原始碼", { exact: true });
   await source.fill("短視窗保留內容");
   const geometry = await page.locator(".source-writing").evaluate((writer) => {
@@ -1113,9 +1181,9 @@ test("IM72.short-enlarged: a short enlarged conversation retains history and a r
       writer: rect(writer),
       content: rect(writer.querySelector(".writing-content")!),
       reader: rect(root.querySelector(".reading-pane")!),
-      actions: [
-        ...writer.querySelectorAll(".writing-presentation-actions button"),
-      ].map(rect),
+      actions: [...writer.querySelectorAll(".reply-input-row button")].map(
+        rect,
+      ),
     };
   });
   await info.attach("short-enlarged-geometry.json", {
@@ -1124,7 +1192,8 @@ test("IM72.short-enlarged: a short enlarged conversation retains history and a r
   });
   expect(geometry.writer.height).toBeLessThanOrEqual(360 * 0.46 + 1);
   expect(geometry.reader.height).toBeGreaterThanOrEqual(96);
-  expect(geometry.content.height).toBeGreaterThanOrEqual(64);
+  expect(geometry.content.height).toBeGreaterThanOrEqual(44);
+  expect(geometry.actions).toHaveLength(3);
   expect(geometry.actions.every((rect) => rect.height >= 44)).toBe(true);
   await page.getByRole("button", { name: "展開寫作", exact: true }).click();
   await expect(source).toBeFocused();
@@ -1170,16 +1239,14 @@ test("IM72.contextual-chrome: the global bar is followed by panes and writing st
     .getByLabel("Complete source", { exact: true })
     .fill("Contextual retained writing");
   const before = server.requests.length;
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   await expect(
     page
-      .locator(".bottom-resume")
-      .getByRole("button", { name: "Return to writing", exact: true }),
+      .locator(".reply-composer")
+      .getByRole("button", { name: "Expand writing", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Return to writing", exact: true })
+    .getByRole("button", { name: "Expand writing", exact: true })
     .click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Contextual retained writing",
@@ -1187,7 +1254,7 @@ test("IM72.contextual-chrome: the global bar is followed by panes and writing st
   expect(server.requests).toHaveLength(before);
 });
 
-test("IM72.visible-history: opening and expanding a docked reply leaves actual post content visible beside the retained editor", async ({
+test("IM72.visible-history: compacting full-column editing returns actual post content beside the retained editor", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -1195,6 +1262,10 @@ test("IM72.visible-history: opening and expanding a docked reply leaves actual p
   await enter(page, "reply");
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
+    .click();
+  await expect(page.locator(".reading-pane")).toBeHidden();
+  await page
+    .getByRole("button", { name: "Compact writing", exact: true })
     .click();
   const geometry = await page.locator(".reading-pane").evaluate((pane) => {
     const p = pane.getBoundingClientRect(),
@@ -1214,7 +1285,7 @@ test("IM72.visible-history: opening and expanding a docked reply leaves actual p
   expect(geometry.visiblePostHeight).toBeGreaterThanOrEqual(96);
 });
 
-test("UI87.bottom-resume: minimizing releases the writer and fixes original destination at the bottom with footer-only Reply", async ({
+test("UI87.bottom-resume: compacting restores reading beside the same writer and original destination", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -1232,11 +1303,9 @@ test("UI87.bottom-resume: minimizing releases the writer and fixes original dest
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();
   const before = await page.locator(".reading-pane").boundingBox();
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   const resume = page.getByRole("button", {
-    name: "Return to writing",
+    name: "Expand writing",
     exact: true,
   });
   const destination = page.getByRole("group", {
@@ -1251,7 +1320,7 @@ test("UI87.bottom-resume: minimizing releases the writer and fixes original dest
     }),
   ).toBeVisible();
   const geometry = await resume.evaluate((button) => {
-    const bar = button.parentElement!;
+    const bar = button.closest(".reply-composer")!;
     const r = bar.getBoundingClientRect();
     return {
       top: r.top,
@@ -1263,9 +1332,8 @@ test("UI87.bottom-resume: minimizing releases the writer and fixes original dest
   expect(geometry.bottom).toBe(geometry.viewport);
   expect(geometry.icon).toBe(true);
   const after = await page.locator(".reading-pane").boundingBox();
-  expect(after!.height * after!.width).toBeGreaterThan(
-    before!.height * before!.width,
-  );
+  expect(before).toBeNull();
+  expect(after!.height).toBeGreaterThanOrEqual(96);
   await resume.click();
   expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
   await expect(source).toHaveValue("Original addressed writing");
@@ -1280,12 +1348,16 @@ test("UI87.bottom-resume: minimizing releases the writer and fixes original dest
 });
 
 for (const width of [1439, 1440, 1706])
-  test(`UI87.wide-${width}: expanded writing uses a protected reader and preferred 420px aside only when qualified`, async ({
+  test(`UI87.wide-${width}: expanded ordinary writing stays in the reader column across wide and narrow views`, async ({
     page,
   }, info) => {
     await page.setViewportSize({ width, height: 900 });
     const server = await open(page);
     await enter(page, "reply");
+    await selectSourceEditor(page);
+    await page
+      .getByRole("button", { name: "Reply tools", exact: true })
+      .click();
     const source = page.getByLabel("Complete source", { exact: true });
     await source.fill("Selected original source");
     await source.evaluate((node: HTMLTextAreaElement) =>
@@ -1313,16 +1385,14 @@ for (const width of [1439, 1440, 1706])
         return {
           writer: rect(writer),
           reader: rect(root.querySelector(".reading-pane")!),
+          column: rect(writer.closest(".conversation-region")!),
         };
       });
     const wide = await geometry();
-    if (width >= 1440) {
-      expect(wide.writer.left).toBeGreaterThanOrEqual(wide.reader.right - 1);
-      expect(wide.writer.width).toBe(420);
-      expect(wide.reader.width).toBeGreaterThanOrEqual(320);
-      expect(wide.writer.height).toBeGreaterThan(500);
-    } else
-      expect(wide.writer.top).toBeGreaterThanOrEqual(wide.reader.bottom - 1);
+    expect(wide.writer.top).toBeGreaterThanOrEqual(wide.reader.bottom - 1);
+    expect(wide.writer.left).toBe(wide.column.left);
+    expect(wide.writer.width).toBe(wide.column.width);
+    expect(wide.reader.height).toBe(0);
     await page.setViewportSize({ width: 1000, height: 900 });
     await expect
       .poll(async () => {
@@ -1351,7 +1421,7 @@ for (const width of [1439, 1440, 1706])
     });
   });
 
-test("UI87.mismatch-review: bottom resume and review retain the original addressed target after permitted browsing", async ({
+test("UI87.mismatch-review: returning to a parked reply restores the original addressed target and optional inspection", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -1361,31 +1431,28 @@ test("UI87.mismatch-review: bottom resume and review retain the original address
   await source.fill("Original target answer");
   const handle = await source.elementHandle();
   await page.getByRole("link", { name: "Another thread", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Keep writing and read thread", exact: true })
-    .click();
-  await expect(page.locator(".bottom-resume")).toContainText("Thread 42");
   await expect(
-    page
-      .locator(".bottom-resume")
-      .getByText(
-        "Writing still targets the original destination shown here, not the current reader.",
-        { exact: true },
-      ),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
-  expect(await handle!.evaluate((node) => node.isConnected)).toBe(true);
+    page.getByRole("dialog", { name: "Keep current writing?", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".source-writing")).toHaveCount(0);
+  expect(await handle!.evaluate((node) => node.isConnected)).toBe(false);
+  await page.goBack();
+  await selectSourceEditor(page);
+  expect((await stored(page)).replyTarget).toMatchObject({
+    threadId: "42",
+    postId: "101",
+  });
   await expect(source).toHaveValue("Original target answer");
-  await source.press("Control+Enter");
-  const review = page.getByRole("region", {
-    name: "Prepared publication review",
+  await revealWritingTools(page);
+  await (await writingDetailAction(page, "Preview")).click();
+  await revealWritingDetails(page);
+  const destination = page.getByRole("group", {
+    name: "Writing destination",
     exact: true,
   });
-  await expect(review).toBeVisible();
-  await expect(review).toContainText("Thread 42");
-  await expect(review).toContainText("Other author · Post 101");
+  await expect(destination).toContainText("42");
+  await expect(destination).toContainText("Other author · Post 101");
+  await expect(source).toHaveValue("Original target answer");
   expect(server.requests.every((request) => request.method === "GET")).toBe(
     true,
   );
@@ -1395,12 +1462,12 @@ test("UI87.mismatch-review: bottom resume and review retain the original address
   });
 });
 
-test("UI87.reading-anchor: expansion into and out of the aside preserves a genuinely visible reader line", async ({
+test("UI87.reading-anchor: returning from full-column editing preserves the exact previously visible reader line", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const server = await open(page, false, true, true);
-  await enter(page, "reply");
+  await enter(page, "reply", false);
   const pane = page.locator(".reading-pane");
   await pane.evaluate((node) => (node.scrollTop = 650));
   const before = await readableLines(page);
@@ -1412,18 +1479,22 @@ test("UI87.reading-anchor: expansion into and out of the aside preserves a genui
     body: JSON.stringify({ before, wide }),
     contentType: "application/json",
   });
-  expectPreservedReadingLine(before, wide);
+  await expect(pane).toBeHidden();
   await page
     .getByRole("button", { name: "Compact writing", exact: true })
     .click();
   const after = await readableLines(page);
-  expectPreservedReadingLine(wide, after);
+  await info.attach("compact-reader-anchor.json", {
+    body: JSON.stringify({ before, wide, after }),
+    contentType: "application/json",
+  });
+  expectPreservedReadingLine(before, after);
   expect(server.requests.every((request) => request.method === "GET")).toBe(
     true,
   );
 });
 
-test("UI87.target-color: writing destination keeps the source-qualified board role across compact wide and bottom resume", async ({
+test("UI87.target-color: writing destination keeps the source-qualified board role across compact and expanded reading", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -1452,10 +1523,8 @@ test("UI87.target-color: writing destination keeps the source-qualified board ro
   expect(
     await boardLabel.evaluate((node) => getComputedStyle(node).backgroundColor),
   ).toBe("rgb(166, 198, 225)");
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
-  const retained = page.locator(".bottom-resume .category-label");
+  await compactReplyBesideReader(page);
+  const retained = page.locator(".reply-composer .category-label");
   expect(
     await retained.evaluate((node) => getComputedStyle(node).backgroundColor),
   ).toBe("rgb(166, 198, 225)");
@@ -1465,7 +1534,7 @@ test("UI87.target-color: writing destination keeps the source-qualified board ro
   });
 });
 
-test("UI87.short-restored: focused writing retains at least96px of actually visible history after a restored mismatch", async ({
+test("UI87.short-restored: returning to parked writing and reload retain at least96px of visible history", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 375, height: 420 });
@@ -1474,13 +1543,11 @@ test("UI87.short-restored: focused writing retains at least96px of actually visi
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Retained short reply");
   await page.getByRole("link", { name: "Another thread", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Keep writing and read thread", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+  await expect(page.locator(".source-writing")).toHaveCount(0);
+  await page.goBack();
+  await selectSourceEditor(page);
   await page.reload();
+  await selectSourceEditor(page);
   await expect(source).toHaveValue("Retained short reply");
   await source.focus();
   const lines = await readableLines(page);
@@ -1493,16 +1560,16 @@ test("UI87.short-restored: focused writing retains at least96px of actually visi
     contentType: "image/png",
   });
   expect(lines.visibleHeight).toBeGreaterThanOrEqual(96);
-  const review = page.getByRole("button", {
-    name: "Review publication",
+  const send = page.getByRole("button", {
+    name: "Send reply",
     exact: true,
   });
-  await review.focus();
+  await send.focus();
   const after = await readableLines(page);
   expect(after.visibleHeight).toBeGreaterThanOrEqual(96);
 });
 
-test("UI87.short-resume: overflowed original author destination and mismatch can all be scrolled into the bottom bar", async ({
+test("UI87.short-resume: restored original author and addressed destination remain reachable in the compact composer", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 375, height: 420 });
@@ -1523,10 +1590,17 @@ test("UI87.short-resume: overflowed original author destination and mismatch can
     .getByLabel("Complete source", { exact: true })
     .fill("Original addressed source");
   await page.getByRole("link", { name: "Another thread", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Keep writing and read thread", exact: true })
-    .click();
-  const bar = page.locator(".bottom-resume");
+  await expect(page.locator(".source-writing")).toHaveCount(0);
+  await page.goBack();
+  await selectSourceEditor(page);
+  await compactReplyBesideReader(page);
+  const bar = page.locator(".reply-composer");
+  await expect(bar).toContainText("Other author");
+  await expect(bar).toContainText("101");
+  expect((await stored(page)).replyTarget).toMatchObject({
+    threadId: "42",
+    postId: "101",
+  });
   const geometry = async () =>
     bar.evaluate((node) => {
       const rect = (e: Element) => {
@@ -1536,7 +1610,7 @@ test("UI87.short-resume: overflowed original author destination and mismatch can
       return {
         bar: rect(node),
         author: rect(node.querySelector(".writing-destination p")!),
-        mismatch: rect(node.querySelector(".resume-destination > p")!),
+        destination: rect(node.querySelector(".writing-destination")!),
         scrollTop: node.scrollTop,
         scrollHeight: node.scrollHeight,
         clientHeight: node.clientHeight,
@@ -1547,7 +1621,7 @@ test("UI87.short-resume: overflowed original author destination and mismatch can
   expect(top.author.top).toBeGreaterThanOrEqual(top.bar.top);
   await bar.evaluate((node) => (node.scrollTop = node.scrollHeight));
   const bottom = await geometry();
-  expect(bottom.mismatch.bottom).toBeLessThanOrEqual(bottom.bar.bottom);
+  expect(bottom.destination.bottom).toBeLessThanOrEqual(bottom.bar.bottom);
   await info.attach("short-resume-reachability.json", {
     body: JSON.stringify({ top, bottom }),
     contentType: "application/json",

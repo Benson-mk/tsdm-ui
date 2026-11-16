@@ -1419,6 +1419,21 @@ select {
   font-size: calc(1rem * var(--text-scale, 1));
   line-height: 1.45;
 }
+.board-thread-list .thread-row {
+  padding: 16px 8px;
+  margin-bottom: 8px;
+  border-radius: 0;
+  border: 0;
+  box-shadow: var(--floating-shadow);
+  overflow-wrap: anywhere;
+}
+.conversation-region > .reader-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--muted);
+}
 .workspace > header {
   min-height: 56px;
   padding: 4px 16px;
@@ -1972,7 +1987,28 @@ select {
   flex: 1;
   min-width: 0;
 }
+.post-permalink {
+  position: relative;
+  margin-left: auto;
+  flex: none;
+}
+.post-copy-status {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  background: var(--surface);
+  font-size: calc(0.75rem * var(--text-scale, 1));
+}
+.post-permalink-dialog input {
+  min-height: 44px;
+  font: inherit;
+}
 .post-number {
+  min-width: 44px;
+  min-height: 44px;
   flex: none;
   margin-left: auto;
   font-size: calc(0.875rem * var(--text-scale, 1));
@@ -2656,26 +2692,29 @@ input {
   user-select: none;
 }
 
-/* Passive check updates preserve the reader's available geometry. */
+/* Only actionable checks occupy reading/list space. */
+.public-history-controls {
+  position: static;
+  font-size: 0.85em;
+  color: var(--muted);
+}
 .public-check-row {
   flex-basis: 100%;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  min-height: max(44px, 2.9em);
 }
-.public-history-controls .public-check-state {
-  flex: 1;
-  min-width: 0;
+.public-check-state {
   margin: 0;
 }
-.public-history-controls .public-check-time {
-  flex-basis: 100%;
-  min-height: 1.45em;
+.public-check-state:empty {
+  display: none;
 }
 .public-check-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 .public-check-actions summary {
@@ -2686,8 +2725,13 @@ input {
   align-items: center;
   cursor: pointer;
 }
-.public-check-actions details[open] {
-  max-width: 18em;
+.thread-check-mode {
+  padding: 4px 12px;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+.thread-check-mode p {
+  margin: 4px 0;
 }
 .newest-check {
   display: flex;
@@ -2696,23 +2740,10 @@ input {
   min-width: 44px;
   min-height: 44px;
 }
-.public-history-boundaries {
-  flex-basis: 100%;
-  display: grid;
-  min-height: 1.45em;
-}
-.public-history-boundaries::before {
-  content: attr(data-reserve);
-  visibility: hidden;
-  grid-area: 1 / 1;
-  white-space: pre-wrap;
-}
-.public-history-boundary-content {
-  grid-area: 1 / 1;
-  display: flex;
-  align-items: start;
-  flex-wrap: wrap;
-  gap: 4px 12px;
+.public-history-boundary {
+  color: var(--muted);
+  font-size: 0.85em;
+  margin-block: 8px;
 }
 
 .board-heading {
@@ -2729,7 +2760,6 @@ input {
 }
 .board-check-status {
   display: grid;
-  grid-template-rows: 2lh max(44px, 2lh);
   line-height: 1.3;
   font-size: 0.85em;
   margin-block-end: 12px;
@@ -2744,7 +2774,7 @@ input {
   min-width: 0;
 }
 .board-check-actions > button {
-  max-width: calc(100% - 48px);
+  min-width: 0;
 }
 .board-check-details {
   position: relative;
@@ -3010,4 +3040,610 @@ input {
   .workspace-body[data-narrow-browsing="true"] > #thread-list-pane {
     padding-right: max(16px, var(--safe-right));
   }
+}
+
+.board-heading > div {
+  min-width: 0;
+}
+.board-statistics {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: calc(0.75rem * var(--text-scale, 1));
+  font-weight: 400;
+}
+.board-list-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 8px 16px;
+}
+.board-list-controls > button,
+.board-page-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+.board-page-indicator {
+  color: var(--muted);
+}
+
+.board-filter-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  padding: 24px;
+}
+.board-filter-dialog > h2,
+.board-filter-dialog > p {
+  margin: 0;
+  flex-shrink: 0;
+}
+.board-filter-dialog .board-filters {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-y: auto;
+  min-height: 100px;
+  padding: 4px;
+}
+.board-filter-dialog .filter-preview {
+  flex-shrink: 0;
+  max-height: 35dvh;
+  overflow-y: auto;
+  margin: 0;
+}
+.filter-preview p {
+  margin: 0 0 4px;
+}
+.filter-preview ul {
+  margin: 0 0 8px;
+}
+.board-filter-dialog h2 {
+  font-size: calc(1rem * var(--text-scale, 1));
+}
+.board-filter-dialog .board-filter-links {
+  gap: 8px;
+}
+.board-filter-links button {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.board-filter-links button[aria-pressed="true"] {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.filter-preview {
+  margin-block: 16px;
+  padding: 12px;
+  background: var(--soft);
+  border-radius: 8px;
+}
+.filter-preview ul {
+  padding-inline-start: 20px;
+}
+.filter-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+.filter-dialog-actions button,
+.filter-trigger {
+  min-height: 44px;
+}
+
+.board-filter-dialog .board-filter-group {
+  flex: 0 0 auto;
+}
+
+.reply-target-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  border-radius: 8px;
+  background: var(--soft);
+  min-width: 0;
+}
+.reply-target-strip > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.reply-target-strip p {
+  margin: 4px 0 0;
+}
+.reply-target-strip button,
+.post-menu-trigger {
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+.rating-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.rating-dialog label {
+  display: grid;
+  gap: 6px;
+  margin-block: 12px;
+}
+.rating-dialog input:not([type="checkbox"]) {
+  width: 100%;
+  box-sizing: border-box;
+}
+.rating-dialog fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.rating-dialog input:not([type="checkbox"]),
+.rating-dialog select {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--boundary);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+}
+.rating-dialog label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.rating-dialog input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+}
+
+.report-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.report-dialog fieldset {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.report-dialog label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  margin-block: 8px;
+}
+.report-dialog input[type="radio"] {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+}
+.report-dialog label:has(textarea) {
+  display: grid;
+}
+.report-dialog textarea {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  min-height: 100px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--boundary);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+/* Ordinary replies retain one editor in the reader column. */
+:host .conversation-region > .reply-composer {
+  height: auto;
+  min-height: 0;
+  padding-top: 8px;
+}
+.reply-composer > .writing-content {
+  flex: 0 1 auto;
+  min-height: 64px;
+}
+.reply-composer .reply-input-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+.reply-input-shell {
+  position: relative;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--boundary);
+  border-radius: 8px;
+  padding-right: 44px;
+}
+.reply-input-shell:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.reply-composer .reply-input-shell .ProseMirror,
+.reply-composer .reply-input-shell textarea {
+  height: auto;
+  min-height: 44px;
+  max-height: min(140px, max(44px, calc(var(--view-height, 100dvh) * 0.2)));
+  border: 0;
+  outline: 0;
+  padding: 10px;
+  margin: 0;
+  resize: none;
+  font-size: calc(1rem * var(--text-scale, 1));
+  line-height: 1.5;
+  background: transparent;
+}
+.reply-composer .reply-input-shell textarea {
+  field-sizing: content;
+}
+.reply-composer.writing-expanded .reply-input-shell .ProseMirror,
+.reply-composer.writing-expanded .reply-input-shell textarea {
+  min-height: 140px;
+  max-height: 240px;
+}
+.reply-composer .reply-source-label {
+  margin: 0;
+  font-size: 0;
+}
+.reply-composer .icon-button {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  justify-content: center;
+}
+.reply-composer .reply-expansion {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+.reply-composer .reply-review {
+  min-height: 44px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.reply-review svg {
+  width: 20px;
+  height: 20px;
+}
+.reply-composer .editor-controls {
+  max-height: min(220px, 25dvh);
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--soft);
+  padding: 8px;
+}
+.reply-composer .writing-recovery {
+  font-size: calc(0.75rem * var(--text-scale, 1));
+}
+.reply-composer .writing-recovery > p {
+  margin: 4px 0;
+}
+.reply-composer .writing-actions:empty,
+.reply-composer section > ul:empty {
+  display: none;
+}
+.reply-composer .reply-preview {
+  overflow-wrap: anywhere;
+}
+.reply-composer .reply-preview pre {
+  white-space: pre-wrap;
+}
+.reply-composer .reply-target-strip {
+  flex: none;
+}
+@media (max-width: 559px) {
+  .reply-composer .reply-input-row {
+    gap: 4px;
+  }
+  .reply-composer .reply-review {
+    padding: 10px 12px;
+  }
+  .reply-composer .reply-review span {
+    display: none;
+  }
+}
+
+.reply-composer .reply-target-strip {
+  background: var(--category-fill);
+  color: var(--category-ink);
+  align-items: start;
+}
+.reply-composer .reply-target-strip strong,
+.reply-composer .reply-target-strip p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+  line-height: 1.4;
+}
+.reply-insert-quote {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+}
+.reply-composer .writing-recovery {
+  overflow-wrap: anywhere;
+}
+
+.reply-composer .writing-attachments > ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.reply-composer .writing-attachments li {
+  min-width: 0;
+  max-width: 100%;
+}
+.reply-composer .writing-attachments li > p {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--soft);
+  overflow-wrap: anywhere;
+  font-size: calc(0.875rem * var(--text-scale, 1));
+}
+.reply-composer:not(.writing-expanded):not(.reply-tools-open)
+  .writing-attachments
+  li
+  > button {
+  display: none;
+}
+.reply-composer .writing-attachments li > p:empty {
+  display: none;
+}
+
+.reply-conflict textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.reply-sends {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  min-width: 0;
+}
+.reply-send {
+  border: 1px solid var(--boundary);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  min-width: 0;
+}
+.reply-send p {
+  margin: 0.4rem 0;
+  overflow-wrap: anywhere;
+}
+.reply-send label {
+  display: grid;
+  gap: 0.25rem;
+}
+.reply-send textarea,
+.reply-send input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.reply-send textarea {
+  resize: vertical;
+}
+.reply-risk-dialog {
+  max-width: min(32rem, calc(100vw - 2rem));
+}
+
+/* Expanded ordinary editing borrows the full thread column without remounting it. */
+.conversation-region.reply-editing-expanded
+  > :not(.source-writing, .conversation-status) {
+  display: none;
+}
+:host .conversation-region.reply-editing-expanded > .reply-composer {
+  flex: 1 1 0;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+}
+.reply-editing-expanded .reply-composer > .writing-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.reply-editing-expanded .post-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+.reply-editing-expanded .reply-input-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  flex: 1 0 220px;
+  align-items: stretch;
+}
+.reply-editing-expanded .reply-input-shell {
+  display: flex;
+  flex-direction: column;
+}
+.reply-editing-expanded .reply-source-label,
+.reply-editing-expanded .visual-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.reply-editing-expanded .reply-composer .reply-input-shell textarea,
+.reply-editing-expanded .reply-composer .reply-input-shell .ProseMirror {
+  flex: 1;
+  min-height: 220px;
+  max-height: none;
+  field-sizing: fixed;
+}
+.reply-editing-expanded .reply-review {
+  align-self: end;
+}
+.reply-icon-tools.editor-controls {
+  flex: none;
+  max-height: none;
+  overflow: visible;
+}
+.reply-icon-tools > .writing-actions,
+.reply-icon-tools > .common-formatting {
+  display: inline-flex;
+  flex-wrap: wrap;
+  vertical-align: middle;
+  gap: 4px;
+}
+.reply-icon-tools > .writing-actions > button,
+.reply-icon-tools > .common-formatting > button {
+  min-width: 40px;
+  min-height: 40px;
+}
+.reply-icon-tools .workspace-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.reply-recovery-dialog {
+  width: min(640px, calc(var(--view-width, 100vw) - 32px));
+}
+.reply-recovery-dialog .reply-conflict {
+  min-width: 0;
+  margin-block: 16px;
+}
+.reply-recovery-dialog textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.reply-recovery-dialog button {
+  min-height: 44px;
+  white-space: normal;
+}
+.reply-recovery-trigger {
+  gap: 4px;
+}
+
+.reply-icon-tools .advanced-authoring > summary {
+  box-sizing: border-box;
+}
+.reply-icon-tools .composer-help {
+  margin-block: 4px;
+}
+.reply-icon-tools > .writing-actions {
+  padding-block: 0;
+}
+
+/* Reading yields its column, but the original submission controls stay usable. */
+.reply-editing-expanded
+  > :is(.reading-pane, .reader-placeholder):has(> .reply-sends) {
+  display: contents;
+}
+.reply-editing-expanded
+  > :is(.reading-pane, .reader-placeholder)
+  > :not(.reply-sends) {
+  display: none;
+}
+.reply-editing-expanded
+  > :is(.reading-pane, .reader-placeholder)
+  > .reply-sends {
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(270px, calc(var(--view-height, 100dvh) * 0.3));
+  overflow: auto;
+}
+
+.reply-editing-toolbar,
+.reply-editing-toolbar > [role="group"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.reply-editing-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+}
+.reply-editing-toolbar .workspace-icon {
+  width: 20px;
+  height: 20px;
+}
+.reply-editing-toolbar [data-state="on"] {
+  background: var(--ink);
+  color: var(--surface);
+}
+.reply-toolbar-popover {
+  z-index: 60;
+  box-sizing: border-box;
+  width: min(360px, calc(var(--view-width, 100vw) - 24px));
+  max-height: min(70dvh, var(--reka-popover-content-available-height));
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--boundary);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 32px #0002;
+}
+.reply-toolbar-popover h3 {
+  margin: 0 0 12px;
+}
+.reply-toolbar-popover .editor-tools {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.reply-toolbar-popover legend {
+  display: none;
+}
+.reply-toolbar-commands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.reply-toolbar-popover button {
+  min-height: 40px;
+}
+.reply-toolbar-popover input,
+.reply-toolbar-popover select {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.source-writing .reply-editing-toolbar input.reply-attachment-picker {
+  display: none;
+}
+
+.reply-version-context {
+  overflow-wrap: anywhere;
+}
+.reply-version-context p,
+.reply-version-context ul {
+  margin-block: 0.4rem;
 }

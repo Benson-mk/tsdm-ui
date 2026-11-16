@@ -418,7 +418,7 @@ test("J4.edit-result-single-navigation: one confirmed-result click returns from 
   const beforeBoard = state.reads.length;
   const boardHistoryBefore = await page.evaluate(() => history.length);
   await page
-    .getByRole("region", { name: "Thread reading", exact: true })
+    .getByRole("navigation", { name: "Boards navigation", exact: true })
     .getByRole("link", { name: "Music", exact: true })
     .click();
   await expect(
@@ -1006,7 +1006,7 @@ for (const scenario of [
         .getByRole("button", { name: "Return to reading", exact: true })
         .click();
       await page
-        .getByRole("region", { name: "Thread reading", exact: true })
+        .getByRole("navigation", { name: "Boards navigation", exact: true })
         .getByRole("link", { name: "Music", exact: true })
         .click();
       await expect(
@@ -1297,8 +1297,7 @@ test("UX61.conflict-disclosure: closing recovery detail keeps full conflict comp
     ),
     reads = state.reads.length;
   expect(await latest.evaluate((n) => n.closest("details"))).toBeNull();
-  await page.getByText("Recovery details", { exact: true }).click();
-  await page.getByText("Recovery details", { exact: true }).click();
+  await expect(page.locator(".writing-recovery details")).toHaveCount(0);
   for (const name of ["Reload latest", "Reconcile manually", "Save my version"])
     await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
   await expect(
@@ -1343,8 +1342,7 @@ test("UX61.uncertain-disclosure: original lost edit remains inspectable outside 
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     ),
     reads = state.reads.length;
-  await page.getByText("Recovery details", { exact: true }).click();
-  await page.getByText("Recovery details", { exact: true }).click();
+  await expect(page.locator(".writing-recovery details")).toHaveCount(0);
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();

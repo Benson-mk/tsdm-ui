@@ -53,7 +53,7 @@ for (const [name, query, target, guarded] of [
           .getByRole("link", { name: "Music discussion", exact: true })
           .click();
         const last = page.getByRole("link", {
-          name: "Last reply to Target thread",
+          name: "Latest reply: Composer Nine · Last reply",
           exact: true,
         });
         await expect(last).toHaveAttribute("href", link);

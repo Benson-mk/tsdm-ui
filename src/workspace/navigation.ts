@@ -10,6 +10,7 @@ export interface ViewPosition {
   readingPaneTop?: number;
   readingRegionScrollTop?: number;
   resultsScrollTop?: number;
+  resultsPaneTop?: number;
 }
 export interface ReadingMarker {
   savedAt: number;
@@ -33,13 +34,64 @@ export interface NavigationEntry {
   documentNavigations: number;
 }
 export interface NavigationRecord {
-  schema: 2 | 3;
+  schema: 2 | 3 | 4 | 5 | 6;
+  replyDisposals?: string[];
+  replyCheckpoints?: Record<
+    string,
+    import("../workspace/reply-recovery").ReplyCheckpoint
+  >;
   favoriteAttempts?: import("../forum-client").FavoriteAttempt[];
   writing: WritingContext | null;
+  retainedReplies?: import("./writing").PublicWritingContext[];
   entries: Record<string, NavigationEntry>;
   pending: { entryKey: string; destination: string } | null;
 }
 export interface NavigationHost {
+  captureLegacyReply?(
+    threadId: string,
+    attempt: import("../forum-client").ThreadAttempt,
+  ): Promise<import("./reply-recovery").LegacyReplyObservation | null>;
+  enrollLegacyReply?(
+    captured: import("./reply-recovery").LegacyReplyObservation,
+    checked?: import("../forum-client").ThreadAttempt,
+  ): Promise<import("./reply-recovery").ReplySend | null>;
+  retainFailedReply?(
+    context: import("./writing").PublicWritingContext,
+    candidate: import("./writing").PublicWritingContext,
+    send: import("./reply-recovery").ReplySend,
+  ): Promise<boolean>;
+  reserveReplySend?(
+    context: import("./writing").PublicWritingContext,
+    attempt: import("../forum-client").ThreadAttempt,
+    predecessor?: import("./reply-recovery").ReplySend,
+  ): Promise<{
+    acknowledged: boolean;
+    send: import("./reply-recovery").ReplySend | null;
+  }>;
+  checkReplySend?(
+    threadId: string,
+    send: import("./reply-recovery").ReplySend,
+  ): Promise<boolean>;
+  observeReplySend?(
+    threadId: string,
+    send: import("./reply-recovery").ReplySend,
+    attempt: import("../forum-client").ThreadAttempt,
+  ): Promise<import("./reply-recovery").ReplySend | null>;
+  discardReply?(
+    row: import("./reply-recovery").ReplyRow,
+    version: string,
+  ): Promise<"discarded" | "stale" | "refused">;
+  chooseReply?(
+    row: import("./reply-recovery").ReplyRow,
+    version: string,
+  ): Promise<import("./reply-recovery").ReplyChoice>;
+
+  disposeReply?(threadId: string): void;
+  onReplyChange?(action: () => void): void;
+  acceptReplyUpdates?(
+    updates: import("../workspace/reply-recovery").ReplyUpdate[],
+  ): void;
+  replyRecovery?(): import("../workspace/reply-recovery").ReplyRecovery;
   entryKey(): string | null;
   recoveryProblem(): {
     kind: "incompatible" | "refused";

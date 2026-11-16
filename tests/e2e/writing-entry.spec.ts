@@ -1,5 +1,9 @@
+import { waitForReplySaved } from "./editor-controls";
+import { compactReplyBesideReader } from "./editor-controls";
+import { revealWritingOptions } from "./editor-controls";
 import {
   revealWritingDetails,
+  selectSourceEditor,
   revealWritingTools,
   writingDetailAction,
   writingTool,
@@ -30,7 +34,11 @@ function fixtureState() {
     } | null,
   };
 }
-async function open(page: Page, openingOwned = false) {
+async function open(
+  page: Page,
+  openingOwned = false,
+  attachmentMetadata = true,
+) {
   const state = fixtureState();
   state.openingOwned = openingOwned;
   states.set(page, state);
@@ -66,7 +74,7 @@ async function open(page: Page, openingOwned = false) {
         replyEdit = url.searchParams.get("pid") === "202";
       body += state.refused
         ? '<div id="messagetext">权限不足</div>'
-        : `<form id="postform" method="post" action="forum.php?mod=post&action=${action}&fid=5&tid=42${edit ? `&pid=${replyEdit ? "202" : "101"}&editsubmit=yes` : action === "newthread" ? "&topicsubmit=yes" : "&replysubmit=yes"}"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_TOKEN">${post ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="OPAQUE_AUTHOR_8"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">' : ""}${replyEdit ? "" : '<input name="subject" value="Native title">'}<textarea name="message">${edit ? escape(retained) : ""}</textarea>${action === "newthread" || (edit && !replyEdit) ? '<select name="typeid"><option value="0">Choose category</option><option value="3">Listening notes</option></select>' : ""}<label><input name="usesig" type="checkbox" value="1" checked>Signature</label><input name="attachnew[77][description]" value="Existing attachment"><button type="submit" name="${edit ? "editsubmit" : action === "newthread" ? "topicsubmit" : "replysubmit"}">Continue</button></form>`;
+        : `<form id="postform" method="post" action="forum.php?mod=post&action=${action}&fid=5&tid=42${edit ? `&pid=${replyEdit ? "202" : "101"}&editsubmit=yes` : action === "newthread" ? "&topicsubmit=yes" : "&replysubmit=yes"}"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_TOKEN">${post ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="OPAQUE_AUTHOR_8"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">' : ""}${replyEdit ? "" : '<input name="subject" value="Native title">'}<textarea name="message">${edit ? escape(retained) : ""}</textarea>${action === "newthread" || (edit && !replyEdit) ? '<select name="typeid"><option value="0">Choose category</option><option value="3">Listening notes</option></select>' : ""}<label><input name="usesig" type="checkbox" value="1" checked>Signature</label>${attachmentMetadata ? '<input name="attachnew[77][description]" value="Existing attachment">' : ""}<button type="submit" name="${edit ? "editsubmit" : action === "newthread" ? "topicsubmit" : "replysubmit"}" value="yes">Continue</button></form>`;
     } else if (url.searchParams.get("mod") === "forumdisplay")
       body += `<div id="ct"><h1><a href="${boardURL}">Music discussion</a></h1></div><table id="threadlisttableid"><tbody id="normalthread_42"><tr><th><a class="xst" href="${threadURL}">Existing thread</a></th></tr></tbody></table>`;
     else
@@ -218,12 +226,19 @@ for (const [
         ),
       { textSize, theme, language },
     );
-    const state = await open(page);
+    // Retention cases below carry attachment fields. This actual-review fixture
+    // omits an unsupported interactive native attachment control while keeping
+    // the complete authored source, including its literal attachment reference.
+    const state = await open(page, false, false);
     const action = page
       .locator("#pid101")
       .getByRole("button", { name: label, exact: true });
     await action.focus();
     await page.keyboard.press("Enter");
+    await expect(
+      page.locator('[role="textbox"][contenteditable="true"]'),
+    ).toBeFocused();
+    await selectSourceEditor(page);
     const editor = page.getByLabel(bodyLabel, { exact: true });
     await expect(editor).toBeFocused();
     await expect(editor).toHaveValue("");
@@ -237,26 +252,13 @@ for (const [
     await expect(identity).toContainText("Other author");
     await expect(identity).toContainText("101");
     await revealWritingDetails(page);
-    await expect(page.locator(".writing-details")).toContainText(
-      language === "en"
-        ? "No quoted text is inserted"
-        : language === "zh-CN"
-          ? "不会自动插入引用文字"
-          : "不會自動插入引用文字",
-    );
-    await expect(page.locator(".writing-details")).toContainText(
-      language === "en"
-        ? "notification delivery is unverified"
-        : language === "zh-CN"
-          ? "无法保证通知送达"
-          : "無法保證通知送達",
-    );
+    await expect(page.locator(".writing-details")).toHaveCount(0);
     await revealWritingTools(page);
     const review = page.getByRole("group", {
       name: reviewDestination,
       exact: true,
     });
-    await expect(review).toContainText("101");
+    await expect(review).toHaveCount(0);
     await editor.fill(retained);
     const before = await stored(page),
       reads = state.requests.length;
@@ -265,11 +267,34 @@ for (const [
     await expect(editor).toHaveValue(retained);
     expect(await stored(page)).toEqual(before);
     expect(state.requests).toHaveLength(reads);
-    const geometry = await identity.evaluate((node) => ({
-      width: node.clientWidth,
-      scroll: node.scrollWidth,
-    }));
-    expect(geometry.scroll).toBeLessThanOrEqual(geometry.width + 1);
+    // Ordinary replies keep the full identity for assistive technology; the
+    // visible addressed-target strip owns the layout geometry since #105.
+    const visibleTarget = page.getByRole("group", {
+      name: /^(Reply target|回复对象|回覆對象)$/,
+      exact: true,
+    });
+    await expect(visibleTarget).toBeVisible();
+    await expect(visibleTarget).toContainText("Other author");
+    // Viewport resizing delivers a separate browser resize event before the
+    // responsive workspace commits its pane arrangement. Observe the actual
+    // settled strip, retaining every intermediate measurement as evidence.
+    const geometries: { width: number; scroll: number; viewport: number }[] =
+      [];
+    await expect
+      .poll(async () => {
+        const geometry = await visibleTarget.evaluate((node) => ({
+          width: node.clientWidth,
+          scroll: node.scrollWidth,
+          viewport: window.innerWidth,
+        }));
+        geometries.push(geometry);
+        return geometry.scroll - geometry.width;
+      })
+      .toBeLessThanOrEqual(1);
+    await info.attach("reply-target-resize-measurements.json", {
+      body: JSON.stringify(geometries, null, 2),
+      contentType: "application/json",
+    });
     const writing = await stored(page);
     expect(writing.replyTarget).toEqual({
       threadId: "42",
@@ -279,7 +304,18 @@ for (const [
     });
     expect(writing.source).toBe(retained);
     expect(state.requests.every((r) => r.method === "GET")).toBe(true);
-    await identity.scrollIntoViewIfNeeded();
+    await visibleTarget.scrollIntoViewIfNeeded();
+    await (
+      await writingDetailAction(
+        page,
+        language === "en" ? "Preview" : language === "zh-CN" ? "预览" : "預覽",
+      )
+    ).click();
+    await expect(identity).toContainText("101");
+    await expect(identity).toContainText("Other author");
+    await expect(editor).toHaveValue(retained);
+    await expect(review).toHaveCount(0);
+    expect(state.requests.every((r) => r.method === "GET")).toBe(true);
     await capture(page, info);
   });
 }
@@ -296,11 +332,20 @@ for (const entry of [
   }) => {
     const state = await open(page, entry === "edit-opening");
     await enter(page, entry);
+    if (entry === "reply" || entry === "addressed") {
+      await expect(
+        page.getByRole("textbox", { name: "Visual post content", exact: true }),
+      ).toBeFocused();
+      await selectSourceEditor(page);
+    }
     const editor = page.getByLabel("Complete source", { exact: true });
     await expect(editor).toBeFocused();
     await editor.fill(retained);
     await revealWritingDetails(page);
+    await revealWritingOptions(page);
     await page.getByLabel("Signature", { exact: true }).uncheck();
+    if (entry === "reply" || entry === "addressed")
+      await page.keyboard.press("Escape");
     if (entry === "new-thread" || entry === "edit-opening") {
       await page
         .getByLabel("Title", { exact: true })
@@ -310,7 +355,12 @@ for (const entry of [
     if (entry === "edit-reply")
       await expect(page.getByLabel("Title", { exact: true })).toHaveCount(0);
     if (entry === "reply" || entry === "edit-reply") {
-      await (await writingTool(page, "Visual editor")).click();
+      await (
+        await writingTool(
+          page,
+          entry === "reply" ? "Switch to visual editor" : "Visual editor",
+        )
+      ).click();
       const visual = page.getByRole("textbox", {
         name: "Visual post content",
         exact: true,
@@ -332,11 +382,18 @@ for (const entry of [
         .toMatchObject({ start: 3, end: 4 });
     const before = await stored(page),
       reads = state.requests.length;
-    await page
-      .getByRole("button", { name: "Return to reading", exact: true })
-      .click();
-    await expect(editor).toBeHidden();
-    await enter(page, entry);
+    if (entry === "reply" || entry === "addressed") {
+      await compactReplyBesideReader(page);
+      await expect(page.locator(".reply-composer")).toBeVisible();
+    } else {
+      await (await writingDetailAction(page, "Return to reading")).click();
+      await expect(editor).toBeHidden();
+    }
+    if (entry === "reply" || entry === "addressed")
+      await page
+        .getByRole("button", { name: "Expand writing", exact: true })
+        .click();
+    else await enter(page, entry);
     const visible =
       entry === "reply" || entry === "edit-reply"
         ? page.getByRole("textbox", {
@@ -404,21 +461,20 @@ test("UX56.latest-intent: delayed addressed preparation cannot replace a newer o
   expect(state.requests.every((r) => r.method === "GET")).toBe(true);
 });
 
-test("UX56.cancel-pending: return to retained writing invalidates delayed replacement without losing context or focus", async ({
+test("UX56.cancel-pending: return to retained writing invalidates delayed retarget without losing context or focus", async ({
   page,
-}) => {
+}, info) => {
   const state = await open(page);
   await enter(page, "reply");
+  await selectSourceEditor(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(retained);
   await editor.press("Meta+ArrowUp");
   await editor.press("Meta+ArrowLeft");
   await editor.press("Shift+ArrowRight");
+  await compactReplyBesideReader(page);
+  // Capture the exact context before proposing the held retarget.
   const before = await stored(page);
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
-  await enter(page, "addressed");
   let release!: () => void;
   state.gate = {
     action: "reply",
@@ -427,21 +483,57 @@ test("UX56.cancel-pending: return to retained writing invalidates delayed replac
       release = resolve;
     }),
   };
+  const phases = {
+    before,
+    afterProposal: null as unknown,
+    afterParent: null as unknown,
+    afterThread: null as unknown,
+    afterReturn: null as unknown,
+    afterRelease: null as unknown,
+  };
+  await enter(page, "addressed");
+  phases.afterProposal = await stored(page);
+  // Hide is gone. Browse the native parent list and reselect the thread, then
+  // deliberately resume its retained context while the obsolete target is held.
+  await page.locator(".reader-breadcrumb .board-context-link").click();
+  phases.afterParent = await stored(page);
+  await page.locator(".thread-row .subject").click();
+  phases.afterThread = await stored(page);
   await page
-    .getByRole("button", {
-      name: "Discard local changes and prepare",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole("button", { name: "Reply to thread", exact: true })
+    .getByRole("button", { name: "Return to writing", exact: true })
     .click();
   await expect(editor).toBeFocused();
+  phases.afterReturn = await stored(page);
+  const response = page.waitForResponse(
+    (r) => new URL(r.url()).searchParams.get("reppost") === "101",
+  );
   release();
+  await (await response).finished();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  phases.afterRelease = await stored(page);
+  await info.attach("cancel-phases.json", {
+    body: JSON.stringify(phases, null, 2),
+    contentType: "application/json",
+  });
   await expect(
     page.getByText("Preparing current form…", { exact: true }),
   ).toHaveCount(0);
-  expect(await stored(page)).toEqual(before);
+  expect(phases.afterProposal).toEqual(before);
+  // Retarget preparation revokes the prior in-memory revision; parent navigation
+  // persists that one increment. Return and the old form must preserve it exactly.
+  expect(phases.afterParent).toEqual({
+    ...before,
+    revision: before.revision + 1,
+  });
+  expect(phases.afterThread).toEqual(phases.afterParent);
+  expect(phases.afterReturn).toEqual(phases.afterParent);
+  expect(phases.afterRelease).toEqual(phases.afterParent);
+  expect(await stored(page)).toEqual(phases.afterParent);
   await expect(editor).toHaveValue(retained);
   await expect(editor).toBeFocused();
   expect(state.requests.every((r) => r.method === "GET")).toBe(true);
@@ -452,6 +544,7 @@ test("UX56.revision-refusal: refused replacement preserves retained writing and 
 }) => {
   const state = await open(page);
   await enter(page, "reply");
+  await selectSourceEditor(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(retained);
   await revealNavigation(page);
@@ -498,13 +591,14 @@ test("UX56.composition: entry and replacement wait for composition and the lates
 }) => {
   const state = await open(page);
   await enter(page, "reply");
+  await selectSourceEditor(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(retained);
   await editor.dispatchEvent("compositionstart", { data: "音" });
   const reads = state.requests.length;
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await expect(
+    page.getByRole("button", { name: "More writing actions", exact: true }),
+  ).toBeDisabled();
   await revealNavigation(page);
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   await expect(
@@ -531,11 +625,12 @@ test("UX56.latest-guard: newer entry replaces the old replacement guard before a
 }) => {
   const state = await open(page);
   await enter(page, "reply");
+  await selectSourceEditor(page);
   await page.getByLabel("Complete source", { exact: true }).fill(retained);
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
-  await enter(page, "addressed");
+  await compactReplyBesideReader(page);
+  // #101 allows same-thread retargeting; retain this replacement-guard case
+  // at the unrelated new-thread boundary instead.
+  await enter(page, "new-thread");
   const reads = state.requests.length;
   await enter(page, "edit-reply");
   await expect(
@@ -555,7 +650,7 @@ test("UX56.latest-guard: newer entry replaces the old replacement guard before a
     .getByRole("button", { name: "Keep current writing", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Return to writing", exact: true })
+    .getByRole("button", { name: "Expand writing", exact: true })
     .click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     retained,
@@ -569,7 +664,12 @@ test("UX56.explicit-mode-during-check: deliberate visible editor mode focus rema
 }) => {
   const state = await open(page);
   await enter(page, "reply");
+  await selectSourceEditor(page);
   await page.getByLabel("Complete source", { exact: true }).fill(retained);
+  // Restored writing genuinely needs account/form checking; fresh verified writing does not.
+  await waitForReplySaved(page);
+  await page.reload();
+  await selectSourceEditor(page);
   let release!: () => void;
   state.gate = {
     action: "reply",
@@ -584,7 +684,7 @@ test("UX56.explicit-mode-during-check: deliberate visible editor mode focus rema
   await expect(
     page.getByText("Preparing current form…", { exact: true }),
   ).toBeVisible();
-  await (await writingTool(page, "Visual editor")).click();
+  await (await writingTool(page, "Switch to visual editor")).click();
   await expect(
     page.getByRole("textbox", { name: "Visual post content", exact: true }),
   ).toBeFocused();

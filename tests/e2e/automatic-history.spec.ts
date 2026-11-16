@@ -1,3 +1,5 @@
+import { compactReplyBesideReader } from "./editor-controls";
+import { selectSourceEditor } from "./editor-controls";
 import { confirmThreadPage, openThreadPages } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
@@ -338,16 +340,14 @@ test("IM69.preparation-priority: a delayed history result never interrupts delib
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Retained complete reply [quote]authored[/quote]");
+  await (
+    await selectSourceEditor(page)
+  ).fill("Retained complete reply [quote]authored[/quote]");
   release?.();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Retained complete reply [quote]authored[/quote]",
   );
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   await expect(page.locator(".reading-pane article")).toHaveCount(3);
   await expect(
     (await openThreadPages(page)).getByRole("button", {
@@ -665,9 +665,9 @@ test("IM69.preparing-blocks-passive: a pending current form keeps priority when 
   await page.waitForTimeout(250);
   expect(requests).toHaveLength(2);
   release();
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Retained reply after form check");
+  await (
+    await selectSourceEditor(page)
+  ).fill("Retained reply after form check");
   await page.waitForTimeout(100);
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Retained reply after form check",

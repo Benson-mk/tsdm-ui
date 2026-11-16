@@ -18,7 +18,7 @@ import {
 import type { Workspace } from "../workspace";
 import type { ReadResult } from "../forum-client";
 import { writeClipboardText } from "../hosts/clipboard";
-import { strings } from "../layouts/strings";
+import { strings, insert } from "../layouts/strings";
 import { favoriteText } from "./favorite-labels";
 import WorkspaceIcon from "./WorkspaceIcon.vue";
 const props = defineProps<{
@@ -50,6 +50,10 @@ const currentPage = computed(
 const currentURL = computed(() => props.position?.url ?? props.thread.url);
 const history = props.workspace.threadHistory.state;
 const jump = computed(() => props.thread.pageJump);
+const pageLabel = computed(
+  () =>
+    `${text.value.page} ${currentPage.value} / ${jump.value?.total ?? text.value.unknown}`,
+);
 const pageTargets = computed(() => {
   const source = new URL(props.thread.url);
   const targets = new Map<number, string>();
@@ -175,10 +179,10 @@ function overlayClick() {
           class="reader-page-trigger"
           :aria-label="
             position?.terminal
-              ? `${text.page} ${currentPage} · ${text.threadTerminal}`
+              ? `${pageLabel} · ${text.threadTerminal}`
               : undefined
           "
-          >{{ text.page }} {{ currentPage }}</DialogTrigger
+          >{{ pageLabel }}</DialogTrigger
         >
         <DialogPortal :to="portal">
           <DialogOverlay
@@ -198,7 +202,7 @@ function overlayClick() {
           >
             <DialogTitle>{{ text.threadPages }}</DialogTitle>
             <DialogDescription>{{ text.supportedPages }}</DialogDescription>
-            <p>{{ text.page }} {{ currentPage }}</p>
+            <p>{{ pageLabel }}</p>
             <form @submit.prevent="confirmPage">
               <label
                 >{{ text.page }}
@@ -307,6 +311,58 @@ function overlayClick() {
               }
             "
           >
+            <div class="thread-check-mode">
+              <p>
+                {{
+                  history.automatic
+                    ? history.paused
+                      ? text.refreshPaused
+                      : text.refreshEnabled
+                    : text.refreshManual
+                }}
+              </p>
+              <p v-if="!workspace.threadHistory.canCheck()">
+                {{ text.threadCheckUnavailable }}
+              </p>
+              <p v-if="history.baselineEstablished">
+                {{ text.newestBaseline }}
+              </p>
+              <span class="public-check-time">
+                <time
+                  v-if="history.checkedAt"
+                  tabindex="0"
+                  :datetime="new Date(history.checkedAt).toISOString()"
+                  :title="
+                    new Date(history.checkedAt).toLocaleString(
+                      workspace.preferences.state.value.language,
+                    )
+                  "
+                  :aria-label="
+                    insert(
+                      text.lastSuccessfulCheck,
+                      new Date(history.checkedAt).toLocaleString(
+                        workspace.preferences.state.value.language,
+                      ),
+                    )
+                  "
+                >
+                  {{
+                    insert(
+                      text.lastSuccessfulCheck,
+                      new Date(history.checkedAt).toLocaleString(
+                        workspace.preferences.state.value.language,
+                        {
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        },
+                      ),
+                    )
+                  }}
+                </time>
+              </span>
+            </div>
             <DropdownMenuItem
               v-if="workspace.state.value.canBack"
               as-child

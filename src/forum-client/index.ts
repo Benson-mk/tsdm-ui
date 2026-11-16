@@ -1,6 +1,9 @@
+import { createReport } from "./report.js";
+import { createRating } from "./rating.js";
 import { decodePrivateConversation } from "./private-conversation.js";
 import {
   createAttachmentRemoval,
+  createReplyAttachmentCheck,
   createUploadAuthoring,
 } from "./upload-authoring.js";
 import { findMention } from "./mentions.js";
@@ -56,7 +59,7 @@ export type * from "./types.js";
 const actor = (account: Account): string =>
   account.kind === "member" ? `member:${account.id}` : account.kind;
 import { createPrivateWriting } from "./private-writing.js";
-export const FORUM_CLIENT_VERSION = "0.21.0";
+export const FORUM_CLIENT_VERSION = "0.26.0";
 export function createForumClient(options: {
   origin: string;
   transport: ForumTransport;
@@ -120,12 +123,47 @@ export function createForumClient(options: {
       }
     },
   });
+  const rating = createRating({
+    ...options,
+    account: () => account,
+    generation: () => generation,
+    observe: (observed) => {
+      if (actor(observed) !== actor(account)) {
+        account = observed;
+        generation++;
+      }
+    },
+  });
+  const report = createReport({
+    ...options,
+    generation: () => generation,
+    observe: (observed) => {
+      if (actor(observed) !== actor(account)) {
+        account = observed;
+        generation++;
+      }
+    },
+  });
   return {
+    prepareReport: report.prepare,
+    submitReport: report.submit,
+    prepareRating: rating.prepare,
+    submitRating: rating.submit,
     sendPrivateMessage: privateWriting.send,
     checkPrivateMessage: privateWriting.check,
     preparePrivateWriting: privateWriting.prepare,
     preparePrivateReview: privateWriting.review,
     removeUploadedAttachment: createAttachmentRemoval({
+      ...options,
+      generation: () => generation,
+      observe: (observed) => {
+        if (actor(observed) !== actor(account)) {
+          account = observed;
+          generation++;
+        }
+      },
+    }),
+    checkReplyAttachments: createReplyAttachmentCheck({
       ...options,
       generation: () => generation,
       observe: (observed) => {

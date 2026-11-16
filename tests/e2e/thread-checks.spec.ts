@@ -1,3 +1,4 @@
+import { expectThreadCheckMode } from "./navigation-ui";
 import { setAutomaticChecks } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -182,9 +183,7 @@ for (const reverse of [false, true]) {
     });
     const before = await readableLines(page);
     await check(page);
-    await expect(
-      page.getByText("Newest baseline established", { exact: true }),
-    ).toBeVisible();
+    await expectThreadCheckMode(page, "Newest baseline established");
     await expect(
       page.getByRole("button", { name: /^New replies/ }),
     ).toHaveCount(0);
@@ -276,6 +275,10 @@ for (const distance of [64, 65]) {
         page.getByRole("button", { name: /^New replies/ }),
       ).toHaveCount(0);
     } else {
+      await test.info().attach("reverse-threshold-lines.json", {
+        body: JSON.stringify({ before, after: await readableLines(page) }),
+        contentType: "application/json",
+      });
       expectPreservedReadingLine(before, await readableLines(page));
       await expect(
         page.getByRole("button", { name: "New replies (1)", exact: true }),
@@ -289,7 +292,7 @@ for (const [size, language] of [
   [150, "en"],
   [150, "zh-CN"],
 ] as const)
-  test(`UI89.status-geometry-${size}-${language}: baseline, timestamp, arrival and failed status reserve the same reading geometry`, async ({
+  test(`UI89.status-geometry-${size}-${language}: baseline/time in options and actionable status preserve the reading line`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 700 });
@@ -330,6 +333,12 @@ for (const [size, language] of [
       .locator(".reading-pane")
       .evaluate((p) => p.getBoundingClientRect().top);
     await runCheck();
+    await page
+      .getByRole("button", {
+        name: language === "en" ? "More thread options" : "更多主题选项",
+        exact: true,
+      })
+      .click();
     await expect(
       page.getByText(
         language === "en" ? "Newest baseline established" : "已建立最新基准",
@@ -358,6 +367,7 @@ for (const [size, language] of [
     );
     await checked.focus();
     await expect(checked).toBeFocused();
+    await page.keyboard.press("Escape");
     added = 1;
     await runCheck();
     await expect(
@@ -451,9 +461,7 @@ test("UI89.stage-ordinary-refresh: unrelated loaded-page refresh does not discar
     ),
   );
   await check(page);
-  await expect(
-    page.getByText("Newest baseline established", { exact: true }),
-  ).toBeVisible();
+  await expectThreadCheckMode(page, "Newest baseline established");
   added = 1;
   await check(page);
   await expect(
@@ -535,9 +543,7 @@ test("UI89.boundary-collision: pending adjacent history excludes manual newest c
   release();
   await expect(page.locator("#pid100")).toHaveCount(1);
   await check(page);
-  await expect(
-    page.getByText("Newest baseline established", { exact: true }),
-  ).toBeVisible();
+  await expectThreadCheckMode(page, "Newest baseline established");
   expect(requests).toHaveLength(3);
 });
 
@@ -576,9 +582,7 @@ test("UI89.real-timer: reverse intermediate opt-in waits120seconds, modal pause 
   let added = 0;
   const requests = await open(page, 2, true, (n) => fixture(n, true, added));
   await check(page);
-  await expect(
-    page.getByText("Newest baseline established", { exact: true }),
-  ).toBeVisible();
+  await expectThreadCheckMode(page, "Newest baseline established");
   await openSettings(page);
   const toggle = page.getByRole("dialog").getByRole("checkbox", {
     name: "Check every 2 minutes while active",
@@ -590,9 +594,7 @@ test("UI89.real-timer: reverse intermediate opt-in waits120seconds, modal pause 
   expect(requests).toHaveLength(2);
   await closeSettingsToWorkspace(page);
   const resumed = Date.now();
-  await expect(
-    page.getByText("Checks enabled · every 2 minutes", { exact: true }),
-  ).toBeVisible();
+  await expectThreadCheckMode(page, "Checks enabled · every 2 minutes");
   await page.waitForTimeout(118_000);
   expect(requests).toHaveLength(2);
   await expect.poll(() => requests.length, { timeout: 6000 }).toBe(3);
@@ -616,9 +618,7 @@ test("UI89.growing-target: a newly offered native newest page is followed once a
     fixture(n, false, 0, total),
   );
   await check(page);
-  await expect(
-    page.getByText("Newest baseline established", { exact: true }),
-  ).toBeVisible();
+  await expectThreadCheckMode(page, "Newest baseline established");
   total = 4;
   await check(page);
   await expect(
@@ -642,9 +642,7 @@ test("UI89.moving-target: a second changed newest boundary stops bounded checkin
     fixture(n, false, 0, moving ? (n === 4 ? 5 : 4) : 3),
   );
   await check(page);
-  await expect(
-    page.getByText("Newest baseline established", { exact: true }),
-  ).toBeVisible();
+  await expectThreadCheckMode(page, "Newest baseline established");
   moving = true;
   await check(page);
   await expect(page.getByText(/Check failed · wait 2 min/)).toBeVisible();
@@ -689,15 +687,13 @@ test("UI89.composition-pause: composing in the retained reply pauses checks with
   });
   await source.fill("Unsent unchanged source");
   await source.dispatchEvent("compositionstart", { data: "測" });
-  await expect(page.getByText("Checks paused", { exact: true })).toBeVisible();
+  await expectThreadCheckMode(page, "Checks paused");
   await expect(source).toHaveValue("Unsent unchanged source");
   await source.dispatchEvent("compositionend", { data: "測" });
   await openThreadMore(page);
   await source.click();
   await expect(source).toBeFocused();
-  await expect(
-    page.getByText("Checks enabled · every 2 minutes", { exact: true }),
-  ).toBeVisible();
+  await expectThreadCheckMode(page, "Checks enabled · every 2 minutes");
 });
 
 for (const timed of [false, true])
@@ -723,9 +719,7 @@ for (const timed of [false, true])
     );
     const boardLocation = page.url();
     await page.waitForTimeout(1200);
-    await expect(
-      page.getByText("Checks enabled · every 2 minutes", { exact: true }),
-    ).toBeVisible();
+    await expectThreadCheckMode(page, "Checks enabled · every 2 minutes");
     await page.locator("#pid201").evaluate((post) => {
       const p = post.closest(".reading-pane")!;
       p.scrollTop +=
@@ -749,9 +743,7 @@ for (const timed of [false, true])
         .getByRole("button", { name: "Threads pane", exact: true })
         .click();
       await expect(page.locator(".reading-pane")).toBeHidden();
-      await expect(page.locator(".public-check-state")).toHaveText(
-        "Checks paused",
-      );
+      await expect(page.locator(".public-check-state")).toHaveText("");
       await page.waitForTimeout(121_000);
       expect(
         requests.filter(
@@ -760,9 +752,7 @@ for (const timed of [false, true])
       ).toHaveLength(2);
       await page.setViewportSize({ width: 1280, height: 900 });
       await expect(page.locator(".reading-pane")).toBeVisible();
-      await expect(page.locator(".public-check-state")).toHaveText(
-        "Checks enabled · every 2 minutes",
-      );
+      await expectThreadCheckMode(page, "Checks enabled · every 2 minutes");
       before = await readableLines(page);
       const resumed = Date.now();
       await page.waitForTimeout(118_000);
@@ -802,9 +792,7 @@ for (const timed of [false, true])
       await expect(page.locator(".reading-pane")).toBeHidden();
       await page.waitForTimeout(1200);
       // The hidden reader's status is still DOM-observable; only visibility is hidden.
-      await expect(page.locator(".public-check-state")).toHaveText(
-        "Checks paused",
-      );
+      await expect(page.locator(".public-check-state")).toHaveText("");
     }
     expect(
       requests.filter(
@@ -937,3 +925,188 @@ for (const restored of [false, true])
       contentType: "application/json",
     });
   });
+
+test("UX99.reader-quiet-cycle: mode lives in options, boundaries beside posts and transient status preserves text", async ({
+  page,
+}, info) => {
+  let delayed = false;
+  let release: (() => void) | undefined;
+  const requests = await open(page, 1, false, async (n) => {
+    if (delayed)
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    return fixture(n, false, 0, 1);
+  });
+  const pane = page.locator(".reading-pane");
+  await expect(page.locator(".public-history-controls")).toHaveCount(0);
+  await expect(page.getByText("Manual refresh", { exact: true })).toHaveCount(
+    0,
+  );
+  const menu = await openThreadMore(page);
+  await expect(menu.getByText("Manual refresh", { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "More thread options", exact: true }),
+  ).toBeFocused();
+  const edge = pane.getByText("Latest known content", { exact: true });
+  await expect(edge).toBeAttached();
+  const geometry = await edge.evaluate((node) => ({
+    top: node.getBoundingClientRect().top,
+    last: node
+      .closest(".reading-pane")!
+      .querySelector("article:last-of-type")!
+      .getBoundingClientRect().bottom,
+  }));
+  expect(geometry.top).toBeGreaterThanOrEqual(geometry.last);
+  await pane.evaluate((node) => {
+    node.scrollTop = 500;
+  });
+  const before = await readableLines(page);
+  delayed = true;
+  await check(page);
+  await expect(
+    page.getByText("Checking for new replies…", { exact: true }),
+  ).toBeAttached();
+  expectPreservedReadingLine(before, await readableLines(page));
+  release!();
+  await expect(page.locator(".public-history-controls")).toHaveCount(0);
+  expectPreservedReadingLine(before, await readableLines(page));
+  expect(requests).toHaveLength(2);
+  await pane.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await check(page);
+  await expect(
+    page.getByText("Checking for new replies…", { exact: true }),
+  ).toBeVisible();
+  expect(await pane.evaluate((node) => node.scrollTop)).toBe(0);
+  release!();
+  await expect(page.locator(".public-history-controls")).toHaveCount(0);
+  expect(await pane.evaluate((node) => node.scrollTop)).toBe(0);
+  await info.attach("quiet-reader.json", {
+    body: JSON.stringify({ geometry, before, requests }),
+    contentType: "application/json",
+  });
+});
+
+test("UX99.reader-failure: named Retry, native Details and removal of failure preserve the actual text", async ({
+  page,
+}, info) => {
+  let broken = false;
+  let release: (() => void) | undefined;
+  const requests = await open(page, 1, false, async (n) => {
+    if (broken) {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return "<html><body>Unrecognized response</body></html>";
+    }
+    return fixture(n, false, 0, 1);
+  });
+  const pane = page.locator(".reading-pane");
+  await pane.evaluate((node) => {
+    node.scrollTop = 500;
+  });
+  const before = await readableLines(page);
+  broken = true;
+  await check(page);
+  expectPreservedReadingLine(before, await readableLines(page));
+  release!();
+  await expect(page.getByText(/Check failed · wait 2 min/)).toBeAttached();
+  expectPreservedReadingLine(before, await readableLines(page));
+  await expect(
+    page.getByRole("button", { name: "Retry check", exact: true }),
+  ).toBeDisabled();
+  await pane.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await page.evaluate(() => {
+    document.body.onkeydown = (event) =>
+      event.keyCode === 27 ? false : undefined;
+  });
+  const details = page.locator(".public-check-actions summary");
+  await details.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByText("Use Check for new posts to retry after the wait.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(details.locator("..")).not.toHaveAttribute("open", "");
+  await expect(details).toBeFocused();
+  expect(requests).toHaveLength(2);
+  await info.attach("failure-reader.json", {
+    body: JSON.stringify({ before, requests }),
+    contentType: "application/json",
+  });
+});
+
+for (const reverse of [false, true])
+  test(`UX99.boundary-${reverse}: actual endpoints follow posts including native pinned opener`, async ({
+    page,
+  }, info) => {
+    await open(page, 1, reverse, (n) => fixture(n, reverse, 0, 1));
+    const positions = await page.locator(".reading-pane").evaluate((node) => ({
+      posts: [...node.querySelectorAll("article")].map((p) => ({
+        id: p.id,
+        top: p.getBoundingClientRect().top,
+        bottom: p.getBoundingClientRect().bottom,
+      })),
+      edges: [...node.querySelectorAll(".public-history-boundary")].map(
+        (e) => ({
+          direction: e.getAttribute("data-direction"),
+          text: e.textContent,
+          top: e.getBoundingClientRect().top,
+          bottom: e.getBoundingClientRect().bottom,
+        }),
+      ),
+    }));
+    const earlier = positions.edges.find((e) => e.direction === "earlier")!;
+    const later = positions.edges.find((e) => e.direction === "later")!;
+    expect(earlier.text).toContain("Beginning of thread");
+    expect(later.text).toContain("Latest known content");
+    if (reverse) {
+      expect(later.top).toBeGreaterThanOrEqual(positions.posts[0]!.bottom);
+      expect(later.bottom).toBeLessThanOrEqual(positions.posts[1]!.top);
+      expect(earlier.top).toBeGreaterThanOrEqual(
+        positions.posts.at(-1)!.bottom,
+      );
+    } else {
+      expect(earlier.bottom).toBeLessThanOrEqual(positions.posts[0]!.top);
+      expect(later.top).toBeGreaterThanOrEqual(positions.posts.at(-1)!.bottom);
+    }
+    await info.attach("edges.json", {
+      body: JSON.stringify(positions),
+      contentType: "application/json",
+    });
+  });
+
+test("UX99.unknown-boundaries: unverified edges remain beside loaded posts and checks unavailable in options", async ({
+  page,
+}) => {
+  const requests = await open(page, 2, false, (n) =>
+    fixture(n).replace(/<div class="pg">[\s\S]*/, ""),
+  );
+  const pane = page.locator(".reading-pane");
+  await expect(
+    pane.getByText("Earlier boundary unverified", { exact: true }),
+  ).toBeAttached();
+  await expect(
+    pane.getByText("Later boundary unverified", { exact: true }),
+  ).toBeAttached();
+  await expect(
+    page.getByText("Beginning of thread", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Latest known content", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    (await openThreadMore(page)).getByText(
+      "Checks unavailable: no supported newest-page target.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect(requests).toHaveLength(1);
+});

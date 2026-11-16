@@ -97,7 +97,14 @@ export function createThreadHistory(
   let key = "";
   let pages = new Set<string>();
   let postPages = new Map<string, string>();
-  let membership = new Map<string, { url: string; ids: Set<string> }>();
+  let membership = new Map<
+    string,
+    {
+      url: string;
+      ids: Set<string>;
+      filters: ThreadResult["thread"]["filters"];
+    }
+  >();
   let seen = new Set<string>();
   let newestObservation: ThreadResult | null = null;
   let newestSeen: Set<string> | null = null;
@@ -229,6 +236,7 @@ export function createThreadHistory(
               {
                 url: result.thread.url,
                 ids: new Set(result.thread.posts.map((post) => post.id)),
+                filters: result.thread.filters,
               },
             ],
           ]
@@ -372,6 +380,7 @@ export function createThreadHistory(
     membership.set(result.thread.pages.current, {
       url: result.thread.url,
       ids: new Set(result.thread.posts.map((post) => post.id)),
+      filters: result.thread.filters,
     });
     for (const post of result.thread.posts) seen.add(post.id);
     const incoming =
@@ -386,11 +395,23 @@ export function createThreadHistory(
     for (const post of incoming)
       if (direction === "later" || !postPages.has(post.id))
         postPages.set(post.id, result.thread.url);
+    const loadedThread = {
+      ...prior.thread,
+      posts: sourceOrdered(posts, prior),
+    };
+    if (
+      result.thread.pageJump &&
+      [...membership.keys()].every(
+        (page) => Number(page) <= (result.thread.pageJump?.total ?? 0),
+      )
+    )
+      loadedThread.pageJump = result.thread.pageJump;
+    else delete loadedThread.pageJump;
     state.value = {
       ...state.value,
       result: {
         ...prior,
-        thread: { ...prior.thread, posts: sourceOrdered(posts, prior) },
+        thread: loadedThread,
       },
       [direction]: boundary(result.thread.history, direction),
       latest: result.thread.history?.latest?.url ?? state.value.latest,
@@ -635,6 +656,7 @@ export function createThreadHistory(
     membership.set(result.thread.pages.current, {
       url: result.thread.url,
       ids: new Set(result.thread.posts.map((post) => post.id)),
+      filters: result.thread.filters,
     });
     for (const post of incoming) seen.add(post.id);
     const retained = new Set(
@@ -658,10 +680,12 @@ export function createThreadHistory(
       posts: sourceOrdered(posts, prior),
     };
     // Bounds are observations, not permanent properties of a loaded range.
-    // A shrinking thread that no longer contains its entry page fails closed.
+    // A shrinking thread that no longer contains every retained source page fails closed.
     if (
       result.thread.pageJump &&
-      result.thread.pageJump.total >= Number(prior.thread.pages.current)
+      [...membership.keys()].every(
+        (page) => Number(page) <= (result.thread.pageJump?.total ?? 0),
+      )
     )
       refreshedThread.pageJump = result.thread.pageJump;
     else delete refreshedThread.pageJump;
@@ -724,6 +748,15 @@ export function createThreadHistory(
     revealArrivals,
     target,
     sourceFor: (postId: string) => postPages.get(postId) ?? null,
+    filtersFor(postId: string) {
+      // Read the range ref so source metadata changes invalidate menu computations.
+      if (!state.value.result?.thread.posts.some((post) => post.id === postId))
+        return [];
+      const url = postPages.get(postId);
+      return (
+        [...membership.values()].find((page) => page.url === url)?.filters ?? []
+      );
+    },
     remember,
     rememberedPosition: () => position,
     find: (url: string, account: string) =>

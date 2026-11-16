@@ -385,6 +385,97 @@ export async function validateUploadFields(
   }
   return fields;
 }
+/** Current usability of retained ordinary intent; never grants effect authority. */
+export function createReplyAttachmentCheck(config: {
+  origin: string;
+  transport: ForumTransport;
+  generation: () => number;
+  observe: (account: import("./types.js").Account) => void;
+}) {
+  return async (
+    w: PreparedWriting,
+  ): Promise<import("./types.js").ReplyAttachmentCheck> => {
+    const generation = config.generation();
+    let account: import("./types.js").Account = { kind: "unknown" };
+    const fail = (message: string) => ({
+      account,
+      generation: config.generation(),
+      accountVerified: false,
+      usableKeys: [],
+      message,
+    });
+    if (
+      !["reply", "quick-quote"].includes(w.action) ||
+      !w.replyTarget ||
+      w.editTarget ||
+      w.draft
+    )
+      return fail("Only ordinary reply attachment intent can be checked here.");
+    const url = formURL(w, config.origin, "native");
+    const form = async () => {
+      const response = await config.transport.request(url, { fresh: true });
+      const decoded = decodeWriting(
+        response,
+        url,
+        w.board.id,
+        undefined,
+        w.replyTarget,
+      );
+      account = decoded.account;
+      config.observe(account);
+      return (
+        generation === config.generation() &&
+        decoded.kind === "prepared" &&
+        account.kind === "member" &&
+        account.id === w.account.id &&
+        !!profile(response, w)
+      );
+    };
+    try {
+      if (!(await form()))
+        return fail(
+          "The current account, permission or attachment form is unavailable.",
+        );
+      const usableKeys: string[] = [];
+      for (const upload of w.uploads ?? []) {
+        if (
+          !["uploaded", "associated"].includes(upload.status) ||
+          !upload.serverId ||
+          upload.ownerId !== w.account.id
+        )
+          continue;
+        const found = await listedUpload(
+          config.transport,
+          w,
+          upload.serverId,
+          config.origin,
+        );
+        if (
+          found &&
+          found.referenceKind === upload.referenceKind &&
+          JSON.stringify(found.fields) === JSON.stringify(upload.fields)
+        )
+          usableKeys.push(upload.key);
+      }
+      if (!(await form()))
+        return fail(
+          "The account or form changed while checking attachment intent.",
+        );
+      return {
+        account,
+        generation,
+        accountVerified: true,
+        usableKeys,
+        message: "",
+      };
+    } catch {
+      return fail(
+        "Attachment usability could not be verified. Retained intent was not changed.",
+      );
+    }
+  };
+}
+
 export function createUploadAuthoring(config: {
   origin: string;
   transport: ForumTransport;
@@ -396,6 +487,7 @@ export function createUploadAuthoring(config: {
     file: UploadFile,
     progress: (loaded: number) => void,
     signal: UploadCancellation,
+    guard?: import("./types.js").EffectGuard,
   ): Promise<UploadResult> => {
     let sent = false;
     const fail = (message: string): UploadResult => ({
@@ -460,7 +552,12 @@ export function createUploadAuthoring(config: {
         return fail(
           "The current attachment count or daily quota is exhausted.",
         );
-      if (signal.aborted) return fail("Upload cancelled before sending.");
+      if (guard && (!(await guard.check()) || !guard.current()))
+        return fail(
+          "Local writing or recovery changed during preflight. Nothing was uploaded.",
+        );
+      if (signal.aborted || generation !== config.generation())
+        return fail("Upload cancelled before sending.");
       sent = true;
       const r = await config.transport.upload(
         p.url,
@@ -558,6 +655,7 @@ export function createAttachmentRemoval(config: {
     w: PreparedWriting,
     id: string,
     checkOnly = false,
+    guard?: import("./types.js").EffectGuard,
   ): Promise<import("./types.js").AttachmentRemovalResult> => {
     let sent = false;
     const unknown = (
@@ -632,6 +730,14 @@ export function createAttachmentRemoval(config: {
           "aids[]": id,
         }))
           remove.searchParams.set(k, v);
+        if (guard && (!(await guard.check()) || !guard.current()))
+          return unknown(
+            "Local writing or recovery changed during preflight. Nothing was removed.",
+          );
+        if (generation !== config.generation())
+          return unknown(
+            "The account changed before removal. Nothing was removed.",
+          );
         used.add(key);
         sent = true;
         try {

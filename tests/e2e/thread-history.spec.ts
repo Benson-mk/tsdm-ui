@@ -1,3 +1,5 @@
+import { compactReplyBesideReader } from "./editor-controls";
+import { selectSourceEditor } from "./editor-controls";
 import {
   confirmThreadPage,
   openThreadPages,
@@ -427,16 +429,14 @@ test("IM68.preparation-priority: a delayed history result never interrupts delib
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Retained complete reply [quote]authored[/quote]");
+  await (
+    await selectSourceEditor(page)
+  ).fill("Retained complete reply [quote]authored[/quote]");
   release?.();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Retained complete reply [quote]authored[/quote]",
   );
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   await expect(page.locator(".reading-pane article")).toHaveCount(3);
   await expect(
     (await openThreadPages(page)).getByRole("button", {
@@ -507,19 +507,22 @@ test("IM68.reader-moves-during-load: preserve the reader's current anchor when a
   );
 });
 
-test("IM68.loaded-permalink: selecting a post in the current loaded page updates its exact target without discarding the range", async ({
+test("IM68.loaded-permalink: copying a loaded post keeps the exact source and range without another read", async ({
   page,
 }) => {
   const requests = await open(page);
   await loadThreadRange(page, "later");
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const targeted = await page.locator("#pid104").getAttribute("data-targeted");
   await page
-    .locator("#pid104")
-    .getByRole("link", { name: "Post 104", exact: true })
+    .getByRole("button", { name: "Copy permalink for post 104", exact: true })
     .click();
-  await expect(page.locator("#pid104")).toHaveAttribute(
-    "data-targeted",
-    "true",
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe(`${origin}/forum.php?mod=redirect&goto=findpost&ptid=42&pid=104`);
+  expect(await page.locator("#pid104").getAttribute("data-targeted")).toBe(
+    targeted,
   );
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   expect(requests).toHaveLength(2);
@@ -649,6 +652,7 @@ test("IM68.compact-writing-anchor: manual history keeps the visible post and sol
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill("Retained composition [quote]complete[/quote]");
   const original = await editor.elementHandle();
@@ -779,6 +783,7 @@ test("IM68.short-writing-anchor: manual history keeps the visible post and sole 
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill("Retained composition [quote]complete[/quote]");
   const original = await editor.elementHandle();

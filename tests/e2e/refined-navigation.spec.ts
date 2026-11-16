@@ -1,3 +1,4 @@
+import { writingDetailAction } from "./editor-controls";
 import { visibleCharacter, expectCharacter } from "./visible-character";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -172,7 +173,7 @@ test("UI82.header: named SVG controls, supplied brand and native escape share on
   });
 });
 
-test("UI82.browse-first: fresh results fill the browsing surface and narrow Threads retains reader and cross-board context", async ({
+test("UI82.browse-first: fresh results use compact desktop width and narrow Threads retains reader and cross-board context", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 375, height: 844 });
@@ -211,7 +212,7 @@ test("UI82.browse-first: fresh results fill the browsing surface and narrow Thre
     await expect(results).toBeVisible();
     await expect
       .poll(async () => (await results.boundingBox())?.width)
-      .toBe(width < 960 ? width : width - 216);
+      .toBe(width < 768 ? width : 300);
     const bounds = (await results.boundingBox())!;
     frames.push({ width, results: bounds });
   }
@@ -265,7 +266,7 @@ test("UI82.browse-first: fresh results fill the browsing surface and narrow Thre
     page.getByRole("button", { name: "Back to boards", exact: true }),
   ).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Return to reading", exact: true }),
+    await writingDetailAction(page, "Return to reading"),
   ).toHaveCount(0);
   expect(ledger.every((r) => r.startsWith("GET "))).toBe(true);
   await info.attach("fresh-browse-widths.json", {
@@ -292,9 +293,7 @@ test("UI82.fresh-writing: a new writing context stays reachable from browse-firs
   await expect(editor).toBeVisible();
   await expect(editor).toHaveValue("Retained fresh writing 中文");
   expect(await original!.evaluate((n) => n.isConnected)).toBe(true);
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await (await writingDetailAction(page, "Return to reading")).click();
   await expect(page.locator(".results-pane")).toBeVisible();
   await page
     .getByRole("button", { name: "Return to writing", exact: true })

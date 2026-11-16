@@ -357,7 +357,7 @@ for (const context of ["", "&ordertype=2", "&ordertype=1&authorid=9"]) {
           )!;
           return (
             trigger.textContent!.trim() ===
-            `Page ${Math.floor(Number(post.id.slice(3)) / 100)}`
+            `Page ${Math.floor(Number(post.id.slice(3)) / 100)} / unknown`
           );
         }),
       )
@@ -445,7 +445,7 @@ for (const context of ["", "&ordertype=2", "&ordertype=1&authorid=9"]) {
     await page.goto(copied);
     await expect(
       page.getByRole("button", {
-        name: new RegExp(`^Page ${firstPage}(?: ·|$)`),
+        name: new RegExp(`^Page ${firstPage} / unknown(?: ·|$)`),
       }),
     ).toBeVisible();
     await expect(pane.locator("article")).toHaveCount(3);
@@ -624,4 +624,147 @@ test("UI86.refresh-bounds: fresh qualified responses upgrade, update and withdra
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   }
   expect(requests).toHaveLength(4);
+});
+
+for (const qualified of [true, false]) {
+  test(`UX100.total-${qualified}: current and qualified total stay visible and pending choices cancel with focus at narrow enlarged text`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 700 });
+    const requests = await open(page, 2, "&authorid=9", (html) =>
+      qualified ? nativeJump(html, "&authorid=9") : html,
+    );
+    await page.locator(".workspace").evaluate((root) => {
+      (
+        (root.getRootNode() as ShadowRoot).host as HTMLElement
+      ).style.setProperty("--text-scale", "1.25");
+    });
+    const label = `Page 2 / ${qualified ? "7" : "unknown"}`;
+    const trigger = page.getByRole("button", { name: label, exact: true });
+    await expect(trigger).toBeVisible();
+    const before = await page
+      .locator(".reading-pane")
+      .evaluate((pane) => pane.scrollTop);
+    await trigger.click();
+    const dialog = page.getByRole("dialog", {
+      name: "Thread pages",
+      exact: true,
+    });
+    await expect(dialog.getByText(label, { exact: true })).toBeVisible();
+    const input = dialog.getByRole("spinbutton", {
+      name: "Page number",
+      exact: true,
+    });
+    for (const invalid of ["0", "8", "2.5", ""]) {
+      await input.fill(invalid);
+      await expect(
+        dialog.getByRole("button", { name: "Go", exact: true }),
+      ).toBeDisabled();
+    }
+    await input.fill("3");
+    await expect(
+      dialog.getByRole("button", { name: "Go", exact: true }),
+    ).toBeEnabled();
+    expect(requests).toHaveLength(1);
+    const bounds = await dialog.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(trigger).toBeFocused();
+    expect(
+      await page.locator(".reading-pane").evaluate((pane) => pane.scrollTop),
+    ).toBe(before);
+    expect(requests).toHaveLength(1);
+    await trigger.click();
+    await input.press("Escape");
+    await expect(trigger).toBeFocused();
+    expect(requests).toHaveLength(1);
+  });
+}
+
+for (const [initialTotal, nextTotal] of [
+  [null, 7],
+  [7, 9],
+  [7, null],
+] as const) {
+  test(`UX100.adjacent-${initialTotal}-${nextTotal}: a fresh same-context page upgrades updates or withdraws qualified bounds`, async ({
+    page,
+  }) => {
+    const context = "&authorid=9&ordertype=1";
+    const requests = await open(page, 2, context, (html, url) => {
+      const total =
+        url.searchParams.get("page") === "2" ? initialTotal : nextTotal;
+      return total === null ? html : nativeJump(html, context, total);
+    });
+    await expect(page.locator(".reader-page-trigger")).toHaveText(
+      `Page 2 / ${initialTotal ?? "unknown"}`,
+    );
+    await page.locator(".reader-page-trigger").click();
+    const dialog = page.getByRole("dialog", {
+      name: "Thread pages",
+      exact: true,
+    });
+    await dialog.getByText("Supported navigation", { exact: true }).click();
+    await dialog
+      .getByRole("button", { name: "Load earlier", exact: true })
+      .click();
+    await expect(page.locator(".reading-pane article")).toHaveCount(6);
+    await expect(page.locator(".reader-page-trigger")).toHaveText(
+      new RegExp(`^Page [23] / ${nextTotal ?? "unknown"}$`),
+    );
+    await page.locator("#pid301").evaluate((post) => {
+      const pane = post.closest(".reading-pane")!;
+      pane.scrollTop +=
+        post.getBoundingClientRect().top -
+        pane.getBoundingClientRect().top +
+        20;
+    });
+    await expect(page.locator(".reader-page-trigger")).toHaveText(
+      `Page 3 / ${nextTotal ?? "unknown"}`,
+    );
+    await page.locator(".reader-page-trigger").click();
+    await expect(dialog.getByRole("spinbutton")).toHaveValue("3");
+    await dialog.getByRole("spinbutton").fill("6");
+    if (nextTotal === null)
+      await expect(
+        dialog.getByRole("button", { name: "Go", exact: true }),
+      ).toBeDisabled();
+    else
+      await expect(
+        dialog.getByRole("button", { name: "Go", exact: true }),
+      ).toBeEnabled();
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    expect(requests).toHaveLength(2);
+    const requested = new URL(requests[1]!.slice(4));
+    expect(requested.searchParams.get("authorid")).toBe("9");
+    expect(requested.searchParams.get("ordertype")).toBe("1");
+  });
+}
+
+test("UX100.shrink: a fresh total smaller than a retained source page is unknown throughout the loaded range", async ({
+  page,
+}) => {
+  const requests = await open(page, 2, "", (html, url) =>
+    nativeJump(html, "", url.searchParams.get("page") === "1" ? 2 : 7),
+  );
+  const trigger = page.locator(".reader-page-trigger");
+  const dialog = page.getByRole("dialog", {
+    name: "Thread pages",
+    exact: true,
+  });
+  for (const direction of ["Load later", "Load earlier"]) {
+    await trigger.click();
+    await dialog.getByText("Supported navigation", { exact: true }).click();
+    await dialog.getByRole("button", { name: direction, exact: true }).click();
+    await expect(page.locator(".reading-pane article")).toHaveCount(
+      direction === "Load later" ? 6 : 9,
+    );
+  }
+  await page.locator("#pid301").evaluate((post) => {
+    const pane = post.closest(".reading-pane")!;
+    pane.scrollTop +=
+      post.getBoundingClientRect().top - pane.getBoundingClientRect().top + 20;
+  });
+  await expect(trigger).toHaveText("Page 3 / unknown");
+  expect(requests).toHaveLength(3);
 });

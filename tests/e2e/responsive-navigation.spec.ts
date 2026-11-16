@@ -97,11 +97,15 @@ test("UX53.result-context: direct arrival has useful list navigation while popul
     contentType: "application/json",
   });
   expect(await results.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
-  // History adds snapshot chrome. Preserve the visible row position, rather
-  // than the old numeric scrollTop; drawer docking retains its own exact rule.
+  // #96 keeps the board row relative to its pane when history adds snapshot
+  // chrome. The raw page coordinate may move with that pane.
   await expect
     .poll(async () =>
-      Math.abs((await row.boundingBox())!.y - positionBefore.row!.y),
+      Math.abs(
+        (await row.boundingBox())!.y -
+          (await results.boundingBox())!.y -
+          (positionBefore.row!.y - positionBefore.pane!.y),
+      ),
     )
     .toBeLessThanOrEqual(0.5);
   await expect(

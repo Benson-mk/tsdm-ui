@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -309,7 +310,7 @@ test("J77.private-send: separate approval sends one exact recipient-bound revisi
   expect(server.posts).toHaveLength(1);
   expect(server.pendingRecords).toHaveLength(1);
   const acknowledged = JSON.parse(server.pendingRecords[0]!);
-  expect(acknowledged.schema).toBe(3);
+  expect(acknowledged.schema).toBe(6);
   expect(acknowledged.writing.privateAttempts[0]).toMatchObject({
     status: "pending",
     before: ["101"],
@@ -371,7 +372,7 @@ test("J77.private-send: separate approval sends one exact recipient-bound revisi
   ).toHaveCount(0);
 });
 
-test("J77.private-schema: private writing uses explicitly incompatible schema3 without replacing legacy public compatibility or persisting credentials", async ({
+test("J77.private-schema: private writing shares explicitly incompatible schema6 without replacing legacy public compatibility or persisting credentials", async ({
   page,
 }) => {
   await open(page);
@@ -384,7 +385,8 @@ test("J77.private-schema: private writing uses explicitly incompatible schema3 w
   const record = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery") ?? "null"),
   );
-  expect(record.schema).toBe(3);
+  expect(record.schema).toBe(6);
+  expect(record.retainedReplies).toEqual([]);
   expect(record.writing.action).toBe("private-message");
   expect(record.writing.recipient.id).toBe("9");
   expect(Object.keys(record.writing)).not.toContain("board");
@@ -956,7 +958,7 @@ test("J77.private-peer-guard: reading another peer keeps the original writing an
       () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
     ),
   );
-  expect(replacement.schema).toBe(3);
+  expect(replacement.schema).toBe(6);
   expect(replacement.writing.id).not.toBe(original.id);
   expect(replacement.writing.privateAttempts).toEqual(original.privateAttempts);
   await expect(attempt(page)).toContainText("Listener Nine");
@@ -1046,28 +1048,40 @@ test("J77.private-unqualified-markup: potential private formatting remains edita
   expect(server.posts).toHaveLength(0);
 });
 
-test("J77.public-private-history: explicit private replacement keeps the original public uncertain attempt inspectable and recoverable without retargeting or resend", async ({
+test("J77.public-private-history: unsettled public replacement is refused and original attempt plus newer writing remain recoverable", async ({
   page,
 }) => {
   const server = await open(page, `${origin}/forum.php?mod=viewthread&tid=42`);
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   await page
     .getByRole("textbox", { name: "Complete source", exact: true })
     .fill("Original public reply remains identifiable");
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  // #111 owns qualified ordinary-reply outcomes independently of raw histories.
   await expect
-    .poll(
-      async () =>
-        JSON.parse(
-          await page.evaluate(
-            () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
-          ),
-        ).writing.attempts?.[0]?.status,
+    .poll(() =>
+      page.evaluate(async () => {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        return new Promise<string | undefined>((resolve, reject) => {
+          const tx = db.transaction("threads", "readonly"),
+            request = tx.objectStore("threads").get("42");
+          request.onsuccess = () => {
+            db.close();
+            resolve(request.result?.sends?.[0]?.attempt.status);
+          };
+          request.onerror = () => {
+            db.close();
+            reject(request.error);
+          };
+        });
+      }),
     )
     .toBe("uncertain");
   const original = JSON.parse(
@@ -1075,6 +1089,9 @@ test("J77.public-private-history: explicit private replacement keeps the origina
       () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
     ),
   ).writing.attempts[0];
+  await (
+    await selectSourceEditor(page)
+  ).fill("Newer public draft survives private navigation");
   await page
     .getByRole("navigation", { name: "Main destinations", exact: true })
     .getByRole("button", { name: "Messages", exact: true })
@@ -1088,12 +1105,12 @@ test("J77.public-private-history: explicit private replacement keeps the origina
       exact: true,
     })
     .click();
-  await page
-    .getByRole("button", {
+  await expect(
+    page.getByRole("button", {
       name: "Keep writing and read private conversation",
       exact: true,
-    })
-    .click();
+    }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Write private message", exact: true })
     .click();
@@ -1104,39 +1121,56 @@ test("J77.public-private-history: explicit private replacement keeps the origina
     })
     .click();
   await expect(
-    page.getByRole("textbox", { name: "Private message text", exact: true }),
-  ).toHaveValue("");
-  const history = page.getByRole("region", {
-    name: "Original public publication attempt",
-    exact: true,
-  });
-  await expect(history).toContainText(
-    "Original public reply remains identifiable",
-  );
-  await expect(
-    history.getByRole("button", {
-      name: "Check original public result",
-      exact: true,
-    }),
+    page.getByText(
+      "This reply has an unsettled operation. Check its original result before discarding or replacing it. Your writing is retained.",
+      { exact: true },
+    ),
   ).toBeVisible();
-  await history
-    .getByText("Inspect original public writing", { exact: true })
+  await expect(
+    page.getByRole("textbox", { name: "Private message text", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Keep current writing", exact: true })
     .click();
-  await history.getByText("Complete prepared source", { exact: true }).click();
-  await expect(history.locator(".prepared-source")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Newer public draft survives private navigation",
+  );
   const after = JSON.parse(
     await page.evaluate(
       () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
     ),
   );
-  expect(after.schema).toBe(3);
+  expect(after.schema).toBe(6);
   expect(after.writing.attempts[0]).toEqual(original);
-  await page.reload();
+  expect(after.writing.replyTarget.threadId).toBe("42");
+  expect(server.posts).toHaveLength(1);
+  // Reading private content is allowed; destructive replacement is not. Return through native navigation.
+  await page.goto(`${origin}/forum.php?mod=viewthread&tid=42`);
   await page.addScriptTag({
     content: readFileSync("dist/tsdm-ui.user.js", "utf8"),
   });
-  await expect(history).toContainText(
-    "Original public reply remains identifiable",
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "Newer public draft survives private navigation",
+  );
+  await expect(
+    page.getByRole("textbox", { name: "Submitted reply source", exact: true }),
+  ).toHaveValue("Original public reply remains identifiable");
+  await expect(
+    page.getByRole("button", { name: "Check reply status", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send reply", exact: true }),
+  ).toBeDisabled();
+  const recovered = JSON.parse(
+    await page.evaluate(
+      () => sessionStorage.getItem("tsdm.workspace.recovery") ?? "null",
+    ),
+  );
+  expect(recovered.writing.attempts[0].publication).toEqual(
+    original.publication,
   );
   expect(server.posts).toHaveLength(1);
 });
@@ -1311,6 +1345,7 @@ test("F79.private-domain-recovery: guarded public/private writing, reading arriv
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
+  await selectSourceEditor(page);
   await page
     .getByRole("textbox", { name: "Complete source", exact: true })
     .fill("Original public source stays public");
@@ -1327,12 +1362,12 @@ test("F79.private-domain-recovery: guarded public/private writing, reading arriv
       exact: true,
     })
     .click();
-  await page
-    .getByRole("button", {
+  await expect(
+    page.getByRole("button", {
       name: "Keep writing and read private conversation",
       exact: true,
-    })
-    .click();
+    }),
+  ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Return to writing", exact: true })
     .click();
@@ -1424,5 +1459,5 @@ test("F79.private-domain-recovery: guarded public/private writing, reading arriv
   );
   expect(saved).not.toContain("Independently arrived private text.");
   expect(saved).not.toContain("AUTHORED_PRIVATE_TOKEN");
-  expect(JSON.parse(saved).schema).toBe(3);
+  expect(JSON.parse(saved).schema).toBe(6);
 });

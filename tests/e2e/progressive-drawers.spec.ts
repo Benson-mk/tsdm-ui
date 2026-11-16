@@ -145,7 +145,28 @@ test("IM66.drawer: Boards stays modal while narrow Threads preserves list scroll
     .click();
   const results = page.locator(".results-pane");
   await results.evaluate((node) => (node.scrollTop = 350));
-  const offset = await results.evaluate((node) => node.scrollTop);
+  const anchor = () =>
+    results.evaluate((pane) => {
+      const row = [
+        ...pane.querySelectorAll<HTMLElement>("[data-thread-id]"),
+      ].find(
+        (row) =>
+          row.getBoundingClientRect().bottom >
+          pane.getBoundingClientRect().top + 1,
+      )!;
+      return {
+        id: row.dataset.threadId,
+        offset:
+          row.getBoundingClientRect().top - pane.getBoundingClientRect().top,
+      };
+    });
+  const expectAnchor = async (saved: Awaited<ReturnType<typeof anchor>>) => {
+    await expect.poll(async () => (await anchor()).id).toBe(saved.id);
+    await expect
+      .poll(async () => Math.abs((await anchor()).offset - saved.offset))
+      .toBeLessThanOrEqual(1);
+  };
+  const offset = await anchor();
   const original = await results.elementHandle();
   const boards = page.getByRole("button", { name: "Boards pane", exact: true });
   const threads = page.getByRole("button", {
@@ -190,18 +211,18 @@ test("IM66.drawer: Boards stays modal while narrow Threads preserves list scroll
   await threads.click();
   await expect(drawer).toBeHidden();
   await expect(results).toBeVisible();
-  expect(await results.evaluate((node) => node.scrollTop)).toBe(offset);
+  await expectAnchor(offset);
   await results.evaluate((node) => (node.scrollTop = 430));
-  const saved = await results.evaluate((node) => node.scrollTop);
+  const saved = await anchor();
   await threads.click();
   await expect(results).toBeHidden();
   await expect(threads).toBeFocused();
   await threads.click();
-  expect(await results.evaluate((node) => node.scrollTop)).toBe(saved);
+  await expectAnchor(saved);
   await page.setViewportSize({ width: 768, height: 900 });
   await expect(drawer).toBeHidden();
   await expect(results).toBeVisible();
-  expect(await results.evaluate((node) => node.scrollTop)).toBe(saved);
+  await expectAnchor(saved);
   expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
   await boards.click();
   await page.setViewportSize({ width: 959, height: 900 });

@@ -1,3 +1,5 @@
+import { writingDetailAction } from "./editor-controls";
+import { selectSourceEditor } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -114,7 +116,7 @@ test("IM74.viewport-pan: reduced and panned scale-one viewport sizes the real sh
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Retained [quote]exact target[/quote]");
   await source.evaluate((node: HTMLTextAreaElement) =>
     node.setSelectionRange(2, 9, "backward"),
@@ -211,7 +213,7 @@ test("IM74.pinch-orientation: real page scale preserves the layout and genuine o
     .getByRole("button", { name: "Reply to this post", exact: true })
     .first()
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Orientation preserves addressed writing");
   const identity = await source.elementHandle();
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
@@ -251,8 +253,99 @@ test("IM74.pinch-orientation: real page scale preserves the layout and genuine o
     gestureSourceType: "touch",
     speed: 1000,
   });
-  const action = page.getByRole("button", {
-    name: "Return to reading",
+  const more = page.getByRole("button", {
+    name: "More writing actions",
+    exact: true,
+  });
+  await more.focus();
+  await info.attach("pinched-menu-trigger.json", {
+    body: JSON.stringify(
+      await more.evaluate((node) => ({
+        box: node.getBoundingClientRect().toJSON(),
+        viewport: {
+          top: visualViewport!.offsetTop,
+          left: visualViewport!.offsetLeft,
+          width: visualViewport!.width,
+          height: visualViewport!.height,
+          scale: visualViewport!.scale,
+        },
+      })),
+    ),
+    contentType: "application/json",
+  });
+  await more.press("Enter");
+  await expect(
+    page.getByRole("menuitem", { name: "Preview", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await page.evaluate(() => {
+    const events: unknown[] = [];
+    Object.assign(window, { pinchEvents: events });
+    for (const kind of [
+      "pointerdown",
+      "pointerup",
+      "touchstart",
+      "touchend",
+      "click",
+    ])
+      document.addEventListener(
+        kind,
+        (event) =>
+          events.push({
+            kind,
+            path: event
+              .composedPath()
+              .slice(0, 5)
+              .map((node) =>
+                node instanceof Element
+                  ? [
+                      node.tagName,
+                      node.getAttribute("aria-label"),
+                      node.className,
+                    ]
+                  : String(node),
+              ),
+            x: (event as PointerEvent).clientX,
+            y: (event as PointerEvent).clientY,
+          }),
+        true,
+      );
+  });
+  await more.focus();
+  await more.scrollIntoViewIfNeeded();
+  const touch = await more.evaluate((node) => {
+    const box = node.getBoundingClientRect(),
+      viewport = visualViewport!;
+    return {
+      x: box.x + box.width / 2 - viewport.offsetLeft,
+      y: box.y + box.height / 2 - viewport.offsetTop,
+    };
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ ...touch, id: 1 }],
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await info.attach("pinch-touch-observation.json", {
+    body: JSON.stringify({
+      touch,
+      events: await page.evaluate(() => Reflect.get(window, "pinchEvents")),
+    }),
+    contentType: "application/json",
+  });
+  await expect(more).toHaveAttribute("aria-expanded", "true");
+  const action = page.getByRole("menuitem", {
+    name: "Preview",
     exact: true,
   });
   await action.scrollIntoViewIfNeeded();
@@ -319,7 +412,7 @@ test("IM74.short-history: short enlarged ordinary writing keeps actual post hist
   );
   const ledger = await open(page, threadURL);
   await page.getByRole("button", { name: "回覆主題", exact: true }).click();
-  const source = page.getByLabel("完整原始碼", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("縮短視窗保留原始碼");
   const reader = page.locator(".reading-pane");
   await reader.evaluate((node) => {
@@ -364,7 +457,10 @@ test("IM74.short-history: short enlarged ordinary writing keeps actual post hist
   // Browser scroll positions round fractional CSS pixels at the clipping edge.
   expect(geometry.visiblePost).toBeGreaterThanOrEqual(95);
   for (const name of ["展開寫作", "返回閱讀"]) {
-    const action = page.getByRole("button", { name, exact: true });
+    const action =
+      name === "返回閱讀"
+        ? await writingDetailAction(page, name)
+        : page.getByRole("button", { name, exact: true });
     await action.scrollIntoViewIfNeeded();
     const box = await action.boundingBox();
     expect(box!.height).toBeGreaterThanOrEqual(44);
@@ -435,7 +531,7 @@ test("IM74.continuity: repeated viewport cycles preserve browser composition, un
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("Retained ");
   const identity = await source.elementHandle();
   const reader = page.locator(".reading-pane");
@@ -533,14 +629,33 @@ test("IM74.extremely-short: bounded writer scrolling exposes protected source, v
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();
-  const source = page.getByLabel("Complete source", { exact: true });
+  const source = await selectSourceEditor(page);
   await source.fill("[alien]Protected exact text[/alien]");
   await changeViewport(page, { height: 240, offsetTop: 30, scale: 1 });
   const writer = page.locator(".source-writing");
   const content = page.locator(".writing-content");
+  await info.attach("short-content-owners.json", {
+    body: JSON.stringify(
+      await page
+        .locator(
+          ".conversation-region, .source-writing, .writing-content, .reply-target-strip, .reply-input-shell, .editor-controls",
+        )
+        .evaluateAll((nodes) =>
+          nodes.map((n) => ({
+            class: n.className,
+            bounds: n.getBoundingClientRect().toJSON(),
+            scroll: n.scrollTop,
+            height: n.scrollHeight,
+            min: getComputedStyle(n).minHeight,
+            max: getComputedStyle(n).maxHeight,
+          })),
+        ),
+    ),
+    contentType: "application/json",
+  });
   expect((await content.boundingBox())!.height).toBeGreaterThanOrEqual(64);
   await page
-    .getByRole("button", { name: "Visual editor", exact: true })
+    .getByRole("button", { name: "Switch to visual editor", exact: true })
     .click();
   const visual = page.getByRole("textbox", {
     name: "Visual post content",
@@ -560,18 +675,18 @@ test("IM74.extremely-short: bounded writer scrolling exposes protected source, v
   );
   expect(await identity!.evaluate((node) => node.isConnected)).toBe(true);
   await page
-    .getByRole("button", { name: "Source editor", exact: true })
+    .getByRole("button", { name: "Switch to source editor", exact: true })
     .click();
   await expect(source).toHaveValue("[alien]Protected exact text[/alien]");
   await source.fill("");
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  const blocker = page.getByText("Enter the post body.", { exact: true });
+  await page.getByRole("button", { name: "Send reply", exact: true }).click();
+  const blocker = page.getByText("Enter reply text before sending.", {
+    exact: true,
+  });
   await expect(blocker).toBeVisible();
   for (const control of [
     blocker,
-    writer.getByRole("button", { name: "Return to reading", exact: true }),
+    page.getByRole("button", { name: /^(Expand writing|Compact writing)$/ }),
   ]) {
     await control.scrollIntoViewIfNeeded();
     const box = await control.boundingBox();

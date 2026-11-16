@@ -1,3 +1,10 @@
+import { compactReplyBesideReader } from "./editor-controls";
+import { revealWritingOptions } from "./editor-controls";
+import { writingDetailAction } from "./editor-controls";
+import { waitForReplySaved } from "./editor-controls";
+import type { ThreadAttempt } from "../../src/forum-client";
+import type { ReplyRow } from "../../src/workspace/reply-recovery";
+import { selectSourceEditor } from "./editor-controls";
 import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
@@ -20,6 +27,13 @@ const source =
 function form(saved?: URLSearchParams, member = "7", quote = false) {
   return `<script>window.ATPLUS={"api":"plugin.php?id=atplus:search","login":1,"use":1};</script>${actor(member)}<div id="pt"><a href="${boardURL}">Music</a></div><form id="postform" method="post" action="forum.php?mod=post&action=${saved ? "edit&pid=303" : "reply"}&fid=5&tid=42&replysubmit=yes"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_FORM_TOKEN"><input type="hidden" name="posttime" value="1792550000"><input type="hidden" name="wysiwyg" value="0">${quote ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="OPAQUE-AUTHOR-8"><input type="hidden" name="noticeauthormsg" value="Preserved addressed author"><input type="hidden" name="noticetrimstr" value="">' : ""}<input name="subject" value=""><textarea name="message">${escape(saved?.get("message") ?? "")}</textarea><label><input type="checkbox" name="usesig" value="1"${saved && !saved.has("usesig") ? "" : " checked"}>Signature</label><label><input type="checkbox" name="bbcodeoff" value="1"${saved?.has("bbcodeoff") ? " checked" : ""}>Disable BBCode</label><button type="submit" name="replysubmit" value="yes">Reply</button></form>`;
 }
+const observations = new WeakMap<
+  Page,
+  {
+    requests: { url: string; method: string }[];
+    posts: URLSearchParams[];
+  }
+>();
 async function fixture(page: Page) {
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const state = {
@@ -30,6 +44,7 @@ async function fixture(page: Page) {
     postGate: null as Promise<void> | null,
     sourceGate: null as Promise<void> | null,
     mentionGate: null as Promise<void> | null,
+    beforeResponse: null as ((url: URL) => void) | null,
     formChange: (body: string) => body,
     sourceChange: (body: string) => body,
     threadChange: (body: string) => body,
@@ -37,6 +52,7 @@ async function fixture(page: Page) {
     posts: [] as URLSearchParams[],
     requests: [] as { url: string; method: string }[],
   };
+  observations.set(page, state);
   await page.context().route("**/*", async (route) => {
     const request = route.request(),
       url = new URL(request.url());
@@ -48,6 +64,7 @@ async function fixture(page: Page) {
         body: `<html><head><meta charset="utf-8"></head><body><script src="${origin}/__workspace-fixture.js"></script></body></html>`,
       });
     state.requests.push({ url: url.href, method: request.method() });
+    state.beforeResponse?.(url);
     if (url.pathname === "/plugin.php") {
       if (state.mentionGate) await state.mentionGate;
       return route.fulfill({
@@ -112,7 +129,109 @@ async function fixture(page: Page) {
   await page.goto(threadURL);
   return state;
 }
-test.afterEach(async ({ page }, info) => {
+
+// Observe the actual durable operation owner; historical session copies are raw
+// evidence and do not become current result authority after #111.
+async function replyRow(page: Page): Promise<ReplyRow> {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("tsdm.workspace.reply-drafts", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return new Promise<ReplyRow>((resolve, reject) => {
+      const tx = db.transaction("threads", "readonly");
+      const request = tx.objectStore("threads").get("42");
+      tx.oncomplete = () => {
+        db.close();
+        resolve(request.result);
+      };
+      tx.onabort = () => {
+        db.close();
+        reject(tx.error);
+      };
+    });
+  });
+}
+async function replyAttempt(page: Page): Promise<ThreadAttempt> {
+  return (await replyRow(page)).sends![0]!.attempt;
+}
+function recoveredHistoricalAttempts(attempts: ThreadAttempt[] | undefined) {
+  return attempts?.map((attempt) =>
+    attempt.status === "pending"
+      ? {
+          ...attempt,
+          status: "uncertain",
+          checked: false,
+          message:
+            "Pending publication restored as uncertain. Nothing has been replayed; check the original attempt.",
+        }
+      : attempt,
+  );
+}
+async function expectRecoveredReplyRow(page: Page, before: ReplyRow) {
+  const after = await replyRow(page);
+  expect(after).toEqual({
+    ...before,
+    variants: before.variants.map((variant) => ({
+      ...variant,
+      version: expect.any(String),
+      parent: variant.version,
+      context: variant.context
+        ? {
+            ...variant.context,
+            attempts: recoveredHistoricalAttempts(variant.context.attempts),
+          }
+        : null,
+    })),
+  });
+  for (const [index, variant] of after.variants.entries()) {
+    expect(variant.version).not.toBe("");
+    expect(variant.version).not.toBe(before.variants[index]!.version);
+  }
+}
+async function expectCheckedOutcome(page: Page) {
+  await expect
+    .poll(
+      async () =>
+        (await replyRow(page))?.sends?.[0]?.attempt.status ?? "pending",
+    )
+    .not.toBe("pending");
+  await expect(
+    page.getByRole("button", { name: "Check reply status", exact: true }),
+  ).toBeVisible();
+}
+async function expectSubmitted(page: Page, expected: string) {
+  await expect(page.locator(".reply-send textarea").first()).toHaveValue(
+    expected,
+  );
+  expect((await replyAttempt(page)).publication.submission.writing.source).toBe(
+    expected,
+  );
+}
+
+test.afterEach(async ({ page, browser }, info) => {
+  info.annotations.push({
+    type: "browser-version",
+    description: browser.version(),
+  });
+  const state = observations.get(page);
+  await info.attach("reply-requests-and-submissions.json", {
+    body: JSON.stringify(
+      {
+        requests: state?.requests,
+        posts: state?.posts.map((post) => Object.fromEntries(post)),
+        registry: await replyRow(page).catch(() => null),
+      },
+      null,
+      2,
+    ),
+    contentType: "application/json",
+  });
+  await info.attach("reply-application.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
   if (info.status !== info.expectedStatus)
     await info.attach("failed-application.png", {
       body: await page.screenshot(),
@@ -126,13 +245,11 @@ test("J4.reply-current: preserve complete source/current options and open indepe
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
+  await (await selectSourceEditor(page)).fill(source);
   await revealWritingTools(page);
+  await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
-  await expect(page.getByText(/Review reply revision/)).toBeVisible();
+
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.posts).toHaveLength(1);
@@ -175,7 +292,7 @@ test("J4.reply-current: preserve complete source/current options and open indepe
   });
 });
 
-test("J4.quote-target: one addressed target survives extra source quote blocks and replacement guard", async ({
+test("J4.quote-target: authored quote blocks survive general and addressed retargeting", async ({
   page,
 }, info) => {
   const state = await fixture(page);
@@ -186,28 +303,26 @@ test("J4.quote-target: one addressed target survives extra source quote blocks a
   await expect(
     page.getByText("Addressed to Other author · Post 101", { exact: true }),
   ).toBeVisible();
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Reply to thread", exact: true })
-    .click();
+  await (await selectSourceEditor(page)).fill(source);
+  await compactReplyBesideReader(page);
+  await (await writingDetailAction(page, "Start an ordinary reply")).click();
   await expect(
-    page.getByRole("button", {
-      name: "Discard local changes and prepare",
-      exact: true,
-    }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Return to writing", exact: true })
-    .click();
+    page.getByRole("group", { name: "Reply target", exact: true }),
+  ).toHaveCount(0);
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     source,
   );
   await page
-    .getByRole("button", { name: "Review publication", exact: true })
+    .getByRole("article", { name: "Post 101", exact: true })
+    .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
+  await expect(
+    page.getByRole("group", { name: "Reply target", exact: true }),
+  ).toContainText("Other author");
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    source,
+  );
+
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.posts).toHaveLength(1);
@@ -245,10 +360,10 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Literal @Other author stays literal. ");
-  await revealAdvanced(page);
+  await (
+    await selectSourceEditor(page)
+  ).fill("Literal @Other author stays literal. ");
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -259,9 +374,7 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Literal @Other author stays literal. @\u2063Other author\u2063 ",
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.posts).toHaveLength(1);
@@ -271,8 +384,8 @@ test("J4.reply-mentions: select a resolved person using current marked syntax wh
   await revealWritingDetails(page);
   await expect(
     page
-      .locator(".writing-details")
-      .getByText(/notification delivery is unverified/),
+      .getByRole("region", { name: "Reply submissions", exact: true })
+      .getByText(/not proof of a merge rule or notification delivery/),
   ).toBeVisible();
   await info.attach("mentions.png", {
     body: await page.screenshot(),
@@ -294,10 +407,8 @@ async function readyReply(page: Page) {
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await (await selectSourceEditor(page)).fill(source);
+
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
@@ -321,12 +432,14 @@ for (const mode of ["rejected", "moderation", "lost"])
     ).toBeVisible();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(source);
+    ).toHaveValue("");
+    await expectSubmitted(page, source);
     expect(state.posts).toHaveLength(1);
     await page.reload();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(source);
+    ).toHaveValue("");
+    await expectSubmitted(page, source);
     expect(state.posts).toHaveLength(1);
     await info.attach("outcome.png", {
       body: await page.screenshot(),
@@ -349,9 +462,7 @@ test("J4.reply-later-edit: older confirmation preserves later source while retur
       ),
     )
     .toBe(true);
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Later unsent revision");
+  await (await selectSourceEditor(page)).fill("Later unsent revision");
   release();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
@@ -387,9 +498,7 @@ test("J4.reply-result-single-navigation: one confirmed-result click reads once a
       ),
     )
     .toBe(true);
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Later unsent revision");
+  await (await selectSourceEditor(page)).fill("Later unsent revision");
   release();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   const before = state.requests.length;
@@ -469,15 +578,14 @@ test("J5.reply-pending: reload retains uncertainty then explicit exact-post chec
   await page.reload();
   release();
   await expect(
-    page.getByText(
-      "The response was lost. The forum may have accepted this attempt. Check result; no send was repeated.",
-      { exact: true },
-    ),
+    page.getByText("Reply outcome unknown", { exact: true }),
   ).toBeVisible();
   await page
-    .getByLabel("Candidate thread URL", { exact: true })
+    .getByLabel("Published reply URL (optional)", { exact: true })
     .fill(`${threadURL}&page=1#pid303`);
-  await page.getByRole("button", { name: "Check result", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Check reply status", exact: true })
+    .click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   expect(state.posts).toHaveLength(1);
   await info.attach("recovered-reply.png", {
@@ -490,8 +598,13 @@ for (const phase of ["before-send", "in-flight", "readback"])
     page,
   }, info) => {
     const state = await readyReply(page);
-    if (phase === "before-send") state.member = "8";
-    else if (phase === "in-flight") {
+    if (phase === "before-send") {
+      let forms = 0;
+      state.beforeResponse = (url) => {
+        if (url.searchParams.get("action") === "reply" && ++forms === 2)
+          state.member = "8";
+      };
+    } else if (phase === "in-flight") {
       state.mode = "account-flight";
     } else
       state.sourceChange = (body) =>
@@ -504,7 +617,8 @@ for (const phase of ["before-send", "in-flight", "readback"])
     ).toBeVisible();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(source);
+    ).toHaveValue("");
+    await expectSubmitted(page, source);
     expect(state.posts).toHaveLength(phase === "before-send" ? 0 : 1);
     await info.attach("session.png", {
       body: await page.screenshot(),
@@ -544,9 +658,7 @@ for (const mismatch of [
     if (mismatch === "missing-post")
       state.threadChange = (b) => b.replaceAll("303", "304");
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Check result", exact: true }),
-    ).toBeVisible();
+    await expectCheckedOutcome(page);
     await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
     await info.attach("readback-refusal.png", {
@@ -606,7 +718,7 @@ test("J4.reply-mention-drift: selected UID changing before send refuses without 
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -614,13 +726,15 @@ test("J4.reply-mention-drift: selected UID changing before send refuses without 
   await page
     .getByRole("button", { name: "Mention Other author (UID 8)", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
-  state.people = [{ uid: 9, username: "Other author" }];
+  let lookups = 0;
+  state.beforeResponse = (url) => {
+    if (url.pathname === "/plugin.php" && ++lookups === 2)
+      state.people = [{ uid: 9, username: "Other author" }];
+  };
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
     page.getByText(/selected mention identity changed before send/),
@@ -642,9 +756,7 @@ for (const destination of [
     const state = await readyReply(page);
     state.response = `<root><![CDATA[<script>succeedhandle_post('${destination}', 'Reply accepted', {});</script>]]></root>`;
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Check result", exact: true }),
-    ).toBeVisible();
+    await expectCheckedOutcome(page);
     await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
     await info.attach("conflicting-result.png", {
@@ -664,11 +776,8 @@ for (const mutation of [
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page.getByLabel("Complete source", { exact: true }).fill(source);
-    await page.getByText("Recovery details", { exact: true }).click();
-    await expect(
-      page.getByText(/Recovery acknowledged for revision/),
-    ).toBeVisible();
+    await (await selectSourceEditor(page)).fill(source);
+    await waitForReplySaved(page);
     const rejected = await page.evaluate((mutation) => {
       const key = "tsdm.workspace.recovery",
         record = JSON.parse(sessionStorage.getItem(key)!);
@@ -712,10 +821,8 @@ test("J4.reply-merged-comparison: preserve known complete before and full observ
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await (await selectSourceEditor(page)).fill(source);
+
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
@@ -729,9 +836,7 @@ test("J4.reply-merged-comparison: preserve known complete before and full observ
         )
       : body;
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Check result", exact: true }),
-  ).toBeVisible();
+  await expectCheckedOutcome(page);
   await expect(
     page.getByLabel("Complete source before sending", { exact: true }),
   ).toHaveValue(state.priorSource);
@@ -739,8 +844,9 @@ test("J4.reply-merged-comparison: preserve known complete before and full observ
     page.getByLabel("Complete observed result source", { exact: true }),
   ).toHaveValue(state.priorSource + "\nNative supplement boundary\n" + source);
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
-    source,
+    "",
   );
+  await expectSubmitted(page, source);
   await page.reload();
   await expect(
     page.getByLabel("Complete source before sending", { exact: true }),
@@ -748,13 +854,13 @@ test("J4.reply-merged-comparison: preserve known complete before and full observ
   expect(state.posts).toHaveLength(1);
   await info.attach("merge-comparison.png", {
     body: await page
-      .getByRole("status")
+      .getByRole("article", { name: "Reply submission", exact: true })
       .filter({ hasText: "Reply source comparison" })
       .screenshot(),
     contentType: "image/png",
   });
 });
-test("J4.reply-prior-drift: known existing source changed after review prevents sending", async ({
+test("J4.reply-prior-drift: known existing source changed during fresh preflight prevents sending", async ({
   page,
 }, info) => {
   const state = await fixture(page);
@@ -762,14 +868,16 @@ test("J4.reply-prior-drift: known existing source changed after review prevents 
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await (await selectSourceEditor(page)).fill(source);
+
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
-  state.priorSource = "Changed prior source";
+  let forms = 0;
+  state.beforeResponse = (url) => {
+    if (url.searchParams.get("action") === "reply" && ++forms === 2)
+      state.priorSource = "Changed prior source";
+  };
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
     page.getByText(/previously observed post changed before send/),
@@ -795,29 +903,32 @@ for (const mutation of [
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page.getByLabel("Complete source", { exact: true }).fill(source);
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+    await (await selectSourceEditor(page)).fill(source);
+
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect(
       page.getByLabel("Complete source before sending", { exact: true }),
     ).toHaveValue(state.priorSource);
-    const rejected = await page.evaluate((mutation) => {
-      const key = "tsdm.workspace.recovery",
-        record = JSON.parse(sessionStorage.getItem(key)!);
-      const attempt = record.writing.attempts[0];
-      if (mutation === "observed-actor")
-        attempt.replyComparison.observed.account.id = "8";
-      if (mutation === "baseline-actor")
-        attempt.publication.replyBefore.owned[0].writing.account.id = "8";
-      if (mutation === "invented-before")
-        attempt.replyComparison.before.source = "Invented prior source";
-      if (mutation === "baseline-thread")
-        attempt.publication.replyBefore.pageURL =
-          attempt.publication.replyBefore.pageURL.replace("tid=42", "tid=43");
-      return JSON.stringify(record);
-    }, mutation);
+    const registryBefore = await replyRow(page);
+    const rejected = await page.evaluate(
+      ({ mutation, original }) => {
+        const key = "tsdm.workspace.recovery",
+          record = JSON.parse(sessionStorage.getItem(key)!);
+        record.writing.attempts = JSON.parse(JSON.stringify([original]));
+        const attempt = record.writing.attempts[0];
+        if (mutation === "observed-actor")
+          attempt.replyComparison.observed.account.id = "8";
+        if (mutation === "baseline-actor")
+          attempt.publication.replyBefore.owned[0].writing.account.id = "8";
+        if (mutation === "invented-before")
+          attempt.replyComparison.before.source = "Invented prior source";
+        if (mutation === "baseline-thread")
+          attempt.publication.replyBefore.pageURL =
+            attempt.publication.replyBefore.pageURL.replace("tid=42", "tid=43");
+        return JSON.stringify(record);
+      },
+      { mutation, original: registryBefore.sends![0]!.attempt },
+    );
     // Install the authored corrupt record after pagehide has saved the old
     // document, before the next application boot can read browser storage.
     await page.addInitScript(
@@ -830,6 +941,7 @@ for (const mutation of [
       page.getByLabel("Complete source", { exact: true }),
     ).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
+    expect(await replyRow(page)).toEqual(registryBefore);
     expect(
       await page.evaluate(() =>
         sessionStorage.getItem("tsdm.workspace.recovery"),
@@ -841,16 +953,9 @@ for (const mutation of [
     });
   });
 
-for (const [
-  language,
-  closeLabel,
-  sourceLabel,
-  reviewLabel,
-  sendLabel,
-  confirmation,
-] of [
-  ["zh-CN", "关闭", "完整源码", "检查发布", "发送回复", "已确认储存回复"],
-  ["zh-TW", "關閉", "完整原始碼", "檢查發佈", "傳送回覆", "已確認儲存回覆"],
+for (const [language, closeLabel, sourceLabel, sendLabel, confirmation] of [
+  ["zh-CN", "关闭", "完整源码", "发送回复", "已确认储存回复"],
+  ["zh-TW", "關閉", "完整原始碼", "傳送回覆", "已確認儲存回覆"],
 ] as const)
   test(`J4.reply-localization-${language}: reply confirmation follows interface language and preserves source`, async ({
     page,
@@ -859,23 +964,22 @@ for (const [
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
+    await selectSourceEditor(page);
     await openSettings(page);
     await page.locator("#interface-language").selectOption(language);
     await page.getByRole("button", { name: closeLabel, exact: true }).click();
     await page.getByLabel(sourceLabel, { exact: true }).fill(source);
-    await page.getByRole("button", { name: reviewLabel, exact: true }).click();
     await page.getByRole("button", { name: sendLabel, exact: true }).click();
     await expect(page.getByText(new RegExp(confirmation))).toBeVisible();
-    await expect(page.getByLabel(sourceLabel, { exact: true })).toHaveValue(
-      source,
-    );
+    await expect(page.getByLabel(sourceLabel, { exact: true })).toHaveValue("");
+    await expectSubmitted(page, source);
     await info.attach("localized-reply.png", {
       body: await page.screenshot(),
       contentType: "image/png",
     });
   });
 
-test("J4.reply-mention-context: replacing writing while lookup is pending clears transient lookup and ignores old people", async ({
+test("J4.reply-mention-context: retargeting writing while lookup is pending clears transient lookup and ignores old people", async ({
   page,
 }, info) => {
   const state = await fixture(page);
@@ -884,7 +988,7 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -894,25 +998,18 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
       state.requests.some((r) => new URL(r.url).pathname === "/plugin.php"),
     )
     .toBe(true);
-  await page
-    .getByRole("button", { name: "Return to reading", exact: true })
-    .click();
+  await compactReplyBesideReader(page);
   await page
     .getByRole("article", { name: "Post 101", exact: true })
     .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
-  await page
-    .getByRole("button", {
-      name: "Discard local changes and prepare",
-      exact: true,
-    })
-    .click();
+
   await expect(
     page.getByText("Addressed to Other author · Post 101", { exact: true }),
   ).toBeVisible();
   release();
   state.mentionGate = null;
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await expect(
     page.getByRole("button", { name: "Find mention", exact: true }),
   ).toBeEnabled();
@@ -922,7 +1019,7 @@ test("J4.reply-mention-context: replacing writing while lookup is pending clears
       exact: true,
     }),
   ).toHaveCount(0);
-  await revealAdvanced(page);
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Other author");
@@ -954,10 +1051,10 @@ async function readySupplement(page: Page) {
     .getByRole("article", { name: "Post 101", exact: true })
     .getByRole("button", { name: "Reply to this post", exact: true })
     .click();
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("[quote]Additional own source[/quote]\nLiteral @Writer 7 stays. ");
-  await revealAdvanced(page);
+  await (
+    await selectSourceEditor(page)
+  ).fill("[quote]Additional own source[/quote]\nLiteral @Writer 7 stays. ");
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Writer 7");
@@ -968,9 +1065,7 @@ async function readySupplement(page: Page) {
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     supplementSubmitted,
   );
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   await expect(
     page.getByRole("button", { name: "Send reply", exact: true }),
   ).toBeVisible();
@@ -987,33 +1082,25 @@ test("J4.reply-native-supplement: reload original uncertainty then GET-only comp
       : body;
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/response was lost/)).toBeVisible();
-  const original = await page.evaluate(
-    () =>
-      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
-        .attempts[0],
-  );
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Newer unsent writing");
+  const original = await replyAttempt(page);
+  await (await selectSourceEditor(page)).fill("Newer unsent writing");
   await page.reload();
   const requestsBefore = state.requests.length;
   await page
-    .getByLabel("Candidate thread URL", { exact: true })
+    .getByLabel("Published reply URL (optional)", { exact: true })
     .fill(`${threadURL}&page=1#pid303`);
-  await page.getByRole("button", { name: "Check result", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Check reply status", exact: true })
+    .click();
   await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     "Newer unsent writing",
   );
-  const checked = await page.evaluate(
-    () =>
-      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
-        .attempts[0],
-  );
+  const checked = await replyAttempt(page);
   expect(checked.id).toBe(original.id);
   expect(checked.publication).toEqual(original.publication);
-  expect(checked.replyComparison.before.source).toBe(supplementBefore);
-  expect(checked.replyComparison.observed.source).toBe(supplementStored);
+  expect(checked.replyComparison!.before!.source).toBe(supplementBefore);
+  expect(checked.replyComparison!.observed.source).toBe(supplementStored);
   expect(
     state.requests.slice(requestsBefore).every((r) => r.method === "GET"),
   ).toBe(true);
@@ -1082,9 +1169,7 @@ for (const [name, stored] of [
         ? body.replace(escape(supplementSubmitted), escape(stored))
         : body;
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Check result", exact: true }),
-    ).toBeVisible();
+    await expectCheckedOutcome(page);
     await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
     await expect(
       page.getByLabel("Complete observed result source", { exact: true }),
@@ -1134,9 +1219,7 @@ for (const mismatch of ["options", "actor", "post", "thread", "account"])
       state.response =
         "<root><![CDATA[<script>succeedhandle_post('forum.php?mod=viewthread&tid=43&pid=303#pid303','Accepted',{});</script>]]></root>";
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Check result", exact: true }),
-    ).toBeVisible();
+    await expectCheckedOutcome(page);
     await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
     await info.attach("identity-refusal.png", {
@@ -1154,12 +1237,8 @@ for (const suffix of [
     page,
   }, info) => {
     const state = await readySupplement(page);
-    await page
-      .getByLabel("Complete source", { exact: true })
-      .fill(supplementSubmitted + suffix);
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+    await (await selectSourceEditor(page)).fill(supplementSubmitted + suffix);
+
     await expect(
       page.getByRole("button", { name: "Send reply", exact: true }),
     ).toBeVisible();
@@ -1171,9 +1250,7 @@ for (const suffix of [
           )
         : body;
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Check result", exact: true }),
-    ).toBeVisible();
+    await expectCheckedOutcome(page);
     await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
     expect(state.posts).toHaveLength(1);
     await info.attach("unqualified-marker.png", {
@@ -1190,10 +1267,8 @@ test("J4.reply-native-person-link: a new reply preserves complete source with se
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Literal @Writer 7. ");
-  await revealAdvanced(page);
+  await (await selectSourceEditor(page)).fill("Literal @Writer 7. ");
+  await revealAdvanced(page, "Mentions");
   await page
     .getByLabel("Find a person to mention", { exact: true })
     .fill("Writer 7");
@@ -1201,9 +1276,7 @@ test("J4.reply-native-person-link: a new reply preserves complete source with se
   await page
     .getByRole("button", { name: "Mention Writer 7 (UID 7)", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+
   state.sourceChange = (body) =>
     state.posts.length
       ? body.replace(
@@ -1229,35 +1302,26 @@ for (const locale of [
     language: "en",
     close: "Close",
     source: "Complete source",
-    review: "Review publication",
     send: "Send reply",
-    summary:
-      /^Review reply revision \d+ for Writer 7 in thread 42 \(Music\)\. Sending may add a reply or merge it into an existing post\.$/,
     addressed: "Addressed to Other author · Post 101",
   },
   {
     language: "zh-CN",
     close: "关闭",
     source: "完整源码",
-    review: "检查发布",
     send: "发送回复",
-    summary:
-      /^检查 Writer 7 在 Music 版块主题 42 中的回复修订 \d+。发送可能新增回复，也可能合并到已有帖子。$/,
     addressed: "回复对象：Other author · 帖子 101",
   },
   {
     language: "zh-TW",
     close: "關閉",
     source: "完整原始碼",
-    review: "檢查發佈",
     send: "傳送回覆",
-    summary:
-      /^檢查 Writer 7 在 Music 版塊主題 42 中的回覆修訂 \d+。傳送可能新增回覆，也可能合併到已有帖子。$/,
     addressed: "回覆對象：Other author · 帖子 101",
   },
 ] as const)
   for (const addressed of [false, true])
-    test(`J4.reply-review-${locale.language}-${addressed ? "addressed" : "ordinary"}: review describes the reply target and possible merge before sending`, async ({
+    test(`J4.reply-send-${locale.language}-${addressed ? "addressed" : "ordinary"}: current destination and localized Send retain the exact reply target and source`, async ({
       page,
     }, info) => {
       const state = await fixture(page);
@@ -1270,31 +1334,33 @@ for (const locale of [
         await page
           .getByRole("button", { name: "Reply to thread", exact: true })
           .click();
+      await selectSourceEditor(page);
       await openSettings(page);
       await page.locator("#interface-language").selectOption(locale.language);
       await page
         .getByRole("button", { name: locale.close, exact: true })
         .click();
       await page.getByLabel(locale.source, { exact: true }).fill(source);
-      await page
-        .getByRole("button", { name: locale.review, exact: true })
-        .click();
-      const review = page.getByRole("region", {
-        name:
-          locale.language === "en"
-            ? "Prepared publication review"
-            : locale.language === "zh-CN"
-              ? "发布前审阅"
-              : "發佈前審閱",
-        exact: true,
-      });
-      await expect(review.getByText(locale.summary)).toBeVisible();
+      await revealWritingDetails(page);
+      await expect(page.locator(".writing-destination")).toContainText(
+        "Writer 7 (7)",
+      );
+      await expect(page.locator(".writing-destination")).toContainText("42");
       if (addressed)
         await expect(
           page.getByText(locale.addressed, { exact: true }),
         ).toBeVisible();
       expect(state.posts).toHaveLength(0);
-      await review.scrollIntoViewIfNeeded();
+      await page
+        .getByRole("button", { name: locale.send, exact: true })
+        .click();
+      await expect.poll(() => state.posts.length).toBe(1);
+      expect(state.posts[0]!.get("message")).toBe(source);
+      expect(state.posts[0]!.get("reppost")).toBe(addressed ? "101" : null);
+      await expect(page.getByLabel(locale.source, { exact: true })).toHaveValue(
+        "",
+      );
+      await expectSubmitted(page, source);
       await info.attach("reply-action-review.png", {
         body: await page.screenshot(),
         contentType: "image/png",
@@ -1315,7 +1381,7 @@ for (const addressed of [false, true])
       await page
         .getByRole("button", { name: "Reply to thread", exact: true })
         .click();
-    const complete = page.getByLabel("Complete source", { exact: true });
+    const complete = await selectSourceEditor(page);
     await complete.fill(source + " formatted");
     await complete.evaluate((element) => {
       const field = element as HTMLTextAreaElement;
@@ -1323,24 +1389,22 @@ for (const addressed of [false, true])
       field.dispatchEvent(new Event("select", { bubbles: true }));
     });
     await (await writingTool(page, "Bold")).click();
+    // Formatting already entered Visual mode; assert its content below.
+    await page.keyboard.press("Escape");
     await expect(
       page
         .getByRole("textbox", { name: "Visual post content", exact: true })
         .getByText("formatted", { exact: true }),
     ).toHaveCSS("font-weight", "700");
-    await (await writingTool(page, "Source editor")).click();
+    await (await writingTool(page, "Switch to source editor")).click();
     const expected = source + " [b]formatted[/b]";
     await expect(complete).toHaveValue(expected);
+    await compactReplyBesideReader(page);
     await page
-      .getByRole("button", { name: "Return to reading", exact: true })
-      .click();
-    await page
-      .getByRole("button", { name: "Return to writing", exact: true })
+      .getByRole("button", { name: "Expand writing", exact: true })
       .click();
     await expect(complete).toHaveValue(expected);
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
     expect(state.posts).toHaveLength(1);
@@ -1390,18 +1454,14 @@ for (const attempted of [false, true]) {
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page.getByLabel("Complete source", { exact: true }).fill(source);
+    await (await selectSourceEditor(page)).fill(source);
     if (attempted) {
-      await page
-        .getByRole("button", { name: "Review publication", exact: true })
-        .click();
       await page
         .getByRole("button", { name: "Send reply", exact: true })
         .click();
-      await expect(
-        page.getByRole("button", { name: "Check result", exact: true }),
-      ).toBeVisible();
+      await expectCheckedOutcome(page);
     }
+    const registryBefore = attempted ? await replyRow(page) : null;
     const before = await page.evaluate(
       () =>
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
@@ -1410,14 +1470,18 @@ for (const attempted of [false, true]) {
     await page.reload();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(source);
+    ).toHaveValue(attempted ? "" : source);
+    if (attempted) await expectSubmitted(page, source);
     const after = await page.evaluate(
       () =>
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     );
     expect(after.source).toBe(before.source);
     expect(after.selection).toEqual(before.selection);
-    expect(after.attempts).toEqual(before.attempts);
+    expect(after.attempts).toEqual(
+      recoveredHistoricalAttempts(before.attempts),
+    );
+    if (attempted) await expectRecoveredReplyRow(page, registryBefore!);
     expect(state.posts).toHaveLength(attempted ? 1 : 0);
     expect(
       state.requests.slice(count).filter((r) => r.method !== "GET"),
@@ -1459,10 +1523,8 @@ async function dormantSnapshotJourney(page: Page, merged: boolean) {
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-  await page.getByLabel("Complete source", { exact: true }).fill(source);
-  await page
-    .getByRole("button", { name: "Review publication", exact: true })
-    .click();
+  await (await selectSourceEditor(page)).fill(source);
+
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   if (merged)
     await expect(
@@ -1476,24 +1538,32 @@ for (const merged of [false, true]) {
     page,
   }, info) => {
     const state = await dormantSnapshotJourney(page, merged);
+    const registryBefore = await replyRow(page);
     const before = await page.evaluate(
       () =>
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     );
     expect(
-      before.attempts[0].replyComparison.observed.attachmentFields,
+      registryBefore.sends![0]!.attempt.replyComparison!.observed
+        .attachmentFields,
     ).toContainEqual({ name: "attachupdate[77]", value: "", disabled: false });
-    expect(before.attempts[0].status).toBe(merged ? "uncertain" : "confirmed");
+    expect(registryBefore.sends![0]!.attempt.status).toBe(
+      merged ? "uncertain" : "confirmed",
+    );
     const count = state.requests.length;
     await page.reload();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(source);
+    ).toHaveValue("");
+    await expectSubmitted(page, source);
     const after = await page.evaluate(
       () =>
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     );
-    expect(after.attempts).toEqual(before.attempts);
+    expect(after.attempts).toEqual(
+      recoveredHistoricalAttempts(before.attempts),
+    );
+    await expectRecoveredReplyRow(page, registryBefore);
     expect(after.selection).toEqual(before.selection);
     expect(state.posts).toHaveLength(1);
     expect(state.requests).toHaveLength(count);
@@ -1534,37 +1604,42 @@ for (const mutation of [
     page,
   }, info) => {
     const state = await dormantSnapshotJourney(page, true);
-    const rejected = await page.evaluate((mutation) => {
-      const key = "tsdm.workspace.recovery",
-        record = JSON.parse(sessionStorage.getItem(key)!);
-      const attempt = record.writing.attempts[0],
-        observed = attempt.replyComparison.observed;
-      const sentinel = observed.attachmentFields.find(
-        (f: { name: string }) => f.name === "attachupdate[77]",
-      );
-      if (mutation === "nonempty") sentinel.value = "replace";
-      if (mutation === "invalid-id") sentinel.name = "attachupdate[0]";
-      if (mutation === "unassociated") sentinel.name = "attachupdate[78]";
-      if (mutation === "missing-metadata")
-        observed.attachmentFields = [sentinel];
-      if (mutation === "duplicate")
-        observed.attachmentFields.push({ ...sentinel });
-      if (mutation === "arbitrary-name") sentinel.name = "deleteattach[77]";
-      if (mutation === "wrong-action") observed.action = "edit-post";
-      if (mutation === "actor") observed.account.id = "9";
-      if (mutation === "board") observed.board.id = "6";
-      if (mutation === "target") observed.replyTarget.threadId = "43";
-      if (mutation === "before-identity")
-        attempt.replyComparison.before.source += " hostile drift";
-      if (mutation === "active-sentinel")
-        record.writing.attachmentFields = [{ ...sentinel }];
-      if (mutation === "submitted-sentinel")
-        attempt.publication.submission.writing.attachmentFields = [
-          { ...sentinel },
-        ];
-      const raw = JSON.stringify(record);
-      return raw;
-    }, mutation);
+    const registryBefore = await replyRow(page);
+    const rejected = await page.evaluate(
+      ({ mutation, original }) => {
+        const key = "tsdm.workspace.recovery",
+          record = JSON.parse(sessionStorage.getItem(key)!);
+        record.writing.attempts = JSON.parse(JSON.stringify([original]));
+        const attempt = record.writing.attempts[0],
+          observed = attempt.replyComparison.observed;
+        const sentinel = observed.attachmentFields.find(
+          (f: { name: string }) => f.name === "attachupdate[77]",
+        );
+        if (mutation === "nonempty") sentinel.value = "replace";
+        if (mutation === "invalid-id") sentinel.name = "attachupdate[0]";
+        if (mutation === "unassociated") sentinel.name = "attachupdate[78]";
+        if (mutation === "missing-metadata")
+          observed.attachmentFields = [sentinel];
+        if (mutation === "duplicate")
+          observed.attachmentFields.push({ ...sentinel });
+        if (mutation === "arbitrary-name") sentinel.name = "deleteattach[77]";
+        if (mutation === "wrong-action") observed.action = "edit-post";
+        if (mutation === "actor") observed.account.id = "9";
+        if (mutation === "board") observed.board.id = "6";
+        if (mutation === "target") observed.replyTarget.threadId = "43";
+        if (mutation === "before-identity")
+          attempt.replyComparison.before.source += " hostile drift";
+        if (mutation === "active-sentinel")
+          record.writing.attachmentFields = [{ ...sentinel }];
+        if (mutation === "submitted-sentinel")
+          attempt.publication.submission.writing.attachmentFields = [
+            { ...sentinel },
+          ];
+        const raw = JSON.stringify(record);
+        return raw;
+      },
+      { mutation, original: registryBefore.sends![0]!.attempt },
+    );
     await page.addInitScript(
       (raw) => sessionStorage.setItem("tsdm.workspace.recovery", raw),
       rejected,
@@ -1580,6 +1655,7 @@ for (const mutation of [
       ),
     ).toBe(rejected);
     expect(state.posts).toHaveLength(1);
+    expect(await replyRow(page)).toEqual(registryBefore);
     expect(state.requests).toHaveLength(count);
     await info.attach("snapshot-hostile-record.json", {
       body: Buffer.from(rejected),
@@ -1662,18 +1738,13 @@ for (const [name, stored, confirmed] of [
       return result;
     };
     // Capture the configured prior association before sending, not after review.
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+
     await page.getByRole("button", { name: "Send reply", exact: true }).click();
     await expect.poll(() => state.posts.length).toBe(1);
     await expect
-      .poll(() =>
-        page.evaluate(
-          () =>
-            JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!)
-              .writing.attempts[0].status,
-        ),
+      .poll(
+        async () =>
+          (await replyRow(page))?.sends?.[0]?.attempt.status ?? "pending",
       )
       .not.toBe("pending");
     await info.attach("quote-supplement.png", {
@@ -1696,17 +1767,16 @@ for (const [name, stored, confirmed] of [
     });
     await expect(
       page.getByLabel("Complete source", { exact: true }),
-    ).toHaveValue(supplementSubmitted);
+    ).toHaveValue("");
+    await expectSubmitted(page, supplementSubmitted);
     if (confirmed)
       await expect(page.getByText(/Confirmed stored reply/)).toBeVisible();
     else {
-      await expect(
-        page.getByRole("button", { name: "Check result", exact: true }),
-      ).toBeVisible();
+      await expectCheckedOutcome(page);
       await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
       const before = state.requests.length;
       await page
-        .getByRole("button", { name: "Check result", exact: true })
+        .getByRole("button", { name: "Check reply status", exact: true })
         .click();
       await expect(page.getByText(/Confirmed stored reply/)).toHaveCount(0);
       expect(state.posts).toHaveLength(1);
@@ -1728,26 +1798,20 @@ test("J5.reply-quote-supplement-recovery: recheck the same uncertain attempt aft
       : body;
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText(/response was lost/)).toBeVisible();
-  const original = await page.evaluate(
-    () =>
-      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
-        .attempts[0],
-  );
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("Later local writing remains untouched.");
+  const original = await replyAttempt(page);
+  await (
+    await selectSourceEditor(page)
+  ).fill("Later local writing remains untouched.");
   await page.reload();
   const requestsBefore = state.requests.length;
   await page
-    .getByLabel("Candidate thread URL", { exact: true })
+    .getByLabel("Published reply URL (optional)", { exact: true })
     .fill(`${threadURL}&page=1#pid303`);
-  await page.getByRole("button", { name: "Check result", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Check reply status", exact: true })
+    .click();
   await expect.soft(page.getByText(/Confirmed stored reply/)).toBeVisible();
-  const checked = await page.evaluate(
-    () =>
-      JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
-        .attempts[0],
-  );
+  const checked = await replyAttempt(page);
   await info.attach("quote-recovered-result.json", {
     body: Buffer.from(
       JSON.stringify({

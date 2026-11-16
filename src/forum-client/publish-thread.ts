@@ -919,7 +919,10 @@ export function createThreadPublisher(config: {
         );
       }
     },
-    async publish(attempt: ThreadAttempt): Promise<ThreadAttempt> {
+    async publish(
+      attempt: ThreadAttempt,
+      guard?: import("./types.js").EffectGuard,
+    ): Promise<ThreadAttempt> {
       attempt = clone(attempt);
       if (attempt.publication.submission.writing.redPacket)
         attempt = {
@@ -1031,6 +1034,15 @@ export function createThreadPublisher(config: {
               "The account changed before send. Nothing was sent.",
             );
         }
+        if (guard && (!(await guard.check()) || !guard.current()))
+          return notSent(
+            "Local writing or recovery changed during preflight. Nothing was sent.",
+          );
+        if (
+          config.generation() !== known.publication.generation ||
+          member(config.account()) !== writing.account.id
+        )
+          return notSent("The account changed before send. Nothing was sent.");
         sent = true;
         const response = await config.transport.request(request.url, {
           method: "POST",

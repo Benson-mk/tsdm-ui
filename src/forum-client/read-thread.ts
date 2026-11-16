@@ -23,6 +23,82 @@ import type {
   ThreadHistory,
   Thread,
 } from "./types.js";
+function nativeRateURL(
+  wrapper: Node,
+  body: Node,
+  base: string,
+  tid: string,
+  pid: string,
+): string | undefined {
+  const authored = new Set([body, ...descendants(body, () => true)]);
+  const controls = descendants(
+    wrapper,
+    (n) => hasClass(n, "pob") && !authored.has(n),
+  );
+  const urls = controls.flatMap((control) =>
+    descendants(control, (n) => n.tagName === "a").flatMap((a) => {
+      const match =
+        /^showWindow\('rate',\s*'([^']+)',\s*'get',\s*-1\);return false;?$/.exec(
+          attr(a, "onclick"),
+        );
+      const value = match && safeURL(match[1]!, base);
+      if (!value) return [];
+      const u = new URL(value);
+      return u.origin === new URL(base).origin &&
+        u.pathname === "/forum.php" &&
+        u.searchParams.get("mod") === "misc" &&
+        u.searchParams.get("action") === "rate" &&
+        u.searchParams.get("tid") === tid &&
+        u.searchParams.get("pid") === pid &&
+        [...u.searchParams.keys()].length === 4 &&
+        [...u.searchParams.keys()].every((key) =>
+          ["mod", "action", "tid", "pid"].includes(key),
+        )
+        ? [u.href]
+        : [];
+    }),
+  );
+  return urls.length === 1 ? urls[0] : undefined;
+}
+function nativeReportURL(
+  wrapper: Node,
+  body: Node,
+  base: string,
+  tid: string,
+  pid: string,
+): string | undefined {
+  const authored = new Set([body, ...descendants(body, () => true)]);
+  const controls = descendants(
+    wrapper,
+    (n) => hasClass(n, "pob") && !authored.has(n),
+  );
+  const urls = controls.flatMap((control) =>
+    descendants(control, (n) => n.tagName === "a").flatMap((a) => {
+      const match =
+        /^showWindow\('miscreport\d+',\s*'([^']+)',\s*'get',\s*-1\);return false;?$/.exec(
+          attr(a, "onclick"),
+        );
+      const value = match && safeURL(match[1]!, base);
+      if (!value) return [];
+      const u = new URL(value);
+      return u.origin === new URL(base).origin &&
+        u.pathname === "/misc.php" &&
+        u.searchParams.get("mod") === "report" &&
+        u.searchParams.get("rtype") === "post" &&
+        u.searchParams.get("tid") === tid &&
+        u.searchParams.get("rid") === pid &&
+        /^[1-9]\d*$/.test(u.searchParams.get("fid") ?? "") &&
+        attr(a, "onclick").startsWith(`showWindow('miscreport${pid}',`) &&
+        [...u.searchParams.keys()].length === 5 &&
+        [...u.searchParams.keys()].every((key) =>
+          ["mod", "rtype", "tid", "rid", "fid"].includes(key),
+        )
+        ? [u.href]
+        : [];
+    }),
+  );
+  return urls.length === 1 ? urls[0] : undefined;
+}
 const positive = (value: string | null): value is string =>
   value !== null && /^[1-9]\d*$/.test(value);
 function outsidePosts(node: Node): boolean {
@@ -493,9 +569,25 @@ export function decodeThread(
     const authorURL = author
       ? safeURL(attr(author, "href"), response.url)
       : null;
+    const rateURL = nativeRateURL(
+      wrapper,
+      body,
+      response.url,
+      requested.searchParams.get("tid")!,
+      id,
+    );
+    const reportURL = nativeReportURL(
+      wrapper,
+      body,
+      response.url,
+      requested.searchParams.get("tid")!,
+      id,
+    );
     return {
       id,
+      ...(reportURL ? { reportURL } : {}),
       attachments: profile.attachments,
+      ...(rateURL ? { rateURL } : {}),
       ...(descendants(
         body,
         (n) =>
@@ -523,9 +615,9 @@ export function decodeThread(
           ? descendants(wrapper, (n) => hasClass(n, "mtime"))[0]
           : byId(wrapper, `authorposton${id}`),
       ),
-      url:
-        link(byId(wrapper, `postnum${id}`), response.url)?.url ??
-        `${cleanURL(response.url).split("#")[0]}#pid${id}`,
+      // Thread and unique native wrapper identities are qualified above. Native
+      // post-number hrefs can be thread-only, malformed or referral-bearing.
+      url: `${requested.origin}/forum.php?mod=redirect&goto=findpost&ptid=${requested.searchParams.get("tid")!}&pid=${id}`,
       content: [
         ...bodyContent,
         ...descendants(

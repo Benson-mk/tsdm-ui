@@ -1,3 +1,4 @@
+import { selectSourceEditor } from "./editor-controls";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -747,19 +748,20 @@ test("J76.private-browse-list: board browsing retains the active private convers
 });
 
 for (const width of [1280, 375])
-  test(`J76.private-writing-guard-${width}: deliberate private selection keeps the original public source and destination behind an explicit retention decision`, async ({
+  test(`J76.private-writing-guard-${width}: private reading preserves public source and destination while private writing still requires explicit replacement`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
     const ledger = await open(
       page,
-      () => history(),
+      (url) => history(url.searchParams.get("touid") ?? "9"),
       `${origin}/forum.php?mod=viewthread&tid=42`,
     );
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .first()
       .click();
+    await selectSourceEditor(page);
     const source = page.getByRole("textbox", {
       name: "Complete source",
       exact: true,
@@ -782,14 +784,7 @@ for (const width of [1280, 375])
       name: "Keep current writing?",
       exact: true,
     });
-    await expect(guard).toBeVisible();
-    expect(ledger.filter((x) => x.url.includes("subop=view"))).toHaveLength(0);
-    await guard
-      .getByRole("button", {
-        name: "Keep writing and read private conversation",
-        exact: true,
-      })
-      .click();
+    await expect(guard).toHaveCount(0);
     await expect(
       page.getByRole("region", {
         name: "Private conversation with Listener Nine",
@@ -802,7 +797,8 @@ for (const width of [1280, 375])
     );
     expect(after.id).toBe(before.id);
     expect(after.source).toBe(before.source);
-    expect(after.target).toEqual(before.target);
+    expect(before.replyTarget).toMatchObject({ threadId: "42", postId: null });
+    expect(after.replyTarget).toEqual(before.replyTarget);
     expect(after.action).toBe(before.action);
     expect(ledger.every((x) => x.method === "GET")).toBe(true);
     if (width < 768)
@@ -815,12 +811,32 @@ for (const width of [1280, 375])
         exact: true,
       })
       .click();
-    await expect(guard).toBeVisible();
-    await guard
-      .getByRole("button", { name: "Continue editing", exact: true })
+    await expect(guard).toHaveCount(0);
+    await expect(
+      page.getByRole("region", {
+        name: "Private conversation with Reader Ten",
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(ledger.filter((x) => x.url.includes("touid=10"))).toHaveLength(1);
+    const beforeReplacement = ledger.length;
+    await page
+      .getByRole("button", { name: "Write private message", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "Discard and write private message",
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(ledger).toHaveLength(beforeReplacement);
+    await page
+      .getByRole("button", { name: "Keep current writing", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Return to writing", exact: true })
       .click();
     await expect(source).toHaveValue("[b]Retained public source[/b]");
-    expect(ledger.filter((x) => x.url.includes("touid=10"))).toHaveLength(0);
     const readsBeforeReload = ledger.filter((x) =>
       x.url.includes("subop=view"),
     ).length;
@@ -831,14 +847,28 @@ for (const width of [1280, 375])
     await page
       .getByRole("button", { name: "Load private conversation", exact: true })
       .click();
-    await expect(guard).toBeVisible();
+    await expect(guard).toHaveCount(0);
+    await expect(
+      page.getByRole("region", {
+        name: "Private conversation with Reader Ten",
+        exact: true,
+      }),
+    ).toBeVisible();
     expect(ledger.filter((x) => x.url.includes("subop=view"))).toHaveLength(
-      readsBeforeReload,
+      readsBeforeReload + 1,
     );
-    await guard
-      .getByRole("button", { name: "Continue editing", exact: true })
+    await page
+      .getByRole("button", { name: "Return to writing", exact: true })
       .click();
+    await selectSourceEditor(page);
     await expect(source).toHaveValue("[b]Retained public source[/b]");
+    const recovered = await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
+    );
+    expect(recovered.id).toBe(before.id);
+    expect(recovered.replyTarget).toEqual(before.replyTarget);
+    expect(ledger.every((x) => x.method === "GET")).toBe(true);
   });
 
 test("J76.private-redirect-page: contradictory response URL and native current-page marker are refused", async ({
@@ -998,6 +1028,7 @@ for (const composing of [false, true])
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
+    await selectSourceEditor(page);
     const source = page.getByRole("textbox", {
       name: "Complete source",
       exact: true,
@@ -1010,12 +1041,12 @@ for (const composing of [false, true])
         exact: true,
       })
       .click();
-    await page
-      .getByRole("button", {
+    await expect(
+      page.getByRole("button", {
         name: "Keep writing and read private conversation",
         exact: true,
-      })
-      .click();
+      }),
+    ).toHaveCount(0);
     await expect
       .poll(() => ledger.filter((x) => x.url.includes("subop=view")).length)
       .toBe(1);

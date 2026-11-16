@@ -161,3 +161,10 @@ export async function setAutomaticChecks(page: Page, enabled: boolean) {
     .setChecked(enabled);
   await closeSettingsToWorkspace(page);
 }
+
+// Passive check provenance moved to Thread options in #99.
+export async function expectThreadCheckMode(page: Page, value: string) {
+  const menu = await openThreadMore(page);
+  await expect(menu.getByText(value, { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+}

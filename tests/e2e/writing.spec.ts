@@ -131,10 +131,8 @@ test("J5.revision-recovery: fast edits and options survive unmount and refresh i
   expect(
     requests.filter((r) => new URL(r.url).searchParams.get("mod") === "post"),
   ).toHaveLength(1);
-  await page.getByText("Recovery details", { exact: true }).click();
-  await expect(
-    page.getByText(/Recovery acknowledged for revision/),
-  ).toBeVisible();
+  await expect.poll(async () => (await ux61Writing(page)).source).toBe(source);
+  await expect(page.locator(".writing-recovery")).toHaveCount(0);
   const stored = await page.evaluate(() => ({
     keys: Object.keys(sessionStorage),
     raw: sessionStorage.getItem("tsdm.workspace.recovery"),
@@ -480,7 +478,7 @@ test("J5.incompatible: preserve unknown recovery data until deliberate local res
   const stored = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
   );
-  expect(stored.schema).toBe(2);
+  expect(stored.schema).toBe(6);
   expect(stored.writing).toBeNull();
   await info.attach("incompatible-recovery-reset.png", {
     body: await page.screenshot(),
@@ -633,10 +631,10 @@ test("J11.preparation-account: a newly observed account invalidates retained old
 test("J5.redirect-writing: actual document redirect and app remount retain source and exact return navigation", async ({
   browser,
 }, info) => {
-  const threadURL = `${origin}/forum.php?mod=viewthread&tid=42&page=3#pid105`;
+  const threadURL = `${origin}/forum.php?mod=viewthread&tid=43&page=3#pid105`;
   const boardWithRedirect = board().replace(
     "</table>",
-    '<tbody id="normalthread_43"><tr><th><a class="xst" href="forum.php?mod=viewthread&tid=43">Redirect guide</a></th><td class="by"></td><td class="num"></td><td class="by"><em><a href="forum.php?mod=redirect&goto=findpost&ptid=42&pid=105">Exact post</a></em></td></tr></tbody></table>',
+    '<tbody id="normalthread_43"><tr><th><a class="xst" href="forum.php?mod=viewthread&tid=43">Redirect guide</a></th><td class="by"></td><td class="num"></td><td class="by"><em><a href="forum.php?mod=redirect&goto=findpost&ptid=43&pid=105">Exact post</a></em></td></tr></tbody></table>',
   );
   await withRedirectFixture(
     browser,
@@ -661,7 +659,7 @@ test("J5.redirect-writing: actual document redirect and app remount retain sourc
         .click();
       await page
         .getByRole("link", {
-          name: "Last reply to Redirect guide",
+          name: "Latest reply: Replier unavailable · Exact post",
           exact: true,
         })
         .click();
@@ -815,10 +813,8 @@ test("J5.unacknowledged: quota refusal after an acknowledged revision recovers o
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(source);
-  await page.getByText("Recovery details", { exact: true }).click();
-  await expect(
-    page.getByText(/Recovery acknowledged for revision/),
-  ).toBeVisible();
+  await expect.poll(async () => (await ux61Writing(page)).source).toBe(source);
+  await expect(page.locator(".writing-recovery")).toHaveCount(0);
   await page.reload();
   await expect(editor).toHaveValue(source);
   const newer = source + " unacknowledged ".repeat(1000);
@@ -878,7 +874,7 @@ test("J5.uploaded-references: current-form uploaded identities survive recovery 
 test("J5.legacy-navigation: navigation-only recovery migrates without losing cached results", async ({
   page,
 }) => {
-  const script = `const raw=sessionStorage.getItem('tsdm.workspace.recovery');if(raw){const r=JSON.parse(raw);r.schema=1;delete r.writing;sessionStorage.setItem('tsdm.workspace.recovery',JSON.stringify(r));}`;
+  const script = `const raw=sessionStorage.getItem('tsdm.workspace.recovery');if(raw){const r=JSON.parse(raw);r.schema=1;delete r.writing;delete r.retainedReplies;delete r.replyCheckpoints;delete r.replyDisposals;sessionStorage.setItem('tsdm.workspace.recovery',JSON.stringify(r));}`;
   const requests = await open(page, undefined, script);
   await expect(
     page.getByRole("link", { name: "Autumn thread", exact: true }),
@@ -895,7 +891,7 @@ test("J5.legacy-navigation: navigation-only recovery migrates without losing cac
   const stored = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
   );
-  expect(stored.schema).toBe(2);
+  expect(stored.schema).toBe(6);
   expect(stored.writing.account.id).toBe("7");
   expect(Object.keys(stored.entries)).toHaveLength(1);
 });
@@ -1151,11 +1147,13 @@ test("J5.composing-section: section drawer waits for final composition input and
     .getByRole("dialog", { name: "Boards navigation", exact: true })
     .getByRole("button", { name: "Notices", exact: true })
     .click();
-  await expect(editor).toBeVisible();
+  await expect(editor).toBeHidden();
   await expect(
     page.getByRole("heading", { name: "Notices", exact: true, level: 1 }),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
+  await expect(page.locator(".pane-drawer")).toBeHidden();
+  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
+  await expect(editor).toBeVisible();
   await editor.focus();
   await expect(editor).toHaveValue(source + "中文");
   const retained = await page.evaluate(
@@ -1185,10 +1183,10 @@ for (const dialogName of ["Settings", "About this workspace"])
     await editor.dispatchEvent("compositionstart", { data: "中" });
     // dispatchEvent keeps the synthetic composition active; actual pointer/IME behavior is separately installed.
     await page
-      .getByRole("button", { name: dialogName, exact: true })
+      .getByRole("button", { name: "Settings", exact: true })
       .dispatchEvent("click");
     await expect(
-      page.getByRole("dialog", { name: dialogName, exact: true }),
+      page.getByRole("dialog", { name: "Settings", exact: true }),
     ).not.toBeVisible();
     await expect(editor).toBeVisible();
     await expect(
@@ -1210,8 +1208,12 @@ for (const dialogName of ["Settings", "About this workspace"])
       );
     }, source + "中");
     await expect(
-      page.getByRole("dialog", { name: dialogName, exact: true }),
+      page.getByRole("dialog", { name: "Settings", exact: true }),
     ).toBeVisible();
+    if (dialogName === "About this workspace")
+      await expect(
+        page.getByRole("heading", { name: dialogName, exact: true }),
+      ).toBeVisible();
     await page.keyboard.press("Escape");
     expect(await original!.evaluate((n) => n.isConnected)).toBe(true);
     await expect(editor).toHaveValue(source + "中");
@@ -1311,7 +1313,7 @@ test("J5.appearance-writing: themes, interface languages and the Compact thresho
     expect(Math.min(...metrics.checkboxTargets)).toBeGreaterThanOrEqual(44);
     expect(metrics.ink).toBe(metrics.hostInk);
     expect(metrics.surface).toBe(metrics.hostSurface);
-    expect(metrics.font).toBeCloseTo((14 * sizes[i]!) / 100, 1);
+    expect(metrics.font).toBeCloseTo((18 * sizes[i]!) / 100, 1);
     measurements.push(metrics);
   }
   expect(measurements[1]!.labelSpacing).toBeLessThan(
@@ -1381,7 +1383,7 @@ test("J5.writing-locale: own writing and recovery labels follow all three interf
 test("J5.legacy-section-recovery: upgrading a navigation-only record preserves passive section history and the sole writing owner", async ({
   page,
 }, info) => {
-  const legacy = `const raw=sessionStorage.getItem('tsdm.workspace.recovery');if(raw){const r=JSON.parse(raw);if(!r.writing){r.schema=1;delete r.writing;sessionStorage.setItem('tsdm.workspace.recovery',JSON.stringify(r));}}`;
+  const legacy = `const raw=sessionStorage.getItem('tsdm.workspace.recovery');if(raw){const r=JSON.parse(raw);if(!r.writing){r.schema=1;delete r.writing;delete r.retainedReplies;delete r.replyCheckpoints;delete r.replyDisposals;sessionStorage.setItem('tsdm.workspace.recovery',JSON.stringify(r));}}`;
   const requests = await open(page, undefined, legacy);
   await page
     .getByRole("navigation", { name: "Main destinations", exact: true })
@@ -1404,7 +1406,7 @@ test("J5.legacy-section-recovery: upgrading a navigation-only record preserves p
   const record = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
   );
-  expect(record.schema).toBe(2);
+  expect(record.schema).toBe(6);
   expect(record.writing.source).toBe(source);
   expect(
     Object.values(record.entries).some(
@@ -1485,6 +1487,9 @@ for (const entry of ["return", "new"] as const)
           ? reader
           : board(),
     );
+    await expect(
+      page.getByRole("link", { name: "Autumn thread", exact: true }),
+    ).toBeVisible();
     const editor = page.getByLabel("Complete source", { exact: true });
     if (entry === "return") {
       await page
@@ -1753,7 +1758,7 @@ test("J5.search-writing: edited search criteria and the sole writing context sha
   });
   expect(recovered.writing).toEqual(original);
   expect(recovered.search).toEqual(searchBefore);
-  expect(recovered.schema).toBe(2);
+  expect(recovered.schema).toBe(6);
   expect(recovered.keys).toEqual(["tsdm.workspace.recovery"]);
   expect(recovered.raw).not.toContain("SEARCH-SECRET");
   expect(recovered.raw).not.toContain("SECRET-TOKEN");
@@ -1819,11 +1824,13 @@ test("J5.composing-search: Search drawer waits for final composition input and r
     .getByRole("dialog", { name: "Boards navigation", exact: true })
     .getByRole("button", { name: "Search", exact: true })
     .click();
-  await expect(editor).toBeVisible();
+  await expect(editor).toBeHidden();
   await expect(
     page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
+  await expect(page.locator(".pane-drawer")).toBeHidden();
+  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
+  await expect(editor).toBeVisible();
   await editor.focus();
   await expect(editor).toHaveValue(source + "中文");
   const retained = await page.evaluate(
@@ -1928,6 +1935,9 @@ test("J5.schema1-search-writing: prewriting Search results and edited criteria m
     );
     record.schema = 1;
     delete record.writing;
+    delete record.retainedReplies;
+    delete record.replyCheckpoints;
+    delete record.replyDisposals;
     sessionStorage.setItem("tsdm.workspace.recovery", JSON.stringify(record));
     return record;
   });
@@ -1951,7 +1961,7 @@ test("J5.schema1-search-writing: prewriting Search results and edited criteria m
   const migrated = await page.evaluate(() =>
     JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!),
   );
-  expect(migrated.schema).toBe(2);
+  expect(migrated.schema).toBe(6);
   expect(migrated.writing.source).toBe(source);
   for (const [key, entry] of Object.entries(before.entries))
     expect(migrated.entries[key].result).toEqual(
@@ -2146,7 +2156,7 @@ async function ux61Writing(page: Page) {
   );
 }
 
-test("UX61.local-recovery: plain local status and closed revision details retain exact writing with keyboard disclosure and no requests", async ({
+test("UX61.local-recovery: quiet successful recovery retains exact writing without routine diagnostic disclosure or requests", async ({
   page,
 }, info) => {
   const requests = await open(page);
@@ -2161,28 +2171,15 @@ test("UX61.local-recovery: plain local status and closed revision details retain
       { exact: true },
     ),
   ).toBeVisible();
-  await expect(
-    page.getByText("Browser recovery is up to date for this page session.", {
-      exact: true,
-    }),
-  ).toBeVisible();
-  const details = page
-    .locator("details")
-    .filter({ has: page.getByText("Recovery details", { exact: true }) });
-  await expect(details).not.toHaveAttribute("open", "");
-  await expect(
-    details.getByText(/Recovery acknowledged for revision/),
-  ).toBeHidden();
+  await expect(page.locator(".writing-recovery")).toHaveCount(0);
   const before = await ux61Writing(page),
     count = requests.length;
-  await details.locator("summary").focus();
-  await details.locator("summary").press("Enter");
-  await expect(
-    details.getByText(/Recovery acknowledged for revision/),
-  ).toBeVisible();
-  await expect(details).toContainText("Restoration depends on the browser");
-  await details.locator("summary").press("Space");
-  await expect(details).not.toHaveAttribute("open", "");
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Return to writing", exact: true })
+    .click();
   expect(await ux61Writing(page)).toEqual(before);
   expect(requests).toHaveLength(count);
   expect(requests.every((r) => r.method === "GET")).toBe(true);
@@ -2196,7 +2193,7 @@ test("UX61.local-recovery: plain local status and closed revision details retain
   });
 });
 
-test("UX61.recovery-refusal: real storage quota keeps copy guidance and unavailable recovery outside closed details without fallback or effects", async ({
+test("UX61.recovery-refusal: real storage quota keeps copy guidance and unavailable recovery visible without diagnostic details or effects", async ({
   page,
 }, info) => {
   const quota = `let filled='';for(let size=65536;size>=1;size=Math.floor(size/2)){const block='x'.repeat(size);try{while(true){sessionStorage.setItem('native-fixture-capacity',filled+block);filled+=block;}}catch{}}`;
@@ -2215,10 +2212,9 @@ test("UX61.recovery-refusal: real storage quota keeps copy guidance and unavaila
       exact: true,
     }),
   ).toHaveCount(0);
-  await expect(status.locator("details")).not.toHaveAttribute("open", "");
+  await expect(status.locator("details")).toHaveCount(0);
   await expect(page.getByText(/Live writing remains here/)).toHaveCount(1);
   const before = requests.length;
-  await status.locator("summary").click();
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     source,
   );
@@ -2261,7 +2257,7 @@ test("UX61.incompatible-recovery: retained raw data and plain send pause remain 
   await expect(status.getByRole("alert").filter({ visible: true })).toHaveText(
     "Saved recovery data needs attention. This version cannot use it; copy needed source before resetting it. Sending and uploads are paused.",
   );
-  await expect(status.locator("details")).not.toHaveAttribute("open", "");
+  await expect(status.locator("details")).toHaveCount(0);
   await page
     .getByRole("button", {
       name: "Inspect retained recovery data",
@@ -2341,7 +2337,7 @@ const ux61Profiles = [
   },
 ] as const;
 for (const profile of ux61Profiles)
-  test(`UX61.appearance-${profile.width}-${profile.textSize}-${profile.language}: localized recovery disclosure and resizing retain complete writing without requests or overflow`, async ({
+  test(`UX61.appearance-${profile.width}-${profile.textSize}-${profile.language}: quiet localized writing and resizing retain complete saved content without requests or overflow`, async ({
     page,
   }, info) => {
     await page.setViewportSize({
@@ -2366,20 +2362,20 @@ for (const profile of ux61Profiles)
     await page.locator(".secondary-writing-actions button").first().click();
     const editor = page.getByLabel(profile.body, { exact: true });
     await editor.fill(source);
-    await expect(page.getByText(profile.status, { exact: true })).toBeVisible();
+    await expect(page.getByText(profile.status, { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(page.getByText(profile.details, { exact: true })).toHaveCount(
+      0,
+    );
     const before = await ux61Writing(page),
       count = requests.length;
-    const summary = page.getByText(profile.details, { exact: true });
-    await summary.focus();
-    await summary.press("Enter");
-    const geometry = await summary.locator("..").evaluate((node) => ({
+    const geometry = await page.locator(".source-writing").evaluate((node) => ({
       width: node.clientWidth,
       scrollWidth: node.scrollWidth,
-      text: node.textContent,
     }));
     expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width + 1);
     expect(await editor.inputValue()).toBe(source);
-    await summary.press("Space");
     await page
       .getByRole("button", { name: profile.reading, exact: true })
       .click();
@@ -2398,7 +2394,6 @@ for (const profile of ux61Profiles)
       width: profile.width,
       height: profile.height,
     });
-    await summary.click();
     await info.attach("recovery-appearance-state.json", {
       body: JSON.stringify({
         profile,
@@ -2449,3 +2444,56 @@ for (const [language, expected] of [
     await page.locator(".secondary-writing-actions button").first().click();
     await expect(page.locator(".writing-recovery > p")).toHaveText(expected);
   });
+
+// Ordinary toolbar revision must leave nonreply compact disclosure reachable.
+test("UX112.nonreply-compact-details: new-thread compact writing preserves its existing keyboard Details action", async ({
+  page,
+}, info) => {
+  await open(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Compact writing", exact: true })
+    .click();
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.focus();
+  await source.press("Tab");
+  const details = page.locator(".writing-details > summary");
+  await expect(details).toBeVisible();
+  await expect(details).toBeFocused();
+  await details.press("Enter");
+  await details.press("Tab");
+  await expect(
+    page.getByRole("button", {
+      name: "Check current account and form",
+      exact: true,
+    }),
+  ).toBeFocused();
+  await info.attach("nonreply-compact-details.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("UX112.nonreply-quiet-recovery: saved new-thread writing recovers without routine storage commentary", async ({
+  page,
+}, info) => {
+  const requests = await open(page);
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill("Quiet nonreply writing remains recoverable");
+  const before = await ux61Writing(page);
+  await expect(page.locator(".writing-recovery")).toHaveCount(0);
+  await expect(page.getByText("Recovery details", { exact: true })).toHaveCount(
+    0,
+  );
+  await page.reload();
+  await expect(source).toHaveValue(
+    "Quiet nonreply writing remains recoverable",
+  );
+  expect((await ux61Writing(page)).id).toBe(before.id);
+  expect(requests.every((r) => r.method === "GET")).toBe(true);
+  await info.attach("quiet-nonreply-recovery.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});

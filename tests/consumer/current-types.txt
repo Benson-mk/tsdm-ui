@@ -110,3 +110,25 @@ const sourcedDirectoryGroup: Frontier.Directory["groups"][number] = { title: "So
 const optionalSourceId: string | undefined = legacyDirectoryGroup.sourceId;
 const optionalSourceURL: string | undefined = sourcedDirectoryGroup.sourceURL;
 void [optionalSourceId, optionalSourceURL];
+
+import type { ReportTarget, ReportForm, ReportPreparation, ReportIntent, ReportResult } from '@tsdm/forum-client';
+const prepareReport: (target: ReportTarget) => Promise<ReportPreparation> = client.prepareReport;
+const submitReport: (form: ReportForm, intent: ReportIntent) => Promise<ReportResult> = client.submitReport;
+const reportOutcomes: Record<ReportResult['kind'], string> = { rejected: 'refused', uncertain: 'unknown', 'not-sent': 'no request' };
+void [prepareReport, submitReport, reportOutcomes];
+
+import type { EffectGuard } from '@tsdm/forum-client';
+const effectGuard: EffectGuard = { check: async () => true, current: () => true };
+const guardedReply = (attempt: ThreadAttempt) => client.publishThread(attempt, effectGuard);
+const guardedUpload = (writing: PreparedWriting, file: UploadFile) => client.uploadAttachment(writing, file, () => {}, cancellation, effectGuard);
+const guardedRemoval = (writing: PreparedWriting, id: string) => client.removeUploadedAttachment(writing, id, false, effectGuard);
+void [guardedReply, guardedUpload, guardedRemoval];
+
+// Optional 0.26 read-only attachment proof preserves old structural clients.
+const withoutAttachmentCheck: Omit<ForumClient, "checkReplyAttachments"> = client;
+const legacyStructuralClient: ForumClient = withoutAttachmentCheck;
+const replyAttachmentCheck = (writing: PreparedWriting): Promise<import("@tsdm/forum-client").ReplyAttachmentCheck> | undefined => client.checkReplyAttachments?.(writing);
+const legacyUpload: import("@tsdm/forum-client").WritingUpload = { key: "legacy", name: "file.txt", type: "text/plain", size: 4, status: "uploaded", message: "", loaded: 4 };
+const unknownOwnerUpload: import("@tsdm/forum-client").WritingUpload = { ...legacyUpload, ownerId: null };
+const knownOwnerUpload: import("@tsdm/forum-client").WritingUpload = { ...legacyUpload, ownerId: "8" };
+void [legacyStructuralClient, replyAttachmentCheck, unknownOwnerUpload, knownOwnerUpload];

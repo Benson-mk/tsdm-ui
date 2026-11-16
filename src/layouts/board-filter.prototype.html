@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Boards filter — approval MVP</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      #preview {
+        display: block;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="preview"></div>
+    <script type="module">
+      // Throwaway approval MVP: current vs compact filter in the Boards overview.
+      // Synthetic data and stub navigation; no forum requests or persistence.
+      // Run: npm run dev -- --port 5173
+      import workspaceStyles from "../styles.css?inline";
+      import brandMark from "./tsdm-brand.prototype.svg?raw";
+
+      const host = document.querySelector("#preview");
+      const root = host.attachShadow({ mode: "open" });
+      const paths = {
+        boards:
+          '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+        messages:
+          '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/>',
+        search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+        saved: '<path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17l-6-4z"/>',
+        notices:
+          '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+        drafts: '<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h8M8 16h6"/>',
+        settings:
+          '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--surface)"/><circle cx="15" cy="17" r="3" fill="var(--surface)"/>',
+        threads: '<path d="M8 5h13M8 12h13M8 19h13M3 5h1M3 12h1M3 19h1"/>',
+        external: '<path d="M14 3h7v7M21 3l-10 10M10 5H4v15h15v-6"/>',
+        refresh: '<path d="M20 7a9 9 0 1 0 1 8M20 3v5h-5"/>',
+      };
+      const icon = (name) =>
+        `<svg class="workspace-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
+      const groups = [
+        {
+          title: "我收藏的版块",
+          category: "neutral",
+          boards: [
+            ["事务所", "论坛公告发布 / 意见反馈 / 版务投诉。", "neutral"],
+            ["动漫游戏新闻", "一起发现新作品，交流动漫与游戏资讯。", "neutral"],
+            ["若闲小阁", "和同好轻松聊天，分享生活中的小事。", "community"],
+          ],
+        },
+        {
+          title: "天使·后花园",
+          category: "community",
+          boards: [
+            ["新人报到", "欢迎新朋友，和大家打个招呼。", "community"],
+            ["活动专区", "查看近期活动，参与社区交流。", "community"],
+            ["若闲小阁", "分享日常发现，与朋友交流。", "community"],
+            ["天使名册", "认识社区的朋友，记录相遇的故事。", "community"],
+          ],
+        },
+        {
+          title: "天使·分享区",
+          category: "neutral",
+          boards: [
+            ["动漫", "交流喜欢的动画与新番。", "anime"],
+            ["音乐", "分享喜欢的音乐和旋律。", "music"],
+            ["绘画交流", "分享创作与灵感。", "creative"],
+          ],
+        },
+      ];
+      const total = groups.reduce((sum, group) => sum + group.boards.length, 0);
+      const initialVariant =
+        new URLSearchParams(location.search).get("variant") === "current"
+          ? "current"
+          : "compact";
+      root.innerHTML = `<style>${workspaceStyles}</style><style>
+        :host { --safe-left:0px; --safe-right:0px; --safe-top:0px; --safe-bottom:0px; --text-scale:1; }
+        [hidden] { display:none !important; }
+        .prototype-shell { height:100dvh; display:grid; grid-template-rows:minmax(0,1fr) auto; }
+        .workspace { height:100%; min-height:0; }
+        .workspace > header { min-height:60px; padding:8px 16px; }
+        .brand { display:flex; align-items:center; min-height:44px; }
+        .brand svg { width:44px; height:44px; }
+        .preview-body { flex:1; min-height:0; display:grid; grid-template-columns:216px minmax(0,1fr); padding:0; margin:0; width:100%; max-width:none; overflow:hidden; }
+        .preview-sidebar { display:flex; flex-direction:column; min-height:0; overflow:hidden; box-shadow:4px 0 16px rgb(0 0 0 / 6%); z-index:1; }
+        .navigation-body { min-height:0; overflow:auto; flex:1; padding:12px; }
+        .main-destinations { display:grid; gap:4px; padding:0; border:0; margin:0 0 24px; background:var(--surface); }
+        .main-destinations button { width:100%; font-size:14px; }
+        .preview-taxonomy { font:12px ui-monospace,monospace; margin:4px 4px 12px; }
+        .preview-group { margin-top:16px; }
+        .preview-group > span { font-size:12px; }
+        .preview-group button { display:flex; width:100%; text-align:left; font-size:14px; padding:8px 12px; }
+        .preview-dot { width:10px; height:10px; border-radius:50%; flex:none; background:var(--category-fill); margin-right:10px; }
+        .navigation-footer { padding-bottom:12px; }
+        .preview-overview { min-width:0; overflow:auto; padding:24px; }
+        .preview-overview h1 { font-size:calc(30px * var(--text-scale)); font-weight:600; }
+        .preview-overview h2 { font-size:calc(24px * var(--text-scale)); }
+        .preview-overview .board-grid { grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr)); }
+        .board-card { text-align:left; border-radius:24px; min-width:0; }
+        .filter-block { display:flow-root; }
+        .filter-block[data-variant="current"] { display:contents; }
+        .compact-label-row { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 16px; margin-bottom:8px; }
+        .compact-label-row label { font-weight:540; }
+        .compact-label-row .board-filter-status { margin:0; }
+        [data-variant="compact"] .board-filter-scope { margin:8px 0 0; }
+        .prototype-tools { background:var(--surface); color:var(--ink); border-top:1px solid var(--separator); padding:8px max(12px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); display:flex; flex-wrap:wrap; gap:4px 16px; align-items:center; font-size:12px; }
+        .prototype-switcher { display:flex; gap:4px; padding:4px; border:1px solid var(--separator); border-radius:32px; }
+        .prototype-switcher button { font-size:14px; min-height:44px; }
+        .prototype-switcher [aria-pressed="true"] { background:var(--ink); color:var(--surface); }
+        .prototype-tools label { display:flex; align-items:center; min-height:44px; gap:8px; }
+        .prototype-tools input { width:18px; height:18px; accent-color:var(--ink); }
+        #preview-state { flex-basis:100%; margin:0; }
+        @media(max-width:959px) { .preview-sidebar { display:none; } .preview-body { grid-template-columns:minmax(0,1fr); } }
+        @media(max-width:559px) { .preview-overview { padding:16px; } .prototype-tools { gap:4px 8px; } }
+      </style>
+      <div class="prototype-shell">
+        <div class="workspace">
+          <header><span class="brand">${brandMark} TSDM</span><div class="header-navigation">
+            <button class="header-action" data-stub="Boards pane" aria-label="Boards pane">${icon("boards")}<span class="header-action-label">Boards</span></button>
+            <button class="header-action" data-stub="Threads pane" aria-label="Threads pane">${icon("threads")}<span class="header-action-label">Threads pane</span></button>
+            <button class="header-action" data-stub="Native forum" aria-label="Continue in native forum">${icon("external")}<span class="header-action-label">Continue in native forum</span></button>
+          </div></header>
+          <main class="preview-body">
+            <aside class="preview-sidebar" aria-label="Sample navigation">
+              <div class="navigation-body">
+                <p class="preview-taxonomy">MAIN DESTINATIONS</p>
+                <nav class="main-destinations" aria-label="Sample destinations">${["Boards", "Messages", "Search", "Saved", "Notices", "Drafts"].map((name) => `<button data-stub="${name}" ${name === "Boards" ? 'aria-current="page"' : ""}>${icon(name.toLowerCase())}${name}</button>`).join("")}</nav>
+                <p class="preview-taxonomy">BROWSE BOARDS</p>
+                <button data-stub="All boards">All boards</button>
+                ${groups.map((group) => `<div class="preview-group"><span class="category-label" data-category="${group.category}">${group.title}</span>${group.boards.map(([name, , category]) => `<button data-stub="${name}"><span class="preview-dot" data-category="${category}"></span>${name}</button>`).join("")}</div>`).join("")}
+              </div>
+              <div class="navigation-footer"><div class="navigation-account"><small>Sample account</small><strong>Preview member</strong></div><button data-stub="Settings" aria-label="Settings">${icon("settings")}</button></div>
+            </aside>
+            <section class="preview-overview" aria-label="Boards overview">
+              <div class="board-heading"><h1>Boards</h1><button class="icon-button" data-stub="Refresh" aria-label="Refresh">${icon("refresh")}</button></div>
+              <p>Choose a board to read its threads.</p>
+              <div class="filter-block">
+                <div class="compact-label-row" id="compact-label-row"></div>
+                <div class="board-filter">
+                  <label id="filter-label" for="board-filter">Filter boards on this page</label>
+                  <input id="board-filter" type="search" aria-describedby="board-filter-scope" />
+                  <button id="clear-filter" hidden>Clear filter</button>
+                </div>
+                <p id="board-filter-scope" class="board-filter-scope"></p>
+                <p class="board-filter-status" id="filter-status" role="status"></p>
+              </div>
+              <p id="no-matches" hidden>No boards match. Try another name, description or group, or clear the filter.</p>
+              <div id="board-groups"></div>
+            </section>
+          </main>
+        </div>
+        <footer class="prototype-tools">
+          <strong>MVP · Sample boards</strong>
+          <div class="prototype-switcher" role="group" aria-label="Filter comparison"><button data-variant-choice="current">Current</button><button data-variant-choice="compact">Proposed</button></div>
+          <label><input id="larger-text" type="checkbox" />125% text</label>
+          <p id="preview-state" role="status"></p>
+        </footer>
+      </div>`;
+
+      const input = root.querySelector("#board-filter");
+      const label = root.querySelector("#filter-label");
+      const status = root.querySelector("#filter-status");
+      const scope = root.querySelector("#board-filter-scope");
+      const clear = root.querySelector("#clear-filter");
+      const block = root.querySelector(".filter-block");
+      const labelRow = root.querySelector("#compact-label-row");
+      const fieldRow = root.querySelector(".board-filter");
+      let variant = initialVariant;
+      let matchingCount = total;
+
+      function showState(note = "") {
+        root.querySelector("#preview-state").textContent =
+          `${variant === "compact" ? "Proposed" : "Current"} · ${matchingCount}/${total} sample entries · ${input.value ? `Filter: ${input.value}` : "No filter"} · ${root.querySelector("#larger-text").checked ? "125%" : "100%"} text. ${note || "Navigation is illustrative; filtering is interactive."}`;
+      }
+
+      function filterBoards() {
+        const query = input.value.trim().toLocaleLowerCase();
+        const matched = groups
+          .map((group) => ({
+            ...group,
+            boards: group.boards.filter(([name, description]) =>
+              [group.title, name, description].some((value) =>
+                value.toLocaleLowerCase().includes(query),
+              ),
+            ),
+          }))
+          .filter((group) => group.boards.length);
+        matchingCount = matched.reduce(
+          (sum, group) => sum + group.boards.length,
+          0,
+        );
+        status.textContent = `Boards shown: ${matchingCount} / ${total}`;
+        clear.hidden = !input.value;
+        root.querySelector("#no-matches").hidden = matchingCount !== 0;
+        root.querySelector("#board-groups").innerHTML = matched
+          .map(
+            (group) =>
+              `<section class="board-group"><h2><span class="category-label" data-category="${group.category}">${group.title}</span></h2><div class="board-grid">${group.boards.map(([name, description, category]) => `<button class="board-card" data-category="${category}" data-stub="${name}"><strong>${name}</strong><span>${description}</span></button>`).join("")}</div></section>`,
+          )
+          .join("");
+        showState();
+      }
+
+      function setVariant(next) {
+        variant = next;
+        block.dataset.variant = variant;
+        labelRow.hidden = variant === "current";
+        if (variant === "compact") labelRow.append(label, status);
+        else {
+          fieldRow.prepend(label);
+          block.append(status);
+        }
+        scope.textContent =
+          variant === "compact"
+            ? "Name, description or group."
+            : "Match a board name, description or group on this page.";
+        for (const button of root.querySelectorAll("[data-variant-choice]"))
+          button.setAttribute(
+            "aria-pressed",
+            String(button.dataset.variantChoice === variant),
+          );
+        const url = new URL(location.href);
+        url.searchParams.set("variant", variant);
+        history.replaceState(null, "", url);
+        showState();
+      }
+
+      input.addEventListener("input", filterBoards);
+      clear.addEventListener("click", () => {
+        input.value = "";
+        filterBoards();
+        input.focus();
+      });
+      root.querySelector("#larger-text").addEventListener("change", (event) => {
+        host.style.setProperty(
+          "--text-scale",
+          event.target.checked ? "1.25" : "1",
+        );
+        showState();
+      });
+      root.addEventListener("click", (event) => {
+        const button = event.target.closest("button");
+        if (button?.dataset.variantChoice)
+          setVariant(button.dataset.variantChoice);
+        if (button?.dataset.stub)
+          showState(
+            `${button.dataset.stub}: preview only; no navigation or forum request.`,
+          );
+      });
+      filterBoards();
+      setVariant(initialVariant);
+    </script>
+  </body>
+</html>

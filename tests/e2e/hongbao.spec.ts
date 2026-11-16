@@ -730,7 +730,8 @@ test("J7.packet-schema: malformed recovered packet controls are retained incompa
 }) => {
   const state = await fixture(page);
   await composePacket(page);
-  await page.evaluate(() => {
+  // Corruption must reach the next startup, after the outgoing app flushes its owned snapshot.
+  await page.addInitScript(() => {
     const raw = sessionStorage.getItem("tsdm.workspace.recovery")!;
     const saved = JSON.parse(raw);
     saved.writing.redPacket = { hints: [{ not: "text" }] };
@@ -740,6 +741,13 @@ test("J7.packet-schema: malformed recovered packet controls are retained incompa
   await expect(
     page.getByText(/Stored recovery data is incompatible/),
   ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing
+          .redPacket,
+    ),
+  ).toEqual({ hints: [{ not: "text" }] });
   expect(state.posts).toHaveLength(0);
 });
 

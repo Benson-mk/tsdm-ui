@@ -335,7 +335,7 @@ test("UI88.pointer-continuity: every boundary drags with visible character, edit
   });
 });
 
-test("UI88.responsive-bounds: extreme widths protect Reading and restore desired sizes across clamping, hidden panes and minimized writing", async ({
+test("UI88.responsive-bounds: extreme widths protect full-column writing and restore navigation widths across clamping, hidden panes and reading return", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1706, height: 900 });
@@ -348,7 +348,6 @@ test("UI88.responsive-bounds: extreme widths protect Reading and restore desired
     .click();
   await drag(page, "Boards", 1200);
   await drag(page, "Threads", 1200);
-  await drag(page, "Writing", -1200);
   await expect(separator(page, "Boards")).toHaveAttribute(
     "aria-valuenow",
     "360",
@@ -357,10 +356,7 @@ test("UI88.responsive-bounds: extreme widths protect Reading and restore desired
     "aria-valuenow",
     "520",
   );
-  await expect(separator(page, "Writing")).toHaveAttribute(
-    "aria-valuenow",
-    "506",
-  );
+  await expect(separator(page, "Writing")).toHaveCount(0);
   const observations = [];
   for (const width of [1440, 1280, 960, 768, 767, 390, 1706]) {
     await page.setViewportSize({ width, height: 900 });
@@ -373,10 +369,11 @@ test("UI88.responsive-bounds: extreme widths protect Reading and restore desired
     const g = await geometry(page);
     observations.push({ width, ...g });
     expect(g.main!.scroll).toBeLessThanOrEqual(width);
-    if (width >= 768) expect(g.reader!.width).toBeGreaterThanOrEqual(320);
+    expect(g.reader!.height).toBe(0);
+    if (width >= 768) expect(g.writer!.width).toBeGreaterThanOrEqual(320);
     await expect(separator(page, "Boards")).toHaveCount(width >= 960 ? 1 : 0);
     await expect(separator(page, "Threads")).toHaveCount(width >= 768 ? 1 : 0);
-    await expect(separator(page, "Writing")).toHaveCount(width >= 1440 ? 1 : 0);
+    await expect(separator(page, "Writing")).toHaveCount(0);
     for (const edge of g.edges) {
       expect(Number(edge.now)).toBeGreaterThanOrEqual(Number(edge.min));
       expect(Number(edge.now)).toBeLessThanOrEqual(Number(edge.max));
@@ -390,33 +387,26 @@ test("UI88.responsive-bounds: extreme widths protect Reading and restore desired
     "aria-valuenow",
     "520",
   );
-  await expect(separator(page, "Writing")).toHaveAttribute(
-    "aria-valuenow",
-    "506",
-  );
+  await expect(separator(page, "Writing")).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Return to reading", exact: true })
+    .getByRole("button", { name: "Compact writing", exact: true })
     .click();
   await expect(separator(page, "Writing")).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Return to writing", exact: true })
+    .getByRole("button", { name: "Expand writing", exact: true })
     .click();
-  await expect(separator(page, "Writing")).toHaveAttribute(
-    "aria-valuenow",
-    "506",
-  );
+  await expect(separator(page, "Writing")).toHaveCount(0);
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await expect(separator(page, "Boards")).toHaveCount(0);
   await page.getByRole("button", { name: "Threads pane", exact: true }).click();
   await expect(separator(page, "Threads")).toHaveCount(0);
   const hidden = await geometry(page);
-  expect(hidden.reader!.x).toBe(0);
+  expect(hidden.writer!.x).toBe(0);
   expect(hidden.writer!.right).toBe(1706);
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await page.getByRole("button", { name: "Threads pane", exact: true }).click();
   await drag(page, "Boards", -1500);
   await drag(page, "Threads", -1500);
-  await drag(page, "Writing", 1500);
   await expect(separator(page, "Boards")).toHaveAttribute(
     "aria-valuenow",
     "160",
@@ -425,10 +415,7 @@ test("UI88.responsive-bounds: extreme widths protect Reading and restore desired
     "aria-valuenow",
     "220",
   );
-  await expect(separator(page, "Writing")).toHaveAttribute(
-    "aria-valuenow",
-    "280",
-  );
+  await expect(separator(page, "Writing")).toHaveCount(0);
   await info.attach("responsive-widths.json", {
     body: JSON.stringify(observations, null, 2),
     contentType: "application/json",

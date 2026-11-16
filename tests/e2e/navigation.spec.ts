@@ -1,4 +1,4 @@
-import { clickThreadTool } from "./navigation-ui";
+import { clickThreadTool, confirmThreadPage } from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -105,6 +105,17 @@ async function open(
   await page.goto(destination);
   return requests;
 }
+async function showBoardFilters(page: Page) {
+  await page
+    .getByRole("button", { name: /^(Board filters|版块筛选|版塊篩選) ·/ })
+    .click();
+}
+async function applyBoardFilters(page: Page) {
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^(Apply|应用|套用)$/, exact: true })
+    .click();
+}
 test("J2.boards-returned-context: navigate populated groups, subboards, categories, pins and returned pages", async ({
   page,
 }, info) => {
@@ -128,13 +139,18 @@ test("J2.boards-returned-context: navigate populated groups, subboards, categori
   await expect(
     page.getByRole("link", { name: "Live recordings", exact: true }).first(),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Pinned threads · 1", exact: true })
+    .click();
   await expect(page.getByText("Pinned", { exact: true })).toBeVisible();
   await expect(
     page.getByText("Composer Nine", { exact: true }).first(),
   ).toBeVisible();
+  await showBoardFilters(page);
   await page
-    .getByRole("link", { name: "Listening notes", exact: true })
+    .getByRole("button", { name: "Listening notes", exact: true })
     .click();
+  await applyBoardFilters(page);
   await expect(
     page.getByText("Category: Listening notes", { exact: true }),
   ).toBeVisible();
@@ -424,7 +440,9 @@ test("J2.rich-page-target: full posts, observed parent, returned page and useful
     `${threadURL}&page=3#pid101`,
     () => richThread,
   );
-  await expect(page.getByText("Page 3", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Page 3 / unknown", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Music discussion", exact: true }).first(),
   ).toBeVisible();
@@ -622,8 +640,9 @@ test("J2.session-refusal: actual browser quota refusal requires explicit loss wa
     });
   });
   await page
+    .locator('[data-thread-id="42"]')
     .getByRole("link", {
-      name: "Last reply to Autumn listening — page 1",
+      name: "Latest reply: Listener Ten · Last reply",
       exact: true,
     })
     .click();
@@ -837,7 +856,7 @@ for (const scenario of [
     body: `${account}<div id="messagetext">当前用户组没有权限</div>`,
     message:
       "The current account does not have permission to read this thread.",
-    accountLabel: "Snapshot from Reader Seven",
+    accountLabel: "Signed in as Reader Seven",
     changed: false,
   },
 ]) {
@@ -917,7 +936,7 @@ for (const scenario of [
       ).toBeVisible();
       await expect(
         page.getByText(
-          "Restored snapshot — account and content have not been rechecked.",
+          "Restored snapshot — retained content has not been rechecked.",
           { exact: true },
         ),
       ).toBeVisible();
@@ -1019,6 +1038,16 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
     .locator(".results-pane")
     .evaluate((node) => node.scrollTop);
   expect(originalOffset).toBeGreaterThan(0);
+  const rowAnchor = await page.locator(".results-pane").evaluate((pane) => {
+    const top = pane.getBoundingClientRect().top;
+    const row = [
+      ...pane.querySelectorAll<HTMLElement>("[data-thread-id]"),
+    ].find((row) => row.getBoundingClientRect().bottom > top + 1)!;
+    return {
+      id: row.dataset.threadId!,
+      offset: row.getBoundingClientRect().top - top,
+    };
+  });
   await selected.click();
   const results = page.getByRole("region", {
     name: "Thread results",
@@ -1044,9 +1073,14 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
   await expect(results).toBeVisible();
   await expect(reading).not.toBeVisible();
   await expect(selected).toHaveAttribute("aria-current", "true");
-  expect(
-    await page.locator(".results-pane").evaluate((node) => node.scrollTop),
-  ).toBe(originalOffset);
+  const returnedOffset = await page
+    .locator(`.results-pane [data-thread-id="${rowAnchor.id}"]`)
+    .evaluate(
+      (row) =>
+        row.getBoundingClientRect().top -
+        row.closest(".results-pane")!.getBoundingClientRect().top,
+    );
+  expect(Math.abs(returnedOffset - rowAnchor.offset)).toBeLessThanOrEqual(1);
   expect(requests).toHaveLength(2);
   expect(requests.effectful).toEqual([]);
   await page.keyboard.press("Escape");
@@ -1064,7 +1098,9 @@ test("J2.canonical-lastpost: final returned page and ascending floors identify e
   page,
 }) => {
   await open(page, `${threadURL}&page=6#lastpost`, () => lastPage);
-  await expect(page.getByText("Page 6", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Page 6 / unknown", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("article", { name: "Post 105", exact: true }),
   ).toHaveAttribute("data-targeted", "true");
@@ -1115,7 +1151,9 @@ test("J2.nonfinal-lastpost: a nonfinal page follows one canonical redirect inste
       await expect(
         page.getByRole("article", { name: "Post 105", exact: true }),
       ).toHaveAttribute("data-targeted", "true");
-      await expect(page.getByText("Page 6", { exact: true })).toBeVisible();
+      await expect(
+        page.getByText("Page 6 / unknown", { exact: true }),
+      ).toBeVisible();
       expect(redirects).toEqual(["document"]);
       expect(requests).toHaveLength(2);
     },
@@ -1130,7 +1168,7 @@ test("J2.returned-touch-template: content selects directory, board and thread ad
     board: `${account}<div class="header"><h2>Music discussion</h2></div><ul class="threadlist_box"><li class="list_top"><div class="threadlist_tit"><a href="${threadURL}&mobile=2">Touch thread</a></div><span class="muser">Composer Nine</span><span class="mtime">2026-10-18</span><div class="threadlist_foot"><span class="mreply">4</span></div></li></ul>`,
     thread: `${account}<div id="pt"><a href="${boardURL}&mobile=2">Music discussion</a></div><div class="viewthread"><h1 class="view_tit">Touch thread</h1><div class="plc" id="pid321"><div class="authi"><a href="home.php?mod=space&uid=9">Composer Nine</a><span class="mtit"><span class="y">7</span></span><span class="mtime">2026-10-18</span></div><div class="message"><p>Complete touch-template post.</p></div></div></div><div class="page"><a href="${threadURL}&mobile=2&page=2">2</a></div>`,
   };
-  await open(page, `${directoryURL}?mobile=2`, (url) =>
+  const requests = await open(page, `${directoryURL}?mobile=2`, (url) =>
     url.searchParams.get("mod") === "forumdisplay"
       ? bodies.board
       : url.searchParams.get("mod") === "viewthread"
@@ -1141,6 +1179,9 @@ test("J2.returned-touch-template: content selects directory, board and thread ad
     .getByRole("link", { name: "Music discussion", exact: true })
     .first()
     .click();
+  await page
+    .getByRole("button", { name: "Pinned threads · 1", exact: true })
+    .click();
   await expect(page.getByText("Pinned", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Touch thread", exact: true }).click();
   await expect(
@@ -1149,11 +1190,10 @@ test("J2.returned-touch-template: content selects directory, board and thread ad
   await expect(
     page.getByText("Complete touch-template post.", { exact: true }),
   ).toBeVisible();
-  await expect(
-    page
-      .getByRole("navigation", { name: "Pages", exact: true })
-      .getByRole("link", { name: "2", exact: true }),
-  ).toHaveAttribute("href", `${threadURL}&mobile=2&page=2`);
+  await confirmThreadPage(page, 2);
+  expect(
+    requests.some((url) => url.includes("mobile=2") && url.includes("page=2")),
+  ).toBe(true);
 });
 test("J2.directory-pages: returned group pages remain navigable and are not replaced by invented counts", async ({
   page,
@@ -1275,6 +1315,9 @@ test("J5.appearance-pinned-locales: generated row labels translate while returne
   page,
 }, info) => {
   const requests = await open(page, boardURL);
+  await page
+    .getByRole("button", { name: "Pinned threads · 1", exact: true })
+    .click();
   await expect(page.getByText("Pinned", { exact: true })).toBeVisible();
   for (const [locale, label] of [
     ["zh-CN", "置顶"],
@@ -1311,8 +1354,9 @@ test("J2.session-redirect: real 302 remount retains canonical PID and populated 
       await page.goto(secondURL);
       await expect(page.getByText("Page 2", { exact: true })).toBeVisible();
       await page
+        .locator('[data-thread-id="42"]')
         .getByRole("link", {
-          name: "Last reply to Autumn listening — page 2",
+          name: "Latest reply: Listener Ten · Last reply",
           exact: true,
         })
         .click();
@@ -1410,6 +1454,7 @@ for (const representation of ["html", "json"] as const) {
       "",
       representation,
     );
+    await showBoardFilters(page);
     const filters = page.getByRole("navigation", {
       name: "Board filters",
       exact: true,
@@ -1425,18 +1470,19 @@ for (const representation of ["html", "json"] as const) {
       name: "Category",
       exact: true,
     });
-    const choice = categories.getByRole("link", {
+    const choice = categories.getByRole("button", {
       name: "Last 7 days 七日 — 音樂分類",
       exact: true,
     });
-    await expect(choice).toHaveAttribute("href", categoryURL);
+    await expect(choice).toBeEnabled();
     await expect(
       filters
         .getByRole("group", { name: "Other filters", exact: true })
-        .getByRole("link"),
-    ).toHaveAttribute("href", `${boardURL}&authorid=9`);
+        .getByRole("button"),
+    ).toHaveText("Newest threads 未知語義");
     await choice.focus();
     await page.keyboard.press("Enter");
+    await applyBoardFilters(page);
     await expect(
       page.getByRole("list", { name: "Effective criteria" }),
     ).toContainText("Category: Last 7 days 七日 — 音樂分類");
@@ -1460,7 +1506,8 @@ for (const representation of ["html", "json"] as const) {
     await revealNavigation(page);
     await clickThreadTool(page, "Back");
     await expect(page.getByText("Page 1", { exact: true })).toBeVisible();
-    await expect(choice).toHaveAttribute("href", categoryURL);
+    await showBoardFilters(page);
+    await expect(choice).toBeEnabled();
     expect(requests).toHaveLength(before);
     expect(requests.effectful).toEqual([]);
     await info.attach("grouped-filters.png", {
@@ -1576,19 +1623,21 @@ for (const appearance of [
     ).toHaveAttribute("href", `${directoryURL}?mod=forumdisplay&fid=7`);
     await expect(
       subordinate.getByText("Complete board description 7", { exact: true }),
-    ).toBeVisible();
+    ).toBeAttached();
     await expect(
       subordinate.getByText("25 threads", { exact: true }),
     ).toBeVisible();
+    await showBoardFilters(page);
     const choice = page
       .getByRole("group", { name: appearance.category, exact: true })
-      .getByRole("link", {
+      .getByRole("button", {
         name: `Listening notes ${longName.repeat(2)}`,
         exact: true,
       });
     await choice.focus();
     await expect(choice).toBeFocused();
     await page.keyboard.press("Enter");
+    await applyBoardFilters(page);
     await expect(
       page.getByRole("link", {
         name: "Autumn listening — page 1",
@@ -1612,10 +1661,59 @@ for (const appearance of [
     await page.locator(".results-pane").evaluate((node) => {
       node.scrollTop = 40;
     });
-    const retainedOffset = await page
-      .locator(".results-pane")
-      .evaluate((node) => node.scrollTop);
-    expect(retainedOffset).toBeGreaterThan(0);
+    // The previous raw40px assertion conflated a header offset with a visible
+    // row after reflow. Preserve that observation, then establish a real row.
+    await info.attach("legacy-offset-observation.json", {
+      body: JSON.stringify(
+        await page.locator(".results-pane").evaluate((pane) => ({
+          scrollTop: pane.scrollTop,
+          rowsInView: [
+            ...pane.querySelectorAll<HTMLElement>("[data-thread-id]"),
+          ]
+            .filter(
+              (row) =>
+                row.getClientRects().length &&
+                row.getBoundingClientRect().bottom >
+                  pane.getBoundingClientRect().top &&
+                row.getBoundingClientRect().top <
+                  pane.getBoundingClientRect().bottom,
+            )
+            .map((row) => row.dataset.threadId),
+        })),
+      ),
+      contentType: "application/json",
+    });
+    await page.locator(".results-pane").evaluate((pane) => {
+      const row = [
+        ...pane.querySelectorAll<HTMLElement>("[data-thread-id]"),
+      ].find((row) => row.getClientRects().length)!;
+      pane.scrollTop +=
+        row.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+    });
+    const visibleAnchor = () =>
+      page.locator(".results-pane").evaluate((pane) => {
+        const row = [
+          ...pane.querySelectorAll<HTMLElement>("[data-thread-id]"),
+        ].find(
+          (row) =>
+            row.getClientRects().length &&
+            row.getBoundingClientRect().bottom >
+              pane.getBoundingClientRect().top + 1,
+        )!;
+        return {
+          id: row.dataset.threadId,
+          offset:
+            row.getBoundingClientRect().top - pane.getBoundingClientRect().top,
+        };
+      });
+    // Let the browser deliver the user-visible scroll before resizing.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    const retainedAnchor = await visibleAnchor();
     const revealThreads = async () => {
       const collapsed = (page.viewportSize()?.width ?? 1280) < 768;
       await expect(page.locator(".workspace-body")).toHaveAttribute(
@@ -1632,29 +1730,40 @@ for (const appearance of [
         true,
       );
       await expect
-        .poll(() =>
-          page.locator(".results-pane").evaluate((node) => node.scrollTop),
+        .poll(async () => (await visibleAnchor()).id)
+        .toBe(retainedAnchor.id);
+      await expect
+        .poll(async () =>
+          Math.abs((await visibleAnchor()).offset - retainedAnchor.offset),
         )
-        .toBe(retainedOffset);
+        .toBeLessThanOrEqual(1);
     };
     await page.setViewportSize({
       width: appearance.width === 390 ? 1440 : 390,
       height: 900,
     });
     await revealThreads();
-    await expect(choice).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: /^(Board filters|版块筛选|版塊篩選) ·/,
+      }),
+    ).toBeVisible();
     await expect(
       subordinate.getByText("Complete board description 7", { exact: true }),
-    ).toBeVisible();
+    ).toBeAttached();
     await page.setViewportSize({
       width: appearance.width,
       height: appearance.height,
     });
     await revealThreads();
-    await expect(choice).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: /^(Board filters|版块筛选|版塊篩選) ·/,
+      }),
+    ).toBeVisible();
     await expect(
       subordinate.getByText("Complete board description 7", { exact: true }),
-    ).toBeVisible();
+    ).toBeAttached();
     await expect(page.locator(".workspace")).toHaveCount(1);
     await page.evaluate(
       () =>
@@ -1684,6 +1793,7 @@ test("UX54.nested-empty: unknown menus retain choices around known nested menus 
   const otherURL = `${boardURL}&digest=1`;
   const empty = `<div id="ct"><h1>Empty board</h1></div><div id="dhnav"><a href="${otherURL}">Mystery 精華</a><div id="filter_dateline_menu"><a href="${timeURL}">All threads 全部</a></div><a href="${boardURL}&authorid=9">Recent 未知</a></div><table id="threadlisttableid"><tr><td class="emp">No threads available</td></tr></table>`;
   const requests = await open(page, boardURL, () => empty);
+  await showBoardFilters(page);
   const filters = page.getByRole("navigation", {
     name: "Board filters",
     exact: true,
@@ -1695,15 +1805,16 @@ test("UX54.nested-empty: unknown menus retain choices around known nested menus 
   await expect(
     filters
       .getByRole("group", { name: "Other filters", exact: true })
-      .getByRole("link"),
+      .getByRole("button"),
   ).toHaveText(["Mystery 精華", "Recent 未知"]);
   await expect(
-    filters.getByRole("link", { name: "All threads 全部", exact: true }),
+    filters.getByRole("button", { name: "All threads 全部", exact: true }),
   ).toHaveCount(1);
   await filters
     .getByRole("group", { name: "Time", exact: true })
-    .getByRole("link")
+    .getByRole("button")
     .click();
+  await applyBoardFilters(page);
   await expect(
     page.getByRole("list", { name: "Effective criteria" }),
   ).toContainText("Time: All threads 全部");
@@ -1725,15 +1836,17 @@ for (const legacy of [true, false]) {
   }, info) => {
     const nativeScript = `const raw = sessionStorage.getItem('tsdm.workspace.recovery'); if (raw) { const record = JSON.parse(raw); for (const entry of Object.values(record.entries)) { if (entry.result?.kind === 'board') { ${legacy ? "delete entry.result.board.filterGroups" : "entry.result.board.filterGroups = [{kind: 'constructor', sourceId: 'bad', links: []}]"}; } } sessionStorage.setItem('tsdm.workspace.recovery', JSON.stringify(record)); }`;
     const requests = await open(page, boardURL, undefined, nativeScript);
+    await showBoardFilters(page);
     await expect(
       page.getByRole("group", { name: "Category", exact: true }),
     ).toBeVisible();
     await page.reload();
     if (legacy) {
+      await showBoardFilters(page);
       await expect(
         page
           .getByRole("group", { name: "Other filters", exact: true })
-          .getByRole("link"),
+          .getByRole("button"),
       ).toHaveText(["Listening notes", "Newest threads"]);
       await expect(
         page.getByRole("group", { name: "Category", exact: true }),
@@ -1764,11 +1877,13 @@ test("UX54.unrecognized-source-menu: unfamiliar returned menu choices remain ava
       `<div id="filter_nativeextra_menu"><a href="${unknownURL}">分類 Category Sort 排序</a></div><div id="thread_types">`,
     ),
   );
+  await showBoardFilters(page);
   const other = page.getByRole("group", { name: "Other filters", exact: true });
   await expect(
-    other.getByRole("link", { name: "分類 Category Sort 排序", exact: true }),
-  ).toHaveAttribute("href", unknownURL);
-  await other.getByRole("link").click();
+    other.getByRole("button", { name: "分類 Category Sort 排序", exact: true }),
+  ).toBeEnabled();
+  await other.getByRole("button").click();
+  await applyBoardFilters(page);
   await expect(
     page.getByRole("list", { name: "Effective criteria" }),
   ).toContainText("Sort: heats");
@@ -1781,6 +1896,7 @@ test("UX54.recovery-array-kind: coercible nonstring grouping metadata is rejecte
 }) => {
   const nativeScript = `const raw = sessionStorage.getItem('tsdm.workspace.recovery'); if (raw) { const record = JSON.parse(raw); for (const entry of Object.values(record.entries)) { if (entry.result?.kind === 'board') entry.result.board.filterGroups[0].kind = ['category']; } sessionStorage.setItem('tsdm.workspace.recovery', JSON.stringify(record)); }`;
   const requests = await open(page, boardURL, undefined, nativeScript);
+  await showBoardFilters(page);
   await expect(
     page.getByRole("group", { name: "Category", exact: true }),
   ).toBeVisible();
@@ -1806,6 +1922,7 @@ test("UX54.mixed-native-menu: More preserves actual order/time subgroup labels w
       menus,
     ),
   );
+  await showBoardFilters(page);
   const filters = page.getByRole("navigation", {
     name: "Board filters",
     exact: true,
@@ -1818,30 +1935,33 @@ test("UX54.mixed-native-menu: More preserves actual order/time subgroup labels w
   await expect(
     filters
       .getByRole("group", { name: "排序:", exact: true })
-      .getByRole("link"),
+      .getByRole("button"),
   ).toHaveText(["发帖时间", "回复数量"]);
   await expect(
     filters
       .getByRole("group", { name: "时间:", exact: true })
-      .getByRole("link"),
+      .getByRole("button"),
   ).toHaveText(["全部时间", "一周"]);
   await expect(
     filters
       .getByRole("group", { name: "Other filters", exact: true })
-      .getByRole("link"),
+      .getByRole("button"),
   ).toHaveText("Unlabelled native choice");
   await filters
     .getByRole("group", { name: "排序:", exact: true })
-    .getByRole("link", { name: "回复数量", exact: true })
+    .getByRole("button", { name: "回复数量", exact: true })
     .click();
+  await applyBoardFilters(page);
   await expect(
     page.getByRole("list", { name: "Effective criteria" }),
   ).toContainText("Sort:");
   expect(requests[1]).toContain("filter=reply&orderby=replies");
+  await showBoardFilters(page);
   await filters
     .getByRole("group", { name: "时间:", exact: true })
-    .getByRole("link", { name: "一周", exact: true })
+    .getByRole("button", { name: "一周", exact: true })
     .click();
+  await applyBoardFilters(page);
   await expect(
     page.getByRole("list", { name: "Effective criteria" }),
   ).toContainText("Time: 一周");
@@ -1870,6 +1990,7 @@ test("UX54.recovery-array-label: nonstring native group labels are rejected with
 }) => {
   const nativeScript = `const raw = sessionStorage.getItem('tsdm.workspace.recovery'); if (raw) { const record = JSON.parse(raw); for (const entry of Object.values(record.entries)) { if (entry.result?.kind === 'board') entry.result.board.filterGroups[0].sourceLabel = ['排序:']; } sessionStorage.setItem('tsdm.workspace.recovery', JSON.stringify(record)); }`;
   const requests = await open(page, boardURL, undefined, nativeScript);
+  await showBoardFilters(page);
   await expect(
     page.getByRole("group", { name: "Category", exact: true }),
   ).toBeVisible();

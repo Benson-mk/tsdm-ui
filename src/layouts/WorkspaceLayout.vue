@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ReplyRecoveryDialog from "../components/ReplyRecoveryDialog.vue";
 import type { ViewPosition } from "../workspace/navigation";
 import {
   computed,
@@ -18,7 +19,10 @@ import {
   DialogDescription,
 } from "reka-ui";
 import ColumnSeparator from "../components/ColumnSeparator.vue";
+import PostActions from "../components/PostActions.vue";
+import PostPermalink from "../components/PostPermalink.vue";
 import ThreadTools from "../components/ThreadTools.vue";
+import ThreadHistoryBoundary from "../components/ThreadHistoryBoundary.vue";
 import WorkspaceIcon from "../components/WorkspaceIcon.vue";
 import WorkspaceBrand from "../components/WorkspaceBrand.vue";
 import SearchView from "../components/SearchView.vue";
@@ -29,6 +33,7 @@ import { privateWritingText } from "../components/private-writing-text";
 import PrivateConversationView from "../components/PrivateConversationView.vue";
 import NoticesView from "../components/NoticesView.vue";
 import SourceWriting from "../components/SourceWriting.vue";
+import ReplySends from "../components/ReplySends.vue";
 import WritingDestination from "../components/WritingDestination.vue";
 import { editorText } from "../components/editor-strings";
 import ContentView from "../components/ContentView";
@@ -86,6 +91,7 @@ const newestReplyId = computed(() => {
       : posts[0]
   )?.id;
 });
+const postMenus = new Map<string, InstanceType<typeof PostActions>>();
 const boardsCollapsed = ref(false);
 const threadsCollapsed = ref(false);
 const paneWidth = ref(window.innerWidth);
@@ -103,7 +109,11 @@ const resultsVisible = computed(() =>
     ? !threadsCollapsed.value || !hasConversation.value
     : !hasConversation.value || narrowBrowsing.value,
 );
-const browseOnly = computed(() => !hasConversation.value);
+const browseOnly = computed(
+  () =>
+    !hasConversation.value &&
+    !(threadsDocked.value && state.value.result?.kind === "board"),
+);
 const conversationVisible = computed(
   () => !browseOnly.value && (threadsDocked.value || !resultsVisible.value),
 );
@@ -117,21 +127,70 @@ const contextTools = computed(() => boardContextTools.value);
 const boardsTrigger = ref<HTMLButtonElement | null>(null);
 const threadsTrigger = ref<HTMLButtonElement | null>(null);
 const paneScroll = new Map<HTMLElement, number>();
+const paneRows = new Map<
+  HTMLElement,
+  {
+    row: HTMLElement;
+    offset: number;
+    fallback?: { row: HTMLElement; offset: number };
+  }
+>();
 let drawerReturnFocus: HTMLButtonElement | null = null;
 function rememberPaneScroll() {
   for (const pane of workspaceHost().shadowRoot?.querySelectorAll<HTMLElement>(
     ".pane",
   ) ?? [])
-    if (pane.getClientRects().length) paneScroll.set(pane, pane.scrollTop);
+    if (pane.getClientRects().length) {
+      paneScroll.set(pane, pane.scrollTop);
+      const top = pane.getBoundingClientRect().top;
+      const row = pane.classList.contains("board-thread-list")
+        ? [...pane.querySelectorAll<HTMLElement>("[data-thread-id]")].find(
+            (row) => row.getBoundingClientRect().bottom > top + 1,
+          )
+        : undefined;
+      if (row)
+        paneRows.set(pane, {
+          row,
+          offset: row.getBoundingClientRect().top - top,
+        });
+      else paneRows.delete(pane);
+    }
 }
 function restorePaneScroll() {
   for (const [pane, top] of paneScroll) {
-    if (!pane.isConnected) paneScroll.delete(pane);
-    else if (
+    if (!pane.isConnected) {
+      paneScroll.delete(pane);
+      paneRows.delete(pane);
+    } else if (
       pane.getClientRects().length &&
       !pane.classList.contains("reading-pane")
-    )
+    ) {
       pane.scrollTop = top;
+      let anchor = paneRows.get(pane);
+      let promoted: PanePosition | undefined;
+      if (
+        anchor?.fallback?.row.isConnected &&
+        anchor.row.getBoundingClientRect().height + anchor.offset <= 1
+      ) {
+        // A heavily clipped row may shrink entirely above the viewport. Keep
+        // the previously complete row in place instead of saving an invisible
+        // anchor and drifting on the return resize.
+        anchor = anchor.fallback;
+        paneRows.set(pane, anchor);
+        promoted = viewportPositions.find((position) => position.pane === pane);
+        if (promoted) {
+          promoted.anchor = anchor.row;
+          promoted.offset = anchor.offset + promoted.paneTop;
+          delete promoted.fallback;
+        }
+      }
+      if (anchor?.row.isConnected && pane.contains(anchor.row))
+        pane.scrollTop +=
+          anchor.row.getBoundingClientRect().top -
+          pane.getBoundingClientRect().top -
+          anchor.offset;
+      if (promoted) promoted.scrollTop = pane.scrollTop;
+    }
   }
 }
 function changeDrawer(next: DrawerPane | null) {
@@ -420,6 +479,7 @@ function chooseSection(event: Event) {
     selectSection(event.target.value as Section);
 }
 type PanePosition = {
+  fallback?: { anchor: HTMLElement; offset: number };
   range?: Range | undefined;
   pane: HTMLElement;
   anchor: HTMLElement;
@@ -524,11 +584,36 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
       // rendered body as the fallback anchor rather than losing div/text-only
       // content when the reader is temporarily hidden.
       [...pane.querySelectorAll<HTMLElement>(".post-content")].find(visible);
+    const completeRow = pane.classList.contains("board-thread-list")
+      ? [...pane.querySelectorAll<HTMLElement>("[data-thread-id]")].find(
+          (row) => {
+            const rect = row.getBoundingClientRect();
+            return (
+              rect.height > 0 &&
+              rect.top >= bounds.top &&
+              rect.bottom <= bounds.bottom
+            );
+          },
+        )
+      : undefined;
     return anchor
       ? [
           {
             pane,
             anchor,
+            ...(anchor.classList.contains("thread-row") &&
+            completeRow &&
+            completeRow !== anchor
+              ? {
+                  fallback: {
+                    anchor: completeRow,
+                    offset:
+                      completeRow.getBoundingClientRect().top -
+                      bounds.top +
+                      (previous?.paneTop ?? bounds.top),
+                  },
+                }
+              : {}),
             range,
             offset:
               previous?.offset ?? (range ?? anchor).getBoundingClientRect().top,
@@ -578,6 +663,7 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
     ).getBoundingClientRect();
     const anchorTop = anchorRect.top;
     let target = offset + (relativeToPane ? bounds.top - paneTop : 0);
+    let bottomLimit: number | undefined;
     if (
       range?.startContainer.isConnected &&
       pane.classList.contains("reading-pane")
@@ -587,6 +673,7 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
         .getBoundingClientRect();
       const top = Math.max(0, bounds.top, outer.top);
       const bottom = Math.min(window.innerHeight, bounds.bottom, outer.bottom);
+      bottomLimit = bottom;
       // Keep the screen coordinate only while the complete glyph still fits.
       // Growing headings can cover that coordinate; preserve the original
       // reader-relative offset instead, bounded by the actual visible region.
@@ -597,8 +684,72 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
         );
     }
     pane.scrollTop += anchorTop - target;
+    // Integer scrollTop rounding must not clip the final fraction of a glyph
+    // when a shorter reader places it against the bottom edge.
+    if (bottomLimit !== undefined && range?.startContainer.isConnected) {
+      const clipped = range.getBoundingClientRect().bottom - bottomLimit;
+      if (clipped > 0 && clipped < 1) pane.scrollTop += Math.ceil(clipped);
+    }
   }
 }
+function closeCheckDetails(event: KeyboardEvent) {
+  const details = event.currentTarget as HTMLDetailsElement;
+  details.open = false;
+  details.querySelector("summary")?.focus({ preventScroll: true });
+}
+
+// Status changes may reflow content above the viewport. Keep a mid-scroll
+// anchor, but leave the top at zero so new status is discoverable there.
+watch(
+  () => [
+    boardChecks.value.checking,
+    boardChecks.value.failure,
+    boardChecks.value.arrivals.length,
+    props.workspace.boardChecks.canCheck(),
+    history.value.checking,
+    history.value.refreshFailure,
+    history.value.arrivals.length,
+    history.value.earlier.status,
+    history.value.later.status,
+  ],
+  () => {
+    const revision = readingRestoreRevision;
+    const context = state.value.key;
+    const title = titlePosition;
+    const positions = capturePositions().filter(
+      ({ pane, scrollTop }) =>
+        (pane.classList.contains("board-thread-list") ||
+          pane.classList.contains("reading-pane")) &&
+        scrollTop > 0,
+    );
+    void nextTick().then(() => {
+      // Workspace restoration/follow owns a changed result or navigation.
+      if (revision !== readingRestoreRevision || context !== state.value.key)
+        return;
+      const displaced = positions.filter(
+        ({ anchor, range, offset }) =>
+          anchor.isConnected &&
+          Math.abs(
+            (range?.startContainer.isConnected
+              ? range
+              : anchor
+            ).getBoundingClientRect().top - offset,
+          ) > 0.5,
+      );
+      if (displaced.length) {
+        const retainTitle =
+          title &&
+          title === titlePosition &&
+          title.scroll === title.pane.scrollTop;
+        restorePositions(displaced);
+        // Compaction records the original user scroll intent. A status-only
+        // compensation must not reclassify its distance from the newest post.
+        if (retainTitle) title.scroll = title.pane.scrollTop;
+      }
+    });
+  },
+);
+
 function resize() {
   const viewport = window.visualViewport;
   const magnified =
@@ -635,6 +786,23 @@ function resize() {
   const revision = readingRestoreRevision;
   appearanceAnchors = [];
   rememberPaneScroll();
+  // Carry the pre-reflow row through a responsive hide/show as well as a
+  // visible resize. The fallback is considered only if that row disappears.
+  for (const position of positions) {
+    if (position.pane.classList.contains("board-thread-list"))
+      paneRows.set(position.pane, {
+        row: position.anchor,
+        offset: position.offset - position.paneTop,
+        ...(position.fallback
+          ? {
+              fallback: {
+                row: position.fallback.anchor,
+                offset: position.fallback.offset - position.paneTop,
+              },
+            }
+          : {}),
+      });
+  }
   paneWidth.value = window.innerWidth;
   if (
     drawer.value &&
@@ -644,12 +812,19 @@ function resize() {
   void nextTick().then(() => {
     // A later history restoration owns the reader; stale resize work must not
     // replace its position with the newly mounted reader's pre-restore line.
+    restorePaneScroll();
     if (revision === readingRestoreRevision)
+      // The browser has already reflowed CSS when resize fires. Its fresh pane
+      // measurement cannot recover the old row offset; use the last observed
+      // visible board anchor, just as the reader uses its pre-resize position.
       restorePositions(
-        positions.filter(({ pane }) => pane.classList.contains("reading-pane")),
+        positions.filter(
+          ({ pane }) =>
+            pane.classList.contains("reading-pane") ||
+            pane.classList.contains("board-thread-list"),
+        ),
         true,
       );
-    restorePaneScroll();
     // A restored scroll event must keep the exact character across successive
     // widths. Recapturing the start of its newly wrapped line drifts on return.
     viewportPositions = positions.map((position) => ({
@@ -785,7 +960,10 @@ const threadsResizable = computed(
 );
 const columnBounds = computed(() => {
   const writingMinimum =
-    writing.value.visible && writingExpanded.value && paneWidth.value >= 1440
+    !["reply", "quick-quote"].includes(writing.value.context?.action ?? "") &&
+    writing.value.visible &&
+    writingExpanded.value &&
+    paneWidth.value >= 1440
       ? 280
       : 0;
   const remainingMinimum = conversationVisible.value
@@ -866,6 +1044,7 @@ function resetColumns() {
 }
 const writingWide = computed(
   () =>
+    !["reply", "quick-quote"].includes(writing.value.context?.action ?? "") &&
     writing.value.visible &&
     writingExpanded.value &&
     paneWidth.value >= 1440 &&
@@ -968,6 +1147,16 @@ const boardContext = computed(() =>
         ? state.value.origin.board
         : null,
 );
+const pinsExpanded = ref(false);
+const pinnedRows = computed(
+  () => boardContext.value?.threads.filter((row) => row.pinned) ?? [],
+);
+watch(
+  () => boardContext.value?.url,
+  () => {
+    pinsExpanded.value = false;
+  },
+);
 const boardFilterGroups = computed(() => {
   const board = boardContext.value;
   if (!board) return [];
@@ -986,6 +1175,9 @@ const boardFilterGroups = computed(() => {
     ...group,
     label:
       group.sourceLabel ||
+      (group.sourceId === "filter_reward_menu"
+        ? text.value.filterReward
+        : undefined) ||
       {
         category: text.value.filterCategory,
         order: text.value.filterOrder,
@@ -995,6 +1187,53 @@ const boardFilterGroups = computed(() => {
       }[group.kind],
   }));
 });
+const filtersOpen = ref(false);
+const filterTrigger = ref<HTMLButtonElement | null>(null);
+const pendingFilterURL = ref<string | null>(null);
+const pendingFilterName = ref("");
+function chooseFilter(url: string, name: string) {
+  pendingFilterURL.value = url;
+  pendingFilterName.value = name;
+}
+const pendingFilter = computed(() =>
+  boardContext.value?.filterChoices?.find(
+    (choice) => choice.url === pendingFilterURL.value,
+  ),
+);
+function openFilters() {
+  pendingFilterURL.value = null;
+  pendingFilterName.value = "";
+  filtersOpen.value = true;
+}
+function returnFilterFocus() {
+  const target = filterTrigger.value?.getClientRects().length
+    ? filterTrigger.value
+    : threadsTrigger.value;
+  target?.focus({ preventScroll: true });
+}
+function filterEscape(event: KeyboardEvent) {
+  if (event.defaultPrevented) return;
+  // Handle within the shadow dialog before the native body's Escape veto.
+  event.preventDefault();
+  event.stopPropagation();
+  if (event.isComposing || event.keyCode === 229 || writing.value.composing)
+    return;
+  filtersOpen.value = false;
+}
+async function applyFilter() {
+  const choice = pendingFilter.value;
+  if (!choice) return;
+  filtersOpen.value = false;
+  await props.workspace.openThread(choice.url);
+  await nextTick();
+  returnFilterFocus();
+}
+watch(
+  () => boardContext.value?.url,
+  () => {
+    filtersOpen.value = false;
+  },
+);
 const searchContext = computed(() =>
   state.value.section !== "search"
     ? null
@@ -1678,6 +1917,9 @@ onMounted(() => {
         root.shadowRoot?.querySelector<HTMLElement>(
           ".results-pane, .messages-pane",
         )?.scrollTop ?? 0,
+      ...(container?.classList.contains("board-thread-list")
+        ? { resultsPaneTop: container.getBoundingClientRect().top }
+        : {}),
     };
     if (container === reader && reader && reading.value) {
       const range = visibleReadingRange(reader);
@@ -1859,8 +2101,30 @@ onMounted(() => {
       }
     },
     capture: () => capturePane(pane()),
-    captureReading: () =>
-      capturePane(root.shadowRoot?.querySelector<HTMLElement>(".reading-pane")),
+    captureReading: () => {
+      const position = capturePane(
+        root.shadowRoot?.querySelector<HTMLElement>(".reading-pane"),
+      );
+      // At the top a check exposes its status. Preserve zero instead of
+      // anchoring the first post below a changing status row; history loads
+      // still retain their post anchor when prepending earlier content.
+      if (history.value.checking) {
+        if (position.scrollTop === 0) position.anchor = null;
+        else {
+          // A pinned opener's trailing box may still intersect the viewport
+          // while the reader is actually on a later post. Anchor that text's
+          // post before new replies can be inserted between the two.
+          const character = readingCharacters.get(position);
+          const post =
+            character && root.shadowRoot?.getElementById(character.post);
+          if (post) {
+            position.anchor = post.id;
+            position.offset = post.getBoundingClientRect().top;
+          }
+        }
+      }
+      return position;
+    },
     restoreReading(position) {
       suppressAutomaticHistory();
       stopReadingImageRestore?.();
@@ -1910,7 +2174,13 @@ onMounted(() => {
       )
         container.scrollTop +=
           node.getBoundingClientRect().top -
-          (position.offset + (container === reader ? viewportShift : 0));
+          (position.offset +
+            (container === reader
+              ? viewportShift
+              : position.resultsPaneTop !== undefined
+                ? container.getBoundingClientRect().top -
+                  position.resultsPaneTop
+                : 0));
       if (node && target && (!position || position.readingScrollTop === 0))
         node.scrollIntoView({ block: "start" });
       if (
@@ -1932,8 +2202,11 @@ onMounted(() => {
             ?.getElementById(`row-${selection}`)
             ?.querySelector<HTMLElement>(".subject"))
         : null;
+      const focusTarget = container?.classList.contains("board-thread-list")
+        ? (selected ?? node?.querySelector<HTMLElement>(".subject"))
+        : (node ?? selected);
       if (!writing.value.visible && !writing.value.composing)
-        (node ?? selected)?.focus({ preventScroll: true });
+        focusTarget?.focus({ preventScroll: true });
       if (container && node)
         followPendingReadingImages(
           container,
@@ -1996,6 +2269,100 @@ function boardIdFrom(url: string) {
 </script>
 <template>
   <div class="workspace" @click="navigate">
+    <DialogRoot :open="filtersOpen" @update:open="filtersOpen = $event">
+      <DialogPortal :to="portal">
+        <DialogOverlay class="dialog-overlay" />
+        <DialogContent
+          class="dialog-content board-filter-dialog"
+          @keydown.esc="filterEscape"
+          @close-auto-focus.prevent="returnFilterFocus"
+        >
+          <DialogTitle>{{ text.boardFilters }}</DialogTitle>
+          <DialogDescription>{{ text.filterHelp }}</DialogDescription>
+          <nav class="board-filters" :aria-label="text.boardFilters">
+            <div
+              v-for="(group, index) in boardFilterGroups"
+              :key="`${group.sourceId}:${index}`"
+              role="group"
+              :aria-label="group.label"
+              class="board-filter-group"
+            >
+              <h2>{{ group.label }}</h2>
+              <div class="board-filter-links">
+                <button
+                  v-for="filter in group.links"
+                  :key="filter.url"
+                  :aria-pressed="pendingFilterURL === filter.url"
+                  :disabled="
+                    !boardContext?.filterChoices?.some(
+                      (choice) => choice.url === filter.url,
+                    )
+                  "
+                  :data-category="
+                    group.kind === 'category' ? listCategory.role : undefined
+                  "
+                  @click="
+                    chooseFilter(filter.url, `${group.label} · ${filter.label}`)
+                  "
+                >
+                  {{ filter.label }}
+                </button>
+              </div>
+            </div>
+          </nav>
+
+          <p v-if="!boardContext?.filterChoices" role="status">
+            {{ text.filterUnavailable }}
+          </p>
+          <div v-if="pendingFilter" aria-live="polite" class="filter-preview">
+            <p>
+              <strong>{{ pendingFilterName }}</strong>
+            </p>
+            <p>{{ text.filterNext }}</p>
+            <ul class="filter-proposed">
+              <li
+                v-for="criterion in pendingFilter.criteria"
+                :key="criterion.label"
+              >
+                {{ criterion.label }}
+              </li>
+              <li v-if="!pendingFilter.criteria.length">
+                {{ text.filterAll }}
+              </li>
+            </ul>
+            <template v-if="pendingFilter.removed.length"
+              ><p>{{ text.filterReplaces }}</p>
+              <ul class="filter-removed">
+                <li
+                  v-for="criterion in pendingFilter.removed"
+                  :key="criterion.label"
+                >
+                  {{ criterion.label }}
+                </li>
+              </ul></template
+            >
+          </div>
+          <div class="filter-dialog-actions">
+            <button
+              :disabled="!boardContext?.clearFilter"
+              @click="
+                boardContext?.clearFilter &&
+                chooseFilter(boardContext.clearFilter.url, text.filterClear)
+              "
+            >
+              {{ text.filterClear }}
+            </button>
+            <button @click="filtersOpen = false">
+              {{ text.filterCancel }}
+            </button>
+            <button :disabled="!pendingFilter" @click="applyFilter">
+              {{ text.filterApply }}
+            </button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+
     <DialogRoot
       :open="workspace.pendingThread.value !== null"
       @update:open="
@@ -2107,6 +2474,7 @@ function boardIdFrom(url: string) {
             text.threadsPane
           }}</span>
         </button>
+        <ReplyRecoveryDialog :workspace="workspace" :portal="portal" />
         <a
           class="header-action"
           :aria-label="text.native"
@@ -2305,7 +2673,35 @@ function boardIdFrom(url: string) {
       <p v-if="state.recoveryProblem?.kind === 'refused'" role="alert">
         {{ text.readRecoveryRefused }}
       </p>
-      <p v-if="state.recoveryAvailable === false" class="recovery-note">
+      <section
+        v-if="state.replyRecovery?.problem"
+        :aria-label="text.localReplyAttention"
+        role="region"
+      >
+        <p role="alert">
+          {{
+            state.replyRecovery.problem.kind === "incompatible"
+              ? text.localReplyIncompatible
+              : text.localReplyUnsaved
+          }}
+        </p>
+        <details v-if="state.replyRecovery.problem.raw !== null">
+          <summary>{{ text.localReplyInspect }}</summary>
+          <textarea
+            readonly
+            :aria-label="text.localReplyRaw"
+            :value="state.replyRecovery.problem.raw"
+            rows="8"
+          />
+        </details>
+      </section>
+      <p
+        v-if="
+          state.recoveryAvailable === false &&
+          state.replyRecovery?.sessionAvailable !== true
+        "
+        class="recovery-note"
+      >
         {{ text.recoveryUnavailable }}
       </p>
       <section v-if="state.missing" role="alert">
@@ -2908,7 +3304,10 @@ function boardIdFrom(url: string) {
         "
         id="thread-list-pane"
         class="results-pane pane"
-        :class="{ 'secondary-results': state.result?.kind === 'thread' }"
+        :class="{
+          'secondary-results': state.result?.kind === 'thread',
+          'board-thread-list': true,
+        }"
         data-scroll-pane="results"
         :aria-label="text.threadResults"
       >
@@ -2919,7 +3318,12 @@ function boardIdFrom(url: string) {
           >{{ listCategory.label }}</span
         >
         <div class="board-heading">
-          <h1>{{ boardContext.title }}</h1>
+          <div>
+            <h1>{{ boardContext.title }}</h1>
+            <p v-if="boardContext.statistics" class="board-statistics">
+              {{ boardContext.statistics }}
+            </p>
+          </div>
           <button
             class="icon-button"
             :aria-label="text.checkNewThreads"
@@ -2934,7 +3338,16 @@ function boardIdFrom(url: string) {
             <WorkspaceIcon name="refresh" />
           </button>
         </div>
-        <div class="board-check-status" aria-live="polite">
+        <div
+          v-if="
+            boardChecks.checking ||
+            boardChecks.failure ||
+            boardChecks.arrivals.length ||
+            !workspace.boardChecks.canCheck()
+          "
+          class="board-check-status"
+          aria-live="polite"
+        >
           <span>{{
             boardChecks.checking
               ? text.boardChecking
@@ -2942,15 +3355,20 @@ function boardIdFrom(url: string) {
                 ? text.boardCheckFailed
                 : !workspace.boardChecks.canCheck()
                   ? text.boardCheckUnavailable
-                  : boardChecks.baseline
-                    ? text.boardBaseline
-                    : boardChecks.automatic && boardChecks.paused
-                      ? text.refreshPaused
-                      : boardChecks.checkedAt
-                        ? text.boardChecked
-                        : text.boardCheckHelp
+                  : ""
           }}</span>
           <div class="board-check-actions">
+            <button
+              v-if="boardChecks.failure"
+              :disabled="
+                boardChecks.checking ||
+                boardChecks.retryMinutes > 0 ||
+                !workspace.boardChecks.canCheck()
+              "
+              @click="workspace.boardChecks.check()"
+            >
+              {{ text.retryCheck }}
+            </button>
             <button
               v-if="boardChecks.arrivals.length"
               @click="workspace.boardChecks.reveal()"
@@ -2967,10 +3385,9 @@ function boardIdFrom(url: string) {
               }}
             </button>
             <details
+              v-if="boardChecks.failure"
               class="board-check-details"
-              :style="{
-                visibility: boardChecks.failure ? 'visible' : 'hidden',
-              }"
+              @keydown.esc.stop="closeCheckDetails"
             >
               <summary
                 :aria-label="text.checkDetails"
@@ -3011,46 +3428,60 @@ function boardIdFrom(url: string) {
             >
           </div>
         </section>
-        <nav
-          v-if="boardFilterGroups.length"
-          class="board-filters"
-          :aria-label="text.boardFilters"
-        >
-          <div
-            v-for="(group, index) in boardFilterGroups"
-            :key="`${group.sourceId}:${index}`"
-            role="group"
-            :aria-label="group.label"
-            class="board-filter-group"
+        <div class="board-list-controls">
+          <button
+            ref="filterTrigger"
+            class="filter-trigger"
+            :aria-label="`${text.boardFilters} · ${boardContext.criteria.length}`"
+            :title="`${text.boardFilters} · ${boardContext.criteria.length}`"
+            :aria-expanded="filtersOpen"
+            @click="openFilters"
           >
-            <h2>{{ group.label }}</h2>
-            <div class="board-filter-links">
-              <a
-                v-for="filter in group.links"
-                :key="filter.url"
-                :href="filter.url"
-                :data-category="
-                  group.kind === 'category' ? listCategory.role : undefined
-                "
-                >{{ filter.label }}</a
-              >
-            </div>
-          </div>
-        </nav>
-        <ul :aria-label="text.criteria">
+            <WorkspaceIcon name="filter" />
+            <span aria-hidden="true">{{ boardContext.criteria.length }}</span>
+          </button>
+          <span
+            class="board-page-indicator"
+            role="img"
+            :aria-label="`${text.page} ${boardContext.pages.current}`"
+            :title="`${text.page} ${boardContext.pages.current}`"
+          >
+            <WorkspaceIcon name="page" />
+            <span aria-hidden="true">{{ boardContext.pages.current }}</span>
+          </span>
+          <button
+            v-if="pinnedRows.length"
+            class="pin-disclosure"
+            :aria-label="`${text.pinnedThreads} · ${pinnedRows.length}`"
+            :title="`${text.pinnedThreads} · ${pinnedRows.length}`"
+            :aria-expanded="pinsExpanded"
+            :aria-controls="
+              pinnedRows.map((row) => `row-${row.rowId}`).join(' ')
+            "
+            @click="pinsExpanded = !pinsExpanded"
+          >
+            <WorkspaceIcon name="pin" />
+            <span aria-hidden="true">{{ pinnedRows.length }}</span>
+          </button>
+        </div>
+        <ul v-if="boardContext.criteria.length" :aria-label="text.criteria">
           <li v-for="criterion in boardContext.criteria" :key="criterion.label">
             {{ criterion.label }}
           </li>
         </ul>
-        <p>{{ text.page }} {{ boardContext.pages.current }}</p>
         <div
           v-for="row in boardContext.threads"
+          v-show="!row.pinned || pinsExpanded"
           :id="`row-${row.rowId}`"
           :key="row.rowId"
           class="thread-row"
           :data-thread-id="row.id"
         >
-          <span v-if="row.pinned">{{ text.pinned }}</span
+          <span
+            v-if="workspace.writing.localReplyThreads.value.includes(row.id)"
+            class="local-reply-indicator"
+            >{{ text.localReplyDraft }}</span
+          ><span v-if="row.pinned">{{ text.pinned }}</span
           ><span v-if="row.moved">{{ text.moved }}</span
           ><span>{{ row.category }}</span
           ><a
@@ -3067,9 +3498,14 @@ function boardIdFrom(url: string) {
           ><span
             >{{ row.replies }} {{ text.replies }} · {{ row.views }}
             {{ text.views }}</span
-          ><a v-if="row.lastPost" :href="row.lastPost.url">{{
-            insert(text.lastReply, row.label)
-          }}</a>
+          ><component
+            :is="row.lastPost ? 'a' : 'span'"
+            :href="row.lastPost?.url"
+            class="latest-reply"
+            >{{ text.lastReply }}:
+            {{ row.latestReply?.author || text.latestAuthorUnavailable }} ·
+            {{ row.latestReply?.time || text.latestTimeUnavailable }}</component
+          >
         </div>
         <p v-if="!boardContext.threads.length">{{ boardContext.empty }}</p>
         <nav :aria-label="text.boardPages">
@@ -3097,7 +3533,13 @@ function boardIdFrom(url: string) {
         v-show="conversationVisible"
         ref="conversationRegion"
         class="conversation-region"
-        :class="{ 'writing-wide': writingWide }"
+        :class="{
+          'writing-wide': writingWide,
+          'reply-editing-expanded':
+            writing.visible &&
+            writingExpanded &&
+            ['reply', 'quick-quote'].includes(writing.context?.action ?? ''),
+        }"
         :data-writing-visible="!!writing.context && writing.visible"
       >
         <section
@@ -3111,6 +3553,16 @@ function boardIdFrom(url: string) {
                 : text.chooseThread
             }}
           </p>
+          <ReplySends
+            v-if="
+              writing.context &&
+              ['reply', 'quick-quote'].includes(writing.context.action) &&
+              writing.context.replyTarget
+            "
+            :workspace="workspace"
+            :thread-id="writing.context.replyTarget.threadId"
+            :portal="portal"
+          />
         </section>
         <section
           v-if="pendingPrivate"
@@ -3213,7 +3665,25 @@ function boardIdFrom(url: string) {
           >
             {{ notice }}
           </p>
+        </div>
+        <section
+          v-if="reading"
+          class="reading-pane pane"
+          data-scroll-pane="reading"
+          :aria-label="text.threadReading"
+          @scroll.passive="readingScroll"
+        >
           <div
+            class="thread-heading-spacer"
+            aria-hidden="true"
+            :style="{ height: titleSpace + 'px' }"
+          />
+          <div
+            v-if="
+              history.checking ||
+              history.refreshFailure ||
+              history.arrivals.length
+            "
             class="history-controls public-history-controls"
             :aria-label="text.threadHistory"
           >
@@ -3226,16 +3696,21 @@ function boardIdFrom(url: string) {
                       ? history.retryMinutes
                         ? insert(text.checkCooldown, history.retryMinutes)
                         : text.checkFailed
-                      : history.automatic
-                        ? history.paused
-                          ? text.refreshPaused
-                          : text.refreshEnabled
-                        : history.baselineEstablished
-                          ? text.newestBaseline
-                          : text.refreshManual
+                      : ""
                 }}
               </p>
               <div class="public-check-actions">
+                <button
+                  v-if="history.refreshFailure"
+                  :disabled="
+                    history.checking ||
+                    history.retryMinutes > 0 ||
+                    !workspace.threadHistory.canCheck()
+                  "
+                  @click="workspace.threadHistory.checkNewest()"
+                >
+                  {{ text.retryCheck }}
+                </button>
                 <button
                   v-if="history.arrivals.length"
                   @click="workspace.threadHistory.revealArrivals()"
@@ -3247,6 +3722,7 @@ function boardIdFrom(url: string) {
                     history.refreshFailure &&
                     'message' in history.refreshFailure
                   "
+                  @keydown.esc.stop="closeCheckDetails"
                 >
                   <summary
                     :aria-label="text.checkDetails"
@@ -3266,116 +3742,18 @@ function boardIdFrom(url: string) {
                 </details>
               </div>
             </div>
-            <span class="public-check-time">
-              <time
-                v-if="history.checkedAt"
-                tabindex="0"
-                :datetime="new Date(history.checkedAt).toISOString()"
-                :title="
-                  new Date(history.checkedAt).toLocaleString(
-                    workspace.preferences.state.value.language,
-                  )
-                "
-                :aria-label="
-                  insert(
-                    text.lastSuccessfulCheck,
-                    new Date(history.checkedAt).toLocaleString(
-                      workspace.preferences.state.value.language,
-                    ),
-                  )
-                "
-              >
-                {{
-                  insert(
-                    text.lastSuccessfulCheck,
-                    new Date(history.checkedAt).toLocaleString(
-                      workspace.preferences.state.value.language,
-                      {
-                        month: "numeric",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      },
-                    ),
-                  )
-                }}
-              </time>
-            </span>
-            <div
-              class="public-history-boundaries"
-              :data-reserve="`${text.historyEarlierUnknown}   ${text.historyLaterUnknown}`"
-            >
-              <div class="public-history-boundary-content">
-                <template
-                  v-for="direction in ['earlier', 'later'] as const"
-                  :key="direction"
-                >
-                  <span
-                    v-if="history[direction].status === 'loading'"
-                    role="status"
-                    >{{ text.historyLoading }}</span
-                  >
-                  <button
-                    v-if="
-                      history[direction].url &&
-                      history[direction].status === 'failed'
-                    "
-                    :disabled="
-                      history.checking ||
-                      history.earlier.status === 'loading' ||
-                      history.later.status === 'loading'
-                    "
-                    @click="workspace.threadHistory.load(direction)"
-                  >
-                    {{
-                      direction === "earlier"
-                        ? text.retryEarlier
-                        : text.retryLater
-                    }}
-                  </button>
-                  <span v-else-if="!history[direction].url">{{
-                    history[direction].status === "end"
-                      ? direction === "earlier"
-                        ? text.historyBeginning
-                        : text.historyEnd
-                      : direction === "earlier"
-                        ? text.historyEarlierUnknown
-                        : text.historyLaterUnknown
-                  }}</span>
-                </template>
-                <p
-                  v-for="direction in ['earlier', 'later'] as const"
-                  v-show="history[direction].failure"
-                  :key="`failure-${direction}`"
-                  role="status"
-                >
-                  {{
-                    history[direction].failure &&
-                    "message" in history[direction].failure
-                      ? description(
-                          history[direction].failure.message,
-                          workspace.preferences.state.value.language,
-                        )
-                      : ""
-                  }}
-                </p>
-              </div>
-            </div>
           </div>
-        </div>
-        <section
-          v-if="reading"
-          class="reading-pane pane"
-          data-scroll-pane="reading"
-          :aria-label="text.threadReading"
-          @scroll.passive="readingScroll"
-        >
-          <div
-            class="thread-heading-spacer"
-            aria-hidden="true"
-            :style="{ height: titleSpace + 'px' }"
+          <ThreadHistoryBoundary
+            v-if="!reverseReading"
+            :workspace="workspace"
+            direction="earlier"
           />
           <template v-for="post in visiblePosts" :key="post.id">
+            <ThreadHistoryBoundary
+              v-if="reverseReading && post.id === newestReplyId"
+              :workspace="workspace"
+              direction="later"
+            />
             <button
               v-if="
                 reverseReading &&
@@ -3397,6 +3775,8 @@ function boardIdFrom(url: string) {
               :aria-label="`${text.post} ${post.id}`"
               :data-targeted="reading.thread.target === post.id"
               tabindex="-1"
+              @contextmenu="postMenus.get(post.id)?.openMenu($event)"
+              @dblclick="postMenus.get(post.id)?.emptyDoubleClick($event)"
             >
               <header class="post-header">
                 <span
@@ -3414,9 +3794,35 @@ function boardIdFrom(url: string) {
                     >
                   </div>
                 </div>
-                <a class="post-number" :href="post.url"
-                  >{{ text.post }} {{ post.id }}</a
-                >
+                <PostPermalink
+                  :workspace="workspace"
+                  :portal="portal"
+                  :post-id="post.id"
+                  :url="post.url"
+                  :thread-id="reading.thread.id"
+                  :thread-url="reading.thread.url"
+                />
+                <PostActions
+                  :ref="
+                    (value) => {
+                      if (value)
+                        postMenus.set(
+                          post.id,
+                          value as InstanceType<typeof PostActions>,
+                        );
+                      else postMenus.delete(post.id);
+                    }
+                  "
+                  :workspace="workspace"
+                  :portal="portal"
+                  :post="post"
+                  :thread-id="reading.thread.id"
+                  :board-id="
+                    reading.thread.parent
+                      ? boardIdFrom(reading.thread.parent.url)
+                      : null
+                  "
+                />
               </header>
               <ContentView
                 :nodes="post.content"
@@ -3519,6 +3925,15 @@ function boardIdFrom(url: string) {
               </ul>
             </article>
           </template>
+          <ThreadHistoryBoundary
+            :workspace="workspace"
+            :direction="reverseReading ? 'earlier' : 'later'"
+          />
+          <ReplySends
+            :workspace="workspace"
+            :thread-id="reading.thread.id"
+            :portal="portal"
+          />
           <button
             v-if="!reverseReading && history.later.status === 'end'"
             class="newest-check"
@@ -3638,16 +4053,18 @@ function boardIdFrom(url: string) {
             >
               <p v-if="!writing.accountVerified" role="alert">
                 {{
-                  insert(
-                    writing.accountObservation.kind === "guest"
-                      ? text.writingSignedOut
-                      : writing.accountObservation.kind === "member" &&
-                          writing.accountObservation.id !==
-                            writing.context.account.id
-                        ? text.writingAccountChanged
-                        : text.writingPaused,
-                    writing.context.account.name,
-                  )
+                  workspace.writing.currentActor.value
+                    ? text.sharedReplyPaused
+                    : insert(
+                        writing.accountObservation.kind === "guest"
+                          ? text.writingSignedOut
+                          : writing.accountObservation.kind === "member" &&
+                              writing.accountObservation.id !==
+                                writing.context.account.id
+                            ? text.writingAccountChanged
+                            : text.writingPaused,
+                        writing.context.account.name,
+                      )
                 }}
               </p>
               <p v-if="writing.recoveryAvailable === false" role="alert">
@@ -3741,6 +4158,7 @@ function boardIdFrom(url: string) {
           v-show="writing.visible"
           :key="writing.context.id"
           :workspace="workspace"
+          :portal="portal"
           :expanded="writingExpanded"
           :elsewhere="writingElsewhere"
           :category="writingCategory"
@@ -3757,6 +4175,7 @@ function boardIdFrom(url: string) {
       <div class="resume-destination">
         <WritingDestination
           :writing="writing.context"
+          :current-actor="workspace.writing.currentActor.value"
           :language="workspace.preferences.state.value.language"
           :category="writingCategory"
           compact

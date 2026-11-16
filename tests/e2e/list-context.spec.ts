@@ -1,3 +1,5 @@
+import { selectSourceEditor } from "./editor-controls";
+import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -182,7 +184,7 @@ test("J67.direct-entry: saved list fills browsing without inventing a conversati
   }
 });
 
-test("J67.review-entry: retained public writing opens immutable review from a different list without sending or changing destination", async ({
+test("J67.review-entry: retained public writing opens optional Preview from a different list without sending or changing destination", async ({
   page,
 }, info) => {
   const state = await fixture(page);
@@ -190,19 +192,20 @@ test("J67.review-entry: retained public writing opens immutable review from a di
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page
-      .getByLabel("Complete source", { exact: true })
-      .fill("Review retained source 中文");
+    await (await selectSourceEditor(page)).fill("Review retained source 中文");
     await select(page, "Saved");
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
-    const review = page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    });
-    await expect(review).toBeVisible();
-    await expect(review).toContainText("9");
+    await revealWritingTools(page);
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    await expect(
+      page.getByRole("region", { name: "Preview", exact: true }),
+    ).toContainText("Review retained source 中文");
+    await revealWritingDetails(page);
+    await expect(
+      page.getByRole("group", { name: "Writing destination", exact: true }),
+    ).toContainText("9");
+    await expect(
+      page.getByLabel("Complete source", { exact: true }),
+    ).toHaveValue("Review retained source 中文");
     expect(state.requests.filter((r) => r.method === "POST")).toHaveLength(0);
   } finally {
     await artifact(page, info, state);
@@ -217,7 +220,7 @@ test("J67.draft-selection: browsing retains the sole source editor and draft res
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    const source = page.getByLabel("Complete source", { exact: true });
+    const source = await selectSourceEditor(page);
     await source.fill("Retained 中文 source");
     for (const section of ["Search", "Saved", "Notices", "Drafts"]) {
       await select(page, section);
@@ -304,9 +307,7 @@ test("J67.draft-drawer: per-page history and retained source survive the 768px b
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    await page
-      .getByLabel("Complete source", { exact: true })
-      .fill("Retained drawer source 中文");
+    await (await selectSourceEditor(page)).fill("Retained drawer source 中文");
     await select(page, "Drafts");
     await page
       .getByRole("button", { name: "Load forum drafts", exact: true })
@@ -542,7 +543,7 @@ test("F79.retained-lists-and-draft: search saved notices and paged drafts retain
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })
       .click();
-    const editor = page.getByLabel("Complete source", { exact: true });
+    const editor = await selectSourceEditor(page);
     const source = "Mixed retained source 中文\n[b]exact[/b]";
     await editor.fill(source);
     const handle = await editor.elementHandle();
@@ -628,19 +629,14 @@ test("F79.retained-lists-and-draft: search saved notices and paged drafts retain
     await page.setViewportSize({ width: 768, height: 900 });
     await expect(editor).toHaveValue(source);
     expect(await handle!.evaluate((n) => n.isConnected)).toBe(true);
+    await revealWritingTools(page);
+    await page.getByRole("button", { name: "Preview", exact: true }).click();
+    await expect(editor).toHaveValue(source);
+    await expect(
+      page.getByRole("region", { name: "Preview", exact: true }),
+    ).toBeVisible();
     await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
-    const review = page.getByRole("region", {
-      name: "Prepared publication review",
-      exact: true,
-    });
-    await expect(review.locator(".prepared-source")).toHaveText(source);
-    await page
-      .getByRole("button", {
-        name: "Cancel review and return to writing",
-        exact: true,
-      })
+      .getByRole("button", { name: "Close preview", exact: true })
       .click();
     expect(state.searches).toBe(1);
     expect(state.noticeEffects).toBe(1);

@@ -1,3 +1,8 @@
+import {
+  selectSourceEditor,
+  revealWritingTools,
+  chooseAttachments,
+} from "./editor-controls";
 import { writingDetailAction, writingTool } from "./editor-controls";
 import { clickThreadTool } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
@@ -27,6 +32,7 @@ async function fixture(
     stored: [] as string[],
     ids: [] as string[],
     uploadGate: null as Promise<void> | null,
+    replyTargetGate: null as Promise<void> | null,
     listMissing: false,
     listGate: null as Promise<void> | null,
     listWaiting: false,
@@ -190,9 +196,11 @@ async function fixture(
         body: bytes,
       });
     }
+    if (u.searchParams.get("reppost") && state.replyTargetGate)
+      await state.replyTargetGate;
     let body = account + board;
     if (u.searchParams.get("mod") === "post")
-      body += `<form id="postform" method="post" action="forum.php?mod=post&action=${u.searchParams.get("action")}&fid=5${u.searchParams.get("action") === "edit" ? `&tid=42&pid=${context === "reply" || context === "quote" ? "303" : editPostId}&editsubmit=yes` : context === "new-thread" ? "&topicsubmit=yes" : "&tid=42&replysubmit=yes"}"><input type="hidden" name="formhash" value="PRIVATE">${context === "quote" ? '<input type="hidden" name="reppid" value="101"><input type="hidden" name="reppost" value="101"><input type="hidden" name="noticeauthor" value="AUTHOR-8"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">' : ""}<script>window.ATPLUS={"api":"plugin.php?id=atplus:search","login":1,"use":1};</script><label><input type="checkbox" name="usesig" value="1" checked>Signature</label><input name="price" value="0"><input type="hidden" name="save" id="postsave" value=""><button type="button" onclick="$('postsave').value=1;$('postsubmit').click();">Save draft</button><input name="subject" value="${context === "reply" || context === "quote" ? "" : esc(state.title)}"><textarea name="message">${esc(state.source).replaceAll("\r", "&#13;")}</textarea><button name="${u.searchParams.get("action") === "edit" ? "editsubmit" : context === "new-thread" ? "topicsubmit" : "replysubmit"}" type="submit" value="yes">Save</button></form><div id="e_attachlist">${u.searchParams.get("action") === "edit" ? (state.saved ? (state.storedReferenceReadback ?? state.stored) : state.stored).map((id) => (state.updateSentinel ? `<input type="hidden" name="attachupdate[${id}]" value="">` : "") + fields(id)).join("") : ""}</div><script>var upload = new SWFUpload({upload_url:'misc.php?mod=swfupload&action=swfupload&operation=upload&fid=5',post_params:{uid:'${state.member}',hash:'PRIVATE_UPLOAD'},file_upload_limit:${state.uploadLimit},file_queue_limit:0,file_size_limit:'${state.maxKB}',file_types:'*.jpg;*.jpeg;*.PNG;*.gif;*.txt',${state.comments ? "// ordinary native presentation comment\n" : ""}custom_settings:{uploadSource:'forum',uploadType:'attach',maxSizePerDay:${state.daily},maxAttachNum:${state.count},filterType:{txt:524288}}});</script>`;
+      body += `<form id="postform" method="post" action="forum.php?mod=post&action=${u.searchParams.get("action")}&fid=5${u.searchParams.get("action") === "edit" ? `&tid=42&pid=${context === "reply" || context === "quote" ? "303" : editPostId}&editsubmit=yes` : context === "new-thread" ? "&topicsubmit=yes" : "&tid=42&replysubmit=yes"}"><input type="hidden" name="formhash" value="PRIVATE">${u.searchParams.get("reppost") ? `<input type="hidden" name="reppid" value="${u.searchParams.get("reppost")}"><input type="hidden" name="reppost" value="${u.searchParams.get("reppost")}"><input type="hidden" name="noticeauthor" value="AUTHOR-8"><input type="hidden" name="noticeauthormsg" value="Other author"><input type="hidden" name="noticetrimstr" value="">` : ""}<script>window.ATPLUS={"api":"plugin.php?id=atplus:search","login":1,"use":1};</script><label><input type="checkbox" name="usesig" value="1" checked>Signature</label><input name="price" value="0"><input type="hidden" name="save" id="postsave" value=""><button type="button" onclick="$('postsave').value=1;$('postsubmit').click();">Save draft</button><input name="subject" value="${context === "reply" || context === "quote" ? "" : esc(state.title)}"><textarea name="message">${esc(state.source).replaceAll("\r", "&#13;")}</textarea><button name="${u.searchParams.get("action") === "edit" ? "editsubmit" : context === "new-thread" ? "topicsubmit" : "replysubmit"}" type="submit" value="yes">Save</button></form><div id="e_attachlist">${u.searchParams.get("action") === "edit" ? (state.saved ? (state.storedReferenceReadback ?? state.stored) : state.stored).map((id) => (state.updateSentinel ? `<input type="hidden" name="attachupdate[${id}]" value="">` : "") + fields(id)).join("") : ""}</div><script>var upload = new SWFUpload({upload_url:'misc.php?mod=swfupload&action=swfupload&operation=upload&fid=5',post_params:{uid:'${state.member}',hash:'PRIVATE_UPLOAD'},file_upload_limit:${state.uploadLimit},file_queue_limit:0,file_size_limit:'${state.maxKB}',file_types:'*.jpg;*.jpeg;*.PNG;*.gif;*.txt',${state.comments ? "// ordinary native presentation comment\n" : ""}custom_settings:{uploadSource:'forum',uploadType:'attach',maxSizePerDay:${state.daily},maxAttachNum:${state.count},filterType:{txt:524288}}});</script>`;
     else if (u.searchParams.get("mod") === "forumdisplay")
       body += `<div id="ct"><h1><a href="forum.php?mod=forumdisplay&fid=5">Music</a></h1></div><table id="threadlisttableid"><tbody id="normalthread_42"><tr><th><a class="xst" href="forum.php?mod=viewthread&tid=42">Existing thread</a></th></tr></tbody></table>`;
     else {
@@ -258,6 +266,7 @@ async function fixture(
       exact: true,
     })
     .click();
+  await selectSourceEditor(page);
   return state;
 }
 test("J8.edit-text: upload selected bytes, insert source, independently confirm saved association and preserve on resave", async ({
@@ -329,9 +338,7 @@ async function select(
   buffer = Buffer.from("Attachment fixture.\n"),
   mimeType = "text/plain",
 ) {
-  await page
-    .getByLabel("Select attachments", { exact: true })
-    .setInputFiles({ name, mimeType, buffer });
+  await chooseAttachments(page, { name, mimeType, buffer });
 }
 async function upload(page: Page, name = "note.txt") {
   await page
@@ -621,18 +628,41 @@ for (const context of ["new-thread", "reply", "quote"] as const) {
     await page
       .getByRole("button", { name: "Insert note.txt", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Review publication", exact: true })
-      .click();
+    if (context === "new-thread")
+      await page
+        .getByRole("button", { name: "Review publication", exact: true })
+        .click();
     await page
       .getByRole("button", {
         name: context === "new-thread" ? "Publish thread" : "Send reply",
         exact: true,
       })
       .click();
-    await expect(
-      page.getByText("Saved association verified · note.txt", { exact: true }),
-    ).toBeVisible();
+    if (context === "new-thread")
+      await expect(
+        page.getByText("Saved association verified · note.txt", {
+          exact: true,
+        }),
+      ).toBeVisible();
+    else {
+      const submission = page.getByRole("article", {
+        name: "Reply submission",
+        exact: true,
+      });
+      await expect(
+        submission.getByText("Confirmed reply", { exact: true }),
+      ).toBeVisible();
+      await expect(submission).toContainText("note.txt");
+      await expect(
+        submission.getByRole("textbox", {
+          name: "Submitted reply source",
+          exact: true,
+        }),
+      ).toHaveValue(new URLSearchParams(state.saves[0]).get("message")!);
+      await expect(
+        page.getByLabel("Complete source", { exact: true }),
+      ).toHaveValue("");
+    }
     expect(state.stored).toEqual(["88"]);
     expect(state.saves).toHaveLength(1);
     expect(state.uploads).toHaveLength(1);
@@ -1151,7 +1181,7 @@ for (const route of [
     const source = page.getByLabel("Complete source", { exact: true });
     await source.fill(combinedSource);
     await source.press("ControlOrMeta+End");
-    await revealAdvanced(page);
+    await revealAdvanced(page, "Mentions");
     await page
       .getByLabel("Find a person to mention", { exact: true })
       .fill("Other author");
@@ -1178,15 +1208,22 @@ for (const route of [
       combinedSource + "@\u2063Other author\u2063 [attach]88[/attach]";
     await expect(source).toHaveValue(expected);
     await richRoundTrip(page, expected);
+    if (!edit && route !== "new-thread") {
+      await (
+        await writingDetailAction(page, "Check current account and form")
+      ).click();
+      await expect(source).toHaveValue(expected);
+    }
     expect(state.saves).toHaveLength(0);
     expect(state.uploads).toHaveLength(1);
     expect(state.removals).toEqual([]);
-    await page
-      .getByRole("button", {
-        name: edit ? "Review edit" : "Review publication",
-        exact: true,
-      })
-      .click();
+    if (edit || route === "new-thread")
+      await page
+        .getByRole("button", {
+          name: edit ? "Review edit" : "Review publication",
+          exact: true,
+        })
+        .click();
     let release!: () => void;
     state.saveGate = new Promise<void>((resolve) => {
       release = resolve;
@@ -1214,14 +1251,31 @@ for (const route of [
         combinedSource + "\nNative supplement boundary\n" + expected,
       );
       await expect(
-        page.getByRole("button", { name: "Check result", exact: true }),
+        page.getByRole("button", { name: "Check reply status", exact: true }),
       ).toBeVisible();
-    } else {
+    } else if (edit || route === "new-thread") {
       await expect(
         page.getByText("Saved association verified · note.txt", {
           exact: true,
         }),
       ).toBeVisible();
+    }
+    if (!edit && route !== "new-thread") {
+      const submission = page.getByRole("article", {
+        name: "Reply submission",
+        exact: true,
+      });
+      await expect(submission).toContainText("note.txt");
+      if (route !== "reply-merged")
+        await expect(
+          submission.getByText("Confirmed reply", { exact: true }),
+        ).toBeVisible();
+      await expect(
+        submission.getByRole("textbox", {
+          name: "Submitted reply source",
+          exact: true,
+        }),
+      ).toHaveValue(expected);
     }
     await expect(source).toHaveValue(expected + "Later local text");
     const sent = new URLSearchParams(state.saves[0]);
@@ -1317,6 +1371,9 @@ test("J5.integrated-upload-replaced-owner: delayed upload cannot install into de
       exact: true,
     })
     .click();
+  await expect(
+    page.getByRole("button", { name: "Review publication", exact: true }),
+  ).toBeVisible();
   await page
     .getByLabel("Complete source", { exact: true })
     .fill(combinedSource + "New owner");
@@ -2873,7 +2930,7 @@ for (const phase of ["review", "preflight"]) {
   }
 }
 
-test("UX61.attachment-uncertainty: upload outcome and recovery details retain original attachment attempt without save removal or retry", async ({
+test("UX61.attachment-uncertainty: upload outcome remains visible and retains original attachment attempt without save removal or retry", async ({
   page,
 }, info) => {
   const state = await fixture(page);
@@ -2890,8 +2947,7 @@ test("UX61.attachment-uncertainty: upload outcome and recovery details retain or
         JSON.parse(sessionStorage.getItem("tsdm.workspace.recovery")!).writing,
     ),
     requests = state.requests.length;
-  await page.getByText("Recovery details", { exact: true }).click();
-  await page.getByText("Recovery details", { exact: true }).click();
+  await expect(page.locator(".writing-recovery")).toHaveCount(0);
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
@@ -2911,6 +2967,63 @@ test("UX61.attachment-uncertainty: upload outcome and recovery details retain or
     ),
   ).toEqual(before);
   expect(state.requests).toHaveLength(requests);
+  expect(state.uploads).toHaveLength(1);
+  expect(state.saves).toEqual([]);
+  expect(state.removals).toEqual([]);
+  await receipt(page, state, info);
+});
+
+test("UX101.uploaded-retarget: actual uploaded reference survives held addressed preparation, later typing and target removal without publication", async ({
+  page,
+}, info) => {
+  const state = await fixture(page, "reply");
+  await select(page);
+  await upload(page);
+  await expect(
+    page.getByText("Uploaded, unassociated · note.txt", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Insert note.txt", exact: true })
+    .click();
+  const editor = page.getByRole("textbox", {
+    name: "Complete source",
+    exact: true,
+  });
+  const uploaded = await editor.inputValue();
+  expect(uploaded).toContain("[attach]88[/attach]");
+  let release!: () => void;
+  state.replyTargetGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page
+    .getByRole("button", { name: "Post 101 actions", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Reply", exact: true }).click();
+  await expect(
+    page.getByText("Preparing current form…", { exact: true }),
+  ).toBeVisible();
+  await editor.fill(uploaded + " Later authored text");
+  release();
+  const strip = page.getByRole("group", { name: "Reply target", exact: true });
+  await expect(strip).toContainText("Writer 8");
+  await expect(editor).toHaveValue(uploaded + " Later authored text");
+  await expect(
+    page.getByText("Inline referenced · note.txt", { exact: true }),
+  ).toBeVisible();
+  await strip
+    .getByRole("button", { name: "Remove reply target", exact: true })
+    .click();
+  await expect(strip).toHaveCount(0);
+  await expect(editor).toHaveValue(uploaded + " Later authored text");
+  await expect(
+    page.getByText("Inline referenced · note.txt", { exact: true }),
+  ).toBeVisible();
+  await revealWritingTools(page);
+  await (await writingDetailAction(page, "Preview")).click();
+  await expect(editor).toHaveValue(uploaded + " Later authored text");
+  await expect(
+    page.getByRole("button", { name: "Send reply", exact: true }),
+  ).toBeVisible();
   expect(state.uploads).toHaveLength(1);
   expect(state.saves).toEqual([]);
   expect(state.removals).toEqual([]);
