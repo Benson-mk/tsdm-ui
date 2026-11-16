@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { selectSourceEditor } from "./editor-controls";
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 test.beforeEach(async ({ browser }, info) => {
   info.annotations.push({
     type: "browser-version",
@@ -638,3 +639,111 @@ test("B3.native-escape: Escape closes a filter opened before narrow docking and 
     });
   }
 });
+
+for (const variant of ["desktop", "narrow", "dark", "forced"] as const)
+  test(`Pane.icons-${variant}: soft thread rows and compact icon counts retain selection and keyboard boundaries`, async ({
+    page,
+  }, info) => {
+    const width = variant === "narrow" ? 390 : 1440;
+    await page.setViewportSize({ width, height: 900 });
+    if (variant === "forced")
+      await page.emulateMedia({ forcedColors: "active" });
+    const requests = await open(page, filteredBoard);
+    try {
+      if (variant === "narrow" || variant === "dark") {
+        await openSettings(page);
+        if (variant === "dark")
+          await page.locator('input[type=radio][value="dark"]').check();
+        else await page.getByRole("slider", { name: "Text size" }).fill("130");
+        await closeSettingsToWorkspace(page);
+      }
+      const pane = page.locator("#thread-list-pane");
+      const filters = pane.getByRole("button", {
+        name: "Board filters · 0",
+        exact: true,
+      });
+      const pins = pane.getByRole("button", {
+        name: "Pinned threads · 2",
+        exact: true,
+      });
+      const currentPage = pane.getByRole("img", {
+        name: "Page 1",
+        exact: true,
+      });
+      await expect(filters).toHaveText("0");
+      await expect(pins).toHaveText("2");
+      await expect(currentPage).toHaveText("1");
+      for (const control of [filters, pins, currentPage]) {
+        await expect(control.locator("svg")).toHaveCount(1);
+        const bounds = await control.boundingBox();
+        expect(bounds!.x).toBeGreaterThanOrEqual(0);
+        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+      }
+      for (const control of [filters, pins]) {
+        const bounds = await control.boundingBox();
+        expect(bounds!.width).toBeGreaterThanOrEqual(44);
+        expect(bounds!.height).toBeGreaterThanOrEqual(44);
+      }
+      const subject = pane.getByRole("link", {
+        name: "Ordinary discussion 42",
+        exact: true,
+      });
+      await subject.click();
+      await expect(
+        page.getByRole("heading", { name: "Reading 42", exact: true }),
+      ).toBeVisible();
+      if (variant === "narrow")
+        await page
+          .getByRole("button", { name: "Threads pane", exact: true })
+          .click();
+      await expect(subject).toHaveAttribute("aria-current", "true");
+      const row = pane.locator('.thread-row[data-thread-id="42"]');
+      await expect(row).toHaveCSS("border-bottom-width", "0px");
+      await expect(row).toHaveCSS("box-shadow", "none");
+      await filters.focus();
+      await page.keyboard.press("Enter");
+      await expect(
+        page.getByRole("dialog", { name: "Board filters", exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(filters).toBeFocused();
+      await expect(filters).toHaveCSS("outline-width", "3px");
+      await pins.focus();
+      await page.keyboard.press("Enter");
+      await expect(pins).toHaveAttribute("aria-expanded", "true");
+      await expect(
+        pane.getByRole("link", { name: "Pinned guide 41", exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Enter");
+      await expect(pins).toHaveAttribute("aria-expanded", "false");
+      await expect(subject).toHaveAttribute("aria-current", "true");
+      await subject.focus();
+      await expect(subject).toHaveCSS("outline-width", "3px");
+      const colors = await row.evaluate((node) => ({
+        background: getComputedStyle(node).backgroundColor,
+        color: getComputedStyle(node).color,
+      }));
+      expect(colors.background).not.toBe(colors.color);
+      if (variant !== "forced")
+        await expect(pane).toHaveCSS(
+          "box-shadow",
+          "rgba(0, 0, 0, 0.06) 4px 0px 16px 0px",
+        );
+      if (variant === "dark" || variant === "forced")
+        await expect(pane).toHaveCSS("border-right-width", "1px");
+      expect(requests.every((request) => request.method === "GET")).toBe(true);
+      await info.attach("selected-boundaries.json", {
+        body: JSON.stringify({ colors, requests }),
+        contentType: "application/json",
+      });
+    } finally {
+      await info.attach("thread-pane.png", {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
+      await info.attach("requests.json", {
+        body: JSON.stringify(requests),
+        contentType: "application/json",
+      });
+    }
+  });

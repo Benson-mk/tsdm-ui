@@ -1,5 +1,8 @@
 <script setup lang="ts">
 const paths = {
+  filter: "M3 4h18l-7 8v7l-4 2v-9z",
+  page: "M14 3H5v18h14V8z M14 3v5h5 M9 12h6 M9 16h6",
+  pin: "M8 3h8 M9 3v6l-4 5h14l-4-5V3 M12 14v7",
   table: "M3 3h18v18H3z M3 9h18 M9 3v18 M3 15h18 M15 9v12",
   mention:
     "M16 8v7c0 4 6 2 6-3a10 10 0 1 0-4 8 M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0",

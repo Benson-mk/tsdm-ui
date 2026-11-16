@@ -285,12 +285,10 @@ test("B1.clipped-resize: shrinking a heavily clipped row retains the next comple
       page.getByRole("heading", { name: "閱讀 42", exact: true }),
     ).toBeVisible();
     await list.evaluate((pane) => {
-      const row = pane.querySelector<HTMLElement>('[data-thread-id="45"]')!;
+      // Place the complete next row, independently of inter-row whitespace.
+      const row = pane.querySelector<HTMLElement>('[data-thread-id="46"]')!;
       pane.scrollTop +=
-        row.getBoundingClientRect().top -
-        pane.getBoundingClientRect().top +
-        row.getBoundingClientRect().height -
-        20;
+        row.getBoundingClientRect().top - pane.getBoundingClientRect().top - 20;
     });
     await page.evaluate(
       () =>
@@ -315,6 +313,8 @@ test("B1.clipped-resize: shrinking a heavily clipped row retains the next comple
       });
     const before = await geometry();
     observed.push(before);
+    expect(before.rows[0]!.offset).toBeLessThan(0);
+    expect(before.rows[0]!.offset + before.rows[0]!.height).toBeGreaterThan(0);
     expect(before.rows[1]!.offset).toBeCloseTo(20, 0);
     await info.attach("clipped-before.png", {
       body: await page.screenshot(),

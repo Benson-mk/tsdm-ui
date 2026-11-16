@@ -3428,29 +3428,47 @@ function boardIdFrom(url: string) {
             >
           </div>
         </section>
-        <button
-          ref="filterTrigger"
-          class="filter-trigger"
-          :aria-expanded="filtersOpen"
-          @click="openFilters"
-        >
-          {{ text.boardFilters }} · {{ boardContext.criteria.length }}
-        </button>
-        <ul :aria-label="text.criteria">
+        <div class="board-list-controls">
+          <button
+            ref="filterTrigger"
+            class="filter-trigger"
+            :aria-label="`${text.boardFilters} · ${boardContext.criteria.length}`"
+            :title="`${text.boardFilters} · ${boardContext.criteria.length}`"
+            :aria-expanded="filtersOpen"
+            @click="openFilters"
+          >
+            <WorkspaceIcon name="filter" />
+            <span aria-hidden="true">{{ boardContext.criteria.length }}</span>
+          </button>
+          <span
+            class="board-page-indicator"
+            role="img"
+            :aria-label="`${text.page} ${boardContext.pages.current}`"
+            :title="`${text.page} ${boardContext.pages.current}`"
+          >
+            <WorkspaceIcon name="page" />
+            <span aria-hidden="true">{{ boardContext.pages.current }}</span>
+          </span>
+          <button
+            v-if="pinnedRows.length"
+            class="pin-disclosure"
+            :aria-label="`${text.pinnedThreads} · ${pinnedRows.length}`"
+            :title="`${text.pinnedThreads} · ${pinnedRows.length}`"
+            :aria-expanded="pinsExpanded"
+            :aria-controls="
+              pinnedRows.map((row) => `row-${row.rowId}`).join(' ')
+            "
+            @click="pinsExpanded = !pinsExpanded"
+          >
+            <WorkspaceIcon name="pin" />
+            <span aria-hidden="true">{{ pinnedRows.length }}</span>
+          </button>
+        </div>
+        <ul v-if="boardContext.criteria.length" :aria-label="text.criteria">
           <li v-for="criterion in boardContext.criteria" :key="criterion.label">
             {{ criterion.label }}
           </li>
         </ul>
-        <p>{{ text.page }} {{ boardContext.pages.current }}</p>
-        <button
-          v-if="pinnedRows.length"
-          class="pin-disclosure"
-          :aria-expanded="pinsExpanded"
-          :aria-controls="pinnedRows.map((row) => `row-${row.rowId}`).join(' ')"
-          @click="pinsExpanded = !pinsExpanded"
-        >
-          {{ text.pinnedThreads }} · {{ pinnedRows.length }}
-        </button>
         <div
           v-for="row in boardContext.threads"
           v-show="!row.pinned || pinsExpanded"

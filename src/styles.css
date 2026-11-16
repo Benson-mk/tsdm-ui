@@ -1421,9 +1421,9 @@ select {
 }
 .board-thread-list .thread-row {
   padding: 16px 8px;
-  margin-bottom: 0;
+  margin-bottom: 8px;
   border-radius: 0;
-  border-bottom: 1px solid var(--boundary);
+  border: 0;
   box-shadow: none;
   overflow-wrap: anywhere;
 }
@@ -3051,9 +3051,25 @@ input {
   font-size: calc(0.75rem * var(--text-scale, 1));
   font-weight: 400;
 }
-.pin-disclosure {
-  margin-block: 8px;
+.board-list-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 8px 16px;
+}
+.board-list-controls > button,
+.board-page-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
   min-height: 44px;
+  padding: 8px 12px;
+}
+.board-page-indicator {
+  color: var(--muted);
 }
 
 .board-filter-dialog {
