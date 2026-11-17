@@ -46,6 +46,22 @@ Windows support and actual Tampermonkey software-update recovery remain unverifi
 See [release automation](docs/releases/AUTOMATION.md) for build verification and
 the [qualification scope](docs/adr/0002-qualify-installed-releases-with-bounded-evidence.md).
 
+## Archived UI previews
+
+The standalone sidebar, board, reader and composer MVP previews are preserved on
+[`prototype/ui-ux-previews`](https://github.com/Benson-mk/tsdm-ui/tree/prototype/ui-ux-previews)
+at commit `8742de9400507454969b6b1413aa9b47ced7f67f`. The completed #95 production
+implementation remains on `main`; preview-only `src/layouts/*.prototype.*` files
+are excluded from its current source tree.
+
+To replay a preview, use a separate checkout of that branch, run `npm ci` and
+`npm run dev` with the pinned Node/npm versions, then open
+`http://127.0.0.1:5173/src/layouts/thread-browsing.prototype.html` (optionally
+`?unit=board`, `?unit=reader` or `?unit=composer`). The sidebar and board-filter
+HTML previews are available in the same directory. Historical implementation
+records retain their original preview paths and refer to the archived checkout.
+The previews use simulated data and do not establish production qualification.
+
 ## Development and qualification history
 
 The first release implementation was completed at the accepted macOS qualification
