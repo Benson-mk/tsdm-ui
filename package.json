@@ -9,6 +9,7 @@
   },
   "packageManager": "npm@11.21.1",
   "scripts": {
+    "prototype:information": "vite --config vite.information-prototype.config.ts --host 127.0.0.1 --port 5174 --strictPort --open '/src/layouts/information-hierarchy.prototype.html?variant=A'",
     "dev": "vite --host 127.0.0.1",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint . --max-warnings 0",

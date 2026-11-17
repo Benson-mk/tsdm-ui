@@ -3311,55 +3311,31 @@ function boardIdFrom(url: string) {
         data-scroll-pane="results"
         :aria-label="text.threadResults"
       >
-        <span
-          v-if="listCategory.label"
-          class="category-label"
-          :data-category="listCategory.role"
-          >{{ listCategory.label }}</span
+        <!-- Throwaway presentation seam; default userscript rendering is unchanged. -->
+        <slot
+          name="prototype-board"
+          :board="boardContext"
+          :selected="state.selection ?? selectedThread"
+          :drafts="workspace.writing.localReplyThreads.value"
+          :open-filters="openFilters"
         >
-        <div class="board-heading">
-          <div>
-            <h1>{{ boardContext.title }}</h1>
-            <p v-if="boardContext.statistics" class="board-statistics">
-              {{ boardContext.statistics }}
-            </p>
-          </div>
-          <button
-            class="icon-button"
-            :aria-label="text.checkNewThreads"
-            :title="text.checkNewThreads"
-            :disabled="
-              boardChecks.checking ||
-              boardChecks.retryMinutes > 0 ||
-              !workspace.boardChecks.canCheck()
-            "
-            @click="workspace.boardChecks.check()"
+          <span
+            v-if="listCategory.label"
+            class="category-label"
+            :data-category="listCategory.role"
+            >{{ listCategory.label }}</span
           >
-            <WorkspaceIcon name="refresh" />
-          </button>
-        </div>
-        <div
-          v-if="
-            boardChecks.checking ||
-            boardChecks.failure ||
-            boardChecks.arrivals.length ||
-            !workspace.boardChecks.canCheck()
-          "
-          class="board-check-status"
-          aria-live="polite"
-        >
-          <span>{{
-            boardChecks.checking
-              ? text.boardChecking
-              : boardChecks.failure
-                ? text.boardCheckFailed
-                : !workspace.boardChecks.canCheck()
-                  ? text.boardCheckUnavailable
-                  : ""
-          }}</span>
-          <div class="board-check-actions">
+          <div class="board-heading">
+            <div>
+              <h1>{{ boardContext.title }}</h1>
+              <p v-if="boardContext.statistics" class="board-statistics">
+                {{ boardContext.statistics }}
+              </p>
+            </div>
             <button
-              v-if="boardChecks.failure"
+              class="icon-button"
+              :aria-label="text.checkNewThreads"
+              :title="text.checkNewThreads"
               :disabled="
                 boardChecks.checking ||
                 boardChecks.retryMinutes > 0 ||
@@ -3367,155 +3343,193 @@ function boardIdFrom(url: string) {
               "
               @click="workspace.boardChecks.check()"
             >
-              {{ text.retryCheck }}
+              <WorkspaceIcon name="refresh" />
             </button>
-            <button
-              v-if="boardChecks.arrivals.length"
-              @click="workspace.boardChecks.reveal()"
-            >
-              {{
-                insert(
-                  boardContext.pages.current !== "1"
-                    ? text.showNewThreadsFirst
-                    : boardChecks.arrivals.length === 1
-                      ? text.showNewThread
-                      : text.showNewThreads,
-                  String(boardChecks.arrivals.length),
-                )
-              }}
-            </button>
-            <details
-              v-if="boardChecks.failure"
-              class="board-check-details"
-              @keydown.esc.stop="closeCheckDetails"
-            >
-              <summary
-                :aria-label="text.checkDetails"
-                :title="text.checkDetails"
+          </div>
+          <div
+            v-if="
+              boardChecks.checking ||
+              boardChecks.failure ||
+              boardChecks.arrivals.length ||
+              !workspace.boardChecks.canCheck()
+            "
+            class="board-check-status"
+            aria-live="polite"
+          >
+            <span>{{
+              boardChecks.checking
+                ? text.boardChecking
+                : boardChecks.failure
+                  ? text.boardCheckFailed
+                  : !workspace.boardChecks.canCheck()
+                    ? text.boardCheckUnavailable
+                    : ""
+            }}</span>
+            <div class="board-check-actions">
+              <button
+                v-if="boardChecks.failure"
+                :disabled="
+                  boardChecks.checking ||
+                  boardChecks.retryMinutes > 0 ||
+                  !workspace.boardChecks.canCheck()
+                "
+                @click="workspace.boardChecks.check()"
               >
-                <WorkspaceIcon name="about" />
-              </summary>
-              <div class="board-check-explanation">
-                <p>
-                  {{
-                    boardChecks.failure && "message" in boardChecks.failure
-                      ? boardChecks.failure.message
-                      : text.boardCheckFailed
-                  }}
-                </p>
-                <p v-if="boardChecks.retryMinutes">
-                  {{
-                    insert(text.boardRetry, String(boardChecks.retryMinutes))
-                  }}
-                </p>
-              </div>
-            </details>
+                {{ text.retryCheck }}
+              </button>
+              <button
+                v-if="boardChecks.arrivals.length"
+                @click="workspace.boardChecks.reveal()"
+              >
+                {{
+                  insert(
+                    boardContext.pages.current !== "1"
+                      ? text.showNewThreadsFirst
+                      : boardChecks.arrivals.length === 1
+                        ? text.showNewThread
+                        : text.showNewThreads,
+                    String(boardChecks.arrivals.length),
+                  )
+                }}
+              </button>
+              <details
+                v-if="boardChecks.failure"
+                class="board-check-details"
+                @keydown.esc.stop="closeCheckDetails"
+              >
+                <summary
+                  :aria-label="text.checkDetails"
+                  :title="text.checkDetails"
+                >
+                  <WorkspaceIcon name="about" />
+                </summary>
+                <div class="board-check-explanation">
+                  <p>
+                    {{
+                      boardChecks.failure && "message" in boardChecks.failure
+                        ? boardChecks.failure.message
+                        : text.boardCheckFailed
+                    }}
+                  </p>
+                  <p v-if="boardChecks.retryMinutes">
+                    {{
+                      insert(text.boardRetry, String(boardChecks.retryMinutes))
+                    }}
+                  </p>
+                </div>
+              </details>
+            </div>
           </div>
-        </div>
-        <section v-if="boardContext.boards.length">
-          <h2>{{ text.subordinateBoards }}</h2>
-          <div class="board-grid">
-            <a
-              v-for="board in boardContext.boards"
-              :key="board.url"
-              :href="board.url"
-              :aria-label="board.label"
-              class="board-card"
-              :data-category="categoryFor(board.id).role"
-              ><strong>{{ board.label }}</strong
-              ><span v-if="board.description">{{ board.description }}</span
-              ><small v-if="board.stats">{{ board.stats }}</small></a
+          <section v-if="boardContext.boards.length">
+            <h2>{{ text.subordinateBoards }}</h2>
+            <div class="board-grid">
+              <a
+                v-for="board in boardContext.boards"
+                :key="board.url"
+                :href="board.url"
+                :aria-label="board.label"
+                class="board-card"
+                :data-category="categoryFor(board.id).role"
+                ><strong>{{ board.label }}</strong
+                ><span v-if="board.description">{{ board.description }}</span
+                ><small v-if="board.stats">{{ board.stats }}</small></a
+              >
+            </div>
+          </section>
+          <div class="board-list-controls">
+            <button
+              ref="filterTrigger"
+              class="filter-trigger"
+              :aria-label="`${text.boardFilters} · ${boardContext.criteria.length}`"
+              :title="`${text.boardFilters} · ${boardContext.criteria.length}`"
+              :aria-expanded="filtersOpen"
+              @click="openFilters"
+            >
+              <WorkspaceIcon name="filter" />
+              <span aria-hidden="true">{{ boardContext.criteria.length }}</span>
+            </button>
+            <span
+              class="board-page-indicator"
+              role="img"
+              :aria-label="`${text.page} ${boardContext.pages.current}`"
+              :title="`${text.page} ${boardContext.pages.current}`"
+            >
+              <WorkspaceIcon name="page" />
+              <span aria-hidden="true">{{ boardContext.pages.current }}</span>
+            </span>
+            <button
+              v-if="pinnedRows.length"
+              class="pin-disclosure"
+              :aria-label="`${text.pinnedThreads} · ${pinnedRows.length}`"
+              :title="`${text.pinnedThreads} · ${pinnedRows.length}`"
+              :aria-expanded="pinsExpanded"
+              :aria-controls="
+                pinnedRows.map((row) => `row-${row.rowId}`).join(' ')
+              "
+              @click="pinsExpanded = !pinsExpanded"
+            >
+              <WorkspaceIcon name="pin" />
+              <span aria-hidden="true">{{ pinnedRows.length }}</span>
+            </button>
+          </div>
+          <ul v-if="boardContext.criteria.length" :aria-label="text.criteria">
+            <li
+              v-for="criterion in boardContext.criteria"
+              :key="criterion.label"
+            >
+              {{ criterion.label }}
+            </li>
+          </ul>
+          <div
+            v-for="row in boardContext.threads"
+            v-show="!row.pinned || pinsExpanded"
+            :id="`row-${row.rowId}`"
+            :key="row.rowId"
+            class="thread-row"
+            :data-thread-id="row.id"
+          >
+            <span
+              v-if="workspace.writing.localReplyThreads.value.includes(row.id)"
+              class="local-reply-indicator"
+              >{{ text.localReplyDraft }}</span
+            ><span v-if="row.pinned">{{ text.pinned }}</span
+            ><span v-if="row.moved">{{ text.moved }}</span
+            ><span>{{ row.category }}</span
+            ><a
+              :href="row.url"
+              class="subject"
+              :aria-current="
+                (state.selection ?? selectedThread) === row.id
+                  ? 'true'
+                  : undefined
+              "
+              >{{ row.label }}</a
+            ><span>{{ row.author }}</span
+            ><time>{{ row.date }}</time
+            ><span
+              >{{ row.replies }} {{ text.replies }} · {{ row.views }}
+              {{ text.views }}</span
+            ><component
+              :is="row.lastPost ? 'a' : 'span'"
+              :href="row.lastPost?.url"
+              class="latest-reply"
+              >{{ text.lastReply }}:
+              {{ row.latestReply?.author || text.latestAuthorUnavailable }} ·
+              {{
+                row.latestReply?.time || text.latestTimeUnavailable
+              }}</component
             >
           </div>
-        </section>
-        <div class="board-list-controls">
-          <button
-            ref="filterTrigger"
-            class="filter-trigger"
-            :aria-label="`${text.boardFilters} · ${boardContext.criteria.length}`"
-            :title="`${text.boardFilters} · ${boardContext.criteria.length}`"
-            :aria-expanded="filtersOpen"
-            @click="openFilters"
-          >
-            <WorkspaceIcon name="filter" />
-            <span aria-hidden="true">{{ boardContext.criteria.length }}</span>
-          </button>
-          <span
-            class="board-page-indicator"
-            role="img"
-            :aria-label="`${text.page} ${boardContext.pages.current}`"
-            :title="`${text.page} ${boardContext.pages.current}`"
-          >
-            <WorkspaceIcon name="page" />
-            <span aria-hidden="true">{{ boardContext.pages.current }}</span>
-          </span>
-          <button
-            v-if="pinnedRows.length"
-            class="pin-disclosure"
-            :aria-label="`${text.pinnedThreads} · ${pinnedRows.length}`"
-            :title="`${text.pinnedThreads} · ${pinnedRows.length}`"
-            :aria-expanded="pinsExpanded"
-            :aria-controls="
-              pinnedRows.map((row) => `row-${row.rowId}`).join(' ')
-            "
-            @click="pinsExpanded = !pinsExpanded"
-          >
-            <WorkspaceIcon name="pin" />
-            <span aria-hidden="true">{{ pinnedRows.length }}</span>
-          </button>
-        </div>
-        <ul v-if="boardContext.criteria.length" :aria-label="text.criteria">
-          <li v-for="criterion in boardContext.criteria" :key="criterion.label">
-            {{ criterion.label }}
-          </li>
-        </ul>
-        <div
-          v-for="row in boardContext.threads"
-          v-show="!row.pinned || pinsExpanded"
-          :id="`row-${row.rowId}`"
-          :key="row.rowId"
-          class="thread-row"
-          :data-thread-id="row.id"
-        >
-          <span
-            v-if="workspace.writing.localReplyThreads.value.includes(row.id)"
-            class="local-reply-indicator"
-            >{{ text.localReplyDraft }}</span
-          ><span v-if="row.pinned">{{ text.pinned }}</span
-          ><span v-if="row.moved">{{ text.moved }}</span
-          ><span>{{ row.category }}</span
-          ><a
-            :href="row.url"
-            class="subject"
-            :aria-current="
-              (state.selection ?? selectedThread) === row.id
-                ? 'true'
-                : undefined
-            "
-            >{{ row.label }}</a
-          ><span>{{ row.author }}</span
-          ><time>{{ row.date }}</time
-          ><span
-            >{{ row.replies }} {{ text.replies }} · {{ row.views }}
-            {{ text.views }}</span
-          ><component
-            :is="row.lastPost ? 'a' : 'span'"
-            :href="row.lastPost?.url"
-            class="latest-reply"
-            >{{ text.lastReply }}:
-            {{ row.latestReply?.author || text.latestAuthorUnavailable }} ·
-            {{ row.latestReply?.time || text.latestTimeUnavailable }}</component
-          >
-        </div>
-        <p v-if="!boardContext.threads.length">{{ boardContext.empty }}</p>
-        <nav :aria-label="text.boardPages">
-          <a
-            v-for="link in boardContext.pages.links"
-            :key="link.url"
-            :href="link.url"
-            >{{ link.label }}</a
-          >
-        </nav>
+          <p v-if="!boardContext.threads.length">{{ boardContext.empty }}</p>
+          <nav :aria-label="text.boardPages">
+            <a
+              v-for="link in boardContext.pages.links"
+              :key="link.url"
+              :href="link.url"
+              >{{ link.label }}</a
+            >
+          </nav>
+        </slot>
       </section>
       <section
         v-if="threadWithoutResults"
@@ -4163,7 +4177,13 @@ function boardIdFrom(url: string) {
           :elsewhere="writingElsewhere"
           :category="writingCategory"
           @resize="resizeWriting"
-        />
+          ><template #prototype-destination
+            ><slot
+              name="prototype-writing"
+              :expanded="writingExpanded"
+              :context="writing.context"
+              :reading="reading" /></template
+        ></SourceWriting>
       </div>
     </main>
     <div ref="browsingWritingStatus" class="browsing-writing-status" />

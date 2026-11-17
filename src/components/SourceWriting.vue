@@ -438,6 +438,7 @@ function updateOption(option: WritingOption, event: Event) {
     @compositionstart="workspace.writing.startComposition()"
     @compositionend="workspace.writing.endComposition()"
   >
+    <slot name="prototype-destination" />
     <p v-if="state.compositionDeferred" role="status">
       {{ text.finishComposition }}
     </p>

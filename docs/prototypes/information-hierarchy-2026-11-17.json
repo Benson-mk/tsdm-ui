@@ -1,0 +1,60 @@
+{
+  "date": "2026-11-17",
+  "branch": "prototype/improve-ui-ux-2026-11-17",
+  "base": "abb4987",
+  "research": "3c2bca1",
+  "question": "Which hierarchy helps members choose a discussion without hiding its meaning?",
+  "verdict": "A is a starting hypothesis; no member selection or production promotion.",
+  "runtime": {
+    "node": "26.0.0",
+    "npm": "11.12.1",
+    "browser": "Codex in-app browser",
+    "releaseQualification": false
+  },
+  "preview": "http://127.0.0.1:5174/src/layouts/information-hierarchy.prototype.html?variant=A",
+  "command": "npm run prototype:information",
+  "evidenceDirectory": "evidence/runs/information-prototype-2026-11-17",
+  "finalSourceManifestSha256": "b46ab6624e874dffac8f84d73924582bf9b35a2e2cd572b8a9e971e1730bb797",
+  "finalCaptures": {
+    "A-desktop-final.jpg": "82b5520a3a9805f8f2ffa28f1cff991bd39edb5316f125d49dd5e9ac744dae54",
+    "B-desktop-final.jpg": "e1da3a8eb1ae57c2670adcaa7c1c36cd64ac858d897d505198926d647c9f5a20",
+    "C-desktop-final.jpg": "4828cf7eb520f6c0ff3e4396fcd821f204f1fd96a4b428bd2d8c68b318613a51",
+    "long-destination-320-final.jpg": "023347e5d976b7222e3fe4a125ac0f8c9460afea9187a07e1aad3c5b1e900493"
+  },
+  "observations": {
+    "A1440x900": {
+      "firstTop": 240.9453125,
+      "fullRows": 4,
+      "viewport": [1440, 900]
+    },
+    "viewports": [
+      [1440, 900],
+      [390, 844],
+      [320, 640]
+    ],
+    "textSizes": [100, 140],
+    "retainedWriting": "A to B to C; exact source and thread 42 observed",
+    "keyboard": "Wraparound, editor ArrowLeft isolation and Settings slider isolation observed",
+    "navigation": "C inspection kept reader 42; Open navigated 43; B latest opened post 4202",
+    "resultExamples": "Report preset/Other and uncertain result; confirmed rating and Close",
+    "scope": "Manual development browser smoke observations; no automated tests added or run"
+  },
+  "checks": {
+    "typecheck": "pass",
+    "scopedEslint": "pass",
+    "scopedPrettier": "pass",
+    "productionBuild": "pass",
+    "gitDiffCheck": "pass",
+    "prototypeMarkersAbsentFromBuiltUserscript": "pass"
+  },
+  "limitations": [
+    "Synthetic in-memory host; no live forum requests",
+    "No installed-host, persistence, send, upload, conflict or release qualification",
+    "Not a full-suite, all-theme or accessibility conformance pass",
+    "No participant study or selected production variant",
+    "Earlier screenshots retained as development observations; only final captures attributed to final source manifest",
+    "Available Node/npm differs from pinned release runtime"
+  ],
+  "buildSha256": "e048f4c88b7160fde4a43adb27c9648d5d59fe58fdd735afe40c1b8987bc94d2",
+  "replay": "See docs/prototypes/information-hierarchy-2026-11-17.md"
+}
