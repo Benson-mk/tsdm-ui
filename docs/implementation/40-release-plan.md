@@ -77,5 +77,10 @@ passed five focused application E2Es; the independently extracted Node consumer
 replayed successfully. The unchanged full application baseline was reused.
 Standards, Spec and the designated BDFL review have zero actionable findings.
 The completed report, six verified acceptance criteria and ten distinct actual
-trade-offs are in [the release report](../releases/0.4.0/report.md); the persistent
+trade-offs are in [the archived release report](https://github.com/Benson-mk/tsdm-ui/blob/673a17951c5a1e425abdaa8a20c1419dd15ae643/docs/releases/0.4.0/report.md); the persistent
 artifact locations and identities are in [the evidence index](40-evidence-index.json).
+
+The obsolete 0.4.0 release instructions and its `check-release-payload.mjs` and
+`verify-release-payload.mjs` scripts have since been removed from `main`.
+Use commit `673a17951c5a1e425abdaa8a20c1419dd15ae643` to inspect those files or
+repeat this historical packaging workflow.

@@ -36,7 +36,7 @@ The original specification-deliverable checklist is not an application test resu
 | S6 Saved/Notices                         | #30, #31           | `30-completion.md`, `31-notices.md`; J9/J10                                                      |
 | S7 integration/qualification/preparation | #34–#38, #40       | `34-consumer-current.md`, `35-replacement.md`, `36-release-tooling.md`, final #40 release report |
 
-The [final release report](../releases/0.4.0/report.md) reconciles every J1–J11
+The [archived final release report](https://github.com/Benson-mk/tsdm-ui/blob/673a17951c5a1e425abdaa8a20c1419dd15ae643/docs/releases/0.4.0/report.md) reconciles every J1–J11
 family and the clean Node consumer. Its qualified-mode verifier checks all
 **111 coverage rows**, including all **63 parent stories**, response/write/
 recovery/history/inert-input/file/identity failure groups, architecture and
@@ -109,7 +109,7 @@ scoped lint, full formatting and qualified payload verification pass.
 The application reporter produces its own timestamped receipt, report, source
 snapshot, synthetic artifacts and checked manifest. These are new observations
 of the restored candidate, distinct from #38/#40's immutable results.
-The [release replay instructions](../releases/0.4.0/README.md) reproduce the
+The [archived release replay instructions](https://github.com/Benson-mk/tsdm-ui/blob/673a17951c5a1e425abdaa8a20c1419dd15ae643/docs/releases/0.4.0/README.md) reproduce the
 original packaged evidence independently.
 
 The first root lint invocation also traversed preexisting ignored `.local/`

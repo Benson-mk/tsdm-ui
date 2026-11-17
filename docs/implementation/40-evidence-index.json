@@ -39,7 +39,7 @@
   "deferred": [39, 47],
   "releasePublished": false,
   "githubIssueStateChanged": false,
-  "tradeoffs": "docs/releases/0.4.0/report.md#distinct-task-trade-offs",
+  "tradeoffs": "https://github.com/Benson-mk/tsdm-ui/blob/673a17951c5a1e425abdaa8a20c1419dd15ae643/docs/releases/0.4.0/report.md#distinct-task-trade-offs",
   "limits": [
     "Exact final Edge candidate with accepted historical Chrome scope; no fresh final-candidate Chrome verdict.",
     "Windows and genuine manager-update recovery remain unverified.",

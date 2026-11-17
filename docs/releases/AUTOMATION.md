@@ -162,6 +162,10 @@ receipt and report prove version selection, changelog boundaries, artifact
 hashes and refusal paths; it never contacts GitHub or creates a remote tag.
 Playwright produces its normal repeatable synthetic receipt and screenshots.
 
-The existing `docs/releases/0.4.0/` files describe historical development
-candidates and remain unchanged. Development installs labelled 0.4.0 need
+The pre-release 0.4.0 development candidate is archived in
+[Git history](https://github.com/Benson-mk/tsdm-ui/tree/673a17951c5a1e425abdaa8a20c1419dd15ae643/docs/releases/0.4.0).
+Its release instructions and candidate-specific payload verifiers have been
+removed from `main`; use that historical commit to inspect or replay them.
+Historical qualification records and the executable replacement-test fixture
+remain for audit and upgrade coverage. Development installs labelled 0.4.0 need
 manual replacement when adopting the numerically lower public 0.1.x sequence.
