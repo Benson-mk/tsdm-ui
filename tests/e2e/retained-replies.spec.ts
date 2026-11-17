@@ -192,7 +192,7 @@ test.afterEach(async ({ page, browser }, info) => {
 });
 test("UX106.switch: retain each thread's literal source, addressed target and options with one active editor", async ({
   page,
-}) => {
+}, info) => {
   const state = await open(page);
   await choose(page, "42");
   await page
@@ -205,6 +205,37 @@ test("UX106.switch: retain each thread's literal source, addressed target and op
   await revealWritingTools(page);
   await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
+  const inspectionRequests = state.requests.length;
+  const detail = page
+    .locator('[data-thread-id="42"]')
+    .getByRole("button", { name: /Thread details for/ });
+  await detail.click();
+  await expect(detail).toBeFocused();
+  const localDraft = page.locator(
+    '[data-thread-id="42"] .local-reply-indicator',
+  );
+  await expect(localDraft).toBeVisible();
+  const selectedColors = await localDraft.evaluate((node) => ({
+    foreground: getComputedStyle(node).color,
+    background: getComputedStyle(node.closest(".thread-row")!).backgroundColor,
+  }));
+  expect(selectedColors).toEqual({
+    foreground: "rgb(89, 89, 89)",
+    background: "rgb(235, 245, 232)",
+  });
+  await info.attach("selected-local-reply-details.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await info.attach("selected-local-reply-colors.json", {
+    body: JSON.stringify(selectedColors),
+    contentType: "application/json",
+  });
+  await detail.press("Space");
+  expect(state.requests).toHaveLength(inspectionRequests);
+  await expect(await selectSourceEditor(page)).toHaveValue(
+    "[b]Thread A literal writing[/b]\n[unknown]保留 A[/unknown]",
+  );
   await choose(page, "43");
   await expect(
     page.getByRole("dialog", { name: "Keep current writing?" }),

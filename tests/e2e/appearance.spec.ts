@@ -295,7 +295,7 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
         expect.soft(sample.secondary).toBe(width >= 960);
         expect.soft(sample.picker).toBe(width >= 960 && width < 1280);
         expect.soft(sample.results).toBe(width >= 768);
-        expect.soft(sample.rowPadding).toBe("12px 16px");
+        expect.soft(sample.rowPadding).toBe(size < 100 ? "12px 16px" : "14px");
         expect
           .soft(sample.rangeSpacing)
           .toBe(size < 100 ? "compact" : "default");

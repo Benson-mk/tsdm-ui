@@ -17,6 +17,9 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
+  CollapsibleRoot,
+  CollapsibleTrigger,
+  CollapsibleContent,
 } from "reka-ui";
 import ColumnSeparator from "../components/ColumnSeparator.vue";
 import PostActions from "../components/PostActions.vue";
@@ -3483,7 +3486,9 @@ function boardIdFrom(url: string) {
             >{{ text.localReplyDraft }}</span
           ><span v-if="row.pinned">{{ text.pinned }}</span
           ><span v-if="row.moved">{{ text.moved }}</span
-          ><span>{{ row.category }}</span
+          ><span v-if="row.category" class="thread-category">{{
+            row.category
+          }}</span
           ><a
             :href="row.url"
             class="subject"
@@ -3493,19 +3498,42 @@ function boardIdFrom(url: string) {
                 : undefined
             "
             >{{ row.label }}</a
-          ><span>{{ row.author }}</span
-          ><time>{{ row.date }}</time
-          ><span
-            >{{ row.replies }} {{ text.replies }} · {{ row.views }}
-            {{ text.views }}</span
-          ><component
-            :is="row.lastPost ? 'a' : 'span'"
-            :href="row.lastPost?.url"
-            class="latest-reply"
-            >{{ text.lastReply }}:
-            {{ row.latestReply?.author || text.latestAuthorUnavailable }} ·
-            {{ row.latestReply?.time || text.latestTimeUnavailable }}</component
           >
+          <CollapsibleRoot class="thread-row-footer">
+            <component
+              :is="row.lastPost ? 'a' : 'span'"
+              :href="row.lastPost?.url"
+              class="latest-reply"
+              :aria-label="
+                row.lastPost
+                  ? `${insert(text.openLatestPostIn, row.label)}: ${row.latestReply?.author || text.latestAuthorUnavailable} · ${row.latestReply?.time || text.latestTimeUnavailable}`
+                  : undefined
+              "
+            >
+              {{ row.latestReply?.author || text.latestAuthorUnavailable }} ·
+              {{
+                row.latestReply?.time || text.latestTimeUnavailable
+              }}</component
+            >
+            <CollapsibleTrigger
+              class="thread-details-trigger"
+              :aria-label="`${insert(text.threadDetailsFor, row.label)}: ${row.replies || text.metadataUnavailable} ${text.replies}`"
+              >{{ row.replies || text.metadataUnavailable }} {{ text.replies }}
+              <span aria-hidden="true">▾</span></CollapsibleTrigger
+            >
+            <CollapsibleContent as="dl" class="thread-row-details">
+              <dt>{{ text.replies }}</dt>
+              <dd>{{ row.replies || text.metadataUnavailable }}</dd>
+              <dt>{{ text.threadStartedBy }}</dt>
+              <dd>{{ row.author || text.metadataUnavailable }}</dd>
+              <dt>{{ text.threadStarted }}</dt>
+              <dd>{{ row.date || text.metadataUnavailable }}</dd>
+              <dt>{{ text.views }}</dt>
+              <dd>{{ row.views || text.metadataUnavailable }}</dd>
+              <dt>{{ text.threadIdentity }}</dt>
+              <dd>{{ row.id }}</dd>
+            </CollapsibleContent>
+          </CollapsibleRoot>
         </div>
         <p v-if="!boardContext.threads.length">{{ boardContext.empty }}</p>
         <nav :aria-label="text.boardPages">

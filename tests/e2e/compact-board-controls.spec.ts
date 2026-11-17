@@ -706,7 +706,10 @@ for (const variant of ["desktop", "narrow", "dark", "forced"] as const)
           .click();
       await expect(subject).toHaveAttribute("aria-current", "true");
       const row = pane.locator('.thread-row[data-thread-id="42"]');
-      await expect(row).toHaveCSS("border-bottom-width", "0px");
+      await expect(row).toHaveCSS(
+        "border-bottom-width",
+        variant === "dark" || variant === "forced" ? "1px" : "0px",
+      );
       await expect(row).toHaveCSS(
         "box-shadow",
         variant === "forced" ? "none" : "rgba(0, 0, 0, 0.06) 0px 4px 16px 0px",

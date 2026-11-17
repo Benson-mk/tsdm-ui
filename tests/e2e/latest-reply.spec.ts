@@ -1,7 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { withRedirectFixture } from "../http-redirect-fixture";
-import { clickThreadTool } from "./navigation-ui";
+import {
+  clickThreadTool,
+  openSettings,
+  closeSettingsToWorkspace,
+} from "./navigation-ui";
 test.beforeEach(async ({ browser }, info) => {
   info.annotations.push({
     type: "browser-version",
@@ -23,6 +27,110 @@ const row = (
   `<tbody id="normalthread_${id}"><tr><th><a class="xst" href="forum.php?mod=viewthread&tid=${id}">原始主題 ${id}</a></th><td class="by"><cite>Original Author</cite><em>2020-01-01</em></td><td class="num"><a>999</a><em>1000</em></td>${latest === "omit" ? "" : `<td class="by">${latest}</td>`}</tr></tbody>`;
 const board = (rows = row()) =>
   `${account}<div id="ct"><h1>音樂討論</h1></div><table id="threadlisttableid">${rows}</table>`;
+
+test("D2-D5.details: count disclosure keeps focus and row-relative bounds without navigation", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const requests = await open(
+    page,
+    board(row().replace("<a>999</a><em>1000</em>", "<a>0</a><em>0</em>")),
+  );
+  const current = page.locator(".thread-row").first();
+  const trigger = current.getByRole("button", {
+    name: "Thread details for 原始主題 42: 0 replies",
+    exact: true,
+  });
+  const geometry = async () =>
+    trigger.evaluate((node) => {
+      const bounds = node.getBoundingClientRect();
+      const row = node.closest(".thread-row")!.getBoundingClientRect();
+      return {
+        x: bounds.x - row.x,
+        y: bounds.y - row.y,
+        width: bounds.width,
+        height: bounds.height,
+      };
+    });
+  const observations = [];
+  const before = requests.length;
+  await current.locator(".subject").focus();
+  await page.keyboard.press("Tab");
+  await expect(current.locator(".latest-reply")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(trigger).toBeFocused();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  const closed = await geometry();
+  expect(closed.height).toBeGreaterThanOrEqual(44);
+  for (const action of ["pointer", "Enter", "Space", "Space"]) {
+    if (action === "pointer") await trigger.click();
+    else await trigger.press(action);
+    await expect(trigger).toBeFocused();
+    const after = await geometry();
+    expect(after).toEqual(closed);
+    observations.push({ action, after });
+    if ((await trigger.getAttribute("aria-expanded")) === "true") {
+      await expect(current.locator("dl")).toContainText("Original Author");
+      await expect(current.locator("dl")).toContainText("2020-01-01");
+      await expect(current.locator("dd")).toHaveText([
+        "0",
+        "Original Author",
+        "2020-01-01",
+        "0",
+        "42",
+      ]);
+    }
+  }
+  expect(requests).toHaveLength(before);
+  await expect(page.locator(".reader-placeholder")).toBeVisible();
+  await info.attach("stationary-details.json", {
+    body: JSON.stringify({ closed, observations, requests }),
+    contentType: "application/json",
+  });
+  await info.attach("stationary-details.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+});
+
+test("D3.unknown: absent original metadata and counts remain unavailable independently of known latest activity", async ({
+  page,
+}, info) => {
+  const source = row(
+    42,
+    "<cite>Known activity author</cite><em>2026-11-18</em>",
+  )
+    .replace("<cite>Original Author</cite><em>2020-01-01</em>", "")
+    .replace("<a>999</a><em>1000</em>", "");
+  const requests = await open(page, board(source));
+  const current = page.locator(".thread-row");
+  await expect(current.locator(".latest-reply")).toHaveText(
+    "Known activity author · 2026-11-18",
+  );
+  await expect(current.getByRole("link")).toHaveCount(1);
+  await current
+    .getByRole("button", {
+      name: "Thread details for 原始主題 42: Unavailable replies",
+      exact: true,
+    })
+    .click();
+  await expect(current.locator("dd")).toHaveText([
+    "Unavailable",
+    "Unavailable",
+    "Unavailable",
+    "Unavailable",
+    "42",
+  ]);
+  await info.attach("unknown-details.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await info.attach("unknown-request-ledger.json", {
+    body: JSON.stringify(requests),
+    contentType: "application/json",
+  });
+});
+
 async function open(page: Page, html = board(), representation = "json") {
   const requests: { url: string; method: string }[] = [];
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
@@ -39,15 +147,214 @@ async function open(page: Page, html = board(), representation = "json") {
         body: `<html><body><script src="${origin}/__latest.js"></script></body></html>`,
       });
     requests.push({ url: request.url(), method: request.method() });
+    const document =
+      new URL(request.url()).searchParams.get("mod") === "viewthread"
+        ? posts(false)
+        : html;
     return route.fulfill({
       contentType: representation === "json" ? "application/json" : "text/html",
-      body:
-        representation === "json" ? JSON.stringify({ document: html }) : html,
+      body: representation === "json" ? JSON.stringify({ document }) : document,
     });
   });
   await page.goto(boardURL);
   await expect(page.locator(".thread-row").first()).toBeVisible();
   return requests;
+}
+
+for (const theme of ["light", "dark"]) {
+  test(`D9.unselected-${theme}: secondary text remains readable through row and control hover`, async ({
+    page,
+  }, info) => {
+    const requests = await open(
+      page,
+      board(row().replace("<th>", "<th><em>[分類]</em>")),
+    );
+    await openSettings(page);
+    await page.locator(`input[name="theme"][value="${theme}"]`).check();
+    await closeSettingsToWorkspace(page);
+    const current = page.locator(".thread-row");
+    await current.getByRole("button").click();
+    const observations = [];
+    for (const target of [".subject", ".latest-reply", "button"]) {
+      await current.locator(target).hover();
+      const contrast = await current.evaluate((row) => {
+        const lum = (value: string) => {
+          const rgb = value
+            .match(/[\d.]+/g)!
+            .slice(0, 3)
+            .map(Number)
+            .map((v) => {
+              const n = v / 255;
+              return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+            });
+          return rgb[0]! * 0.2126 + rgb[1]! * 0.7152 + rgb[2]! * 0.0722;
+        };
+        return [
+          ...row.querySelectorAll(
+            ".subject, .thread-category, .latest-reply, button, dt, dd",
+          ),
+        ].map((node) => {
+          let background = "rgba(0, 0, 0, 0)";
+          let parent: Element | null = node;
+          while (parent && background === "rgba(0, 0, 0, 0)") {
+            background = getComputedStyle(parent).backgroundColor;
+            parent = parent.parentElement;
+          }
+          const fg = lum(getComputedStyle(node).color),
+            bg = lum(background);
+          return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+        });
+      });
+      expect(Math.min(...contrast)).toBeGreaterThanOrEqual(4.5);
+      observations.push({ target, contrast });
+    }
+    await info.attach("unselected-hover.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("unselected-hover.json", {
+      body: JSON.stringify({ observations, requests }),
+      contentType: "application/json",
+    });
+  });
+}
+
+for (const theme of ["light", "dark", "mono", "alias"]) {
+  test(`D8-D9.${theme}: selected long rows remain readable, localized and stationary at enlarged narrow sizes`, async ({
+    page,
+  }, info) => {
+    const title = "完整而很長的繁體中文討論標題與閱讀心得".repeat(4);
+    const requests = await open(
+      page,
+      board(
+        row()
+          .replace("原始主題 42", title)
+          .replace("<th>", "<th><em>[長篇分類]</em>"),
+      ),
+    );
+    await page.locator(".thread-row .subject").click();
+    await expect(
+      page.getByRole("article", { name: "Post 101", exact: true }),
+    ).toBeVisible();
+    await clickThreadTool(page, "Back");
+    const current = page.locator(".thread-row").first();
+    const observations = [];
+    for (const [locale, detailName, latestAction] of [
+      ["en", "Thread details for", "Open latest post in"],
+      ["zh-CN", "主题详情", "打开最新回复"],
+      ["zh-TW", "主題詳情", "開啟最新回覆"],
+    ]) {
+      await openSettings(page);
+      await page.locator(`input[name="theme"][value="${theme}"]`).check();
+      await page.locator("#interface-language").selectOption(locale!);
+      await page.locator("#text-size").fill("150");
+      await closeSettingsToWorkspace(page);
+      await expect(
+        current.getByRole("button", { name: new RegExp(detailName!) }),
+      ).toHaveCount(1);
+      await expect(
+        current.getByRole("link", { name: new RegExp(latestAction!) }),
+      ).toHaveAttribute("href", latestURL);
+      for (const width of [390, 320]) {
+        await page.setViewportSize({
+          width,
+          height: width === 320 ? 640 : 844,
+        });
+        const trigger = current.getByRole("button");
+        await trigger.scrollIntoViewIfNeeded();
+        const observe = () =>
+          current.evaluate((row) => {
+            const rect = row.getBoundingClientRect();
+            const button = row.querySelector("button")!;
+            const box = button.getBoundingClientRect();
+            const style = getComputedStyle(row);
+            const lum = (color: string) => {
+              const rgb = color
+                .match(/[\d.]+/g)!
+                .slice(0, 3)
+                .map(Number)
+                .map((v) => {
+                  const x = v / 255;
+                  return x <= 0.04045
+                    ? x / 12.92
+                    : ((x + 0.055) / 1.055) ** 2.4;
+                });
+              return rgb[0]! * 0.2126 + rgb[1]! * 0.7152 + rgb[2]! * 0.0722;
+            };
+            const bg = lum(style.backgroundColor);
+            const contrast = [
+              ...row.querySelectorAll(
+                ".latest-reply, button, dt, dd, .subject, .thread-category, .local-reply-indicator",
+              ),
+            ].map((n) => {
+              const fg = lum(getComputedStyle(n).color);
+              return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+            });
+            return {
+              x: box.x - rect.x,
+              y: box.y - rect.y,
+              width: box.width,
+              height: box.height,
+              client: row.clientWidth,
+              scroll: row.scrollWidth,
+              contrast,
+              selected: row
+                .querySelector(".subject")
+                ?.getAttribute("aria-current"),
+              radius: style.borderRadius,
+              shadow: style.boxShadow,
+            };
+          });
+        if ((await trigger.getAttribute("aria-expanded")) === "true")
+          await trigger.click();
+        const before = await observe();
+        await trigger.press("Space");
+        await expect(trigger).toBeFocused();
+        const after = await observe();
+        expect(after.x).toBe(before.x);
+        expect(after.y).toBe(before.y);
+        expect(after.width).toBe(before.width);
+        expect(after.client).toBe(after.scroll);
+        expect(after.height).toBeGreaterThanOrEqual(44);
+        expect(after.selected).toBe("true");
+        expect(parseFloat(after.radius)).toBeGreaterThan(0);
+        expect(after.shadow).not.toBe("none");
+        expect(Math.min(...after.contrast)).toBeGreaterThanOrEqual(4.5);
+        await trigger.hover();
+        expect(Math.min(...(await observe()).contrast)).toBeGreaterThanOrEqual(
+          4.5,
+        );
+        observations.push({ locale, width, before, after });
+        await expect(current.locator(".thread-category")).toHaveText(
+          "[長篇分類]",
+        );
+        await current.locator("dd").last().scrollIntoViewIfNeeded();
+        await expect(current.locator("dd").last()).toBeInViewport();
+        const detailWidth = (await current.locator("dl").boundingBox())!.width;
+        expect(detailWidth).toBeGreaterThan(after.client - 40);
+        await info.attach(`${locale}-${width}.png`, {
+          body: await page.screenshot(),
+          contentType: "image/png",
+        });
+      }
+    }
+    await page.emulateMedia({ forcedColors: "active" });
+    await current.getByRole("button").focus();
+    const forced = await current.evaluate((row) => ({
+      border: getComputedStyle(row).borderStyle,
+      outline: getComputedStyle(row.querySelector("button")!).outlineStyle,
+    }));
+    expect(forced.border).toBe("solid");
+    expect(forced.outline).not.toBe("none");
+    await info.attach("forced-colors.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("appearance-observations.json", {
+      body: JSON.stringify({ observations, forced, requests }),
+      contentType: "application/json",
+    });
+  });
 }
 test("B2.metadata: native latest author and timestamp replace repeated title", async ({
   page,
@@ -55,7 +362,7 @@ test("B2.metadata: native latest author and timestamp replace repeated title", a
   const requests = await open(page);
   try {
     const latest = page.locator(".thread-row").getByRole("link", {
-      name: `Latest reply: ${latestName} · 2026-11-12 20:04`,
+      name: `Open latest post in 原始主題 42: ${latestName} · 2026-11-12 20:04`,
       exact: true,
     });
     await expect(latest).toBeVisible();
@@ -84,7 +391,7 @@ test("B2.metadata: native latest author and timestamp replace repeated title", a
     await page.reload();
     await expect(
       page.getByRole("link", {
-        name: "Latest reply: Replier unavailable · Time unavailable",
+        name: "Open latest post in 原始主題 42: Replier unavailable · Time unavailable",
         exact: true,
       }),
     ).toHaveAttribute("href", latestURL);
@@ -139,21 +446,27 @@ test("B2.partial: absent source details and unsafe destinations stay explicitly 
     const rows = page.locator(".thread-row");
     await expect(
       rows.nth(0).getByRole("link", {
-        name: "Latest reply: Replier unavailable · 2026-11-12",
+        name: "Open latest post in 原始主題 43: Replier unavailable · 2026-11-12",
         exact: true,
       }),
     ).toHaveAttribute("href", target(43));
     await expect(
       rows.nth(1).getByRole("link", {
-        name: "Latest reply: Reply Forty Four · Time unavailable",
+        name: "Open latest post in 原始主題 44: Reply Forty Four · Time unavailable",
         exact: true,
       }),
     ).toHaveAttribute("href", target(44));
     await expect(rows.nth(2)).toContainText(
-      "Latest reply: Replier unavailable · Time unavailable",
+      "Replier unavailable · Time unavailable",
     );
     for (let i = 2; i < 7; i++)
       await expect(rows.nth(i).getByRole("link")).toHaveCount(1);
+    await expect(rows.nth(3).locator(".latest-reply")).toHaveText(
+      "Reply Forty Six · 2026-11-12",
+    );
+    await expect(rows.nth(4).locator(".latest-reply")).toHaveText(
+      "Reply Forty Seven · 2026-11-12",
+    );
     expect(requests.every((request) => request.method === "GET")).toBe(true);
   } finally {
     await info.attach("partial-metadata.png", {
@@ -174,7 +487,7 @@ for (const representation of ["html", "json"])
     const html = `${account}<div class="header"><h2>音樂討論</h2></div><ul class="threadlist_box"><li class="list"><div class="threadlist_tit"><a href="${threadURL}&mobile=2">Touch thread</a></div><span class="muser">Touch Original Author</span><span class="mtime">2020-01-01</span><div class="threadlist_foot"><span class="mreply">999</span></div></li></ul>`;
     const requests = await open(page, html, representation);
     await expect(page.locator(".thread-row")).toContainText(
-      "Latest reply: Replier unavailable · Time unavailable",
+      "Replier unavailable · Time unavailable",
     );
     await expect(page.locator(".thread-row").getByRole("link")).toHaveCount(1);
     await expect(page.locator(".thread-row").getByRole("link")).toHaveAttribute(
@@ -202,7 +515,7 @@ test("B2.cjk: long source values stay complete and wrap at narrow width and 125%
       (node as HTMLElement).style.setProperty("--text-scale", "1.25"),
     );
   const latest = page.getByRole("link", {
-    name: `Latest reply: ${latestName} · 2026-11-12 20:04`,
+    name: `Open latest post in 原始主題 42: ${latestName} · 2026-11-12 20:04`,
     exact: true,
   });
   await expect(latest).toBeVisible();
@@ -260,7 +573,7 @@ for (const alreadySelected of [false, true])
           }
           await page
             .getByRole("link", {
-              name: `Latest reply: ${latestName} · 2026-11-12 20:04`,
+              name: `Open latest post in 原始主題 42: ${latestName} · 2026-11-12 20:04`,
               exact: true,
             })
             .click();
@@ -286,7 +599,7 @@ for (const alreadySelected of [false, true])
           await page.reload();
           await expect(
             page.getByRole("link", {
-              name: `Latest reply: ${latestName} · 2026-11-12 20:04`,
+              name: `Open latest post in 原始主題 42: ${latestName} · 2026-11-12 20:04`,
               exact: true,
             }),
           ).toBeVisible();
@@ -320,7 +633,7 @@ test("B2.exact-pid: native findpost without thread identity preserves its destin
   try {
     await expect(
       page.getByRole("link", {
-        name: "Latest reply: Exact Replier · 2026-11-12",
+        name: "Open latest post in 原始主題 42: Exact Replier · 2026-11-12",
         exact: true,
       }),
     ).toHaveAttribute("href", destination);
