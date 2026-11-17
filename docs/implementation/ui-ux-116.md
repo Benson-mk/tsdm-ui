@@ -147,8 +147,12 @@ Relevant named cases map to the parent contract:
 ## Installed Edge and bounded acceptance
 
 The driving agent verified byte-for-byte installed source equality with the
-candidate above in Edge 157.0.4341.60 and Tampermonkey BETA 5.6.6242, with the
-owner's stable/BETA equivalence. The private package
+candidate above in Edge 157.0.4341.46 (Chromium 157.0.8103.39), macOS 15.6.0
+and Tampermonkey BETA 5.6.6242, with the owner's stable/BETA equivalence.
+This running-browser attribution was corrected during #118 using high-entropy
+user-agent data; the earlier .60 value described the app bundle pending restart,
+not the installed session observed here. Automated runs retain their separately
+recorded runtime versions. The private package
 `evidence/runs/d-installed-2026-11-18/` contains 15 files sealed by SHA256SUMS,
 including the authored report, exact source comparison, request ledger, corrected
 geometry/focus observations, writing/return observations and screenshots.
