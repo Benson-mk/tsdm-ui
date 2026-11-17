@@ -48,11 +48,6 @@ This prototype checks presentation, not storage or operation authority.
 
 ## Verdict
 
-**2026-11-17 follow-up:** the owner selected A and requested refinement on this
-prototype branch. See the [A refinement report](information-hierarchy-A-refinement-2026-11-17.md).
-The comparison observations and JSON below remain historical evidence from
-`95d79a5`; A's selection does not promote the prototype into production.
-
 The bounded observations below support A as a starting hypothesis. No member preference or production decision is established.
 
 ## Run and compare
