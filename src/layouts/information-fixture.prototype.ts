@@ -90,12 +90,22 @@ export const samples = [
     "6",
     "97",
   ],
+  [
+    "58",
+    "聽完原聲帶後，你會重看作品嗎？",
+    "交流",
+    "海月",
+    "海月",
+    "昨天 18:20",
+    "0",
+    "120",
+  ],
 ];
 const fixture = createSharedReplyFixture();
 export const requests = fixture.requests;
 const row = (sample: string[], pinned = false) => {
   const [id, title, category, author, latest, time, replies, views] = sample;
-  return `<tbody id="${pinned ? "stick" : "normal"}thread_${id}"><tr><th><em>[${category}]</em><a class="xst" href="${threadURL(id!)}">${title}</a></th><td class="by"><cite>${author}</cite><em>2026-11-16</em></td><td class="num"><a>${replies}</a><em>${views}</em></td>${latest ? `<td class="by"><cite><a href="home.php?mod=space&uid=6">${latest}</a></cite><em><a href="${threadURL(id!)}&page=1#pid${id}02">${time}</a></em></td>` : ""}</tr></tbody>`;
+  return `<tbody id="${pinned ? "stick" : "normal"}thread_${id}"><tr><th><em>[${category}]</em><a class="xst" href="${threadURL(id!)}">${title}</a></th><td class="by"><cite>${author}</cite><em>2026-11-16</em></td><td class="num"><a>${replies}</a><em>${views}</em></td>${latest ? `<td class="by"><cite><a href="home.php?mod=space&uid=6">${latest}</a></cite><em>${id === "58" ? `<span>${time}</span>` : `<a href="${threadURL(id!)}&page=1#pid${id}02">${time}</a>`}</em></td>` : ""}</tr></tbody>`;
 };
 export async function response(
   url: string,

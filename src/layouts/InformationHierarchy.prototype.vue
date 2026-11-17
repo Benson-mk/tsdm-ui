@@ -50,6 +50,7 @@ const reportMessage = computed(() =>
   reason.value === "Other" ? other.value : reason.value,
 );
 const state = computed(() => ({
+  selectedDirection: "A",
   variant: variant.value,
   hypothesis: variants.find((v) => v.key === variant.value)!.description,
   selectedThread: props.workspace.state.value.selection,
@@ -120,7 +121,7 @@ function openLab(value: "rating" | "report") {
   <Switcher
     :current="variant"
     :variants="variants"
-    :summary="'Synthetic data · memory only'"
+    :summary="`${variant === 'A' ? 'Selected' : 'Comparison'} · synthetic data · memory only`"
     @change="choose"
     @inspect="inspect = true"
   />
@@ -133,6 +134,9 @@ function openLab(value: "rating" | "report") {
           >Which hierarchy helps you choose a discussion while keeping its
           meaning intact?</DialogDescription
         >
+        <p>
+          A is the selected direction. B and C remain comparison references.
+        </p>
         <p>{{ variants.find((v) => v.key === variant)?.description }}</p>
         <p>
           Try opening a thread, writing a reply, expanding it, then switching
