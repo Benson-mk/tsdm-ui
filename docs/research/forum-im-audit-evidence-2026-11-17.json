@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "purpose": "CPO research baseline; not release qualification",
+  "researchDate": "2026-11-17",
+  "timezone": "Asia/Hong_Kong",
+  "branch": "research/improve-ui-ux-2026-11-17",
+  "baseCommit": "8b04f4a",
+  "candidate": {
+    "userscriptSha256": "8db22dbd2a00a7d6ecbd237047a466e2bb6478e43f4d9aa35da603010f5f20f6",
+    "liveIabUnwrappedSourceSha256": "8db22dbd2a00a7d6ecbd237047a466e2bb6478e43f4d9aa35da603010f5f20f6",
+    "productionChanges": false
+  },
+  "sourceHashes": {
+    "tests/e2e/compact-board-controls.spec.ts": "da389d719500494a536c326618d96af06d5b1f0d1a1ddc11e2ed09da73bc0a16",
+    "tests/e2e/stable-board-browsing.spec.ts": "70284735820d368dc14f41f502706400d9fd0a4147308653aa96ee69ffe41c14",
+    "tests/evidence-reporter.ts": "b3533ab372ab1c5d84d2c7a65898716ad51572af10003b602445620bd6ffc947",
+    "src/styles.css": "0b8425f3acba356ff275e599441c1a6a13756920046c0f9fa00a4ea725dec141",
+    "src/layouts/WorkspaceLayout.vue": "b35a93625198e98cfa28bbc80d8ad977867c97c6bee5f79b207ea0c58a843f34",
+    "src/components/SourceWriting.vue": "2d1693823db77295bcfcfb1cefaf8bae00b46975cef17f2243703a4db5a1ee22"
+  },
+  "liveObservation": {
+    "kind": "expert-inspection",
+    "viewports": [
+      {
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "width": 390,
+        "height": 844
+      },
+      {
+        "width": 320,
+        "height": 740
+      }
+    ],
+    "desktop": {
+      "listWidthPx": 300,
+      "rowWidthPx": 252,
+      "firstOrdinaryRowTopPx": 380.5546875,
+      "firstThreeOrdinaryRowHeightsPx": [212.890625, 212.890625, 212.890625],
+      "globalHeaderHeightPx": 60,
+      "subjectFontSizePx": 16
+    },
+    "expanded320": {
+      "measuredVisibleButtonTargetPx": 44,
+      "visibleThreadTitle": false
+    },
+    "limits": [
+      "Read-only forum browsing and empty composition only",
+      "No participant study",
+      "No physical keyboard, system-bar or full accessibility qualification"
+    ]
+  },
+  "syntheticRun": {
+    "directory": "evidence/runs/2026-11-17T03-48-35.604Z",
+    "status": "failed",
+    "runtime": {
+      "node": "v26.0.0",
+      "openssl": "OpenSSL 3.6.2 7 Apr 2026 (Library: OpenSSL 3.6.2 7 Apr 2026)",
+      "npmUserAgent": "npm/11.12.1 node/v26.0.0 darwin arm64 workspaces/false",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "playwright": "1.64.1"
+    },
+    "cases": [
+      {
+        "name": "Pane.icons-desktop: soft thread rows and compact icon counts retain selection and keyboard boundaries",
+        "status": "passed",
+        "annotations": [
+          {
+            "type": "browser-version",
+            "description": "157.0.4341.60"
+          }
+        ],
+        "failures": []
+      },
+      {
+        "name": "Pane.icons-narrow: soft thread rows and compact icon counts retain selection and keyboard boundaries",
+        "status": "passed",
+        "annotations": [
+          {
+            "type": "browser-version",
+            "description": "157.0.4341.60"
+          }
+        ],
+        "failures": []
+      },
+      {
+        "name": "Pane.icons-dark: soft thread rows and compact icon counts retain selection and keyboard boundaries",
+        "status": "passed",
+        "annotations": [
+          {
+            "type": "browser-version",
+            "description": "157.0.4341.60"
+          }
+        ],
+        "failures": []
+      },
+      {
+        "name": "Pane.icons-forced: soft thread rows and compact icon counts retain selection and keyboard boundaries",
+        "status": "passed",
+        "annotations": [
+          {
+            "type": "browser-version",
+            "description": "157.0.4341.60"
+          }
+        ],
+        "failures": []
+      },
+      {
+        "name": "B1.desktop: unopened board retains compact width when a visible thread opens",
+        "status": "failed",
+        "annotations": [],
+        "failures": [
+          "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"none\"\nReceived: \"rgba(0, 0, 0, 0.06) 0px 4px 16px 0px\""
+        ]
+      },
+      {
+        "name": "B1.narrow-Threads: hidden list restores the same row after 125% text reflow",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      }
+    ],
+    "receiptSha256": "f696ab360be0f138c9c90e4bb14012926ed8d196369e305e56f2fde16c872ba7",
+    "manifestSha256": "a8c92c64b8699202417f6594a2c9842074dd2b5ff31ae6af8515be03f5c2882a",
+    "replay": "npm run test:e2e -- tests/e2e/compact-board-controls.spec.ts tests/e2e/stable-board-browsing.spec.ts --grep 'Pane.icons|B1.desktop:|B1.narrow-Threads'"
+  },
+  "disposition": "5 passed, 1 failed. The desktop case retains an obsolete no-shadow assertion at line 90; owner-approved row shadows remain. Test and implementation were not edited.",
+  "limits": [
+    "Existing exact bundle tested without rebuilding",
+    "Node 26.0.0/npm 11.12.1 differs from pinned Node 24.22.0/npm 11.21.1",
+    "No installed Edge/Chrome release qualification",
+    "Raw authenticated browser captures are excluded"
+  ]
+}
