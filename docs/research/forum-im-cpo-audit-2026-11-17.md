@@ -5,6 +5,9 @@ Date: 2026-11-17, Asia/Hong_Kong. Research branch:
 This is a product assessment and experiment plan, not an implementation approval,
 release qualification, or a replacement for the accepted requirements.
 
+Follow-up: the [component-by-component audit](forum-im-component-audit-2026-11-17.md)
+examines all 28 production render components and the actual Reka UI 2.11.0 integration.
+
 ## Product judgment
 
 **Make it easy to find a discussion, understand what changed, contribute, and

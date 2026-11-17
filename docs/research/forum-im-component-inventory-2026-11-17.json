@@ -1,0 +1,355 @@
+{
+  "schema": 1,
+  "date": "2026-11-17",
+  "applicationBaseCommit": "8b04f4a",
+  "researchParentCommit": "028b3ed",
+  "rekaVersion": "2.11.0",
+  "totalRenderComponents": 28,
+  "rekaImportingProductionFiles": [
+    "src/components/PostActions.vue",
+    "src/components/PostEditor.vue",
+    "src/components/PostPermalink.vue",
+    "src/components/RatingDialog.vue",
+    "src/components/ReplyRecoveryDialog.vue",
+    "src/components/ReplySends.vue",
+    "src/components/ReplyToolbarPopover.vue",
+    "src/components/ReportDialog.vue",
+    "src/components/SettingsDialog.vue",
+    "src/components/SourceWriting.vue",
+    "src/components/ThreadTools.vue",
+    "src/layouts/WorkspaceLayout.vue"
+  ],
+  "components": [
+    {
+      "name": "ColumnSeparator",
+      "source": "src/components/ColumnSeparator.vue",
+      "sourceSha256": "1b7bcc9220afaa06890e326faed7e6b18b78bf820bcbaf64fd353ef3bd6f62d5",
+      "rekaImports": [],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "ContentView",
+      "source": "src/components/ContentView.ts",
+      "sourceSha256": "b0b271d43d7a1ab117bcf9f3fb837747e828c8d25335d46437ef0650130e9e37",
+      "rekaImports": [],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "FavoritesView",
+      "source": "src/components/FavoritesView.vue",
+      "sourceSha256": "2191d54d1bc64b99d3d718a37d6c32fb98f91e759f8c145e7dcc1242e00a5761",
+      "rekaImports": [],
+      "audit": "forum-im-destination-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "InertSourcePreview",
+      "source": "src/components/InertSourcePreview.vue",
+      "sourceSha256": "c988822173ff1f6289c127253c07bed5ce9b1ba878b70b7c350cb894e9d93a91",
+      "rekaImports": [],
+      "audit": "forum-im-writing-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "MessagesView",
+      "source": "src/components/MessagesView.vue",
+      "sourceSha256": "a26066a91ca30fbc2e83e7cea97b3830ee4408505f0a30f3c0c5f64c9fed7ae1",
+      "rekaImports": [],
+      "audit": "forum-im-destination-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "NoticesView",
+      "source": "src/components/NoticesView.vue",
+      "sourceSha256": "b17d44c8a9289076d0530e6ce3dd98389a4eb0323dc01a45bddb7795e01568f7",
+      "rekaImports": [],
+      "audit": "forum-im-destination-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "PostActions",
+      "source": "src/components/PostActions.vue",
+      "sourceSha256": "cfee847532d8985f54fd2f814258fa7d76af4d26420cc7d26f0bd0b987a99de1",
+      "rekaImports": [
+        "DropdownMenuRoot",
+        "DropdownMenuTrigger",
+        "DropdownMenuPortal",
+        "DropdownMenuContent",
+        "DropdownMenuItem"
+      ],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "PostEditor",
+      "source": "src/components/PostEditor.vue",
+      "sourceSha256": "b0c4e6593337f2c9be7597e839851a2ad34888cf6e7d8f99731933a4e6bf87c0",
+      "rekaImports": ["ToolbarRoot", "ToolbarButton"],
+      "audit": "forum-im-writing-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "PostPermalink",
+      "source": "src/components/PostPermalink.vue",
+      "sourceSha256": "381128d3a2b3eda3f540b834b6f29521f557af0accfa43165b51d1e3f16ae4f5",
+      "rekaImports": [
+        "DialogRoot",
+        "DialogPortal",
+        "DialogOverlay",
+        "DialogContent",
+        "DialogTitle",
+        "DialogDescription",
+        "DialogClose"
+      ],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "PreparedPublication",
+      "source": "src/components/PreparedPublication.vue",
+      "sourceSha256": "3821c3fc1fc83592aadaa607079c6f15242e0c42db24b2c9ba57f9dd929e895e",
+      "rekaImports": [],
+      "audit": "forum-im-writing-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "PrivateAttemptHistory",
+      "source": "src/components/PrivateAttemptHistory.vue",
+      "sourceSha256": "beebf0005b9da5655953a65730f7d9c98659d031d57ef07e48c3f5a2b0b75303",
+      "rekaImports": [],
+      "audit": "forum-im-destination-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "PrivateConversationView",
+      "source": "src/components/PrivateConversationView.vue",
+      "sourceSha256": "612bc4221ce90f593dc7c59af43c8497f26806f482a33224355e5bc86924d793",
+      "rekaImports": [],
+      "audit": "forum-im-destination-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "PrivateWritingContent",
+      "source": "src/components/PrivateWritingContent.vue",
+      "sourceSha256": "6a11f0911f17f9f73c25931855033d5d41353d51fb5e475dc7a0a12aa9fbdab1",
+      "rekaImports": [],
+      "audit": "forum-im-destination-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "RatingDialog",
+      "source": "src/components/RatingDialog.vue",
+      "sourceSha256": "68361dfcfee8a4e983e12c4640bff1f3b4470bd012efd55e5ecba235d131fc4c",
+      "rekaImports": [
+        "DialogRoot",
+        "DialogPortal",
+        "DialogOverlay",
+        "DialogContent",
+        "DialogTitle",
+        "DialogDescription"
+      ],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "ReplyConflict",
+      "source": "src/components/ReplyConflict.vue",
+      "sourceSha256": "48c132f0db8bbab6b132f8424c287b786b6874a81b2e3b1b962744c8e2c8a436",
+      "rekaImports": [],
+      "audit": "forum-im-writing-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "ReplyRecoveryDialog",
+      "source": "src/components/ReplyRecoveryDialog.vue",
+      "sourceSha256": "bfc3368a1cefe1aced802268d9e0ba13f8b907ffb224e7fc2f355aced2ce0106",
+      "rekaImports": [
+        "DialogRoot",
+        "DialogTrigger",
+        "DialogPortal",
+        "DialogOverlay",
+        "DialogContent",
+        "DialogTitle",
+        "DialogDescription"
+      ],
+      "audit": "forum-im-writing-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "ReplySends",
+      "source": "src/components/ReplySends.vue",
+      "sourceSha256": "918b2316697c840dc009f53b14299ba63e4d4757e78ac4a9983ae1a1aaa88e7f",
+      "rekaImports": [
+        "DialogRoot",
+        "DialogPortal",
+        "DialogOverlay",
+        "DialogContent",
+        "DialogTitle",
+        "DialogDescription"
+      ],
+      "audit": "forum-im-writing-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "ReplyToolbarPopover",
+      "source": "src/components/ReplyToolbarPopover.vue",
+      "sourceSha256": "168a4313f3e83309222c3cd8362182d89ecc5025a1249b36c41ca3d52556ada9",
+      "rekaImports": [
+        "PopoverRoot",
+        "PopoverTrigger",
+        "PopoverPortal",
+        "PopoverContent",
+        "ToolbarButton"
+      ],
+      "audit": "forum-im-writing-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "ReportDialog",
+      "source": "src/components/ReportDialog.vue",
+      "sourceSha256": "edd3957e83c3b84075fc59a07e72f163ad8bc3ecc2f5007984f341935ece21ba",
+      "rekaImports": [
+        "DialogRoot",
+        "DialogPortal",
+        "DialogOverlay",
+        "DialogContent",
+        "DialogTitle",
+        "DialogDescription"
+      ],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "RetainedPublicAttempts",
+      "source": "src/components/RetainedPublicAttempts.vue",
+      "sourceSha256": "ebe98909e3fca1f311becaa7296f862a6b94e9e2a82ac179d7f53ac4afabd42d",
+      "rekaImports": [],
+      "audit": "forum-im-writing-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "SearchView",
+      "source": "src/components/SearchView.vue",
+      "sourceSha256": "479df460aca9d2d7d90ff64b397facded2009ffcfdf3b08e6a497d1a19ee5249",
+      "rekaImports": [],
+      "audit": "forum-im-destination-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "SettingsDialog",
+      "source": "src/components/SettingsDialog.vue",
+      "sourceSha256": "f4f720547e195e4cd8e04d8b0cf3c1deb7e447dfa6b23d9893939169dc099a6f",
+      "rekaImports": [
+        "DialogRoot",
+        "DialogTrigger",
+        "DialogPortal",
+        "DialogOverlay",
+        "DialogContent",
+        "DialogTitle",
+        "DialogDescription",
+        "DialogClose"
+      ],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "SourceWriting",
+      "source": "src/components/SourceWriting.vue",
+      "sourceSha256": "2d1693823db77295bcfcfb1cefaf8bae00b46975cef17f2243703a4db5a1ee22",
+      "rekaImports": [
+        "ToolbarButton",
+        "DropdownMenuRoot",
+        "DropdownMenuTrigger",
+        "DropdownMenuPortal",
+        "DropdownMenuContent",
+        "DropdownMenuItem"
+      ],
+      "audit": "forum-im-writing-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "ThreadHistoryBoundary",
+      "source": "src/components/ThreadHistoryBoundary.vue",
+      "sourceSha256": "b6e70b7a02d93bf6df5a378a2683ce8531a4988162c6a0bd65de22d5297b0d86",
+      "rekaImports": [],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "ThreadTools",
+      "source": "src/components/ThreadTools.vue",
+      "sourceSha256": "74af09061bdc11f174fdd80819ae7cc6f94d9a303ff12e29907e79e84e906e1a",
+      "rekaImports": [
+        "DialogRoot",
+        "DialogTrigger",
+        "DialogPortal",
+        "DialogOverlay",
+        "DialogContent",
+        "DialogTitle",
+        "DialogDescription",
+        "DialogClose",
+        "DropdownMenuRoot",
+        "DropdownMenuTrigger",
+        "DropdownMenuPortal",
+        "DropdownMenuContent",
+        "DropdownMenuItem"
+      ],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "WorkspaceBrand",
+      "source": "src/components/WorkspaceBrand.vue",
+      "sourceSha256": "9631ebf5c647414103ff92b7c8dacedf34005d09afd3d4b4ec9538d5c7a65bb4",
+      "rekaImports": [],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "WorkspaceIcon",
+      "source": "src/components/WorkspaceIcon.vue",
+      "sourceSha256": "094130c0c745b8bb525901272d661db82ffe5c8ea7414941b8daa0210f1168d8",
+      "rekaImports": [],
+      "audit": "forum-im-component-audit-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    },
+    {
+      "name": "WritingDestination",
+      "source": "src/components/WritingDestination.vue",
+      "sourceSha256": "37b1fc635d91d49d4a5d92e40c6b39bfb8b70814ed1b731fdfebe45a65c0bbb9",
+      "rekaImports": [],
+      "audit": "forum-im-writing-components-2026-11-17.md",
+      "scope": "Source, styling and existing E2E-definition inspection; fresh runtime coverage is separately recorded"
+    }
+  ],
+  "inlineWorkspaceUnits": [
+    "Header and main destinations",
+    "Progressive drawers",
+    "Board groups and directory",
+    "Board heading and subordinate boards",
+    "Thread rows and pagination",
+    "Board filter dialog",
+    "Board checks and reader status",
+    "Post identity/footer/downloads",
+    "Forum draft list and operation panels",
+    "Navigation guards and retained-writing resume"
+  ],
+  "supportModules": [
+    "src/components/attachment-text.ts",
+    "src/components/editor-dom.ts",
+    "src/components/editor-strings.ts",
+    "src/components/favorite-labels.ts",
+    "src/components/private-writing-text.ts",
+    "src/components/review-text.ts",
+    "src/components/validation-text.ts"
+  ],
+  "exclusions": [
+    "Prototype components and pages",
+    "Headless domain/host modules as separate visual components"
+  ],
+  "limits": [
+    "Coverage is an inventory, not a full runtime or accessibility acceptance claim"
+  ]
+}

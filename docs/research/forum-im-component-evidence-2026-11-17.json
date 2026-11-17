@@ -1,0 +1,218 @@
+{
+  "schema": 1,
+  "date": "2026-11-17",
+  "purpose": "Component research; not implementation or release qualification",
+  "candidateSha256": "8db22dbd2a00a7d6ecbd237047a466e2bb6478e43f4d9aa35da603010f5f20f6",
+  "live": {
+    "date": "2026-11-17",
+    "candidateSha256": "8db22dbd2a00a7d6ecbd237047a466e2bb6478e43f4d9aa35da603010f5f20f6",
+    "viewports": [
+      [905, 760],
+      [390, 844]
+    ],
+    "threadMenu": {
+      "border": "0px",
+      "borderColor": "rgb(0, 0, 0)",
+      "height": 578,
+      "itemCount": 12,
+      "radius": "0px",
+      "shadow": "rgba(0, 0, 0, 0.06) 0px 4px 16px 0px",
+      "width": 223.3984375
+    },
+    "textFormattingPopover": {
+      "border": "1px",
+      "borderColor": "rgb(102, 102, 102)",
+      "buttons": [
+        {
+          "height": 40,
+          "name": "Bold",
+          "pressed": null,
+          "role": null,
+          "state": null,
+          "width": 60.125
+        },
+        {
+          "height": 40,
+          "name": "Italic",
+          "pressed": null,
+          "role": null,
+          "state": null,
+          "width": 61.4609375
+        },
+        {
+          "height": 40,
+          "name": "Underline",
+          "pressed": null,
+          "role": null,
+          "state": null,
+          "width": 101.3828125
+        },
+        {
+          "height": 40,
+          "name": "Strike",
+          "pressed": null,
+          "role": null,
+          "state": null,
+          "width": 70.015625
+        },
+        {
+          "height": 40,
+          "name": "Font",
+          "pressed": null,
+          "role": null,
+          "state": null,
+          "width": 60.0234375
+        },
+        {
+          "height": 40,
+          "name": "Size",
+          "pressed": null,
+          "role": null,
+          "state": null,
+          "width": 57.6953125
+        },
+        {
+          "height": 40,
+          "name": "Color",
+          "pressed": null,
+          "role": null,
+          "state": null,
+          "width": 67.1328125
+        },
+        {
+          "height": 40,
+          "name": "Subscript",
+          "pressed": null,
+          "role": null,
+          "state": null,
+          "width": 100.9765625
+        },
+        {
+          "height": 40,
+          "name": "Superscript",
+          "pressed": null,
+          "role": null,
+          "state": null,
+          "width": 116.8828125
+        }
+      ],
+      "height": 199,
+      "radius": "12px",
+      "shadow": "rgba(0, 0, 0, 0.133) 0px 8px 32px 0px",
+      "width": 360
+    },
+    "fontInput": {
+      "height": 21.5,
+      "font": "13.3333px Arial",
+      "border": "2px inset rgb(118, 118, 118)",
+      "padding": "1px 2px",
+      "placeholder": null,
+      "ariaDescribedby": null,
+      "label": "Font"
+    },
+    "pageNumberInput": {
+      "border": "1px solid rgb(102, 102, 102)",
+      "fontSize": "18px",
+      "height": 44.09375,
+      "padding": "8px 12px"
+    },
+    "outsideClickFromWritingMoreToBoards": "Drawer opened; focus on Close",
+    "scope": "Menu, empty editor presentation, settings and page selection inspection only; no typed content or consequential submission"
+  },
+  "synthetic": {
+    "directory": "evidence/runs/2026-11-17T04-09-40.073Z",
+    "runtime": {
+      "node": "v26.0.0",
+      "openssl": "OpenSSL 3.6.2 7 Apr 2026 (Library: OpenSSL 3.6.2 7 Apr 2026)",
+      "npmUserAgent": "npm/11.12.1 node/v26.0.0 darwin arm64 workspaces/false",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "playwright": "1.64.1"
+    },
+    "status": "passed",
+    "cases": [
+      {
+        "name": "UI83.dialog: collapsed Boards opens one Settings dialog with About and returns keyboard focus to navigation",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UI83.dismissal: only a completed primary overlay press dismisses Settings",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UI86.confirm: slider and exact entry stay pending, Cancel and Escape preserve reading, and Go uses the exact returned target",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UI86.dialog-390: keyboard, outside dismissal and explicit actions remain contained in a short viewport",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UI86.dialog-1280: keyboard, outside dismissal and explicit actions remain contained in a short viewport",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UX101.menu: pointer and keyboard share truthful menu with native filter context",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UX104.touch: enlarged post copy and selectable fallback fit viewport and return focus",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UX102.keyboard: Escape cancels rating and restores focus to the post menu trigger",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UX102.narrow: qualified form remains reachable on a narrow viewport",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UX103.keyboard-narrow: 125% controls fit; native Escape returns exact trigger focus and IME Escape stays open",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UI85.more: keyboard dismissal returns focus and short menu actions target retained reader beside another board",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      },
+      {
+        "name": "UI85.native-escape: native document handling cannot strand Page or More and focus returns to each trigger",
+        "status": "passed",
+        "annotations": [],
+        "failures": []
+      }
+    ],
+    "receiptSha256": "1ecfcb48efa9705cf3763bb00684dbb63cf036e6106c80d170910f011e18db05",
+    "manifestSha256": "3f2b760e71b334653acb1b41296fb5269bd3ce5b3515b600aeb71d98dde61082",
+    "replay": "npm run test:e2e -- tests/e2e/thread-tools.spec.ts tests/e2e/page-picker.spec.ts tests/e2e/post-actions.spec.ts tests/e2e/navigation-settings.spec.ts tests/e2e/report.spec.ts tests/e2e/rating.spec.ts tests/e2e/post-permalink.spec.ts --grep 'UI85.more:|UI85.native-escape:|UI86.confirm:|UI86.dialog-|UX101.menu:|UI83.dialog:|UI83.dismissal:|UX103.keyboard-narrow:|UX102.keyboard:|UX102.narrow:|UX104.touch:'"
+  },
+  "limits": [
+    "12 selected existing complete-app cases; not all component states",
+    "Existing bundle tested without rebuilding",
+    "Available Node26/npm11.12 differs from pinned Node24/npm11.21",
+    "No live private-content, posting, rating, reporting or attachment effects",
+    "Earlier obsolete no-shadow test failure is not superseded by this run"
+  ]
+}
