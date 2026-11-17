@@ -1151,6 +1151,7 @@ const boardContext = computed(() =>
         : null,
 );
 const pinsExpanded = ref(false);
+const boardAboutOpen = ref(false);
 const pinnedRows = computed(
   () => boardContext.value?.threads.filter((row) => row.pinned) ?? [],
 );
@@ -1158,6 +1159,7 @@ watch(
   () => boardContext.value?.url,
   () => {
     pinsExpanded.value = false;
+    boardAboutOpen.value = false;
   },
 );
 const boardFilterGroups = computed(() => {
@@ -3314,19 +3316,91 @@ function boardIdFrom(url: string) {
         data-scroll-pane="results"
         :aria-label="text.threadResults"
       >
-        <span
-          v-if="listCategory.label"
-          class="category-label"
-          :data-category="listCategory.role"
-          >{{ listCategory.label }}</span
-        >
-        <div class="board-heading">
+        <div class="board-heading board-identity">
+          <span
+            class="board-symbol"
+            :data-category="listCategory.role"
+            aria-hidden="true"
+          >
+            <WorkspaceIcon name="boards" />
+          </span>
           <div>
+            <span
+              v-if="listCategory.label"
+              class="category-label"
+              :data-category="listCategory.role"
+              >{{ listCategory.label }}</span
+            >
             <h1>{{ boardContext.title }}</h1>
+          </div>
+        </div>
+        <CollapsibleRoot v-model:open="boardAboutOpen" class="board-about">
+          <CollapsibleTrigger class="board-about-trigger">
+            <WorkspaceIcon name="disclosure" />
+            {{ text.aboutBoard
+            }}<span v-if="boardContext.boards.length">
+              · {{ boardContext.boards.length }}
+              {{ text.subordinateBoards }}</span
+            >
+          </CollapsibleTrigger>
+          <CollapsibleContent class="board-about-content">
             <p v-if="boardContext.statistics" class="board-statistics">
               {{ boardContext.statistics }}
             </p>
-          </div>
+            <p v-if="!boardContext.statistics && !boardContext.boards.length">
+              {{ text.boardInformationUnavailable }}
+            </p>
+            <section v-if="boardContext.boards.length">
+              <h2>{{ text.subordinateBoards }}</h2>
+              <div class="board-grid">
+                <a
+                  v-for="board in boardContext.boards"
+                  :key="board.url"
+                  :href="board.url"
+                  :aria-label="board.label"
+                  class="board-card"
+                  :data-category="categoryFor(board.id).role"
+                  ><strong>{{ board.label }}</strong
+                  ><span v-if="board.description">{{ board.description }}</span
+                  ><small v-if="board.stats">{{ board.stats }}</small></a
+                >
+              </div>
+            </section>
+          </CollapsibleContent>
+        </CollapsibleRoot>
+        <div class="board-list-controls">
+          <button
+            ref="filterTrigger"
+            class="filter-trigger"
+            :aria-label="`${text.boardFilters} · ${boardContext.criteria.length}`"
+            :title="`${text.boardFilters} · ${boardContext.criteria.length}`"
+            :aria-expanded="filtersOpen"
+            @click="openFilters"
+          >
+            <WorkspaceIcon name="filter" />
+            <span aria-hidden="true"
+              >{{ text.boardFilters
+              }}<template v-if="boardContext.criteria.length">
+                · {{ boardContext.criteria.length }}</template
+              ></span
+            >
+          </button>
+          <button
+            v-if="pinnedRows.length"
+            class="pin-disclosure"
+            :aria-label="`${text.pinnedThreads} · ${pinnedRows.length}`"
+            :title="`${text.pinnedThreads} · ${pinnedRows.length}`"
+            :aria-expanded="pinsExpanded"
+            :aria-controls="
+              pinnedRows.map((row) => `row-${row.rowId}`).join(' ')
+            "
+            @click="pinsExpanded = !pinsExpanded"
+          >
+            <WorkspaceIcon name="pin" />
+            <span aria-hidden="true"
+              >{{ pinnedRows.length }} {{ text.pinned }}</span
+            >
+          </button>
           <button
             class="icon-button"
             :aria-label="text.checkNewThreads"
@@ -3340,6 +3414,17 @@ function boardIdFrom(url: string) {
           >
             <WorkspaceIcon name="refresh" />
           </button>
+          <span
+            class="board-page-indicator"
+            role="img"
+            :aria-label="`${text.page} ${boardContext.pages.current}`"
+            :title="`${text.page} ${boardContext.pages.current}`"
+          >
+            <WorkspaceIcon name="page" />
+            <span aria-hidden="true"
+              >{{ text.page }} {{ boardContext.pages.current }}</span
+            >
+          </span>
         </div>
         <div
           v-if="
@@ -3415,63 +3500,21 @@ function boardIdFrom(url: string) {
             </details>
           </div>
         </div>
-        <section v-if="boardContext.boards.length">
-          <h2>{{ text.subordinateBoards }}</h2>
-          <div class="board-grid">
-            <a
-              v-for="board in boardContext.boards"
-              :key="board.url"
-              :href="board.url"
-              :aria-label="board.label"
-              class="board-card"
-              :data-category="categoryFor(board.id).role"
-              ><strong>{{ board.label }}</strong
-              ><span v-if="board.description">{{ board.description }}</span
-              ><small v-if="board.stats">{{ board.stats }}</small></a
+        <div v-if="boardContext.criteria.length" class="board-active-criteria">
+          <ul :aria-label="text.criteria">
+            <li
+              v-for="criterion in boardContext.criteria"
+              :key="criterion.label"
             >
-          </div>
-        </section>
-        <div class="board-list-controls">
-          <button
-            ref="filterTrigger"
-            class="filter-trigger"
-            :aria-label="`${text.boardFilters} · ${boardContext.criteria.length}`"
-            :title="`${text.boardFilters} · ${boardContext.criteria.length}`"
-            :aria-expanded="filtersOpen"
-            @click="openFilters"
+              {{ criterion.label }}
+            </li>
+          </ul>
+          <a
+            v-if="boardContext.clearFilter"
+            :href="boardContext.clearFilter.url"
+            >{{ text.filterClear }}</a
           >
-            <WorkspaceIcon name="filter" />
-            <span aria-hidden="true">{{ boardContext.criteria.length }}</span>
-          </button>
-          <span
-            class="board-page-indicator"
-            role="img"
-            :aria-label="`${text.page} ${boardContext.pages.current}`"
-            :title="`${text.page} ${boardContext.pages.current}`"
-          >
-            <WorkspaceIcon name="page" />
-            <span aria-hidden="true">{{ boardContext.pages.current }}</span>
-          </span>
-          <button
-            v-if="pinnedRows.length"
-            class="pin-disclosure"
-            :aria-label="`${text.pinnedThreads} · ${pinnedRows.length}`"
-            :title="`${text.pinnedThreads} · ${pinnedRows.length}`"
-            :aria-expanded="pinsExpanded"
-            :aria-controls="
-              pinnedRows.map((row) => `row-${row.rowId}`).join(' ')
-            "
-            @click="pinsExpanded = !pinsExpanded"
-          >
-            <WorkspaceIcon name="pin" />
-            <span aria-hidden="true">{{ pinnedRows.length }}</span>
-          </button>
         </div>
-        <ul v-if="boardContext.criteria.length" :aria-label="text.criteria">
-          <li v-for="criterion in boardContext.criteria" :key="criterion.label">
-            {{ criterion.label }}
-          </li>
-        </ul>
         <div
           v-for="row in boardContext.threads"
           v-show="!row.pinned || pinsExpanded"

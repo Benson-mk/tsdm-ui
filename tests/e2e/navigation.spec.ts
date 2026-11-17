@@ -1612,6 +1612,11 @@ for (const appearance of [
       .first()
       .getByRole("link", { name: "Music discussion", exact: true })
       .click();
+    await page
+      .getByRole("button", {
+        name: /^(About this board|关于此版块|關於此版塊)/,
+      })
+      .click();
     const subordinate = page.locator(".results-pane section").filter({
       has: page.getByRole("heading", {
         name: appearance.subboards,
@@ -1638,6 +1643,11 @@ for (const appearance of [
     await expect(choice).toBeFocused();
     await page.keyboard.press("Enter");
     await applyBoardFilters(page);
+    await page
+      .getByRole("button", {
+        name: /^(About this board|关于此版块|關於此版塊)/,
+      })
+      .click();
     await expect(
       page.getByRole("link", {
         name: "Autumn listening — page 1",

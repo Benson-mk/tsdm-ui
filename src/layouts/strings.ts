@@ -325,6 +325,8 @@ const english = {
   directoryPages: "Directory pages",
   threadResults: "Thread results",
   subordinateBoards: "Subordinate boards",
+  aboutBoard: "About this board",
+  boardInformationUnavailable: "No additional board information supplied.",
   boardFilters: "Board filters",
   filterReward: "Reward",
   filterHelp:
@@ -902,6 +904,8 @@ const simplified: Strings = {
   directoryPages: "版块总览分页",
   threadResults: "主题列表",
   subordinateBoards: "子版块",
+  aboutBoard: "关于此版块",
+  boardInformationUnavailable: "未提供其他版块信息。",
   boardFilters: "版块筛选",
   filterReward: "悬赏",
   filterHelp:
@@ -1463,6 +1467,8 @@ const traditional: Strings = {
   directoryPages: "版塊總覽分頁",
   threadResults: "主題清單",
   subordinateBoards: "子版塊",
+  aboutBoard: "關於此版塊",
+  boardInformationUnavailable: "未提供其他版塊資訊。",
   boardFilters: "版塊篩選",
   filterReward: "懸賞",
   filterHelp:

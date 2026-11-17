@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { selectSourceEditor } from "./editor-controls";
+import { selectSourceEditor, revealWritingOptions } from "./editor-controls";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 test.beforeEach(async ({ browser }, info) => {
   info.annotations.push({
@@ -17,13 +17,14 @@ const row = (id: number, pinned = false) =>
 function board(stats = true) {
   return `${account}<div id="ct"><h1><a href="${boardURL}">音樂討論</a>${stats ? '<span class="xs1 xw0 i">今日: <strong class="xi1">0</strong><span class="pipe">|</span>主题: <strong class="xi1">7587</strong><span class="pipe">|</span>排名: <strong class="xi1" title="上次排名:438">15</strong></span>' : ""}</h1></div><table id="threadlisttableid">${row(41, true)}${row(42)}${row(43, true)}</table>`;
 }
-const replyForm = `${account}<div id="pt"><a href="${boardURL}">音樂討論</a></div><form id="postform" method="post" action="forum.php?mod=post&action=reply&fid=5&tid=42&replysubmit=yes"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_FORM_TOKEN"><input name="subject" value=""><textarea name="message"></textarea><button name="replysubmit" value="yes">Reply</button></form>`;
+const replyForm = `${account}<div id="pt"><a href="${boardURL}">音樂討論</a></div><form id="postform" method="post" action="forum.php?mod=post&action=reply&fid=5&tid=42&replysubmit=yes"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_FORM_TOKEN"><input name="subject" value=""><textarea name="message"></textarea><label><input type="checkbox" name="usesig" value="1" checked>Signature</label><button name="replysubmit" value="yes">Reply</button></form>`;
 const thread = (id: string) =>
   `${account}<div id="pt"><a href="${boardURL}">音樂討論</a></div><div id="postlist"><h1 id="thread_subject">Reading ${id}</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=9">Author Nine</a></div><a id="postnum101">1</a><div class="pcb"><p>Complete opening.</p></div></div></div>`;
 async function open(
   page: Page,
   source: (url: URL) => string = () => board(),
   nativeScript = "",
+  initialURL = boardURL,
 ) {
   const requests: { url: string; method: string }[] = [];
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
@@ -45,7 +46,8 @@ async function open(
       contentType: "application/json",
       body: JSON.stringify({
         document:
-          url.searchParams.get("mod") === "forumdisplay"
+          url.searchParams.get("mod") === "forumdisplay" ||
+          !url.searchParams.has("mod")
             ? source(url)
             : url.searchParams.get("mod") === "post"
               ? replyForm
@@ -53,9 +55,103 @@ async function open(
       }),
     });
   });
-  await page.goto(boardURL);
+  await page.goto(initialURL);
   return requests;
 }
+
+const childName = "創作作品與製作討論 — 完整而很長的繁體中文子版塊名稱";
+function contextBoard(children: number, stats = true) {
+  return board(stats)
+    .replaceAll("音樂討論", "創作討論")
+    .replace(
+      '<table id="threadlisttableid">',
+      `<div id="subforum_5"><table class="fl_tb"><tr>${Array.from({ length: children }, (_, index) => `<td><h2><a href="forum.php?mod=forumdisplay&fid=${7 + index}&page=2">${childName} ${index + 1}</a></h2>${index === 0 ? '<p class="xg2">完整的子版塊介紹，保留其內容和原生目的地。</p><span class="xg1">0 threads</span>' : ""}</td>`).join("")}</tr></table></div><table id="threadlisttableid">`,
+    );
+}
+for (const children of [0, 1, 2])
+  test(`D1.context-${children}: About reveals only supplied board statistics and subordinate destinations`, async ({
+    page,
+  }, info) => {
+    const requests = await open(page, () =>
+      contextBoard(children, children !== 0),
+    );
+    const about = page.getByRole("button", { name: /^About this board/ });
+    try {
+      await expect(
+        page.getByRole("heading", { name: "創作討論", exact: true }),
+      ).toBeVisible();
+      await expect(about).toBeVisible();
+      await expect(about).toHaveAttribute("aria-expanded", "false");
+      await expect(page.locator(".board-statistics")).toBeHidden();
+      await expect(
+        page
+          .locator("#thread-list-pane")
+          .getByRole("link", { name: `${childName} 1`, exact: true }),
+      ).toBeHidden();
+      await about.click();
+      await expect(about).toHaveAttribute("aria-expanded", "true");
+      await expect(about).toBeFocused();
+      if (children) {
+        await expect(page.locator(".board-statistics")).toHaveText(
+          "今日: 0|主题: 7587|排名: 15",
+        );
+        const context = page.locator(".board-about-content");
+        await expect(context.getByRole("link")).toHaveCount(children);
+        for (let index = 0; index < children; index++)
+          await expect(
+            context.getByRole("link", {
+              name: `${childName} ${index + 1}`,
+              exact: true,
+            }),
+          ).toHaveAttribute(
+            "href",
+            `${origin}/forum.php?mod=forumdisplay&fid=${7 + index}&page=2`,
+          );
+        await expect(context).toContainText(
+          "完整的子版塊介紹，保留其內容和原生目的地。",
+        );
+        await expect(context).toContainText("0 threads");
+        if (children === 2)
+          await expect(context.locator(".board-card").nth(1)).toHaveText(
+            `${childName} 2`,
+          );
+      } else {
+        await expect(
+          page.getByText("No additional board information supplied.", {
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(page.locator(".board-statistics")).toHaveCount(0);
+        await expect(
+          page.getByRole("heading", {
+            name: "Subordinate boards",
+            exact: true,
+          }),
+        ).toHaveCount(0);
+      }
+      const count = requests.length;
+      await about.press("Enter");
+      await expect(about).toHaveAttribute("aria-expanded", "false");
+      await about.press("Space");
+      await expect(about).toHaveAttribute("aria-expanded", "true");
+      await expect(about).toBeFocused();
+      expect(requests).toHaveLength(count);
+      await expect(page.locator("#thread-list-pane")).not.toContainText(
+        "分享音樂與聆聽心得",
+      );
+      await expect(page.locator("#thread-list-pane")).not.toContainText("♫");
+    } finally {
+      await info.attach("board-context.png", {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
+      await info.attach("requests.json", {
+        body: JSON.stringify(requests),
+        contentType: "application/json",
+      });
+    }
+  });
+
 for (const stats of [true, false])
   test(`B4.heading-pins-${stats}: native title and statistics separate, disclosure counts only represented pins without retargeting`, async ({
     page,
@@ -65,6 +161,7 @@ for (const stats of [true, false])
       await expect(
         page.getByRole("heading", { name: "音樂討論", exact: true }),
       ).toBeVisible();
+      await page.getByRole("button", { name: /^About this board/ }).click();
       await expect(page.locator(".board-statistics")).toHaveCount(
         stats ? 1 : 0,
       );
@@ -140,6 +237,72 @@ function filteredBoard(url: URL) {
         : row(44),
     );
 }
+test("D6.compact-controls: visible native controls and exact clear destination retain source order", async ({
+  page,
+}, info) => {
+  const requests = await open(page, filteredBoard);
+  try {
+    const controls = page.locator(".board-list-controls");
+    const filter = controls.getByRole("button", {
+      name: "Board filters · 0",
+      exact: true,
+    });
+    const pins = controls.getByRole("button", {
+      name: "Pinned threads · 2",
+      exact: true,
+    });
+    await expect(filter).toContainText("Board filters");
+    await expect(pins).toContainText("2 Pinned");
+    await expect(
+      controls.getByRole("img", { name: "Page 1", exact: true }),
+    ).toContainText("Page 1");
+    await expect(
+      controls.getByRole("button", {
+        name: "Check for new threads",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page.locator(".board-check-status")).toHaveCount(0);
+    await pins.click();
+    expect(
+      await page
+        .locator(".thread-row:visible")
+        .evaluateAll((rows) =>
+          rows.map((row) => row.getAttribute("data-thread-id")),
+        ),
+    ).toEqual(["41", "42", "43"]);
+    await filter.click();
+    const dialog = page.getByRole("dialog", {
+      name: "Board filters",
+      exact: true,
+    });
+    await dialog
+      .getByRole("button", { name: "Listening notes", exact: true })
+      .click();
+    await dialog.getByRole("button", { name: "Apply", exact: true }).click();
+    const clear = page
+      .locator(".board-active-criteria")
+      .getByRole("link", { name: "Clear", exact: true });
+    await expect(clear).toHaveAttribute("href", boardURL);
+    await expect(
+      page.getByRole("list", { name: "Effective criteria", exact: true }),
+    ).toContainText("Listening notes");
+    await clear.click();
+    await expect(filter).toBeVisible();
+    await expect(page.locator(".board-active-criteria")).toHaveCount(0);
+    expect(new URL(requests.at(-1)!.url).searchParams.get("typeid")).toBeNull();
+    expect(requests.every((request) => request.method === "GET")).toBe(true);
+  } finally {
+    await info.attach("compact-controls.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("requests.json", {
+      body: JSON.stringify(requests),
+      contentType: "application/json",
+    });
+  }
+});
 test("B3.staged-native: collapsed groups, Cancel, exact Apply and explicit replacement preserve source combinations and pin semantics", async ({
   page,
 }, info) => {
@@ -670,9 +833,9 @@ for (const variant of ["desktop", "narrow", "dark", "forced"] as const)
         name: "Page 1",
         exact: true,
       });
-      await expect(filters).toHaveText("0");
-      await expect(pins).toHaveText("2");
-      await expect(currentPage).toHaveText("1");
+      await expect(filters).toHaveText("Board filters");
+      await expect(pins).toHaveText("2 Pinned");
+      await expect(currentPage).toHaveText("Page 1");
       for (const control of [filters, pins, currentPage]) {
         await expect(control.locator("svg")).toHaveCount(1);
         const bounds = await control.boundingBox();
@@ -761,3 +924,273 @@ for (const variant of ["desktop", "narrow", "dark", "forced"] as const)
       });
     }
   });
+
+for (const theme of ["light", "dark"]) {
+  test(`D8-D9.board-${theme}: localized About and controls wrap with visible keyboard focus at enlarged narrow sizes`, async ({
+    page,
+  }, info) => {
+    const requests = await open(
+      page,
+      () =>
+        contextBoard(2).replace(
+          '<table id="threadlisttableid">',
+          `<div id="thread_types"><a href="${categoryURL}">${childName}</a></div><table id="threadlisttableid">`,
+        ),
+      "",
+      categoryURL,
+    );
+    const pane = page.locator("#thread-list-pane");
+    await expect(pane.locator(".board-active-criteria")).toContainText(
+      childName,
+    );
+    await expect(pane.locator(".board-active-criteria a")).toHaveAttribute(
+      "href",
+      boardURL,
+    );
+    const observations = [];
+    for (const [language, aboutName] of [
+      ["en", "About this board"],
+      ["zh-CN", "关于此版块"],
+      ["zh-TW", "關於此版塊"],
+    ]) {
+      await openSettings(page);
+      await page.locator(`input[name="theme"][value="${theme}"]`).check();
+      await page.locator("#interface-language").selectOption(language!);
+      await page.locator("#text-size").fill("150");
+      await closeSettingsToWorkspace(page);
+      const about = page.getByRole("button", {
+        name: new RegExp(`^${aboutName}`),
+      });
+      for (const width of [390, 320]) {
+        await page.setViewportSize({
+          width,
+          height: width === 320 ? 640 : 844,
+        });
+        if ((await about.getAttribute("aria-expanded")) === "true")
+          await about.click();
+        await about.scrollIntoViewIfNeeded();
+        await about.focus();
+        await about.press("Space");
+        await expect(about).toBeFocused();
+        await expect(about).toHaveAttribute("aria-expanded", "true");
+        expect((await about.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        const observe = () =>
+          pane.evaluate((pane) => {
+            const lum = (color: string) => {
+              const values = color
+                .match(/[\d.]+/g)!
+                .slice(0, 3)
+                .map(Number)
+                .map((value) => {
+                  const x = value / 255;
+                  return x <= 0.04045
+                    ? x / 12.92
+                    : ((x + 0.055) / 1.055) ** 2.4;
+                });
+              return (
+                values[0]! * 0.2126 + values[1]! * 0.7152 + values[2]! * 0.0722
+              );
+            };
+            const contrast = [
+              ...pane.querySelectorAll(
+                ".board-identity h1, .board-identity .category-label, .board-about-trigger, .board-statistics, .board-about-content h2, .board-about-content strong, .board-about-content span, .board-about-content small, .board-list-controls button, .board-page-indicator, .board-active-criteria li, .board-active-criteria a",
+              ),
+            ].map((node) => {
+              let parent: Element | null = node,
+                background = "rgba(0, 0, 0, 0)";
+              while (parent && background === "rgba(0, 0, 0, 0)") {
+                background = getComputedStyle(parent).backgroundColor;
+                parent = parent.parentElement;
+              }
+              const fg = lum(getComputedStyle(node).color),
+                bg = lum(background);
+              return {
+                text: node.textContent,
+                ratio: (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05),
+              };
+            });
+            return {
+              width: pane.clientWidth,
+              scroll: pane.scrollWidth,
+              contrast,
+              focus: getComputedStyle(
+                pane.querySelector(".board-about-trigger")!,
+              ).outlineStyle,
+            };
+          });
+        const result = await observe();
+        expect(result.scroll).toBeLessThanOrEqual(result.width + 1);
+        expect(
+          Math.min(...result.contrast.map((item) => item.ratio)),
+        ).toBeGreaterThanOrEqual(4.5);
+        expect(result.focus).not.toBe("none");
+        for (const target of [
+          about,
+          pane.locator(".filter-trigger"),
+          pane.locator(".board-card").first(),
+          pane.locator(".board-active-criteria a"),
+        ]) {
+          await target.hover();
+          expect(
+            Math.min(...(await observe()).contrast.map((item) => item.ratio)),
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+        const child = pane.locator(".board-card").last();
+        await child.scrollIntoViewIfNeeded();
+        await expect(child).toBeInViewport();
+        expect((await child.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        for (const control of await pane
+          .locator(".board-list-controls button, .board-active-criteria a")
+          .all()) {
+          await control.scrollIntoViewIfNeeded();
+          await expect(control).toBeInViewport();
+          expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(
+            44,
+          );
+        }
+        observations.push({ language, width, result });
+        await info.attach(`${language}-${width}.png`, {
+          body: await page.screenshot(),
+          contentType: "image/png",
+        });
+      }
+    }
+    await page.emulateMedia({ forcedColors: "active" });
+    const about = pane.locator(".board-about-trigger");
+    await about.focus();
+    expect(
+      await about.evaluate((node) => getComputedStyle(node).outlineStyle),
+    ).not.toBe("none");
+    await about.press("Enter");
+    await expect(about).toHaveAttribute("aria-expanded", "false");
+    await expect(about).toBeFocused();
+    await info.attach("forced-colors.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await info.attach("board-observations.json", {
+      body: JSON.stringify({ observations, requests }),
+      contentType: "application/json",
+    });
+  });
+}
+
+test("D7.board-context: About pins and subordinate navigation preserve literal local writing and options", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const requests = await open(page, (url) =>
+    url.searchParams.get("fid") === "7"
+      ? board(false).replaceAll("音樂討論", "Child destination")
+      : contextBoard(1),
+  );
+  try {
+    await page
+      .getByRole("link", { name: "Ordinary discussion 42", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Reply to thread", exact: true })
+      .click();
+    const source = await selectSourceEditor(page);
+    await source.fill("保留 [b]原始文字[/b] 與版塊目的地。");
+    await revealWritingOptions(page);
+    await page
+      .getByRole("checkbox", { name: "Signature", exact: true })
+      .uncheck();
+    await page.keyboard.press("Escape");
+    const editor = await source.elementHandle();
+    const destination = await page
+      .locator(".writing-destination")
+      .textContent();
+    const about = page.getByRole("button", { name: /^About this board/ });
+    const count = requests.length;
+    await about.click();
+    await about.press("Enter");
+    await about.press("Space");
+    await page
+      .getByRole("button", { name: "Pinned threads · 2", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Reading 42", exact: true }),
+    ).toBeVisible();
+    expect(requests).toHaveLength(count);
+    await expect(source).toHaveValue("保留 [b]原始文字[/b] 與版塊目的地。");
+    expect(await source.evaluate((node, prior) => node === prior, editor)).toBe(
+      true,
+    );
+    await page
+      .locator(".board-about-content")
+      .getByRole("link", { name: `${childName} 1`, exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Child destination", exact: true }),
+    ).toBeVisible();
+    expect(requests.at(-1)!.url).toBe(
+      `${origin}/forum.php?mod=forumdisplay&fid=7&page=2&tsdmapp=json`,
+    );
+    await expect(source).toHaveValue("保留 [b]原始文字[/b] 與版塊目的地。");
+    expect(await page.locator(".writing-destination").textContent()).toBe(
+      destination,
+    );
+    await page.goBack();
+    await expect(
+      page.getByRole("heading", { name: "創作討論", exact: true }),
+    ).toBeVisible();
+    await expect(about).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      page.locator('[data-thread-id="42"] .local-reply-indicator'),
+    ).toBeVisible();
+    await revealWritingOptions(page);
+    await expect(
+      page.getByRole("checkbox", { name: "Signature", exact: true }),
+    ).not.toBeChecked();
+    expect(requests.every((request) => request.method === "GET")).toBe(true);
+    await info.attach("writing-context.json", {
+      body: JSON.stringify({ destination, requests }),
+      contentType: "application/json",
+    });
+  } finally {
+    await info.attach("retained-context.png", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  }
+});
+
+test("D1.taxonomy: observed native category stays with the real board heading", async ({
+  page,
+}, info) => {
+  const directory = `${account}<div class="bm"><div class="bm_h"><h2>Creative</h2></div><div id="category_1"><table class="fl_tb"><tr><td><h2><a href="${boardURL}">創作討論</a></h2></td></tr></table></div></div>`;
+  const requests = await open(
+    page,
+    (url) => (url.searchParams.has("mod") ? contextBoard(1) : directory),
+    "",
+    `${origin}/forum.php`,
+  );
+  await page
+    .locator(".overview")
+    .getByRole("link", { name: "創作討論", exact: true })
+    .click();
+  const heading = page.locator(".board-identity");
+  await expect(
+    heading.getByRole("heading", { name: "創作討論", exact: true }),
+  ).toBeVisible();
+  await expect(heading.locator(".category-label")).toHaveText("Creative");
+  await expect(heading.locator(".category-label")).toHaveAttribute(
+    "data-category",
+    "creative",
+  );
+  await expect(heading.locator(".board-symbol")).toHaveAttribute(
+    "data-category",
+    "creative",
+  );
+  await expect(heading).not.toContainText("交流區");
+  await info.attach("real-category.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await info.attach("requests.json", {
+    body: JSON.stringify(requests),
+    contentType: "application/json",
+  });
+});
