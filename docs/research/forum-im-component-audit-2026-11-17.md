@@ -4,6 +4,10 @@
 This extends the [first CPO assessment](forum-im-cpo-audit-2026-11-17.md) after the
 request to inspect every component with **Reka UI** explicitly in view.
 
+Follow-up: the [first-principles information audit](forum-im-information-audit-2026-11-17.md)
+examines what each component should show, omit or defer in each operation state,
+including counterexamples to over-simplification.
+
 ## Recommendation
 
 **Keep Reka UI. Improve the application-owned component contracts around it.**
