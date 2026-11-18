@@ -659,7 +659,7 @@ test("J5.redirect-writing: actual document redirect and app remount retain sourc
         .click();
       await page
         .getByRole("link", {
-          name: "Latest reply: Replier unavailable · Exact post",
+          name: "Open latest post in Redirect guide: Replier unavailable · Exact post",
           exact: true,
         })
         .click();

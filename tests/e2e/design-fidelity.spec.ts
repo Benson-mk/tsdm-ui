@@ -139,7 +139,7 @@ test("DESIGN.chrome: quiet controls, compact taxonomy, rounded list selection an
     .soft((await style(page, ".workspace > header button")).background)
     .toBe("rgba(0, 0, 0, 0)");
   expect.soft((await style(page, ".boards-navigation h2")).size).toBe(12);
-  expect.soft((await style(page, ".thread-row")).radius).toBe("0px");
+  expect.soft((await style(page, ".thread-row")).radius).toBe("14px");
   expect
     .soft((await style(page, ".conversation-heading .context-kind")).size)
     .toBe(12);

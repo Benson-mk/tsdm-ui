@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { selectSourceEditor } from "./editor-controls";
 const origin = "https://www.tsdm39.com";
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
 const account = (id = "7") =>
@@ -361,9 +362,7 @@ test("UI90.ownership: a pending board check excludes reader checks and preparati
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  await expect(
-    page.getByRole("textbox", { name: "Complete source", exact: true }),
-  ).toBeAttached();
+  await expect(await selectSourceEditor(page)).toBeVisible();
   release();
   await page.waitForTimeout(100);
   await expect(page.getByText("Checking board…", { exact: true })).toHaveCount(
@@ -454,6 +453,10 @@ test("UI90.real-timer-backoff: failed board checks preserve rows and require del
   expect(requests).toHaveLength(2);
   await page.getByRole("button", { name: "Retry check", exact: true }).click();
   await expect(
+    page.getByText("Board check failed.", { exact: true }),
+  ).toBeVisible();
+  await page.locator(".board-check-details summary").click();
+  await expect(
     page.getByText("Retry available in 4 minutes.", { exact: true }),
   ).toBeVisible();
   await page.locator(".board-check-details summary").click();
@@ -481,13 +484,15 @@ for (const [width, language, size] of [
       .getByLabel("Interface language", { exact: true })
       .selectOption(language);
     await closeSettingsToWorkspace(page);
+    await expect(page.locator(".board-check-status")).toHaveCount(0);
     const statusHeight = await page
       .locator(".filter-trigger")
       .evaluate(
         (node) =>
           node.getBoundingClientRect().top -
           node
-            .parentElement!.querySelector(".board-heading")!
+            .closest(".results-pane")!
+            .querySelector(".board-about")!
             .getBoundingClientRect().bottom,
       );
     expect(statusHeight).toBeLessThan(40);
@@ -557,10 +562,7 @@ test("UI90.writing-recovery: reveal retains source node, selection and reading; 
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  const source = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const source = await selectSourceEditor(page);
   await source.fill("Unsent exact source with [b]meaning[/b].");
   await source.evaluate((node: HTMLTextAreaElement) =>
     node.setSelectionRange(7, 19),
@@ -591,6 +593,7 @@ test("UI90.writing-recovery: reveal retains source node, selection and reading; 
   await source.dispatchEvent("compositionend", { data: "測" });
   await page.reload();
   await expect(page.locator('[data-thread-id="45"]')).toBeVisible();
+  await selectSourceEditor(page);
   await expect(source).toHaveValue("Unsent exact source with [b]meaning[/b].");
   expect(requests).toHaveLength(before);
 });
@@ -817,7 +820,8 @@ test("UX99.board-quiet-cycle: no passive band; asynchronous statuses preserve th
       (node) =>
         node.getBoundingClientRect().top -
         node
-          .parentElement!.querySelector(".board-heading")!
+          .closest(".results-pane")!
+          .querySelector(".board-about")!
           .getBoundingClientRect().bottom,
     );
   expect(gap).toBeLessThan(40);

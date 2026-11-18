@@ -1420,12 +1420,60 @@ select {
   line-height: 1.45;
 }
 .board-thread-list .thread-row {
-  padding: 16px 8px;
-  margin-bottom: 8px;
-  border-radius: 0;
+  padding: 14px;
+  margin-bottom: 12px;
+  border-radius: 14px;
   border: 0;
   box-shadow: var(--floating-shadow);
   overflow-wrap: anywhere;
+  gap: 4px;
+}
+.board-thread-list .thread-row .subject {
+  order: -1;
+  font-size: calc(0.94rem * var(--text-scale, 1));
+  font-weight: 550;
+  line-height: 1.5;
+}
+.board-thread-list .thread-row-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 8px;
+  width: 100%;
+  min-width: 0;
+}
+.board-thread-list .latest-reply {
+  flex: 1 1 120px;
+  min-width: 0;
+  min-height: 44px;
+  font-size: calc(0.72rem * var(--text-scale, 1));
+  text-decoration: none;
+  color: var(--muted);
+}
+.board-thread-list .thread-details-trigger {
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-height: 44px;
+  font-size: calc(0.72rem * var(--text-scale, 1));
+  padding: 8px 0;
+  color: var(--muted);
+  border-radius: 4px;
+}
+.board-thread-list .thread-row-details[data-state="open"] {
+  flex-basis: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 0;
+  padding-block: 8px;
+  font-size: calc(0.76rem * var(--text-scale, 1));
+}
+.board-thread-list .thread-row-details dt {
+  color: var(--muted);
+}
+.board-thread-list .thread-row-details dd {
+  margin: 0;
 }
 .conversation-region > .reader-placeholder {
   display: flex;
@@ -2041,6 +2089,42 @@ select {
 .thread-row:has([aria-current="true"]) > span,
 .thread-row:has([aria-current="true"]) > time {
   color: var(--surface);
+}
+/* Board rows use the selected accent surface in every appearance theme. Keep
+   its foreground pair local, including controls and inherited secondary text. */
+.board-thread-list .thread-row:has([aria-current="true"]) {
+  --ink: #000;
+  --muted: #595959;
+  --soft: #e2e2e2;
+  background: var(--accent);
+  color: var(--ink);
+}
+.board-thread-list .thread-row:has([aria-current="true"]) > span {
+  color: var(--muted);
+}
+.board-thread-list .thread-row:has([aria-current="true"]) :focus-visible {
+  outline-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+:host([data-theme="dark"]) .board-thread-list .thread-row {
+  border: 1px solid var(--boundary);
+}
+:host([data-theme="dark"])
+  .board-thread-list
+  .thread-row:not(:has([aria-current="true"])):hover {
+  --muted: #fff;
+}
+@media (forced-colors: active) {
+  .board-thread-list .thread-row {
+    border: 1px solid CanvasText;
+  }
+  .board-thread-list .thread-row:has([aria-current="true"]) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .board-thread-list .thread-row:has([aria-current="true"]) :focus-visible {
+    outline-color: Highlight;
+  }
 }
 .workspace-tools nav {
   gap: 4px;
@@ -3045,6 +3129,67 @@ input {
 .board-heading > div {
   min-width: 0;
 }
+.board-identity {
+  gap: 12px;
+  margin-block: 6px 8px;
+}
+.board-identity > div {
+  flex: 1;
+}
+#thread-list-pane .board-identity h1 {
+  margin: 2px 0;
+  font-size: calc(1.45rem * var(--text-scale, 1));
+  overflow-wrap: anywhere;
+}
+.board-symbol {
+  display: grid;
+  place-items: center;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: var(--category-fill);
+  color: var(--category-ink);
+}
+.board-identity .category-label {
+  font-size: calc(0.76rem * var(--text-scale, 1));
+}
+.board-about {
+  font-size: calc(0.78rem * var(--text-scale, 1));
+  overflow-wrap: anywhere;
+}
+.board-about-trigger {
+  justify-content: flex-start;
+  text-align: start;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 44px;
+  min-width: 44px;
+  max-width: 100%;
+  padding: 8px 0;
+}
+.board-about-trigger .workspace-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.board-about-content {
+  padding-bottom: 12px;
+}
+.board-about-content h2 {
+  font-size: 1em;
+}
+.board-about-content .board-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.board-about-content .board-card {
+  min-width: 0;
+  min-height: 44px;
+  gap: 4px;
+}
+.board-about-content .board-card strong {
+  font-size: 1em;
+}
 .board-statistics {
   margin: 6px 0 0;
   color: var(--muted);
@@ -3055,8 +3200,9 @@ input {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-block: 8px 16px;
+  gap: 4px;
+  margin-block: 4px 16px;
+  font-size: calc(0.76rem * var(--text-scale, 1));
 }
 .board-list-controls > button,
 .board-page-indicator {
@@ -3068,8 +3214,54 @@ input {
   min-height: 44px;
   padding: 8px 12px;
 }
+.board-list-controls > button {
+  max-width: 100%;
+  padding-inline: 8px;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+.board-list-controls .workspace-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
 .board-page-indicator {
   color: var(--muted);
+  margin-inline-start: auto;
+  padding-inline: 4px;
+}
+.board-active-criteria {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-bottom: 12px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #000;
+  font-size: calc(0.78rem * var(--text-scale, 1));
+  overflow-wrap: anywhere;
+}
+.board-active-criteria ul {
+  flex: 1 1 140px;
+  margin: 0;
+  padding-inline-start: 20px;
+  min-width: 0;
+}
+.board-active-criteria a {
+  min-height: 44px;
+}
+.board-check-actions {
+  flex-wrap: wrap;
+}
+@media (forced-colors: active) {
+  .board-active-criteria,
+  .board-symbol {
+    background: Canvas;
+    color: CanvasText;
+    border: 1px solid CanvasText;
+  }
 }
 
 .board-filter-dialog {

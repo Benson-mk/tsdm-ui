@@ -87,7 +87,7 @@ test("B1.desktop: unopened board retains compact width when a visible thread ope
         .locator(".thread-row")
         .first()
         .evaluate((node) => getComputedStyle(node).boxShadow),
-    ).toBe("none");
+    ).not.toBe("none");
   } finally {
     await info.attach("after.png", {
       body: await page.screenshot(),
