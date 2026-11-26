@@ -1783,6 +1783,20 @@ export function createWorkspace(
     // Initial document traversal must not save an empty provisional record.
     // Read the current key after loading; earlier history events need no replay.
     host.onPop(restoreHistory);
+    host.onCachedDocumentReturn?.((key) => {
+      if (key !== state.value.key || state.value.result?.kind !== "thread")
+        return;
+      const target = threadHistory.state.value.result?.thread.target;
+      if (!target) return;
+      view?.dismissForHistory();
+      void nextTick().then(() => {
+        if (
+          key === state.value.key &&
+          target === threadHistory.state.value.result?.thread.target
+        )
+          view?.focusReadingPost(target, true);
+      });
+    });
     host.onReplyChange?.(() => {
       void persist();
     });

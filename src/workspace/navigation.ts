@@ -103,6 +103,7 @@ export interface NavigationHost {
   push(key: string): void;
   replace(key: string): void;
   onPop(action: (key: string | null) => void): void;
+  onCachedDocumentReturn?(action: (key: string | null) => void): void;
   back(): void;
   navigateDocument(url: string): void;
 }
@@ -112,7 +113,7 @@ export interface ViewAdapter {
   followLatest(): void;
   nearLatest(): boolean;
   restoreReading(position: ViewPosition, history?: boolean): void;
-  focusReadingPost(postId: string): void;
+  focusReadingPost(postId: string, preservePosition?: boolean): void;
   capture(): ViewPosition;
   restore(
     position: ViewPosition | null,

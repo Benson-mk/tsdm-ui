@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useId, type DeepReadonly } from "vue";
+import { computed, type DeepReadonly } from "vue";
 import type { Search, SearchField } from "../forum-client";
 import type { Preferences } from "../workspace/preferences";
 import { strings, description } from "../layouts/strings";
@@ -7,11 +7,11 @@ const props = defineProps<{
   search: DeepReadonly<Search>;
   loading: boolean;
   language: Preferences["language"];
+  warningId: string;
   secondary?: boolean;
   selection?: string | null;
 }>();
 const text = computed(() => strings(props.language));
-const warningId = useId();
 const genericNativeWarning =
   "Search may use forum credits and is subject to frequency limits.";
 const isGenericWarning = (restriction: string) =>

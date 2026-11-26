@@ -22,7 +22,7 @@ export async function withRedirectFixture(
   browser: Browser,
   fixture: {
     origin: string;
-    redirect: string;
+    redirect: string | ((url: URL) => string);
     document: (url: URL) => string;
     readHeaders?: Record<string, string>;
     readRedirect?: (url: URL) => string | null;
@@ -118,7 +118,12 @@ export async function withRedirectFixture(
       }
       if (url.searchParams.get("mod") === "redirect") {
         redirects.push(url.searchParams.has("tsdmapp") ? "fetch" : "document");
-        response.writeHead(302, { location: fixture.redirect });
+        response.writeHead(302, {
+          location:
+            typeof fixture.redirect === "function"
+              ? fixture.redirect(url)
+              : fixture.redirect,
+        });
         response.end();
         return;
       }

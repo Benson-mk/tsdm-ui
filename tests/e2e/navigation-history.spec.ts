@@ -1,11 +1,24 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import {
+  chromium,
+  expect,
+  test,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { withRedirectFixture } from "../http-redirect-fixture";
 import {
   clickThreadTool,
   loadThreadRange,
   openThreadMore,
   openThreadPages,
 } from "./navigation-ui";
+import {
+  revealWritingOptions,
+  selectSourceEditor,
+  waitForReplySaved,
+  writingDetailAction,
+} from "./editor-controls";
 
 const origin = "https://www.tsdm39.com";
 const forum = `${origin}/forum.php`;
@@ -38,29 +51,88 @@ const postPage = (url: URL, label = "Original") => {
 };
 
 type Response = { status?: number; label?: string };
+const addressedForm = `<form id="postform" method="post" action="forum.php?mod=post&action=reply&fid=5&tid=42&replysubmit=yes"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_FORM_TOKEN"><input type="hidden" name="reppid" value="4201"><input type="hidden" name="reppost" value="4201"><input type="hidden" name="noticeauthor" value="OPAQUE_AUTHOR_9"><input type="hidden" name="noticeauthormsg" value="Author Nine"><input type="hidden" name="noticetrimstr" value=""><input name="subject" value=""><textarea name="message"></textarea><label><input type="checkbox" name="usesig" value="1" checked>Signature</label><button type="submit" name="replysubmit" value="yes">Reply</button></form>`;
+const savedPath = "/home.php?mod=space&do=favorite&type=thread";
+const noticesPath = "/home.php?mod=space&do=notice";
+const combinedReads = [
+  `${forum}?tsdmapp=json`,
+  `${board(5)}&tsdmapp=json`,
+  `${thread(42)}&page=1&tsdmapp=json`,
+  `${forum}?mod=post&action=reply&fid=5&tid=42&tsdmapp=json&reppost=4201`,
+  `${thread(43)}&page=1&tsdmapp=json`,
+  `${thread(42)}&page=1&tsdmapp=json`,
+  `${origin}${savedPath}&tsdmapp=json`,
+  `${origin}${noticesPath}&tsdmapp=json`,
+];
+const destinationFixtures = new Map([
+  [savedPath, '<div id="ct"><p class="emp">您还没有添加任何收藏</p></div>'],
+  [
+    noticesPath,
+    '<div id="ct"><div class="mn"><p class="emp">No notices in this returned category.</p></div><div class="appl"><div class="tbn"><ul><li class="a"><a href="home.php?mod=space&do=notice">All standard notices</a></li></ul></div></div></div>',
+  ],
+]);
 const runs = new WeakMap<
   Page,
-  { requests: string[]; documents: string[]; samples: Record<string, unknown> }
+  {
+    requests: string[];
+    documents: string[];
+    rejected: string[];
+    samples: Record<string, unknown>;
+  }
 >();
-async function open(page: Page, destination: string) {
+async function open(page: Page, destination: string, combined = false) {
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const requests: string[] = [];
   const documents: string[] = [];
   const samples: Record<string, unknown> = {};
+  const rejected: string[] = [];
+  const reject = (method: string, url: URL) =>
+    rejected.push(`${method} ${url.href}`);
   let deferred: Promise<Response> | null = null;
   let release: ((response: Response) => void) | null = null;
-  runs.set(page, { requests, documents, samples });
+  runs.set(page, { requests, documents, rejected, samples });
   await page.context().route("**/*", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    if (request.method() !== "GET" || url.origin !== origin)
+    if (request.method() !== "GET" || url.origin !== origin) {
+      reject(request.method(), url);
       return route.abort();
-    if (url.pathname === "/__history-122.js")
+    }
+    if (
+      url.href === `${origin}/__history-122.js` &&
+      !request.isNavigationRequest()
+    )
       return route.fulfill({
         contentType: "text/javascript; charset=utf-8",
         body: built,
       });
-    if (url.pathname !== "/forum.php") return route.abort();
+    if (
+      combined &&
+      !(request.isNavigationRequest()
+        ? url.href === destination
+        : combinedReads.includes(url.href))
+    ) {
+      reject(request.method(), url);
+      return route.abort();
+    }
+    if (combined && !request.isNavigationRequest()) {
+      const target = new URL(url);
+      target.searchParams.delete("tsdmapp");
+      const document = destinationFixtures.get(
+        `${target.pathname}${target.search}`,
+      );
+      if (document !== undefined) {
+        requests.push(request.url());
+        return route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({ uid: 7, document: member + document }),
+        });
+      }
+    }
+    if (url.pathname !== "/forum.php") {
+      reject(request.method(), url);
+      return route.abort();
+    }
     if (request.isNavigationRequest()) {
       documents.push(request.url());
       return route.fulfill({
@@ -70,8 +142,22 @@ async function open(page: Page, destination: string) {
     }
     requests.push(request.url());
     const mod = url.searchParams.get("mod");
-    if (mod && mod !== "forumdisplay" && mod !== "viewthread")
+    if (
+      combined &&
+      mod === "post" &&
+      url.searchParams.get("action") === "reply" &&
+      url.searchParams.get("fid") === "5" &&
+      url.searchParams.get("tid") === "42" &&
+      url.searchParams.get("reppost") === "4201"
+    )
+      return route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ document: member + addressedForm }),
+      });
+    if (mod && mod !== "forumdisplay" && mod !== "viewthread") {
+      reject(request.method(), url);
       return route.abort();
+    }
     const waiting = mod === "viewthread" ? deferred : null;
     if (waiting) deferred = null;
     const response = waiting ? await waiting : {};
@@ -92,6 +178,7 @@ async function open(page: Page, destination: string) {
   await expect(page.locator(".workspace")).toBeVisible();
   return {
     requests,
+    rejected,
     samples,
     delay() {
       deferred = new Promise<Response>((resolve) => {
@@ -210,6 +297,254 @@ test.afterEach(async ({ page }, info) => {
     contentType: "image/png",
   });
   expect(run.documents).toHaveLength(1);
+});
+
+test("J124.combined: choose a Board, keep independent positions, switch destinations, and resume the addressed reply", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1146, height: 876 });
+  const { requests, rejected, samples, delay } = await open(page, forum, true);
+  const runtime = await page.evaluate(async () => {
+    const userAgentData = (
+      navigator as Navigator & {
+        userAgentData?: {
+          getHighEntropyValues(keys: string[]): Promise<{
+            fullVersionList?: { brand: string; version: string }[];
+          }>;
+        };
+      }
+    ).userAgentData;
+    return {
+      userAgent: navigator.userAgent,
+      versions: (await userAgentData?.getHighEntropyValues(["fullVersionList"]))
+        ?.fullVersionList,
+    };
+  });
+  const expectedBrand =
+    info.project.use.channel === "msedge" ? "Microsoft Edge" : "Google Chrome";
+  const version =
+    page.context().browser()?.version() ??
+    runtime.versions?.find(({ brand }) => brand === expectedBrand)?.version;
+  expect(version, "expected the exact browser version").toBeTruthy();
+  info.annotations.push({
+    type: "browser-version",
+    ...(version ? { description: version } : {}),
+  });
+  if (info.project.use.channel === "msedge")
+    expect(runtime.userAgent).toMatch(/\bEdg\//);
+  else {
+    expect(info.project.use.channel).toBe("chrome");
+    expect(runtime.userAgent).toMatch(/\b(?:Headless)?Chrome\//);
+    expect(runtime.userAgent).not.toMatch(/\bEdg\//);
+  }
+  const chooser = page.getByRole("region", {
+    name: "Boards overview",
+    exact: true,
+  });
+  await expect(chooser).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Board 5", exact: true }),
+  ).toHaveCount(1);
+  await chooser.getByRole("link", { name: "Board 5", exact: true }).click();
+  await expect(boardHeading(page, 5)).toBeVisible();
+  await row(page, 42).locator(".latest-reply").click();
+  const first = post(page, 4202);
+  const second = post(page, 4302);
+  await expect(first).toBeFocused();
+  await post(page, 4201)
+    .getByRole("button", { name: "Reply to this post", exact: true })
+    .click();
+  const source = await selectSourceEditor(page);
+  const retained = "[b]完整保留 this addressed reply[/b]";
+  await source.fill(retained);
+  await revealWritingOptions(page);
+  const signature = page.getByRole("checkbox", {
+    name: "Signature",
+    exact: true,
+  });
+  await signature.uncheck();
+  await page.keyboard.press("Escape");
+  await waitForReplySaved(page);
+  await (await writingDetailAction(page, "Return to reading")).click();
+  const resume = page.getByRole("button", {
+    name: "Return to writing",
+    exact: true,
+  });
+  await expect(resume).toBeFocused();
+  await expect(source).toBeHidden();
+  await exactPost(first, 150);
+  await scroll(navigation(page), 325);
+  await row(page, 43).locator(".latest-reply").scrollIntoViewIfNeeded();
+  await scroll(list(page), 180);
+  await stable(page);
+  const original = {
+    reader: await postOffset(first),
+    boards: await paneScroll(navigation(page)),
+    results: await paneScroll(list(page)),
+  };
+  samples.original = original;
+  expect(original.boards).toBeGreaterThan(0);
+  expect(original.results).toBeGreaterThan(0);
+  await row(page, 43).locator(".latest-reply").click();
+  await expect(second).toBeFocused();
+  await exactPost(second, 215);
+  await scroll(navigation(page), 40);
+  await scroll(list(page), 240);
+  await stable(page);
+  const count = requests.length;
+  await page.goBack();
+  await expect(first).toBeFocused();
+  await stable(page);
+  const restored = {
+    reader: await postOffset(first),
+    boards: await paneScroll(navigation(page)),
+    results: await paneScroll(list(page)),
+  };
+  samples.restored = restored;
+  expect(restored.boards).toBe(original.boards);
+  expect(restored.results).toBe(original.results);
+  expect(
+    Math.abs(restored.reader.top - original.reader.top),
+  ).toBeLessThanOrEqual(1);
+  expect(requests).toHaveLength(count);
+
+  await page.setViewportSize({ width: 900, height: 876 });
+  await expect(boards(page)).toHaveAttribute("aria-expanded", "false");
+  await boards(page).click();
+  const close = drawer(page).getByRole("button", {
+    name: "Close",
+    exact: true,
+  });
+  await expect(close).toBeFocused();
+  await page.goForward();
+  await expect(drawer(page)).toBeHidden();
+  await expect(second).toBeFocused();
+  samples.drawerForward = await postOffset(second);
+  await boards(page).click();
+  await expect(close).toBeFocused();
+  await page.goBack();
+  await expect(drawer(page)).toBeHidden();
+  await expect(first).toBeFocused();
+  samples.drawerBack = await postOffset(first);
+  expect(requests).toHaveLength(count);
+
+  await exactPost(first, 141);
+  await stable(page);
+  const beforeRefresh = await postOffset(first);
+  const release = delay();
+  try {
+    await clickThreadTool(page, "Refresh thread");
+    await expect.poll(() => requests.length).toBe(count + 1);
+    await boards(page).click();
+    await expect(close).toBeFocused();
+  } finally {
+    release({ label: "Refreshed" });
+  }
+  await expect(first.getByText(/^Refreshed passage 0/)).toBeAttached();
+  await expect(close).toBeFocused();
+  const afterRefresh = await postOffset(first);
+  samples.delayedRefresh = { beforeRefresh, afterRefresh, closeFocused: true };
+  expect(Math.abs(afterRefresh.top - beforeRefresh.top)).toBeLessThanOrEqual(1);
+  await info.attach("drawer-focus.aria.txt", {
+    body: await drawer(page).ariaSnapshot(),
+    contentType: "text/plain",
+  });
+  await info.attach("drawer-focus.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+
+  for (const [index, action] of [
+    {
+      name: "Saved",
+      load: "Load saved threads",
+      empty: "No favorites on this page.",
+    },
+    {
+      name: "Notices",
+      load: "Load notices",
+      empty: "No notices in this returned category.",
+    },
+  ].entries()) {
+    if (index > 0) await boards(page).click();
+    const nav = page.getByRole("navigation", {
+      name: "Main destinations",
+      exact: true,
+    });
+    const baseline = requests.length;
+    await nav.getByRole("button", { name: action.name, exact: true }).click();
+    await expect(
+      page.getByText("List not loaded.", { exact: true }),
+    ).toBeVisible();
+    expect(requests).toHaveLength(baseline);
+    await page.getByRole("button", { name: action.load, exact: true }).click();
+    await expect(page.getByText(action.empty, { exact: true })).toBeVisible();
+    expect(requests).toHaveLength(baseline + 1);
+    await page.goBack();
+    await expect(
+      page.getByText("List not loaded.", { exact: true }),
+    ).toBeVisible();
+    await page.goForward();
+    await expect(page.getByText(action.empty, { exact: true })).toBeVisible();
+    expect(requests).toHaveLength(baseline + 1);
+    samples[action.name] = { passive: 0, load: 1, history: 0 };
+  }
+  await page.goBack();
+  await expect(
+    page.getByText("List not loaded.", { exact: true }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(
+    page.getByText("No favorites on this page.", { exact: true }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(
+    page.getByText("List not loaded.", { exact: true }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(first).toBeFocused();
+  await expect(source).toBeHidden();
+  const exactReturn = await postOffset(first);
+  const native = page.getByRole("link", {
+    name: "Continue in native forum",
+    exact: true,
+  });
+  await expect(native).toHaveAttribute(
+    "href",
+    `${thread(42)}&page=1&tsdm-native=1#pid4202`,
+  );
+  samples.destinationReturn = {
+    ...exactReturn,
+    native: await native.getAttribute("href"),
+  };
+  expect(Math.abs(exactReturn.top - afterRefresh.top)).toBeLessThanOrEqual(1);
+  await resume.click();
+  await selectSourceEditor(page);
+  await expect(source).toBeFocused();
+  await expect(source).toHaveValue(retained);
+  const target = page
+    .getByRole("group", { name: "Reply target" })
+    .getByRole("link");
+  await expect(target).toHaveAttribute(
+    "href",
+    `${forum}?mod=redirect&goto=findpost&ptid=42&pid=4201`,
+  );
+  await revealWritingOptions(page);
+  await expect(signature).not.toBeChecked();
+  await page.keyboard.press("Escape");
+  samples.reply = {
+    target: await target.getAttribute("href"),
+    source: retained,
+    signature: false,
+  };
+  expect(requests).toEqual(combinedReads);
+  expect(rejected).toEqual([]);
+  await info.attach("addressed-writing.aria.txt", {
+    body: await page
+      .getByRole("region", { name: "Writing context", exact: true })
+      .ariaSnapshot(),
+    contentType: "text/plain",
+  });
 });
 
 test("J122.history: filtered Board, current row and exact Post follow actual history", async ({
@@ -399,6 +734,371 @@ test("J122.drawer: Back and Forward restore and focus each exact Post at 900 px"
     expect(requests).toHaveLength(count);
   }
 });
+
+test.describe("Cached document history", () => {
+  test("J124.document-history: browser Forward across a native exact Post redirect focuses the restored Post", async ({
+    browserName,
+  }, info) => {
+    expect(browserName).toBe("chromium");
+    const browser = await chromium.launch({
+      channel: info.project.use.channel ?? "msedge",
+      ignoreDefaultArgs: ["--disable-back-forward-cache"],
+    });
+    const permalink = `${forum}?mod=redirect&goto=findpost&pid=4302`;
+    const resolved = `${thread(43)}&page=1#pid4302`;
+    const close = (page: Page) =>
+      drawer(page).getByRole("button", { name: "Close", exact: true });
+    const documentIdentity = (page: Page) =>
+      page.evaluate(() => ({
+        timeOrigin: performance.timeOrigin,
+        navigationType: (
+          performance.getEntriesByType(
+            "navigation",
+          )[0] as PerformanceNavigationTiming
+        )?.type,
+      }));
+    info.annotations.push({
+      type: "browser-version",
+      description: browser.version(),
+    });
+    try {
+      await withRedirectFixture(
+        browser,
+        {
+          origin,
+          redirect: resolved,
+          document: (url) =>
+            url.searchParams.get("mod") === "forumdisplay"
+              ? boardPage(5)
+              : postPage(url),
+        },
+        async (page, reads, redirects) => {
+          await page.setViewportSize({ width: 900, height: 876 });
+          const documents: string[] = [];
+          page.on("request", (request) => {
+            if (request.isNavigationRequest()) documents.push(request.url());
+          });
+          const samples: Record<string, unknown> = {};
+          const first = post(page, 4202);
+          const second = post(page, 4302);
+          const native = page.getByRole("link", {
+            name: "Continue in native forum",
+            exact: true,
+          });
+          try {
+            await page.goto(board(5));
+            const originalDocument = await documentIdentity(page);
+            await row(page, 42).locator(".latest-reply").click();
+            await expect(first).toBeFocused();
+            expect(await documentIdentity(page)).toEqual(originalDocument);
+            const firstEntry = await postOffset(first);
+            samples.firstEntry = { ...originalDocument, ...firstEntry };
+
+            await page.goto(permalink);
+            await expect(second).toHaveAttribute("data-targeted", "true");
+            await expect(native).toHaveAttribute(
+              "href",
+              `${thread(43)}&page=1&tsdm-native=1#pid4302`,
+            );
+            const secondDocument = await documentIdentity(page);
+            const secondEntry = await postOffset(second);
+            expect(secondDocument.timeOrigin).not.toBe(
+              originalDocument.timeOrigin,
+            );
+            samples.secondEntry = { ...secondDocument, ...secondEntry };
+            expect(redirects).toEqual(["document"]);
+
+            await boards(page).click();
+            await expect(close(page)).toBeFocused();
+            await page.evaluate(() => setTimeout(() => history.back(), 0));
+            await expect(first).toBeAttached();
+            await stable(page);
+            const backDocument = await documentIdentity(page);
+            const back = await postOffset(first);
+            await expect(drawer(page)).toBeHidden({ timeout: 1500 });
+            await expect(first).toBeFocused({ timeout: 1500 });
+            expect(backDocument.timeOrigin).toBe(originalDocument.timeOrigin);
+            samples.back = { ...backDocument, ...back };
+            expect(Math.abs(back.top - firstEntry.top)).toBeLessThanOrEqual(1);
+
+            await boards(page).click();
+            await expect(close(page)).toBeFocused();
+            await page.evaluate(() => setTimeout(() => history.forward(), 0));
+            await expect(second).toHaveAttribute("data-targeted", "true");
+            await expect(native).toHaveAttribute(
+              "href",
+              `${thread(43)}&page=1&tsdm-native=1#pid4302`,
+            );
+            await expect.soft(drawer(page)).toBeHidden({ timeout: 1500 });
+            await expect.soft(second).toBeFocused({ timeout: 1500 });
+            await stable(page);
+            const forwardDocument = await documentIdentity(page);
+            const forward = await postOffset(second);
+            expect(forwardDocument.timeOrigin).toBe(secondDocument.timeOrigin);
+            samples.forward = { ...forwardDocument, ...forward };
+            expect
+              .soft(Math.abs(forward.top - secondEntry.top))
+              .toBeLessThanOrEqual(1);
+            expect(reads).toEqual([
+              `${board(5)}&tsdmapp=json`,
+              `${thread(42)}&page=1&tsdmapp=json`,
+              `${thread(43)}&page=1&tsdmapp=json`,
+            ]);
+            expect(documents).toEqual([
+              board(5),
+              permalink,
+              `${thread(43)}&page=1`,
+            ]);
+          } finally {
+            await info.attach("document-history-observations.json", {
+              body: JSON.stringify({
+                samples,
+                reads,
+                redirects,
+                documents,
+                browser: browser.version(),
+                viewport: page.viewportSize(),
+              }),
+              contentType: "application/json",
+            });
+            await info.attach("document-history.png", {
+              body: await page.screenshot(),
+              contentType: "image/png",
+            });
+          }
+        },
+      );
+    } finally {
+      await browser.close();
+    }
+  });
+});
+
+for (const moveBeforeMedia of [false, true]) {
+  test(`J124.cold-latest-history-${moveBeforeMedia ? "reader-intent" : "exact"}: browser Forward with late media ${moveBeforeMedia ? "preserves deliberate scrolling" : "restores the exact Post position"}`, async ({
+    browser,
+  }, info) => {
+    const latest = (id: number) =>
+      `${forum}?mod=redirect&goto=lastpost&tid=${id}`;
+    const links = boardPage(5)
+      .replace(`${thread(42)}&page=1#pid4202`, latest(42))
+      .replace(`${thread(43)}&page=1#pid4302`, latest(43));
+    const images = [
+      { name: "tall", height: 552 },
+      { name: "small", height: 100 },
+    ];
+    const previousPost = `<div id="post_4311"><div class="authi"><a href="home.php?mod=space&uid=9">Author Nine</a></div><a id="postnum4311">11</a><div class="pcb"><p>Reading before the latest reply.</p>${images.map(({ name }) => `<p><img src="${origin}/cold-${name}.png" alt="${name} fixture image"></p>`).join("")}</div></div>`;
+    const fixtureThread = (url: URL) => {
+      const result = postPage(url, "Original");
+      if (url.searchParams.get("tid") !== "43") return result;
+      return result
+        .replace(
+          /<div id="post_4311">.*?(?=<div id="post_4312">)/,
+          previousPost,
+        )
+        .replace(
+          /(<a id="postnum4312"[^>]*>12<\/a><div class="pcb">).*?(?=<\/div>)/,
+          "$1<p>Short final reply.</p>",
+        );
+    };
+    const close = (page: Page) =>
+      drawer(page).getByRole("button", { name: "Close", exact: true });
+    info.annotations.push({
+      type: "browser-version",
+      description: browser.version(),
+    });
+    await withRedirectFixture(
+      browser,
+      {
+        origin,
+        redirect: (url) =>
+          `${thread(Number(url.searchParams.get("tid")))}&page=2#lastpost`,
+        document: (url) =>
+          url.searchParams.get("mod") === "forumdisplay"
+            ? links
+            : fixtureThread(url),
+      },
+      async (page, reads, redirects) => {
+        await page.setViewportSize({ width: 900, height: 876 });
+        const samples: Record<string, unknown> = {};
+        const first = post(page, 4212);
+        const second = post(page, 4312);
+        const imageRequests: string[] = [];
+        let releaseImages!: () => void;
+        const imageGate = new Promise<void>((resolve) => {
+          releaseImages = resolve;
+        });
+        let delayImages = false;
+        await page.route(`${origin}/cold-*.png`, async (route) => {
+          const image = images.find(({ name }) =>
+            route.request().url().endsWith(`cold-${name}.png`),
+          );
+          if (!image) return route.abort();
+          imageRequests.push(image.name);
+          if (delayImages) await imageGate;
+          await route.fulfill({
+            contentType: "image/svg+xml",
+            body: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="${image.height}"><rect width="16" height="${image.height}" fill="green"/></svg>`,
+          });
+        });
+        const awaitImages = async () => {
+          for (const image of images) {
+            await expect
+              .poll(() =>
+                page
+                  .getByAltText(`${image.name} fixture image`)
+                  .evaluate((node) =>
+                    node instanceof HTMLImageElement && node.complete
+                      ? node.naturalHeight
+                      : 0,
+                  ),
+              )
+              .toBe(image.height);
+          }
+        };
+        const documents: string[] = [];
+        page.on("request", (request) => {
+          if (request.isNavigationRequest()) documents.push(request.url());
+        });
+        const timeOrigin = () => page.evaluate(() => performance.timeOrigin);
+        const sample = async (target: Locator) => {
+          await stable(page);
+          return {
+            ...(await postOffset(target)),
+            origin: await timeOrigin(),
+            navigationType: await page.evaluate(
+              () =>
+                (
+                  performance.getEntriesByType(
+                    "navigation",
+                  )[0] as PerformanceNavigationTiming
+                )?.type,
+            ),
+            active: await target.evaluate((node) => {
+              const active = (node.getRootNode() as ShadowRoot).activeElement;
+              return active && { tagName: active.tagName, id: active.id };
+            }),
+          };
+        };
+        try {
+          await page.goto(board(5));
+          const originalDocument = await timeOrigin();
+          await row(page, 42).locator(".latest-reply").click();
+          await expect(first).toHaveAttribute("data-targeted", "true");
+          await expect(first).toBeFocused();
+          const firstEntry = await sample(first);
+          samples.firstEntry = firstEntry;
+          expect(firstEntry.origin).not.toBe(originalDocument);
+          await row(page, 43).locator(".latest-reply").click();
+          await expect(second).toHaveAttribute("data-targeted", "true");
+          await expect(second).toBeFocused();
+          await awaitImages();
+          const secondDocumentAnchor = await postOffset(post(page, 4311));
+          expect(secondDocumentAnchor.bottom).toBeGreaterThan(
+            secondDocumentAnchor.paneTop,
+          );
+          expect(secondDocumentAnchor.top).toBeLessThan(
+            secondDocumentAnchor.paneTop,
+          );
+          samples.savedVisibleArticle = secondDocumentAnchor;
+          const secondEntry = await sample(second);
+          samples.secondEntry = secondEntry;
+          expect(secondEntry.origin).not.toBe(firstEntry.origin);
+          expect(redirects).toEqual(["fetch", "document", "fetch", "document"]);
+
+          await boards(page).click();
+          await expect(close(page)).toBeFocused();
+          await page.goBack();
+          await expect(first).toHaveAttribute("data-targeted", "true");
+          const back = await sample(first);
+          samples.back = back;
+          expect(back.navigationType).toBe("back_forward");
+          expect(back.origin).not.toBe(firstEntry.origin);
+          await expect(drawer(page)).toBeHidden();
+          await expect(first).toBeFocused();
+          expect(Math.abs(back.top - firstEntry.top)).toBeLessThanOrEqual(1);
+
+          await boards(page).click();
+          await expect(close(page)).toBeFocused();
+          delayImages = true;
+          await page.goForward({ waitUntil: "domcontentloaded" });
+          await expect(second).toHaveAttribute("data-targeted", "true");
+          await expect(
+            page.getByRole("link", {
+              name: "Continue in native forum",
+              exact: true,
+            }),
+          ).toHaveAttribute(
+            "href",
+            `${thread(43)}&page=2&tsdm-native=1#pid4312`,
+          );
+          await expect(second).toBeFocused();
+          await expect.poll(() => imageRequests.length).toBe(4);
+          const beforeImages = await sample(second);
+          samples.forwardBeforeImages = beforeImages;
+          let moved = beforeImages;
+          if (moveBeforeMedia) {
+            const bounds = (await reader(page).boundingBox())!;
+            await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 36);
+            await page.mouse.wheel(0, -230);
+            await expect
+              .poll(() => paneScroll(reader(page)))
+              .toBe(beforeImages.scrollTop - 230);
+            moved = await sample(second);
+            samples.deliberateScroll = moved;
+          }
+          releaseImages();
+          await awaitImages();
+          const forward = await sample(second);
+          samples.forward = forward;
+          expect(forward.navigationType).toBe("back_forward");
+          expect(forward.origin).not.toBe(secondEntry.origin);
+          await expect(drawer(page)).toBeHidden();
+          if (moveBeforeMedia) {
+            expect(forward.scrollTop).toBe(moved.scrollTop);
+          } else {
+            expect(Math.abs(forward.top - secondEntry.top)).toBeLessThanOrEqual(
+              1,
+            );
+          }
+          await expect(second).toBeFocused({ timeout: 1500 });
+          expect(reads).toEqual([
+            `${board(5)}&tsdmapp=json`,
+            `${thread(42)}&page=2&tsdmapp=json`,
+            `${thread(43)}&page=2&tsdmapp=json`,
+          ]);
+          expect(documents).toEqual([
+            board(5),
+            latest(42),
+            `${thread(42)}&page=2`,
+            latest(43),
+            `${thread(43)}&page=2`,
+            forum,
+            forum,
+          ]);
+        } finally {
+          releaseImages();
+          await info.attach("cold-document-history-observations.json", {
+            body: JSON.stringify({
+              samples,
+              reads,
+              redirects,
+              documents,
+              imageRequests,
+              browser: browser.version(),
+              viewport: page.viewportSize(),
+            }),
+            contentType: "application/json",
+          });
+          await info.attach("cold-document-history.png", {
+            body: await page.screenshot(),
+            contentType: "image/png",
+          });
+        }
+      },
+    );
+  });
+}
 
 test("J122.refresh: delayed reads leave the Boards drawer, position and newer selection alone", async ({
   page,
@@ -611,10 +1311,15 @@ test("J122.latest-retained: an already loaded Latest updates the Reader without 
   await loadThreadRange(page, "later");
   const latest = post(page, 4212);
   await expect(latest).toBeAttached();
+  const boardRead = page.waitForResponse(`${board(5)}&tsdmapp=json`);
   await page
     .getByRole("navigation", { name: "Boards navigation", exact: true })
     .getByRole("link", { name: "Board 5", exact: true })
     .click();
+  expect((await boardRead).ok()).toBe(true);
+  await expect(
+    page.getByRole("status").filter({ hasText: /^Loading…$/ }),
+  ).toHaveCount(0);
   const native = page.getByRole("link", {
     name: "Continue in native forum",
     exact: true,
@@ -623,6 +1328,8 @@ test("J122.latest-retained: an already loaded Latest updates the Reader without 
   await expect(boardHeading(page, 5)).toBeVisible();
   await exactPost(post(page, 4202), 204);
   await scroll(list(page), 621);
+  samples.boardScrollBeforeLatest = await paneScroll(list(page));
+  expect(samples.boardScrollBeforeLatest).toBe(621);
   const count = requests.length;
   const before = await page.evaluate(() => history.length);
   const currentBoard = page.url();
@@ -639,7 +1346,8 @@ test("J122.latest-retained: an already loaded Latest updates the Reader without 
   await expect
     .soft(native)
     .toHaveAttribute("href", `${board(5)}&tsdm-native=1`, { timeout: 1500 });
-  expect.soft(await paneScroll(list(page))).toBe(621);
+  samples.boardScrollAfterLatest = await paneScroll(list(page));
+  expect.soft(samples.boardScrollAfterLatest).toBe(621);
   await row(page, 42).locator(".latest-reply").click();
   await expect(post(page, 4202)).toBeFocused();
   await expect(native).toHaveAttribute(

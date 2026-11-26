@@ -9,7 +9,7 @@ const account = (id = "7") =>
 const thread = (id: string, member: string) =>
   `${account(member)}<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5">Music</a></div><div id="postlist"><h1><span id="thread_subject">Conversation ${id}</span></h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=8">Reader 8</a></div><a id="postnum101"><em>1</em>#</a><div class="pcb">${Array.from({ length: 35 }, (_, i) => `<p>Reading paragraph ${i}: complete original conversation.</p>`).join("")}</div></div></div>`;
 const form = (member: string) =>
-  `${account(member)}<form class="searchform" method="post" action="search.php?mod=forum"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_FORM_TOKEN"><input type="hidden" name="searchsubmit" value="yes"><label>Keywords<input name="srchtxt" type="text"></label><label>Author<input name="srchuname" type="text"></label><button type="submit">Search</button></form>`;
+  `${account(member)}<form class="searchform" method="post" action="search.php?mod=forum"><input type="hidden" name="formhash" value="SYNTHETIC_PUBLIC_FORM_TOKEN"><input type="hidden" name="searchsubmit" value="yes"><label>Keywords<input name="srchtxt" type="text"></label><label>Author<input name="srchuname" type="text"></label><p class="search-restrictions">Search may use forum credits and is subject to frequency limits.</p><p class="search-restrictions">Wait 30 seconds between searches.</p><button type="submit">Search</button></form>`;
 const resultURL = `${origin}/search.php?mod=forum&searchid=581&searchsubmit=yes&kw=autumn`;
 const results = (member: string) =>
   `${account(member)}<div id="threadlist" class="slst"><ul>${Array.from({ length: 25 }, (_, i) => `<li class="pbw"><h3 class="xs3"><a href="forum.php?mod=viewthread&tid=${42 + i}&highlight=autumn">Search conversation ${42 + i}</a></h3><p>2026-11-04 - <a href="home.php?mod=space&uid=7">Reader 7</a> - <a href="forum.php?mod=forumdisplay&fid=5">Music</a></p><p>Complete search detail.</p></li>`).join("")}</ul></div><div class="pg"><strong>1</strong><a href="${resultURL}&page=2">2</a></div>`;
@@ -465,6 +465,51 @@ test("J67.search: explicit search beside retained reading preserves criteria, re
     ).toBeVisible();
     expect(state.searches).toBe(1);
     expect(state.requests).toHaveLength(requests);
+  } finally {
+    await artifact(page, info, state);
+  }
+});
+
+test("J123.search-rerun-disclosure: submit and deliberate rerun describe the same single Search warning", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  try {
+    await select(page, "Search");
+    const warning =
+      "Search may use forum credits and is subject to frequency limits.";
+    const restriction = page.getByText("Wait 30 seconds between searches.", {
+      exact: true,
+    });
+    const submit = page
+      .getByRole("region", { name: "Search overview", exact: true })
+      .getByRole("button", { name: "Search", exact: true });
+    const warningText = page.getByText(warning, { exact: true });
+    await page.getByLabel("Keywords", { exact: true }).fill("autumn");
+    await expect(submit).toHaveAccessibleDescription(warning);
+    await expect(restriction).toBeVisible();
+    expect(state.searches).toBe(0);
+    await submit.click();
+    await expect(
+      page.getByRole("link", { name: "Search conversation 42", exact: true }),
+    ).toBeVisible();
+    const rerun = page.getByRole("button", {
+      name: "Rerun effective search (may use credits)",
+      exact: true,
+    });
+    await expect(warningText).toHaveCount(1);
+    await expect(warningText).toBeVisible();
+    await expect(restriction).toBeVisible();
+    await info.attach("rerun-accessibility.yml", {
+      body: await rerun.ariaSnapshot(),
+      contentType: "text/plain",
+    });
+    await expect.soft(rerun).toHaveAccessibleDescription(warning, {
+      timeout: 1500,
+    });
+    expect(state.searches).toBe(1);
+    await rerun.click();
+    await expect.poll(() => state.searches).toBe(2);
   } finally {
     await artifact(page, info, state);
   }

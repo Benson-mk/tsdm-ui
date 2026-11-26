@@ -43,13 +43,15 @@ async function open(page: Page, url = boardURL, head = "") {
         document:
           parsed.searchParams.get("do") === "pm"
             ? privateConversation()
-            : parsed.searchParams.get("mod") === "post"
-              ? `${account}<form id="postform" method="post" action="forum.php?mod=post&action=reply&fid=5&tid=42&replysubmit=yes"><input type="hidden" name="formhash" value="SYNTHETIC_TOKEN"><input type="hidden" name="reppid" value="100"><input type="hidden" name="reppost" value="100"><input type="hidden" name="noticeauthor" value="AUTHOR_9"><input type="hidden" name="noticeauthormsg" value="Composer Nine"><input type="hidden" name="noticetrimstr" value=""><input name="subject" value=""><textarea name="message"></textarea><label><input name="usesig" type="checkbox" value="1" checked>Signature</label><button type="submit" name="replysubmit">Reply</button></form>`
-              : parsed.searchParams.get("mod") === "viewthread"
-                ? thread(parsed.searchParams.get("tid")!)
-                : parsed.searchParams.get("mod") === "forumdisplay"
-                  ? board(parsed.searchParams.get("fid") === "6")
-                  : directory,
+            : parsed.searchParams.get("action") === "newthread"
+              ? `${account}<form id="postform" method="post" action="forum.php?mod=post&action=newthread&fid=5&topicsubmit=yes"><input type="hidden" name="formhash" value="SYNTHETIC_TOKEN"><input name="subject" value=""><textarea name="message"></textarea><button type="submit" name="topicsubmit">Publish</button></form>`
+              : parsed.searchParams.get("mod") === "post"
+                ? `${account}<form id="postform" method="post" action="forum.php?mod=post&action=reply&fid=5&tid=42&replysubmit=yes"><input type="hidden" name="formhash" value="SYNTHETIC_TOKEN"><input type="hidden" name="reppid" value="100"><input type="hidden" name="reppost" value="100"><input type="hidden" name="noticeauthor" value="AUTHOR_9"><input type="hidden" name="noticeauthormsg" value="Composer Nine"><input type="hidden" name="noticetrimstr" value=""><input name="subject" value=""><textarea name="message"></textarea><label><input name="usesig" type="checkbox" value="1" checked>Signature</label><button type="submit" name="replysubmit">Reply</button></form>`
+                : parsed.searchParams.get("mod") === "viewthread"
+                  ? thread(parsed.searchParams.get("tid")!)
+                  : parsed.searchParams.get("mod") === "forumdisplay"
+                    ? board(parsed.searchParams.get("fid") === "6")
+                    : directory,
       }),
     });
   });
@@ -346,9 +348,7 @@ for (const declaration of ["missing", "single", "duplicates"] as const)
     });
   });
 
-test("IM73.notices: global recovery notices and retained-writing review remain protected at lateral edges", async ({
-  page,
-}) => {
+async function openWithRecoveryNoticeInsets(page: Page) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() =>
     sessionStorage.setItem("tsdm.workspace.recovery", "{broken"),
@@ -364,19 +364,34 @@ test("IM73.notices: global recovery notices and retained-writing review remain p
     left: parseFloat(getComputedStyle(node).paddingLeft),
     right: parseFloat(getComputedStyle(node).paddingRight),
   }));
-  expect(noticePadding.left).toBe(38);
-  expect(noticePadding.right).toBe(30);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
-  const source = await selectSourceEditor(page);
-  await source.fill("Retain exact [quote]source[/quote]");
+  expect(noticePadding).toEqual({ left: 38, right: 30 });
+  return { browser, noticePadding };
+}
+
+test("J124.recovery-notice-insets: recovery errors respect both lateral safe insets", async ({
+  page,
+}, info) => {
+  const { browser, noticePadding } = await openWithRecoveryNoticeInsets(page);
+  await info.attach("recovery-notice-insets.json", {
+    body: JSON.stringify(noticePadding),
+    contentType: "application/json",
+  });
+  await browser.detach();
+});
+
+test("IM73.notices: global recovery notices and retained-writing review remain protected at lateral edges", async ({
+  page,
+}) => {
+  const { browser } = await openWithRecoveryNoticeInsets(page);
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await page
     .getByRole("dialog", { name: "Boards navigation", exact: true })
     .getByRole("link", { name: "Music discussion", exact: true })
     .click();
+  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  const source = await selectSourceEditor(page);
+  await source.fill("Retain exact [quote]source[/quote]");
+  await page.getByRole("button", { name: "Threads pane", exact: true }).click();
   await page
     .getByRole("link", { name: "Complete listening title 1 音樂", exact: true })
     .click();

@@ -1650,35 +1650,62 @@ for (const [
     ).toContainText(`${order}: Last reply`);
     await expect(search.getByText(edited, { exact: true })).toBeVisible();
     const before = requests.length;
-    await page.setViewportSize({ width: 375, height: 900 });
-    const geometry = await search.evaluate((section) => {
-      const field = section.querySelector<HTMLInputElement>(
-        ".search-field input",
-      )!;
-      const style = getComputedStyle(field);
-      return {
-        width: section.getBoundingClientRect().width,
-        scrollWidth: section.scrollWidth,
-        clientWidth: section.clientWidth,
-        fieldHeight: field.getBoundingClientRect().height,
-        choiceHeight: section
-          .querySelector("fieldset label")!
-          .getBoundingClientRect().height,
-        fieldBackground: style.backgroundColor,
-        fieldColor: style.color,
-        surface: getComputedStyle(section).getPropertyValue("--surface").trim(),
-        ink: getComputedStyle(section).getPropertyValue("--ink").trim(),
-      };
-    });
-    expect(geometry.fieldHeight).toBeGreaterThanOrEqual(48);
-    expect(geometry.choiceHeight).toBeGreaterThanOrEqual(44);
-    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1);
-    expect(geometry.fieldBackground).toBe(
-      theme === "Mono" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
-    );
-    expect(geometry.fieldColor).toBe(
-      theme === "Mono" ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)",
-    );
+    const measurements = [];
+    for (const width of [390, 375]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(page.locator(".workspace-body")).toHaveAttribute(
+        "data-narrow-browsing",
+        "true",
+      );
+      const geometry = await search.evaluate((section) => {
+        const field = section.querySelector<HTMLInputElement>(
+          ".search-field input",
+        )!;
+        const style = getComputedStyle(field);
+        return {
+          width: section.getBoundingClientRect().width,
+          scrollWidth: section.scrollWidth,
+          clientWidth: section.clientWidth,
+          fieldHeight: field.getBoundingClientRect().height,
+          choiceHeight: section
+            .querySelector("fieldset label")!
+            .getBoundingClientRect().height,
+          fieldBackground: style.backgroundColor,
+          fieldColor: style.color,
+          surface: getComputedStyle(section)
+            .getPropertyValue("--surface")
+            .trim(),
+          ink: getComputedStyle(section).getPropertyValue("--ink").trim(),
+          overflowing: [...section.querySelectorAll("*")]
+            .filter(
+              (node) =>
+                node.getBoundingClientRect().right >
+                section.getBoundingClientRect().right + 1,
+            )
+            .map((node) => ({
+              tag: node.tagName,
+              className: node.className,
+              text: node.textContent?.trim().slice(0, 70),
+            })),
+        };
+      });
+      measurements.push({ viewportWidth: width, ...geometry });
+      await info.attach(`localized-search-${width}.json`, {
+        body: JSON.stringify(geometry, null, 2),
+        contentType: "application/json",
+      });
+      expect(geometry.fieldHeight).toBeGreaterThanOrEqual(48);
+      expect(geometry.choiceHeight).toBeGreaterThanOrEqual(44);
+      expect(geometry.scrollWidth).toBeLessThanOrEqual(
+        geometry.clientWidth + 1,
+      );
+      expect(geometry.fieldBackground).toBe(
+        theme === "Mono" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
+      );
+      expect(geometry.fieldColor).toBe(
+        theme === "Mono" ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)",
+      );
+    }
     await openSettings(page);
     await expect(
       page.getByRole("dialog", { name: settings, exact: true }),
@@ -1709,7 +1736,7 @@ for (const [
       contentType: "image/png",
     });
     await info.attach("localized-search-effects.json", {
-      body: JSON.stringify({ requests, geometry }, null, 2),
+      body: JSON.stringify({ requests, measurements }, null, 2),
       contentType: "application/json",
     });
   });

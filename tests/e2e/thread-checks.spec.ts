@@ -9,7 +9,9 @@ import {
   confirmThreadPage,
   loadThreadRange,
   clickThreadTool,
+  openThreadPages,
 } from "./navigation-ui";
+import { selectSourceEditor } from "./editor-controls";
 import { readableLines, expectPreservedReadingLine } from "./readable-lines";
 const origin = "https://www.tsdm39.com";
 const target = (n: number, reverse = false) =>
@@ -612,13 +614,24 @@ test("UI89.real-timer: reverse intermediate opt-in waits120seconds, modal pause 
 
 test("UI89.growing-target: a newly offered native newest page is followed once and only observed new identities are staged", async ({
   page,
-}) => {
+}, info) => {
   let total = 3;
   const requests = await open(page, 2, false, (n) =>
     fixture(n, false, 0, total),
   );
+  const committed = page.url();
+  const initialHistory = await page.evaluate(() => history.length);
+  const latest = page.getByRole("link", {
+    name: "Jump to latest",
+    exact: true,
+  });
   await check(page);
   await expectThreadCheckMode(page, "Newest baseline established");
+  await openThreadPages(page);
+  await expect.soft(latest).toHaveAttribute("href", `${target(3)}#pid302`, {
+    timeout: 1500,
+  });
+  await page.keyboard.press("Escape");
   total = 4;
   await check(page);
   await expect(
@@ -632,6 +645,113 @@ test("UI89.growing-target: a newly offered native newest page is followed once a
   ]);
   await expect(page.locator("#pid400")).toHaveCount(0);
   await expect(page.locator("#pid201")).toHaveCount(1);
+  expect(page.url()).toBe(committed);
+  expect(await page.evaluate(() => history.length)).toBe(initialHistory);
+  await openThreadPages(page);
+  const stagedHref = (await latest.count())
+    ? await latest.getAttribute("href")
+    : null;
+  await info.attach("latest-targets.json", {
+    body: JSON.stringify({ committed, initialHistory, stagedHref }),
+    contentType: "application/json",
+  });
+  await expect(latest).toHaveAttribute("href", `${target(4)}#pid402`, {
+    timeout: 1500,
+  });
+});
+
+test("J122.latest-refresh-growth: only a qualified exact Post is offered after explicit refresh disproves the old end", async ({
+  page,
+}, info) => {
+  let total = 3;
+  const requests = await open(page, 3, false, (n) =>
+    fixture(n, false, 0, total),
+  );
+  const latest = page.getByRole("link", {
+    name: "Jump to latest",
+    exact: true,
+  });
+  const historyLength = await page.evaluate(() => history.length);
+  await openThreadPages(page);
+  await expect(latest).toHaveAttribute("href", `${target(3)}#pid302`);
+  await page.keyboard.press("Escape");
+  total = 4;
+  await clickThreadTool(page, "Refresh thread");
+  const pages = await openThreadPages(page);
+  await expect(
+    pages.getByRole("button", { name: "Load later", exact: true }),
+  ).toBeEnabled();
+  const staleHref = (await latest.count())
+    ? await latest.getAttribute("href")
+    : null;
+  await expect.soft(latest).toHaveCount(0, { timeout: 1500 });
+  await page.keyboard.press("Escape");
+  await check(page);
+  await expect(
+    page.getByRole("button", { name: "New replies (3)", exact: true }),
+  ).toBeVisible();
+  expect(
+    requests.map((request) => new URL(request.url).searchParams.get("page")),
+  ).toEqual(["3", "3", "4"]);
+  await expect(page.locator("#pid302")).toBeAttached();
+  await expect(page.locator("#pid402")).toHaveCount(0);
+  await loadThreadRange(page, "later");
+  const post = page.locator("#pid402");
+  await expect(post).toBeAttached();
+  await openThreadPages(page);
+  const loadedHref = await latest.getAttribute("href");
+  await expect(latest).toHaveAttribute("href", `${target(4)}#pid402`);
+  const beforeJump = requests.length;
+  await latest.click();
+  await expect(post).toBeFocused();
+  expect(requests).toHaveLength(beforeJump);
+  expect(await page.evaluate(() => history.length)).toBe(historyLength);
+  await info.attach("latest-refresh.json", {
+    body: JSON.stringify({
+      staleHref,
+      loadedHref,
+      beforeJump,
+      historyLength,
+      url: page.url(),
+    }),
+    contentType: "application/json",
+  });
+});
+
+test("J122.latest-loaded-growth: loading a terminal range makes its exact Latest revocable by a later refresh", async ({
+  page,
+}, info) => {
+  let total = 4;
+  const requests = await open(page, 3, false, (n) =>
+    fixture(n, false, 0, total),
+  );
+  const latest = page.getByRole("link", {
+    name: "Jump to latest",
+    exact: true,
+  });
+  await clickThreadTool(page, "Refresh thread");
+  await expect.poll(() => requests.length).toBe(2);
+  await loadThreadRange(page, "later");
+  await expect(page.locator("#pid402")).toBeAttached();
+  await openThreadPages(page);
+  await expect(latest).toHaveAttribute("href", `${target(4)}#pid402`);
+  await page.keyboard.press("Escape");
+  total = 5;
+  await clickThreadTool(page, "Refresh thread");
+  const pages = await openThreadPages(page);
+  await expect(
+    pages.getByRole("button", { name: "Load later", exact: true }),
+  ).toBeEnabled();
+  await expect(page.locator("#pid402")).toBeAttached();
+  await expect(page.locator("#pid502")).toHaveCount(0);
+  await info.attach("later-range-latest.txt", {
+    body: await pages.ariaSnapshot(),
+    contentType: "text/plain",
+  });
+  await expect(latest).toHaveCount(0, { timeout: 1500 });
+  expect(
+    requests.map((request) => new URL(request.url).searchParams.get("page")),
+  ).toEqual(["3", "3", "4", "4"]);
 });
 
 test("UI89.moving-target: a second changed newest boundary stops bounded checking and exposes deliberate recovery", async ({
@@ -681,10 +801,7 @@ test("UI89.composition-pause: composing in the retained reply pauses checks with
   await page
     .getByRole("button", { name: "Reply to thread", exact: true })
     .click();
-  const source = page.getByRole("textbox", {
-    name: "Complete source",
-    exact: true,
-  });
+  const source = await selectSourceEditor(page);
   await source.fill("Unsent unchanged source");
   await source.dispatchEvent("compositionstart", { data: "測" });
   await expectThreadCheckMode(page, "Checks paused");
@@ -743,7 +860,7 @@ for (const timed of [false, true])
         .getByRole("button", { name: "Threads pane", exact: true })
         .click();
       await expect(page.locator(".reading-pane")).toBeHidden();
-      await expect(page.locator(".public-check-state")).toHaveText("");
+      await expect(page.locator(".public-check-state")).toBeHidden();
       await page.waitForTimeout(121_000);
       expect(
         requests.filter(

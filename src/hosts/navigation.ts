@@ -700,6 +700,11 @@ export function createBrowserNavigation(): NavigationHost {
     onPop(action) {
       window.addEventListener("popstate", () => action(entryKey()));
     },
+    onCachedDocumentReturn(action) {
+      window.addEventListener("pageshow", (event) => {
+        if (event.persisted) action(entryKey());
+      });
+    },
     back() {
       history.back();
     },

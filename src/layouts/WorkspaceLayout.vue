@@ -61,6 +61,7 @@ const privateRecipientId = computed(
 );
 const noticeEffectsId = useId();
 const privateArrivalEffectsId = useId();
+const searchEffectsId = useId();
 const privateThreadChange = computed(() => {
   const pending = props.workspace.pendingThread.value;
   return (
@@ -1842,14 +1843,15 @@ function latestReadingScroll(reader: HTMLElement) {
 function followPendingReadingImages(
   container: HTMLElement,
   target: HTMLElement,
-  savedOffset: number | null,
-  followEnd = false,
+  savedOffset: (() => number) | null,
+  { followEnd = false, clamped = false } = {},
 ) {
   const pending = new Set(
     [...container.querySelectorAll<HTMLImageElement>("img")].filter(
       (image) =>
         !image.complete &&
         (followEnd ||
+          clamped ||
           !!(
             target.compareDocumentPosition(image) &
             Node.DOCUMENT_POSITION_PRECEDING
@@ -1878,9 +1880,10 @@ function followPendingReadingImages(
     if (!target.isConnected) return stop();
     suppressAutomaticHistory();
     if (followEnd) container.scrollTop = latestReadingScroll(container);
-    else if (savedOffset !== null)
-      container.scrollTop += target.getBoundingClientRect().top - savedOffset;
-    else target.scrollIntoView({ block: "start" });
+    else if (savedOffset !== null) {
+      const offset = savedOffset();
+      container.scrollTop += target.getBoundingClientRect().top - offset;
+    } else target.scrollIntoView({ block: "start" });
     expectedScrollTop = container.scrollTop;
     if (!pending.size) stop();
   };
@@ -2190,7 +2193,8 @@ onMounted(() => {
         readingRestoreRevision++;
         reader.scrollTop = latestReadingScroll(reader);
         const last = reader.querySelector<HTMLElement>("article:last-of-type");
-        if (last) followPendingReadingImages(reader, last, null, true);
+        if (last)
+          followPendingReadingImages(reader, last, null, { followEnd: true });
       }
     },
     capture: () => {
@@ -2261,22 +2265,35 @@ onMounted(() => {
         ? root.shadowRoot?.getElementById(position.anchor)
         : null;
       if (node && container.contains(node)) {
-        container.scrollTop += node.getBoundingClientRect().top - offset;
-        followPendingReadingImages(container, node, offset);
+        const desired =
+          container.scrollTop + node.getBoundingClientRect().top - offset;
+        container.scrollTop = desired;
+        const clamped = desired > container.scrollTop + 1;
+        followPendingReadingImages(
+          container,
+          node,
+          clamped
+            ? () =>
+                position.offset + restoreReadingViewport(position, exactHistory)
+            : () => offset,
+          { clamped },
+        );
       }
     },
-    focusReadingPost(postId) {
+    focusReadingPost(postId, preservePosition) {
       const post = root.shadowRoot?.getElementById(`pid${postId}`);
       const reader = post?.closest<HTMLElement>(".reading-pane");
       if (!post || !reader) return;
-      suppressAutomaticHistory();
-      stopReadingImageRestore?.();
-      restoreReadingViewport(capturePane(reader));
-      readingRestoreRevision++;
-      post.scrollIntoView({ block: "start" });
+      if (!preservePosition) {
+        suppressAutomaticHistory();
+        stopReadingImageRestore?.();
+        restoreReadingViewport(capturePane(reader));
+        readingRestoreRevision++;
+        post.scrollIntoView({ block: "start" });
+      }
       if (!writing.value.visible && !writing.value.composing)
         post.focus({ preventScroll: true });
-      followPendingReadingImages(reader, post, null);
+      if (!preservePosition) followPendingReadingImages(reader, post, null);
     },
     restore(position, target, selection) {
       suppressAutomaticHistory();
@@ -2309,8 +2326,10 @@ onMounted(() => {
         ? root.shadowRoot?.getElementById(position.anchor)
         : null;
       const node = saved && container?.contains(saved) ? saved : null;
-      if (container && node && position)
-        container.scrollTop +=
+      let clamped = false;
+      if (container && node && position) {
+        const desired =
+          container.scrollTop +
           node.getBoundingClientRect().top -
           (position.offset +
             (container === reader
@@ -2319,6 +2338,9 @@ onMounted(() => {
                 ? container.getBoundingClientRect().top -
                   position.resultsPaneTop
                 : 0));
+        container.scrollTop = desired;
+        clamped = desired > container.scrollTop + 1;
+      }
       if (requested && !node && (!position || position.readingScrollTop === 0))
         requested.scrollIntoView({ block: "start" });
       const row = browsing?.row
@@ -2364,8 +2386,9 @@ onMounted(() => {
           container,
           (node ?? requested)!,
           node && position
-            ? position.offset + (container === reader ? viewportShift : 0)
+            ? () => position.offset + (container === reader ? viewportShift : 0)
             : null,
+          { clamped },
         );
     },
   });
@@ -2655,6 +2678,7 @@ function boardIdFrom(url: string) {
             v-if="
               state.result?.kind === 'search' && state.result.search.effective
             "
+            :aria-describedby="searchEffectsId"
             @click="workspace.submitSearch(true)"
           >
             {{ text.rerunSearch }}</button
@@ -3252,6 +3276,7 @@ function boardIdFrom(url: string) {
         id="thread-list-pane"
         :search="searchContext"
         :language="workspace.preferences.state.value.language"
+        :warning-id="searchEffectsId"
         :secondary="state.result?.kind === 'thread'"
         :selection="state.selection ?? selectedThread"
         :loading="state.loading"
