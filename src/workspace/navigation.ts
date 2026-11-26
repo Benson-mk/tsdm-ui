@@ -107,10 +107,12 @@ export interface NavigationHost {
   navigateDocument(url: string): void;
 }
 export interface ViewAdapter {
+  dismissForHistory(): void;
   captureReading(): ViewPosition;
   followLatest(): void;
   nearLatest(): boolean;
-  restoreReading(position: ViewPosition): void;
+  restoreReading(position: ViewPosition, history?: boolean): void;
+  focusReadingPost(postId: string): void;
   capture(): ViewPosition;
   restore(
     position: ViewPosition | null,

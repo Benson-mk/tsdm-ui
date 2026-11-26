@@ -30,6 +30,7 @@ import type {
   NavigationHost,
   NavigationRecord,
   ViewAdapter,
+  ViewPosition,
   Section,
 } from "./navigation";
 export interface WorkspaceState {
@@ -660,11 +661,13 @@ export function createWorkspace(
     { flush: "sync" },
   );
 
+  const entryReadingPositions = new WeakMap<NavigationEntry, ViewPosition>();
   function capture() {
     const entry = entryFor(state.value.key);
     if (entry && view) {
       entry.position = view.capture();
       const position = view.captureReading();
+      entryReadingPositions.set(entry, position);
       threadHistory.remember(position);
       privateHistory.remember(position);
       const privateResult = privateHistory.state.value.result;
@@ -879,7 +882,8 @@ export function createWorkspace(
         : (entry.readingKey ?? ""),
     );
     const readingPosition =
-      retained || retainedPrivate
+      (restored && !mismatch ? entryReadingPositions.get(entry) : null) ??
+      (retained || retainedPrivate
         ? view?.captureReading()
         : (privateHistory.rememberedPosition() ??
           threadHistory.rememberedPosition() ??
@@ -887,7 +891,7 @@ export function createWorkspace(
             ? entry.readingMarker?.position
             : entry.readingKey
               ? entryFor(entry.readingKey)?.readingMarker?.position
-              : null));
+              : null)));
     ++draftSequence;
     drafts.value = {
       loading: false,
@@ -934,6 +938,7 @@ export function createWorkspace(
     if (state.value.reading)
       writing.selectThread(state.value.reading.thread.id);
     void nextTick().then(() => {
+      if (state.value.key !== entry.key) return;
       view?.restore(
         entry.position,
         entry.result?.kind === "thread"
@@ -943,7 +948,7 @@ export function createWorkspace(
             : null,
         entry.selection,
       );
-      if (readingPosition) view?.restoreReading(readingPosition);
+      if (readingPosition) view?.restoreReading(readingPosition, restored);
     });
   }
   function newEntry(url: string, originKey: string | null): NavigationEntry {
@@ -1317,11 +1322,20 @@ export function createWorkspace(
     if (requested?.kind === "private-conversation")
       return openPrivateConversation(url, selection);
     clearDownload();
+    const loadedTarget =
+      current?.kind === "thread" &&
+      requested?.kind === "thread" &&
+      threadHistory.loadedTarget(requested.url);
+    if (loadedTarget && requested?.kind === "thread") {
+      writing.hide();
+      updateAnchor(`#pid${loadedTarget}`, requested.url);
+      return;
+    }
     if (
       current?.kind === "thread" &&
       requested?.kind === "thread" &&
       requested.url.searchParams.get("tid") === current.thread.id &&
-      requested.url.hash &&
+      /^#pid[1-9]\d*$/.test(requested.url.hash) &&
       requested.url.pathname + requested.url.search ===
         new URL(state.value.destination).pathname +
           new URL(state.value.destination).search
@@ -1336,7 +1350,13 @@ export function createWorkspace(
     }
     capture();
     const previous = entryFor(state.value.key);
-    if (previous && selection) previous.selection = selection;
+    if (
+      previous &&
+      selection &&
+      previous.result?.kind !== "thread" &&
+      previous.result?.kind !== "private-conversation"
+    )
+      previous.selection = selection;
     const entry = newEntry(url, previous?.key ?? null);
     entry.selection = selection;
     host.push(entry.key);
@@ -1557,11 +1577,32 @@ export function createWorkspace(
       client.readNotices(destinationURL, current?.notices, current?.account),
     );
   }
-  function updateAnchor(hash: string) {
+  async function jumpLatest(url: string) {
+    const requested = routeFor(url);
+    const entry = entryFor(state.value.key);
+    const postId =
+      entry?.readingKey &&
+      entry.result?.kind !== "thread" &&
+      requested?.kind === "thread" &&
+      threadHistory.loadedTarget(requested.url);
+    if (!postId) return openThread(url);
+    if (writing.deferViewChange(() => void jumpLatest(url))) return;
+    clearDownload();
+    writing.hide();
+    threadHistory.cancelPending();
+    threadHistory.target(postId);
+    await nextTick();
+    if (state.value.key !== entry.key) return;
+    view?.focusReadingPost(postId);
+    capture();
+    void persist();
+  }
+  function updateAnchor(hash: string, source?: URL) {
     if (!/^#pid[1-9]\d*$/.test(hash)) return;
     const entry = entryFor(state.value.key);
     if (!entry) return;
-    const url = new URL(entry.destination);
+    threadHistory.cancelPending();
+    const url = new URL(source ?? entry.destination);
     url.hash = hash;
     entry.destination = url.href;
     if (entry.result?.kind === "thread")
@@ -1577,17 +1618,35 @@ export function createWorkspace(
       privateReading: privateFor(entry),
     };
     threadHistory.target(hash.slice(4));
-    void nextTick().then(() =>
-      view?.restore(null, hash.slice(4), entry.selection),
-    );
+    const position = view?.capture();
+    void nextTick().then(() => {
+      if (state.value.key !== entry.key) return;
+      view?.restore(
+        position
+          ? {
+              anchor: null,
+              offset: 0,
+              scrollTop: 0,
+              readingScrollTop: 0,
+              resultsScrollTop: position.resultsScrollTop ?? 0,
+            }
+          : null,
+        hash.slice(4),
+        entry.selection,
+      );
+      capture();
+      void persist();
+    });
     host.replace(entry.key);
     void persist();
   }
   function restoreHistory(key: string | null) {
+    if (key === state.value.key) return;
     if (writing.deferViewChange(() => restoreHistory(key))) return;
     clearDownload();
     ++sequence;
     capture();
+    view?.dismissForHistory();
     const entry = key ? entryFor(key) : null;
     if (entry) {
       show(entry, true);
@@ -1627,7 +1686,7 @@ export function createWorkspace(
     ) {
       if (threadHistory.rememberedPosition()) return;
       await nextTick();
-      view?.restoreReading(marker.position);
+      view?.restoreReading(marker.position, true);
       return;
     }
     const expected = threadContext(marker.url, marker.account);
@@ -1673,7 +1732,7 @@ export function createWorkspace(
     show(entry, true);
     await nextTick();
     if (result.thread.posts.some((post) => post.id === postId))
-      view?.restoreReading(marker.position);
+      view?.restoreReading(marker.position, true);
     else delete readingEntry.readingMarker;
     void persist();
   }
@@ -1842,7 +1901,7 @@ export function createWorkspace(
   async function refresh() {
     if (
       state.value.result?.kind === "thread" &&
-      threadHistory.state.value.result?.thread.history
+      threadHistory.state.value.result
     )
       return threadHistory.refresh();
     if (state.value.section === "messages") return loadMessages();
@@ -2005,6 +2064,7 @@ export function createWorkspace(
     discardReply,
     replyResolution: readonly(replyResolution),
     openThread,
+    jumpLatest,
     refresh,
     updateAnchor,
     back: () => {

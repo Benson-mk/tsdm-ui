@@ -747,6 +747,19 @@ export function createThreadHistory(
     tick,
     revealArrivals,
     target,
+    loadedTarget(url: URL) {
+      const result = state.value.result;
+      const postId = /^#pid([1-9]\d*)$/.exec(url.hash)?.[1];
+      const source = postId ? postPages.get(postId) : null;
+      if (!result || !source || !postId) return null;
+      const account = actor(result.account);
+      return threadContext(source, account) ===
+        threadContext(url.href, account) &&
+        (new URL(source).searchParams.get("page") ?? "1") ===
+          (url.searchParams.get("page") ?? "1")
+        ? postId
+        : null;
+    },
     sourceFor: (postId: string) => postPages.get(postId) ?? null,
     filtersFor(postId: string) {
       // Read the range ref so source metadata changes invalidate menu computations.

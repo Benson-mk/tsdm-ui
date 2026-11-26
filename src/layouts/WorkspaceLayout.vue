@@ -1940,6 +1940,13 @@ onMounted(() => {
     return nodes;
   };
   const loadingRebasedPositions = new WeakSet<ViewPosition>();
+  const browsingPositions = new WeakMap<
+    ViewPosition,
+    {
+      navigation: number | undefined;
+      row?: { id: string; offset: number; width: number };
+    }
+  >();
   let rebasedLoadingReader = false;
   const capturePane = (container: HTMLElement | null | undefined) => {
     const reader = root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
@@ -2004,7 +2011,16 @@ onMounted(() => {
     else if (!state.value.loading) rebasedLoadingReader = false;
     return position;
   };
-  const restoreReadingViewport = (position: ViewPosition | null) => {
+  const navigationPane = () =>
+    root.shadowRoot?.querySelector<HTMLElement>(".navigation-body");
+  const resultsPane = () =>
+    root.shadowRoot?.querySelector<HTMLElement>(
+      ".results-pane, .messages-pane",
+    );
+  const restoreReadingViewport = (
+    position: ViewPosition | null,
+    exactHistory = false,
+  ) => {
     // A cached/reloaded reader is restored before its first scroll event. Settle
     // its title now so the viewport calculation sees the final heading height,
     // rather than rebasing for an expanded title that immediately compacts.
@@ -2092,6 +2108,14 @@ onMounted(() => {
             }
           }
         }
+        if (exactHistory) {
+          const bounds = anchor.getBoundingClientRect();
+          if (
+            bounds.bottom + delta > clippedTop &&
+            position.offset < clippedBottom
+          )
+            return 0;
+        }
         const content = reader.querySelectorAll(".post-content");
         let first: DOMRect | undefined;
         for (const block of content) {
@@ -2134,6 +2158,12 @@ onMounted(() => {
     return shift;
   };
   props.workspace.setViewAdapter({
+    dismissForHistory() {
+      if (!drawer.value) return;
+      rememberPaneScroll();
+      drawer.value = null;
+      appearanceAnchors = [];
+    },
     nearLatest() {
       const reader =
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
@@ -2163,7 +2193,36 @@ onMounted(() => {
         if (last) followPendingReadingImages(reader, last, null, true);
       }
     },
-    capture: () => capturePane(pane()),
+    capture: () => {
+      const position = capturePane(pane());
+      const navigation = navigationPane();
+      const results = resultsPane();
+      const top = results?.getBoundingClientRect().top ?? 0;
+      const row =
+        results?.classList.contains("board-thread-list") &&
+        results.getClientRects().length
+          ? [...results.querySelectorAll<HTMLElement>("[data-thread-id]")].find(
+              (item) => item.getBoundingClientRect().bottom > top + 1,
+            )
+          : null;
+      browsingPositions.set(position, {
+        navigation: navigation?.getClientRects().length
+          ? navigation.scrollTop
+          : navigation
+            ? paneScroll.get(navigation)
+            : undefined,
+        ...(row
+          ? {
+              row: {
+                id: row.id,
+                offset: row.getBoundingClientRect().top - top,
+                width: results!.clientWidth,
+              },
+            }
+          : {}),
+      });
+      return position;
+    },
     captureReading: () => {
       const position = capturePane(
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane"),
@@ -2188,13 +2247,14 @@ onMounted(() => {
       }
       return position;
     },
-    restoreReading(position) {
+    restoreReading(position, exactHistory) {
       suppressAutomaticHistory();
       stopReadingImageRestore?.();
       const container =
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
       if (!container) return;
-      const offset = position.offset + restoreReadingViewport(position);
+      const offset =
+        position.offset + restoreReadingViewport(position, exactHistory);
       readingRestoreRevision++;
       container.scrollTop = position.scrollTop;
       const node = position.anchor
@@ -2204,6 +2264,19 @@ onMounted(() => {
         container.scrollTop += node.getBoundingClientRect().top - offset;
         followPendingReadingImages(container, node, offset);
       }
+    },
+    focusReadingPost(postId) {
+      const post = root.shadowRoot?.getElementById(`pid${postId}`);
+      const reader = post?.closest<HTMLElement>(".reading-pane");
+      if (!post || !reader) return;
+      suppressAutomaticHistory();
+      stopReadingImageRestore?.();
+      restoreReadingViewport(capturePane(reader));
+      readingRestoreRevision++;
+      post.scrollIntoView({ block: "start" });
+      if (!writing.value.visible && !writing.value.composing)
+        post.focus({ preventScroll: true });
+      followPendingReadingImages(reader, post, null);
     },
     restore(position, target, selection) {
       suppressAutomaticHistory();
@@ -2215,26 +2288,28 @@ onMounted(() => {
       if (container) container.scrollTop = position?.scrollTop ?? 0;
       const reader =
         root.shadowRoot?.querySelector<HTMLElement>(".reading-pane");
-      const results = root.shadowRoot?.querySelector<HTMLElement>(
-        ".results-pane, .messages-pane",
-      );
+      const results = resultsPane();
+      const browsing = position && browsingPositions.get(position);
+      const navigation = navigationPane();
+      if (navigation && browsing?.navigation !== undefined) {
+        paneScroll.set(navigation, browsing.navigation);
+        if (navigation.getClientRects().length)
+          navigation.scrollTop = browsing.navigation;
+      }
       if (reader && position?.readingScrollTop !== undefined)
         reader.scrollTop = position.readingScrollTop;
       if (results && position?.resultsScrollTop !== undefined)
         results.scrollTop = position.resultsScrollTop;
-      const node = target
+      const requested = target
         ? root.shadowRoot?.getElementById(
             `${state.value.privateReading ? "pmlist_" : "pid"}${target}`,
           )
-        : position?.anchor
-          ? root.shadowRoot?.getElementById(position.anchor)
-          : null;
-      if (
-        container &&
-        node &&
-        position &&
-        (!target || position.readingScrollTop !== 0)
-      )
+        : null;
+      const saved = position?.anchor
+        ? root.shadowRoot?.getElementById(position.anchor)
+        : null;
+      const node = saved && container?.contains(saved) ? saved : null;
+      if (container && node && position)
         container.scrollTop +=
           node.getBoundingClientRect().top -
           (position.offset +
@@ -2244,8 +2319,22 @@ onMounted(() => {
                 ? container.getBoundingClientRect().top -
                   position.resultsPaneTop
                 : 0));
-      if (node && target && (!position || position.readingScrollTop === 0))
-        node.scrollIntoView({ block: "start" });
+      if (requested && !node && (!position || position.readingScrollTop === 0))
+        requested.scrollIntoView({ block: "start" });
+      const row = browsing?.row
+        ? root.shadowRoot?.getElementById(browsing.row.id)
+        : null;
+      if (
+        results &&
+        row &&
+        browsing?.row &&
+        results.clientWidth !== browsing.row.width &&
+        results.contains(row)
+      )
+        results.scrollTop +=
+          row.getBoundingClientRect().top -
+          results.getBoundingClientRect().top -
+          browsing.row.offset;
       if (
         (!position || position.resultsScrollTop === 0) &&
         !state.value.loading &&
@@ -2267,18 +2356,16 @@ onMounted(() => {
         : null;
       const focusTarget = container?.classList.contains("board-thread-list")
         ? (selected ?? node?.querySelector<HTMLElement>(".subject"))
-        : (node ?? selected);
+        : (requested ?? node ?? selected);
       if (!writing.value.visible && !writing.value.composing)
         focusTarget?.focus({ preventScroll: true });
-      if (container && node)
+      if (container && (node || requested))
         followPendingReadingImages(
           container,
-          node,
-          target && position?.readingScrollTop === 0
-            ? null
-            : position
-              ? position.offset + (container === reader ? viewportShift : 0)
-              : null,
+          (node ?? requested)!,
+          node && position
+            ? position.offset + (container === reader ? viewportShift : 0)
+            : null,
         );
     },
   });
