@@ -5,6 +5,7 @@ import type { ViewPosition } from "../workspace/navigation";
 import {
   computed,
   ref,
+  useId,
   onMounted,
   onUnmounted,
   watch,
@@ -36,6 +37,7 @@ import MessagesView from "../components/MessagesView.vue";
 import { privateWritingText } from "../components/private-writing-text";
 import PrivateConversationView from "../components/PrivateConversationView.vue";
 import NoticesView from "../components/NoticesView.vue";
+import DestinationLoadStatus from "../components/DestinationLoadStatus.vue";
 import SourceWriting from "../components/SourceWriting.vue";
 import ReplySends from "../components/ReplySends.vue";
 import WritingDestination from "../components/WritingDestination.vue";
@@ -57,6 +59,8 @@ const writing = props.workspace.writing.state;
 const privateRecipientId = computed(
   () => new URL(state.value.destination).searchParams.get("touid") ?? "",
 );
+const noticeEffectsId = useId();
+const privateArrivalEffectsId = useId();
 const privateThreadChange = computed(() => {
   const pending = props.workspace.pendingThread.value;
   return (
@@ -1282,6 +1286,17 @@ const favoriteContext = computed(() =>
       : state.value.origin?.kind === "favorites"
         ? state.value.origin.favorites
         : null,
+);
+const draftList = computed(() => props.workspace.drafts.value.result);
+const pendingList = computed(() =>
+  state.value.loading
+    ? describeDestination(state.value.destination)?.kind
+    : undefined,
+);
+const failedList = computed(() =>
+  state.value.failure
+    ? describeDestination(state.value.destination)?.kind
+    : undefined,
 );
 const threadWithoutResults = computed(
   () =>
@@ -2559,7 +2574,8 @@ function boardIdFrom(url: string) {
           ><button
             v-else-if="
               state.result?.kind !== 'directory' &&
-              state.result?.kind !== 'board'
+              state.result?.kind !== 'board' &&
+              (state.section === 'boards' || state.section === 'search')
             "
             @click="workspace.refresh()"
           >
@@ -2582,6 +2598,7 @@ function boardIdFrom(url: string) {
           >{{ text.noticeCategories
           }}<select
             :aria-label="text.noticeCategories"
+            :aria-describedby="noticeEffectsId"
             :value="
               noticeContext.categories.find((category) => category.current)
                 ?.url ?? ''
@@ -2711,7 +2728,15 @@ function boardIdFrom(url: string) {
             : text.stale
         }}
       </p>
-      <p v-if="state.loading" role="status">{{ text.loading }}</p>
+      <p
+        v-if="
+          state.loading &&
+          !['favorites', 'messages', 'notices'].includes(pendingList ?? '')
+        "
+        role="status"
+      >
+        {{ text.loading }}
+      </p>
       <p
         v-if="
           state.failure &&
@@ -2996,6 +3021,7 @@ function boardIdFrom(url: string) {
                 v-for="category in noticeContext?.categories ?? []"
                 :key="category.url"
                 :href="category.url"
+                :aria-describedby="noticeEffectsId"
                 :aria-current="category.current ? 'page' : undefined"
                 >{{ category.label }}</a
               >
@@ -3032,11 +3058,28 @@ function boardIdFrom(url: string) {
         <h2>{{ sectionInfo.heading }}</h2>
         <p>{{ sectionInfo.description }}</p>
         <template v-if="state.section === 'drafts'">
+          <DestinationLoadStatus
+            :loaded="draftList?.kind === 'drafts'"
+            :empty="
+              draftList?.kind === 'drafts' && draftList.drafts.rows.length === 0
+            "
+            :pending="workspace.drafts.value.loading"
+            :failed="draftList !== null && draftList.kind !== 'drafts'"
+            :language="workspace.preferences.state.value.language"
+          />
           <button
             :disabled="workspace.drafts.value.loading"
-            @click="workspace.loadDrafts()"
+            @click="
+              workspace.loadDrafts(
+                draftList?.kind === 'drafts' ? draftList.drafts.url : undefined,
+              )
+            "
           >
-            {{ text.loadDrafts }}
+            {{
+              draftList?.kind === "drafts"
+                ? text.refreshDrafts
+                : text.loadDrafts
+            }}
           </button>
           <p
             v-if="
@@ -3137,7 +3180,10 @@ function boardIdFrom(url: string) {
         :secondary="state.result?.kind === 'thread'"
         :board-target="state.result?.kind === 'board'"
         :loading="state.loading"
+        :pending="pendingList === 'favorites'"
+        :failed="failedList === 'favorites'"
         :language="workspace.preferences.state.value.language"
+        @refresh="workspace.openThread($event)"
         @remove="
           (kind, targetId, recordId) =>
             workspace.prepareFavorite('remove', kind, targetId, recordId)
@@ -3162,6 +3208,8 @@ function boardIdFrom(url: string) {
               : null
         "
         :loading="state.loading"
+        :pending="pendingList === 'messages'"
+        :failed="failedList === 'messages'"
         :language="workspace.preferences.state.value.language"
         @load="workspace.loadMessages()"
       />
@@ -3171,6 +3219,9 @@ function boardIdFrom(url: string) {
         id="thread-list-pane"
         :notices="noticeContext"
         :loading="state.loading"
+        :pending="pendingList === 'notices'"
+        :failed="failedList === 'notices'"
+        :effects-id="noticeEffectsId"
         :language="workspace.preferences.state.value.language"
         :secondary="state.result?.kind === 'thread'"
         :selection="state.selection"
@@ -3595,9 +3646,10 @@ function boardIdFrom(url: string) {
         >
           <h1>{{ text.privateContext }}</h1>
           <p>{{ insert(text.privateRecipientId, privateRecipientId) }}</p>
-          <p>{{ text.privateReadEffects }}</p>
+          <p :id="privateArrivalEffectsId">{{ text.privateReadEffects }}</p>
           <p>{{ text.privateArrivalEffects }}</p>
           <button
+            :aria-describedby="privateArrivalEffectsId"
             :disabled="state.loading"
             @click="workspace.openThread(state.destination)"
           >

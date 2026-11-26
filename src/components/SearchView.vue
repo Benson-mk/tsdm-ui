@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, type DeepReadonly } from "vue";
+import { computed, useId, type DeepReadonly } from "vue";
 import type { Search, SearchField } from "../forum-client";
 import type { Preferences } from "../workspace/preferences";
 import { strings, description } from "../layouts/strings";
@@ -11,6 +11,22 @@ const props = defineProps<{
   selection?: string | null;
 }>();
 const text = computed(() => strings(props.language));
+const warningId = useId();
+const genericNativeWarning =
+  "Search may use forum credits and is subject to frequency limits.";
+const isGenericWarning = (restriction: string) =>
+  restriction === genericNativeWarning ||
+  restriction === text.value.searchEffects;
+const warning = computed(
+  () =>
+    props.search.form.restrictions.find(isGenericWarning) ??
+    text.value.searchEffects,
+);
+const distinctRestrictions = computed(() =>
+  props.search.form.restrictions.filter(
+    (restriction) => !isGenericWarning(restriction),
+  ),
+);
 const fieldLabel = (field: DeepReadonly<SearchField>) =>
   field.labelFromForum === false
     ? description(field.label, props.language)
@@ -66,8 +82,7 @@ const effective = computed(() =>
   >
     <h1>{{ text.search }}</h1>
     <p>{{ text.searchExplanation }}</p>
-    <p>{{ text.searchEffects }}</p>
-    <p v-for="restriction in search.form.restrictions" :key="restriction">
+    <p v-for="restriction in distinctRestrictions" :key="restriction">
       {{ restriction }}
     </p>
     <form v-if="!secondary" @submit.prevent="emit('submit')">
@@ -126,7 +141,10 @@ const effective = computed(() =>
           </select>
         </label>
       </template>
-      <button type="submit" :disabled="loading">{{ text.search }}</button>
+      <p :id="warningId">{{ warning }}</p>
+      <button type="submit" :disabled="loading" :aria-describedby="warningId">
+        {{ text.search }}
+      </button>
     </form>
     <p v-if="changed" role="status">{{ text.editedSearch }}</p>
     <section

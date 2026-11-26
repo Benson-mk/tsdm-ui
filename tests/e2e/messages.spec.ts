@@ -76,9 +76,14 @@ test("J75.messages-passive-entry: open Messages without a request, deliberately 
     await expect(
       page.getByText(/clear.*new.private.message prompt/i),
     ).toBeVisible();
-    await page
-      .getByRole("button", { name: "Load messages", exact: true })
-      .click();
+    const load = page.getByRole("button", {
+      name: "Load messages",
+      exact: true,
+    });
+    await expect(load).toHaveAccessibleDescription(
+      /clear.*new.private.message prompt/i,
+    );
+    await load.click();
     await expect(
       page.getByText("当前没有相应的短消息", { exact: true }),
     ).toBeVisible();

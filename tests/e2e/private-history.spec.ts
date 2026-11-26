@@ -104,12 +104,16 @@ test("J76.private-open: deliberately read named recipient with complete chronolo
   await expect(
     page.getByText(/Opening.*conversation.*mark.*read/i),
   ).toBeVisible();
-  await page
-    .getByRole("link", {
-      name: "Read private conversation with Listener Nine",
-      exact: true,
-    })
-    .click();
+  const selectedPeer = page.getByRole("link", {
+    name: "Read private conversation with Listener Nine",
+    exact: true,
+  });
+  await expect(selectedPeer).toHaveAccessibleDescription(/may mark it read/i);
+  await expect(page.getByText(/unread (?:indicator|count):? 0/i)).toHaveCount(
+    0,
+  );
+  const beforeOpen = ledger.length;
+  await selectedPeer.click();
   const reader = page.getByRole("region", {
     name: "Private conversation with Listener Nine",
     exact: true,
@@ -137,6 +141,17 @@ test("J76.private-open: deliberately read named recipient with complete chronolo
   await expect(
     page.locator(".messages-pane [data-peer-id='9'] a[aria-current='true']"),
   ).toBeVisible();
+  expect(ledger).toHaveLength(beforeOpen + 1);
+  const beforeReturn = ledger.length;
+  await page.goBack();
+  await expect(selectedPeer).toHaveAttribute("aria-current", "true");
+  await expect(reader).toBeHidden();
+  await page.goForward();
+  await expect(reader.locator("#pmlist_102")).toHaveAttribute(
+    "data-targeted",
+    "true",
+  );
+  expect(ledger).toHaveLength(beforeReturn);
 });
 
 test("J76.private-direct-reload: direct arrival and recovery require a deliberate private read and never serialize bodies", async ({

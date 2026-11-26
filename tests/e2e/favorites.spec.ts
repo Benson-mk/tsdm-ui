@@ -80,7 +80,10 @@ test("J9.saved-navigation: separate kinds preserve record identity, returned pag
   await expect(
     page.getByRole("link", { name: "Saved thread 42", exact: true }),
   ).toBeVisible();
-  await expect(page.locator('[data-favorite-id="942"]')).toBeVisible();
+  await expect(page.getByText("List loaded.", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-favorite-id="942"]')).toHaveText(
+    /^\s*Saved thread 42\s*2026-10-22 12:00\s*Remove favorite\s*$/,
+  );
   await page
     .getByRole("navigation", { name: "Saved pages" })
     .getByRole("link", { name: "2", exact: true })
@@ -586,7 +589,9 @@ test("J9.favorite-unknown-account: inconclusive identity clears restored private
     page.getByRole("link", { name: "Saved thread 42", exact: true }),
   ).toBeVisible();
   server.unknownAccount = true;
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Refresh saved page", exact: true })
+    .click();
   await expect(
     page.getByRole("link", { name: "Saved thread 42", exact: true }),
   ).toHaveCount(0);

@@ -149,6 +149,10 @@ export function createWorkspace(
     loading: boolean;
     result: DraftListResult | null;
   }>({ loading: false, result: null });
+  const listFailures = new WeakMap<
+    NavigationEntry,
+    Extract<DraftListResult, { message: string }>
+  >();
   let draftSequence = 0;
   async function loadDrafts(url?: string) {
     if (drafts.value.loading) return;
@@ -175,9 +179,10 @@ export function createWorkspace(
     writing.observe(result.account);
     if (current === draftSequence) {
       drafts.value = { loading: false, result };
-      if (entry && result.kind === "drafts") {
-        entry.drafts = result;
+      if (entry) {
         entry.account = accountKey(result.account);
+        if (result.kind === "drafts") entry.drafts = result;
+        else listFailures.set(entry, result);
       }
       void persist();
     }
@@ -861,6 +866,7 @@ export function createWorkspace(
       knownAccount !== null &&
       entry.account !== null &&
       entry.account !== knownAccount;
+    const listFailure = mismatch ? null : (listFailures.get(entry) ?? null);
     const retained = threadHistory.activate(
       mismatch ? null : readingFor(entry),
       entry.result?.kind === "thread" ? entry.key : (entry.readingKey ?? ""),
@@ -889,7 +895,7 @@ export function createWorkspace(
         entry.section === "drafts"
           ? mismatch
             ? null
-            : (entry.drafts ?? null)
+            : (entry.drafts ?? listFailure)
           : drafts.value.result,
     };
 
@@ -910,7 +916,7 @@ export function createWorkspace(
       result: mismatch ? null : entry.result,
       reading: mismatch ? null : readingFor(entry),
       privateReading: mismatch ? null : privateFor(entry),
-      failure: null,
+      failure: entry.section === "drafts" ? null : listFailure,
       loading: false,
       selection: entry.selection,
       missing:
@@ -1006,7 +1012,10 @@ export function createWorkspace(
     let invalidated = false;
     const observed = accountKey(account);
     accountObservation.value = observed ?? "unknown";
-    for (const entry of Object.values(record.entries))
+    for (const entry of Object.values(record.entries)) {
+      const listFailure = listFailures.get(entry);
+      if (listFailure && accountKey(listFailure.account) !== observed)
+        listFailures.delete(entry);
       if (
         entry.drafts &&
         (!observed || accountKey(entry.drafts.account) !== observed)
@@ -1014,6 +1023,7 @@ export function createWorkspace(
         entry.drafts = null;
         invalidated = true;
       }
+    }
     if (
       drafts.value.result &&
       (!observed || accountKey(drafts.value.result.account) !== observed)
@@ -1102,6 +1112,7 @@ export function createWorkspace(
     restoreRemembered = false,
   ) {
     const current = ++sequence;
+    listFailures.delete(entry);
     threadHistory.cancelPending();
     privateHistory.cancelPending();
     state.value = {
@@ -1231,6 +1242,15 @@ export function createWorkspace(
         if (readingPosition) view?.restoreReading(readingPosition);
       });
     } else {
+      if (
+        "message" in result &&
+        ["favorites", "messages", "notices"].includes(
+          routeFor(entry.destination)?.kind ?? "",
+        )
+      ) {
+        entry.account ??= observed;
+        listFailures.set(entry, result);
+      }
       state.value = {
         ...state.value,
         loading: false,

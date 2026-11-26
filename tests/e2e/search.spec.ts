@@ -74,7 +74,13 @@ async function open(
 test("J3.search-overview: current controls are distinct from deliberate search and editing sends no query", async ({
   page,
 }, info) => {
-  const requests = await open(page);
+  const restrictions = form.replace(
+    "</form>",
+    '<p class="search-restrictions">Search is limited to the member’s permitted boards.</p></form>',
+  );
+  const requests = await open(page, `${origin}/forum.php`, (url) =>
+    url.pathname === "/search.php" ? restrictions : directory,
+  );
   await openSearch(page);
   await expect(
     page.getByRole("heading", { name: "Search", exact: true, level: 1 }),
@@ -93,10 +99,19 @@ test("J3.search-overview: current controls are distinct from deliberate search a
       .locator('option[value="31536000"]'),
   ).toHaveJSProperty("disabled", true);
   await expect(
+    page.getByRole("button", { name: "Search", exact: true }).last(),
+  ).toHaveAccessibleDescription(
+    "Search may use forum credits and is subject to frequency limits.",
+  );
+  await expect(
     page.getByText(
-      "Search may use forum credits and is subject to frequency limits.",
-      { exact: true },
+      /(?:search may use forum credits|search may use forum credits or quota)/i,
     ),
+  ).toHaveCount(1);
+  await expect(
+    page.getByText("Search is limited to the member’s permitted boards.", {
+      exact: true,
+    }),
   ).toBeVisible();
   await page.getByLabel("Keywords", { exact: true }).fill("autumn");
   await page.getByLabel("Author", { exact: true }).fill("Composer Nine");
@@ -192,13 +207,20 @@ const thread = `${account}<div id="pt"><a href="forum.php?mod=forumdisplay&fid=5
 test("J3.search-pages-return: returned identity pages and edited criteria survive target Back Forward and reload without searches", async ({
   page,
 }, info) => {
+  const exactPost = thread.replace(
+    "</p></div></div></div>",
+    '</p></div></div><div id="post_202"><a id="postnum202">2</a><div class="pcb"><p>Exact result Post, not the opening.</p></div></div></div>',
+  );
   const requests = await open(page, `${origin}/forum.php`, (url, method) =>
     url.pathname !== "/search.php"
       ? url.searchParams.get("mod") === "viewthread"
-        ? thread
+        ? exactPost
         : directory
       : method === "POST" || url.searchParams.has("searchid")
-        ? results(Number(url.searchParams.get("page") ?? 1))
+        ? results(Number(url.searchParams.get("page") ?? 1)).replace(
+            "tid=42&highlight=autumn",
+            "tid=42&highlight=autumn#pid202",
+          )
         : form,
   );
   await openSearch(page);
@@ -228,9 +250,10 @@ test("J3.search-pages-return: returned identity pages and edited criteria surviv
   await page
     .getByRole("link", { name: "Autumn 2 listening", exact: true })
     .click();
-  await expect(
-    page.getByText("Complete autumn opening.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator("#pid202")).toHaveAttribute(
+    "data-targeted",
+    "true",
+  );
   const before = requests.length;
   await page.goBack();
   await expect(
@@ -244,11 +267,15 @@ test("J3.search-pages-return: returned identity pages and edited criteria surviv
     page.getByRole("list", { name: "Effective search criteria", exact: true }),
   ).toContainText("Keywords: autumn");
   await page.goForward();
-  await expect(
-    page.getByText("Complete autumn opening.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator("#pid202")).toHaveAttribute(
+    "data-targeted",
+    "true",
+  );
   await page.goBack();
   expect(requests).toHaveLength(before);
+  expect(requests.filter((request) => request.method === "POST")).toHaveLength(
+    1,
+  );
   await page
     .getByRole("region", { name: "Search overview", exact: true })
     .getByRole("button", { name: "Search", exact: true })
@@ -263,6 +290,10 @@ test("J3.search-pages-return: returned identity pages and edited criteria surviv
   await info.attach("search-returned-page.png", {
     body: await page.screenshot(),
     contentType: "image/png",
+  });
+  await info.attach("search-return-requests.json", {
+    body: JSON.stringify(requests),
+    contentType: "application/json",
   });
 });
 

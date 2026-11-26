@@ -78,6 +78,7 @@ const escape = (value: string) =>
 async function lifecycle(
   page: import("@playwright/test").Page,
   initialFormChange = (body: string) => body,
+  startWriting = true,
 ) {
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const state = {
@@ -185,13 +186,87 @@ async function lifecycle(
     return route.fulfill({ contentType: "text/html", body });
   });
   await page.goto(`${origin}/forum.php?mod=forumdisplay&fid=5`);
-  await page.getByRole("button", { name: "New thread", exact: true }).click();
-  await page.getByLabel("Title", { exact: true }).fill("Draft lifecycle");
-  await page
-    .getByLabel("Complete source", { exact: true })
-    .fill("[unknown]full source[/unknown] [attach]88[/attach]");
+  if (startWriting) {
+    await page.getByRole("button", { name: "New thread", exact: true }).click();
+    await page.getByLabel("Title", { exact: true }).fill("Draft lifecycle");
+    await page
+      .getByLabel("Complete source", { exact: true })
+      .fill("[unknown]full source[/unknown] [attach]88[/attach]");
+  } else {
+    await expect(
+      page.getByRole("button", { name: "New thread", exact: true }),
+    ).toBeVisible();
+  }
   return state;
 }
+test("#123 Drafts: resume the exact saved source and return to the selected row without saving or publishing", async ({
+  page,
+}, info) => {
+  const server = await lifecycle(page, undefined, false);
+  const title = "Exact Forum draft title";
+  const source = "[unknown]完整文字[/unknown]\n[attach]88[/attach]";
+  server.saved = new URLSearchParams({ subject: title, message: source });
+  const beforeEntry = server.reads.length;
+  await page
+    .getByRole("navigation", { name: "Main destinations", exact: true })
+    .getByRole("button", { name: "Drafts", exact: true })
+    .click();
+  await expect(
+    page.getByText("List not loaded.", { exact: true }),
+  ).toBeVisible();
+  expect(server.reads).toHaveLength(beforeEntry);
+  await page
+    .getByRole("button", { name: "Load forum drafts", exact: true })
+    .click();
+  await expect(page.getByText("List loaded.", { exact: true })).toBeVisible();
+  expect(server.reads).toHaveLength(beforeEntry + 1);
+  const resume = page.getByRole("button", {
+    name: `Resume ${title}`,
+    exact: true,
+  });
+  await resume.click();
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue(title);
+  await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
+    source,
+  );
+  const resumeReads = server.reads.slice(beforeEntry + 1).map((value) => {
+    const url = new URL(value);
+    url.searchParams.delete("tsdmapp");
+    return url.href;
+  });
+  expect(resumeReads).toEqual([
+    listURL,
+    `${origin}/forum.php?mod=viewthread&tid=42`,
+    `${origin}/forum.php?mod=post&action=edit&fid=5&tid=42&pid=101`,
+  ]);
+  await info.attach("exact-draft-source.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  const beforeReturn = server.reads.length;
+  await page
+    .getByRole("button", { name: "Return to reading", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("Complete source", { exact: true }),
+  ).toBeHidden();
+  await expect(page.locator('[data-draft-id="42"]')).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  await expect(resume).toBeVisible();
+  expect(server.reads).toHaveLength(beforeReturn);
+  expect(server.posts).toHaveLength(0);
+  expect(server.publications).toBe(0);
+  await info.attach("draft-resume-requests.json", {
+    body: JSON.stringify({
+      reads: server.reads,
+      saves: server.posts.length,
+      publications: server.publications,
+    }),
+    contentType: "application/json",
+  });
+});
 test("J6.save-draft: explicit save confirms independent full source and same-record revision without publishing", async ({
   page,
 }, info) => {
