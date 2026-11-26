@@ -138,8 +138,8 @@ test("IM65.browse: another board and filter retain reading while history restore
     return { id: post.id, top: post.getBoundingClientRect().top };
   });
   await page
-    .locator(".boards-navigation")
-    .getByRole("link", { name: "All boards", exact: true })
+    .getByRole("navigation", { name: "Main destinations", exact: true })
+    .getByRole("button", { name: "All boards", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Thread 50", exact: true }),
@@ -251,7 +251,7 @@ test("UI82.directory-retained: Threads keeps useful browsing when no reader exis
   await expect(overview).toBeVisible();
   expect(ledger).toHaveLength(before);
   await page
-    .locator(".boards-navigation")
+    .getByRole("region", { name: "Boards overview", exact: true })
     .getByRole("link", { name: "Music discussion", exact: true })
     .click();
   await expect(page.locator(".results-pane")).toBeVisible();

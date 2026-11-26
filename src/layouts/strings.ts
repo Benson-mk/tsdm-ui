@@ -246,8 +246,7 @@ const english = {
   privateRefreshRetry: "Check failed. Use Refresh conversation to retry.",
   newMessages: "New messages ({value})",
   native: "Continue in native forum",
-  boardNavigation: "Board navigation",
-  chooseBoard: "Choose a board",
+  currentBoard: "Current Board",
   recoveryUnavailable:
     "Refresh recovery unavailable. This tab keeps navigation while the page remains open.",
   snapshotUnavailable: "This navigation snapshot is unavailable.",
@@ -832,8 +831,7 @@ const simplified: Strings = {
   privateRefreshRetry: "检查失败。请使用刷新私信交谈重试。",
   newMessages: "新私信（{value}）",
   native: "在原版论坛中继续",
-  boardNavigation: "版块导航",
-  chooseBoard: "选择版块",
+  currentBoard: "当前版块",
   recoveryUnavailable: "刷新恢复不可用。页面保持打开时，此标签页仍会保留导航。",
   snapshotUnavailable: "此导航快照不可用。",
   snapshotReload:
@@ -1394,8 +1392,7 @@ const traditional: Strings = {
   privateRefreshRetry: "檢查失敗。請使用重新整理私訊交談重試。",
   newMessages: "新私訊（{value}）",
   native: "在原版論壇中繼續",
-  boardNavigation: "版塊導覽",
-  chooseBoard: "選擇版塊",
+  currentBoard: "目前版塊",
   recoveryUnavailable:
     "重新載入復原無法使用。頁面保持開啟時，此分頁仍會保留導覽。",
   snapshotUnavailable: "此導覽快照無法使用。",

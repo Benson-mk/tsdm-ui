@@ -732,7 +732,7 @@ test("J76.private-browse-list: board browsing retains the active private convers
   await expect(page.locator(".private-reading-pane")).toBeVisible();
   await page
     .getByRole("navigation", { name: "Main destinations", exact: true })
-    .getByRole("button", { name: "Boards", exact: true })
+    .getByRole("button", { name: "All boards", exact: true })
     .click();
   await expect(
     page.getByRole("region", {
@@ -930,7 +930,7 @@ test("J76.private-local-target-list: local exact targets preserve the currently 
   await expect(page.locator("#pmlist_102")).toBeVisible();
   await page
     .getByRole("navigation", { name: "Main destinations", exact: true })
-    .getByRole("button", { name: "Boards", exact: true })
+    .getByRole("button", { name: "All boards", exact: true })
     .click();
   await expect(
     page.locator(".board-card").filter({ hasText: "Music discussion" }),

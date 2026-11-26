@@ -794,7 +794,7 @@ test("J3.search-section-layout: Search has its own overview and remains reachabl
   await page.setViewportSize({ width: 390, height: 844 });
   await revealNavigation(page);
   await page
-    .getByRole("link", { name: "All boards", exact: true })
+    .getByRole("button", { name: "All boards", exact: true })
     .first()
     .click();
   await expect(
@@ -1073,7 +1073,7 @@ test("J11.search-pending: repeated submission is suppressed and late completed s
   ).toBeDisabled();
   await page
     .getByRole("navigation", { name: "Main destinations", exact: true })
-    .getByRole("button", { name: "Boards", exact: true })
+    .getByRole("button", { name: "All boards", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Boards", exact: true }),
@@ -2370,7 +2370,7 @@ for (const scenario of [
 }
 
 for (const heldPhase of ["submission", "result"] as const) {
-  for (const destination of ["Boards", "Saved"]) {
+  for (const destination of ["All boards", "Saved"]) {
     test(`J3.search-command-depart-${heldPhase}-${destination}: later navigation keeps ownership while a local departure permits one bounded result read`, async ({
       page,
     }, info) => {
@@ -2434,7 +2434,7 @@ for (const heldPhase of ["submission", "result"] as const) {
       expect(
         requests.filter((r) => new URL(r.url).searchParams.has("searchid")),
       ).toHaveLength(
-        heldPhase === "submission" && destination === "Boards" ? 0 : 1,
+        heldPhase === "submission" && destination === "All boards" ? 0 : 1,
       );
       await expect(
         page.getByRole("link", { name: "Autumn 1 listening", exact: true }),

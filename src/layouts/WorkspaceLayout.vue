@@ -467,19 +467,21 @@ const sectionInfo = computed(() => {
 });
 function selectSection(section: Section) {
   const change = () => {
+    if (section === "boards") {
+      if (state.value.result?.kind === "directory") {
+        if (drawer.value) changeDrawer(null);
+        return;
+      }
+      rememberBrowsingReader();
+      void props.workspace.openSection(section);
+      return;
+    }
     const positions = capturePositions();
     revealResults();
     void nextTick().then(() => restorePositions(positions, true));
     void props.workspace.openSection(section);
   };
   if (!props.workspace.writing.deferViewChange(change)) change();
-}
-function chooseSection(event: Event) {
-  if (
-    event.target instanceof HTMLSelectElement &&
-    sections.includes(event.target.value as Section)
-  )
-    selectSection(event.target.value as Section);
 }
 type PanePosition = {
   fallback?: { anchor: HTMLElement; offset: number };
@@ -1282,7 +1284,7 @@ const noticeContext = computed(() =>
 const boardChoices = computed(() =>
   state.value.result?.kind === "directory"
     ? state.value.result.directory.groups.flatMap((group) => group.boards)
-    : (boardContext.value?.boards ?? []),
+    : [],
 );
 const observedDirectory = ref<DeepReadonly<Directory> | null>(null);
 const writingCategory = computed(
@@ -1387,15 +1389,35 @@ const pickerBoard = computed(() => {
     ? state.value.result.thread.parent
     : null;
 });
-const pickerValue = computed(() =>
-  state.value.result?.kind === "directory"
-    ? "https://www.tsdm39.com/forum.php"
-    : (pickerBoard.value?.url ?? ""),
+const currentBoardId = computed(() =>
+  pickerBoard.value ? boardIdFrom(pickerBoard.value.url) : null,
 );
-function chooseBoard(event: Event) {
-  const target = event.target;
-  if (target instanceof HTMLSelectElement && target.value)
-    void props.workspace.openThread(target.value);
+const contextBoardChoices = computed(() => {
+  const choices = new Map<string, { id: string; label: string; url: string }>();
+  if (
+    pickerBoard.value &&
+    currentBoardId.value &&
+    !knownBoardIds.value.has(currentBoardId.value)
+  )
+    choices.set(pickerBoard.value.url, {
+      ...pickerBoard.value,
+      id: currentBoardId.value,
+    });
+  const cataloguedURLs = new Set(
+    navigationGroups.value.flatMap((group) =>
+      group.boards.map((board) => board.url),
+    ),
+  );
+  for (const board of boardContext.value?.boards ?? [])
+    if (!choices.has(board.url) && !cataloguedURLs.has(board.url))
+      choices.set(board.url, board);
+  return [...choices.values()];
+});
+function currentCollapsedGroup(group: (typeof navigationGroups.value)[number]) {
+  return (
+    collapsedGroups.value.has(group.key) &&
+    group.boards.some((board) => board.id === currentBoardId.value)
+  );
 }
 function chooseNoticeCategory(event: Event) {
   const target = event.target;
@@ -1412,6 +1434,12 @@ const missingTarget = computed(() => {
     !result.thread.posts.some((p) => p.id === result.thread.target)
   );
 });
+function rememberBrowsingReader() {
+  if (!threadsDocked.value && conversationVisible.value)
+    browsingReaderPosition = capturePositions().filter(({ pane }) =>
+      pane.classList.contains("reading-pane"),
+    );
+}
 function navigate(event: MouseEvent) {
   if (event.defaultPrevented) return;
   const link = event
@@ -1447,14 +1475,7 @@ function navigate(event: MouseEvent) {
   event.preventDefault();
   // Capture before a board request adds transient loading chrome. Waiting for
   // the result watcher would remember its displaced line as the user's place.
-  if (
-    !threadsDocked.value &&
-    conversationVisible.value &&
-    ["board", "directory"].includes(route.kind)
-  )
-    browsingReaderPosition = capturePositions().filter(({ pane }) =>
-      pane.classList.contains("reading-pane"),
-    );
+  if (["board", "directory"].includes(route.kind)) rememberBrowsingReader();
   void props.workspace.openThread(
     link.href,
     link.closest("[data-favorite-id]")?.getAttribute("data-favorite-id") ??
@@ -2499,12 +2520,6 @@ function boardIdFrom(url: string) {
       >
         <nav :aria-label="text.actions">
           <a
-            v-if="state.result?.kind !== 'directory'"
-            class="narrow-overview-link"
-            href="https://www.tsdm39.com/forum.php"
-            >{{ text.allBoards }}</a
-          >
-          <a
             v-if="state.section === 'search'"
             class="narrow-overview-link search-new-link"
             href="https://www.tsdm39.com/search.php?mod=forum&adv=yes"
@@ -2541,36 +2556,13 @@ function boardIdFrom(url: string) {
         </nav>
       </div>
     </Teleport>
-    <Teleport :to="boardContextTools ?? portal" :disabled="!boardContextTools">
+    <Teleport
+      v-if="state.section === 'notices' && noticeContext"
+      :to="boardContextTools ?? portal"
+      :disabled="!boardContextTools"
+    >
       <div class="workspace-tools board-navigation-tools">
-        <label v-if="state.section === 'boards'" class="board-picker"
-          >{{ text.boardNavigation
-          }}<select
-            :aria-label="text.boardNavigation"
-            :value="pickerValue"
-            @change="chooseBoard"
-          >
-            <option v-if="!pickerValue" value="" disabled>
-              {{ text.chooseBoard }}
-            </option>
-            <option value="https://www.tsdm39.com/forum.php">
-              {{ text.allBoards }}
-            </option>
-            <option v-if="pickerBoard" :value="pickerBoard.url">
-              {{ pickerBoard.label }}
-            </option>
-            <option
-              v-for="board in boardChoices"
-              :key="board.url"
-              :value="board.url"
-            >
-              {{ board.label }}
-            </option>
-          </select></label
-        >
-        <label
-          v-if="state.section === 'notices' && noticeContext"
-          class="board-picker"
+        <label class="board-picker"
           >{{ text.noticeCategories
           }}<select
             :aria-label="text.noticeCategories"
@@ -2588,30 +2580,6 @@ function boardIdFrom(url: string) {
               :value="category.url"
             >
               {{ category.label }}
-            </option>
-          </select></label
-        >
-        <label v-else-if="state.section !== 'boards'" class="board-picker"
-          >{{ text.sectionNavigation
-          }}<select
-            :aria-label="text.sectionNavigation"
-            :value="state.section"
-            @change="chooseSection"
-          >
-            <option v-for="section in sections" :key="section" :value="section">
-              {{ text[section] }}
-            </option>
-          </select></label
-        >
-        <label class="narrow-section-picker"
-          >{{ text.mainDestinations
-          }}<select
-            :aria-label="text.mainDestinations"
-            :value="state.section"
-            @change="chooseSection"
-          >
-            <option v-for="section in sections" :key="section" :value="section">
-              {{ text[section] }}
             </option>
           </select></label
         >
@@ -2915,24 +2883,30 @@ function boardIdFrom(url: string) {
               <button
                 v-for="section in sections"
                 :key="section"
-                :aria-current="state.section === section ? 'page' : undefined"
+                :aria-current="
+                  state.section === section &&
+                  (section !== 'boards' || state.result?.kind === 'directory')
+                    ? 'page'
+                    : undefined
+                "
                 @click="selectSection(section)"
               >
                 <WorkspaceIcon :name="section" /><span
                   class="destination-label"
-                  >{{ text[section] }}</span
+                  >{{
+                    section === "boards" ? text.allBoards : text[section]
+                  }}</span
                 >
               </button>
             </nav>
             <nav
-              v-if="state.section === 'boards'"
+              v-if="
+                state.section === 'boards' && state.result?.kind !== 'directory'
+              "
               :aria-label="text.boardsNavigation"
-              class="boards-navigation pane"
+              class="boards-navigation board-tree pane"
             >
               <h2>{{ text.browseBoards }}</h2>
-              <a href="https://www.tsdm39.com/forum.php">{{
-                text.allBoards
-              }}</a>
               <section
                 v-for="group in navigationGroups"
                 :key="group.key"
@@ -2940,8 +2914,15 @@ function boardIdFrom(url: string) {
                 :data-category="groupCategory(group).role"
               >
                 <button
-                  :aria-label="group.title"
+                  :aria-label="
+                    currentCollapsedGroup(group)
+                      ? `${group.title} · ${text.currentBoard}`
+                      : group.title
+                  "
                   :aria-expanded="!collapsedGroups.has(group.key)"
+                  :data-current-group="
+                    currentCollapsedGroup(group) || undefined
+                  "
                   @click="toggleGroup(group.key)"
                 >
                   <WorkspaceIcon name="disclosure" />
@@ -2962,7 +2943,7 @@ function boardIdFrom(url: string) {
                     :key="board.url"
                     :href="board.url"
                     :aria-current="
-                      boardContext?.id === board.id ? 'page' : undefined
+                      currentBoardId === board.id ? 'page' : undefined
                     "
                     ><span
                       class="category-dot"
@@ -2973,41 +2954,16 @@ function boardIdFrom(url: string) {
                 </div>
               </section>
               <a
-                v-if="boardContext && !knownBoardIds.has(boardContext.id)"
-                :href="boardContext.url"
+                v-for="board in contextBoardChoices"
+                :key="board.url"
+                :href="board.url"
+                :aria-current="currentBoardId === board.id ? 'page' : undefined"
                 ><span
                   class="category-dot"
-                  data-category="neutral"
+                  :data-category="categoryFor(board.id).role"
                   aria-hidden="true"
-                />{{ boardContext.title }}</a
+                />{{ board.label }}</a
               >
-              <a
-                v-else-if="
-                  !boardContext &&
-                  reading?.thread.parent &&
-                  !knownBoardIds.has(
-                    boardIdFrom(reading.thread.parent.url) ?? '',
-                  )
-                "
-                :href="reading.thread.parent.url"
-                ><span
-                  class="category-dot"
-                  data-category="neutral"
-                  aria-hidden="true"
-                />{{ reading.thread.parent.label }}</a
-              >
-              <template
-                v-if="
-                  !navigationGroups.length && state.result?.kind !== 'directory'
-                "
-              >
-                <a
-                  v-for="board in boardChoices"
-                  :key="board.url"
-                  :href="board.url"
-                  >{{ board.label }}</a
-                >
-              </template>
             </nav>
             <nav
               v-if="sectionInfo"
@@ -3271,13 +3227,7 @@ function boardIdFrom(url: string) {
           :key="group.key"
           class="board-group"
         >
-          <h2>
-            <span
-              class="category-label"
-              :data-category="groupCategory(group).role"
-              >{{ group.title }}</span
-            >
-          </h2>
+          <h2>{{ group.title }}</h2>
           <div class="board-grid">
             <a
               v-for="board in group.boards"
@@ -3285,7 +3235,7 @@ function boardIdFrom(url: string) {
               :href="board.url"
               :aria-label="board.label"
               class="board-card"
-              :data-category="categoryFor(board.id).role"
+              data-category="neutral"
               ><strong>{{ board.label }}</strong
               ><span>{{ board.description }}</span
               ><small>{{ board.stats }}</small></a

@@ -723,7 +723,7 @@ test("IM68.board-browse-range: three-region board browsing and history return re
       post.getBoundingClientRect().top - pane.getBoundingClientRect().top + 37;
   });
   const before = await anchor(page);
-  await page.getByRole("link", { name: "All boards", exact: true }).click();
+  await page.getByRole("button", { name: "All boards", exact: true }).click();
   await expect(page.locator(".reading-pane article")).toHaveCount(5);
   expect(Math.abs((await anchor(page)).top - before.top)).toBeLessThanOrEqual(
     0.5,

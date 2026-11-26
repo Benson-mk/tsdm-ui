@@ -244,7 +244,7 @@ test("UI82.browse-first: fresh results use compact desktop width and narrow Thre
   await boards.click();
   await page
     .getByRole("dialog")
-    .getByRole("link", { name: "All boards", exact: true })
+    .getByRole("button", { name: "All boards", exact: true })
     .click();
   await expect(overview).toBeVisible();
   await page.getByRole("button", { name: "Clear filter", exact: true }).click();
@@ -316,7 +316,7 @@ test("UI82.same-retained-thread: choosing the retained thread from its board rev
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await page
     .getByRole("dialog")
-    .getByRole("link", { name: "All boards", exact: true })
+    .getByRole("button", { name: "All boards", exact: true })
     .click();
   await page
     .getByRole("region", { name: "Boards overview", exact: true })
@@ -407,7 +407,7 @@ test("UI82.native-body-anchor: browsing another board retains the visible native
   await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await page
     .getByRole("dialog")
-    .getByRole("link", { name: "All boards", exact: true })
+    .getByRole("button", { name: "All boards", exact: true })
     .click();
   await page
     .getByRole("region", { name: "Boards overview", exact: true })

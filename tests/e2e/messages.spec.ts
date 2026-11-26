@@ -88,7 +88,7 @@ test("J75.messages-passive-entry: open Messages without a request, deliberately 
       1,
     );
     await destinations
-      .getByRole("button", { name: "Boards", exact: true })
+      .getByRole("button", { name: "All boards", exact: true })
       .click();
     await page.goBack();
     await expect(
@@ -141,7 +141,7 @@ test("J67.messages-scroll-owner: shared list ownership retains an existing priva
     const before = await geometry();
     await page
       .getByRole("navigation", { name: "Main destinations", exact: true })
-      .getByRole("button", { name: "Boards", exact: true })
+      .getByRole("button", { name: "All boards", exact: true })
       .click();
     const count = ledger.length;
     await page.goBack();
@@ -266,7 +266,7 @@ test("J75.messages-transient-reload: keep local Back results but do not expose p
   await expect(
     page.getByRole("heading", { name: "Listener Nine", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Boards", exact: true }).click();
+  await page.getByRole("button", { name: "All boards", exact: true }).click();
   await page.goBack();
   await expect(
     page.getByRole("heading", { name: "Listener Nine", exact: true }),
@@ -414,7 +414,7 @@ test("J75.messages-late-account-response: leaving a pending list cannot publish 
   await expect(
     page.getByRole("button", { name: "Load messages", exact: true }),
   ).toBeDisabled();
-  await page.getByRole("button", { name: "Boards", exact: true }).click();
+  await page.getByRole("button", { name: "All boards", exact: true }).click();
   await expect(page.getByText("Signed in as Reader Seven")).toBeVisible();
   finish({ body: populated.replace("uid=7", "uid=8"), uid: 8 });
   await page.getByRole("button", { name: "Messages", exact: true }).click();
@@ -456,7 +456,7 @@ test("J75.messages-network-retry: retain loaded peers on response loss, disclose
     page.getByRole("heading", { name: "Listener Nine", exact: true }),
   ).toBeVisible();
   expect(reads).toBe(1);
-  await page.getByRole("button", { name: "Boards", exact: true }).click();
+  await page.getByRole("button", { name: "All boards", exact: true }).click();
   await page.goBack();
   await expect(
     page.getByRole("heading", { name: "Listener Nine", exact: true }),
