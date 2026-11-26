@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import {
   revealNavigation,
+  clickBoardTool,
   openSettings,
   closeSettingsToWorkspace,
 } from "./navigation-ui";
@@ -361,7 +362,7 @@ test("UI84.continuity: category follows its own board and retained reader, while
   }
   fixture.account =
     '<div id="um"><strong><a href="home.php?mod=space&uid=8">Writer Eight</a></strong></div>';
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await clickBoardTool(page, "Refresh");
   await expect(page.locator(".board-disclosure")).toHaveCount(0);
   await expect(list.locator(".category-label")).toHaveCount(0);
   await expect(page.locator(".boards-navigation")).not.toContainText(
@@ -512,7 +513,7 @@ test("UI84.account-observation: an unknown challenge clears private navigation d
     navigation.getByRole("link", { name: "Board 899 中文", exact: true }),
   ).toHaveCount(1);
   fixture.response = challenge;
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await clickBoardTool(page, "Refresh");
   await expect(
     page.getByText(
       "Native verification is required. Your destination is preserved.",
@@ -557,7 +558,7 @@ test("UI84.same-account-error: a confirmed same-member permission failure retain
   );
   fixture.response =
     account + '<div id="messagetext"><p>您没有权限访问该版块</p></div>';
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await clickBoardTool(page, "Refresh");
   await expect(page.locator(".board-disclosure")).toHaveCount(7);
   await expect(page.locator("#thread-list-pane .category-label")).toHaveText(
     "Anime",

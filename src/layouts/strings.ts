@@ -327,6 +327,7 @@ const english = {
   aboutBoard: "About this board",
   boardInformationUnavailable: "No additional board information supplied.",
   boardFilters: "Board filters",
+  boardActions: "Board actions",
   filterReward: "Reward",
   filterHelp:
     "Choose a change, then Apply. Choosing another option replaces the pending choice. Only combinations offered by the forum are available.",
@@ -905,6 +906,7 @@ const simplified: Strings = {
   aboutBoard: "关于此版块",
   boardInformationUnavailable: "未提供其他版块信息。",
   boardFilters: "版块筛选",
+  boardActions: "版块操作",
   filterReward: "悬赏",
   filterHelp:
     "选择一项更改，然后应用。选择另一选项会替换待应用的选项；仅支持论坛提供的组合。",
@@ -1467,6 +1469,7 @@ const traditional: Strings = {
   aboutBoard: "關於此版塊",
   boardInformationUnavailable: "未提供其他版塊資訊。",
   boardFilters: "版塊篩選",
+  boardActions: "版塊操作",
   filterReward: "懸賞",
   filterHelp:
     "選擇一項變更，然後套用。選擇另一選項會取代待套用的選項；僅支援論壇提供的組合。",

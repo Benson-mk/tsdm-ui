@@ -1,4 +1,8 @@
-import { clickThreadTool, confirmThreadPage } from "./navigation-ui";
+import {
+  clickBoardTool,
+  clickThreadTool,
+  confirmThreadPage,
+} from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -954,8 +958,7 @@ test("J2.refresh-stale: failed refresh retains visibly stale content and does no
     requests.push(route.request().url());
     await route.abort("failed");
   });
-  await revealNavigation(page);
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await clickBoardTool(page, "Refresh");
   await expect(
     page.getByText("Previous results are stale.", { exact: true }),
   ).toBeVisible();

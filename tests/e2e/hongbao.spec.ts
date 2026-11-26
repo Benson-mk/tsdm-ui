@@ -1,4 +1,4 @@
-import { openSettings } from "./navigation-ui";
+import { clickBoardTool, openSettings } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -172,9 +172,7 @@ test("J7.packet-current-controls: expose all current native controls and actual 
   page,
 }, info) => {
   const { effects } = await fixture(page);
-  await page
-    .getByRole("button", { name: "New red packet", exact: true })
-    .click();
+  await clickBoardTool(page, "New red packet");
   await expect(
     page.getByLabel("Total credits", { exact: true }),
   ).toHaveAttribute("min", "1");
@@ -218,9 +216,7 @@ test("J7.packet-current-controls: expose all current native controls and actual 
 });
 
 async function composePacket(page: Page) {
-  await page
-    .getByRole("button", { name: "New red packet", exact: true })
-    .click();
+  await clickBoardTool(page, "New red packet");
   await page
     .getByLabel("Title", { exact: true })
     .fill("Packet source version one");
@@ -775,9 +771,7 @@ test("J7.packet-extra-control: unfamiliar packet controls refuse incomplete inte
   const state = await fixture(page);
   state.formChange = (body) =>
     body.replace("</form>", '<input name="hb_future" value="unknown"></form>');
-  await page
-    .getByRole("button", { name: "New red packet", exact: true })
-    .click();
+  await clickBoardTool(page, "New red packet");
   await expect(
     page.getByText(/The complete native red-packet controls are unavailable/),
   ).toBeVisible();

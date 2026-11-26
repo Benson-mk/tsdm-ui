@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { selectSourceEditor } from "./editor-controls";
+import { clickBoardTool } from "./navigation-ui";
 const origin = "https://www.tsdm39.com";
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
 const account = (id = "7") =>
@@ -734,10 +735,7 @@ for (const restored of [false, true])
       next = "initial";
       const reload = page.getByRole("button", { name: "Reload", exact: true });
       if (await reload.isVisible()) await reload.click();
-      else
-        await page
-          .getByRole("button", { name: "Refresh", exact: true })
-          .click();
+      else await clickBoardTool(page, "Refresh");
       await expect(label).toHaveText("Signed in as Reader 7");
       expect(requests).toHaveLength(3);
       await info.attach("footer-observation.json", {

@@ -63,6 +63,7 @@ function form(member = "7", saved?: URLSearchParams) {
 async function fixture(
   page: Page,
   initialForm: (body: string) => string = (body) => body,
+  prepare = true,
 ) {
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   const state = {
@@ -167,9 +168,94 @@ async function fixture(
     });
   });
   await page.goto(boardURL);
-  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  if (prepare)
+    await page.getByRole("button", { name: "New thread", exact: true }).click();
   return state;
 }
+test("NAV121.board-writing: the current Board owns primary entry, grouped actions and native refusal", async ({
+  page,
+  browser,
+}, info) => {
+  info.annotations.push({
+    type: "browser-version",
+    description: browser.version(),
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await fixture(page, undefined, false);
+  const pane = page.getByRole("region", {
+    name: "Thread results",
+    exact: true,
+  });
+  const entry = pane.getByRole("button", { name: "New thread", exact: true });
+  await expect(entry).toBeInViewport();
+  await expect(
+    page.getByRole("button", { name: "New thread", exact: true }),
+  ).toHaveCount(1);
+  const row = pane.getByRole("link", { name: "Existing thread", exact: true });
+  const entryBounds = await entry.boundingBox();
+  const rowBounds = await row.boundingBox();
+  expect(entryBounds!.y + entryBounds!.height).toBeLessThan(rowBounds!.y);
+  const trigger = pane.getByRole("button", {
+    name: "Board actions",
+    exact: true,
+  });
+  const initial = state.requests.slice();
+  await trigger.press("Enter");
+  const menu = page.getByRole("menu", { name: "Board actions", exact: true });
+  await expect(
+    menu.getByRole("menuitem", { name: "New red packet", exact: true }),
+  ).toBeVisible();
+  await expect(
+    menu.getByRole("menuitem", { name: "Save board", exact: true }),
+  ).toBeVisible();
+  await expect(
+    menu.getByRole("menuitem", { name: "Refresh", exact: true }),
+  ).toBeVisible();
+  await info.attach("board-actions.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  expect(state.requests).toEqual(initial);
+
+  state.formChange = () => `${actor()}<div id="messagetext">权限不足</div>`;
+  await entry.click();
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: "The current account cannot prepare this new thread.",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Writing context", exact: true }),
+  ).toHaveCount(0);
+  state.formChange = (body) => body;
+  await entry.click();
+  await expect(
+    page.getByRole("heading", { name: "New thread in Music", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("textbox", { name: "Complete source", exact: true }),
+  ).toBeFocused();
+  const preparations = state.requests.filter(
+    ({ url }) => new URL(url).searchParams.get("action") === "newthread",
+  );
+  expect(
+    preparations.map(({ url, method }) => [
+      new URL(url).searchParams.get("fid"),
+      method,
+    ]),
+  ).toEqual([
+    ["5", "GET"],
+    ["5", "GET"],
+  ]);
+  expect(state.posts).toEqual([]);
+  await info.attach("board-writing-boundary.json", {
+    body: JSON.stringify(state.requests, null, 2),
+    contentType: "application/json",
+  });
+});
+
 test("J4.publish-current: publish complete source/current options once and independently confirm actor/source/options", async ({
   page,
 }, info) => {

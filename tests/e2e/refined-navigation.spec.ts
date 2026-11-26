@@ -281,7 +281,6 @@ test("UI82.fresh-writing: a new writing context stays reachable from browse-firs
   await page.setViewportSize({ width: 375, height: 844 });
   const ledger = await open(page);
   await expect(page.locator(".results-pane")).toBeVisible();
-  await page.getByRole("button", { name: "Boards pane", exact: true }).click();
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   const editor = page.getByLabel("Complete source", { exact: true });
   await expect(editor).toBeVisible();

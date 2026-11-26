@@ -1,5 +1,9 @@
 import { clickThreadTool } from "./navigation-ui";
-import { openSettings, revealNavigation } from "./navigation-ui";
+import {
+  clickBoardTool,
+  openSettings,
+  revealNavigation,
+} from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const origin = "https://www.tsdm39.com";
@@ -207,10 +211,7 @@ for (const kind of ["thread", "forum"] as const)
   }, info) => {
     const server = await mutationFixture(page, kind);
     if (kind === "thread") await clickThreadTool(page, "Save thread");
-    else
-      await page
-        .getByRole("button", { name: "Save board", exact: true })
-        .click();
+    else await clickBoardTool(page, "Save board");
     await expect(
       page.getByRole("button", {
         name: "Confirm favorite action",

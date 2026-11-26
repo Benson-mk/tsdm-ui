@@ -112,6 +112,48 @@ export async function clickThreadTool(
     .click();
 }
 
+export async function openNewThread(page: Page) {
+  const entry = page.getByRole("button", {
+    name: /^(New thread|新主题|新主題)$/,
+    exact: true,
+  });
+  if (await page.locator(".pane-drawer").isVisible()) {
+    if (await entry.isVisible()) return entry.click();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".pane-drawer")).toBeHidden();
+  }
+  if (
+    !(await entry.isVisible()) &&
+    (await page.locator(".board-thread-list").count())
+  )
+    await page
+      .getByRole("button", { name: /^(Threads pane|主题面板|主題面板)$/ })
+      .click();
+  if (!(await entry.isVisible())) await revealNavigation(page);
+  await entry.click();
+}
+
+export async function clickBoardTool(
+  page: Page,
+  name: "Refresh" | "Save board" | "New red packet",
+) {
+  const trigger = page.getByRole("button", {
+    name: "Board actions",
+    exact: true,
+  });
+  if (
+    !(await trigger.isVisible()) &&
+    !(await page.locator(".pane-drawer").isVisible()) &&
+    name === "New red packet"
+  )
+    await revealNavigation(page);
+  await trigger.click();
+  await page
+    .getByRole("menu", { name: "Board actions", exact: true })
+    .getByRole("menuitem", { name, exact: true })
+    .click();
+}
+
 export async function openThreadPages(page: Page) {
   const dialog = page.getByRole("dialog", {
     name: "Thread pages",

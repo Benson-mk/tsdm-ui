@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ReplyRecoveryDialog from "../components/ReplyRecoveryDialog.vue";
+import BoardWritingActions from "../components/BoardWritingActions.vue";
 import type { ViewPosition } from "../workspace/navigation";
 import {
   computed,
@@ -1091,6 +1092,27 @@ const writingElsewhere = computed(() => {
     (!!reading.value && target !== reading.value.thread.id)
   );
 });
+const ownsHiddenReply = computed(() => {
+  const context = writing.value.context;
+  return (
+    !writing.value.visible &&
+    !!context?.replyTarget &&
+    context.replyTarget.threadId === reading.value?.thread.id
+  );
+});
+const resumeReply = computed(() => {
+  const threadId = reading.value?.thread.id;
+  return (
+    ownsHiddenReply.value &&
+    !!threadId &&
+    props.workspace.writing.localReplyThreads.value.includes(threadId)
+  );
+});
+const replyEntry = ref<HTMLButtonElement | null>(null);
+function parkReply() {
+  props.workspace.writing.parkReply();
+  void nextTick().then(() => replyEntry.value?.focus({ preventScroll: true }));
+}
 let conversationObserver: ResizeObserver | undefined;
 onMounted(() => {
   conversationObserver = new ResizeObserver(() => {
@@ -1137,11 +1159,6 @@ const retainedAttemptWarning = computed(() => {
     )
   );
 });
-function prepareWriting(redPacket = false) {
-  const url = pickerBoard.value?.url;
-  const id = url && new URL(url).searchParams.get("fid");
-  if (id) void props.workspace.writing.prepare(id, false, undefined, redPacket);
-}
 const boardContext = computed(() =>
   !["boards", "saved"].includes(state.value.section)
     ? null
@@ -1151,6 +1168,11 @@ const boardContext = computed(() =>
           state.value.origin?.kind === "board"
         ? state.value.origin.board
         : null,
+);
+const boardResultsAvailable = computed(
+  () =>
+    !!boardContext.value &&
+    (state.value.section === "boards" || state.value.result?.kind === "board"),
 );
 const pinsExpanded = ref(false);
 const boardAboutOpen = ref(false);
@@ -2535,7 +2557,10 @@ function boardIdFrom(url: string) {
           >
             {{ text.rerunSearch }}</button
           ><button
-            v-else-if="state.result?.kind !== 'directory'"
+            v-else-if="
+              state.result?.kind !== 'directory' &&
+              state.result?.kind !== 'board'
+            "
             @click="workspace.refresh()"
           >
             {{
@@ -2543,15 +2568,6 @@ function boardIdFrom(url: string) {
                 ? text.refreshThread
                 : text.refresh
             }}
-          </button>
-          <button
-            v-if="state.result?.kind === 'board'"
-            :disabled="favorite.busy"
-            @click="
-              workspace.prepareFavorite('add', 'forum', state.result.board.id)
-            "
-          >
-            {{ favoriteLabel("Save board") }}
           </button>
         </nav>
       </div>
@@ -2586,30 +2602,14 @@ function boardIdFrom(url: string) {
       </div>
     </Teleport>
     <Teleport :to="boardContextTools ?? portal" :disabled="!boardContextTools">
-      <div
-        id="navigation-writing-actions"
-        class="writing-actions secondary-writing-actions"
-      >
-        <button
-          v-if="pickerBoard"
-          :disabled="writing.preparing"
-          @click="prepareWriting()"
-        >
-          {{ text.newThread }}
-        </button>
-        <button
-          v-if="pickerBoard"
-          :disabled="writing.preparing"
-          @click="prepareWriting(true)"
-        >
-          {{
-            description(
-              "New red packet",
-              workspace.preferences.state.value.language,
-            )
-          }}
-        </button>
-      </div>
+      <BoardWritingActions
+        v-if="
+          !boardResultsAvailable && pickerBoard && boardIdFrom(pickerBoard.url)
+        "
+        :workspace="workspace"
+        :portal="portal"
+        :board-id="boardIdFrom(pickerBoard.url)"
+      />
     </Teleport>
     <div class="workspace-status">
       <section
@@ -3253,10 +3253,7 @@ function boardIdFrom(url: string) {
       </section>
       <section
         v-if="boardContext"
-        v-show="
-          resultsVisible &&
-          (state.section === 'boards' || state.result?.kind === 'board')
-        "
+        v-show="resultsVisible && boardResultsAvailable"
         id="thread-list-pane"
         class="results-pane pane"
         :class="{
@@ -3284,6 +3281,12 @@ function boardIdFrom(url: string) {
             <h1>{{ boardContext.title }}</h1>
           </div>
         </div>
+        <BoardWritingActions
+          :workspace="workspace"
+          :portal="portal"
+          :board-id="boardContext.id"
+          :board-result="state.result?.kind === 'board'"
+        />
         <CollapsibleRoot v-model:open="boardAboutOpen" class="board-about">
           <CollapsibleTrigger class="board-about-trigger">
             <WorkspaceIcon name="disclosure" />
@@ -4128,11 +4131,31 @@ function boardIdFrom(url: string) {
           </div>
         </Teleport>
         <div
-          v-if="reading?.thread.parent && !writing.visible"
+          v-if="
+            reading &&
+            (reading.thread.parent || resumeReply) &&
+            !writing.visible
+          "
           class="composer-entry"
         >
           <button
-            v-if="reading?.thread.parent"
+            v-if="resumeReply"
+            ref="replyEntry"
+            @click="workspace.writing.show()"
+          >
+            {{ text.returnWriting }}
+          </button>
+          <WritingDestination
+            v-if="resumeReply && writing.context"
+            :writing="writing.context"
+            :current-actor="workspace.writing.currentActor.value"
+            :language="workspace.preferences.state.value.language"
+            :category="writingCategory"
+            compact
+          />
+          <button
+            v-else-if="reading.thread.parent"
+            ref="replyEntry"
             @click="
               workspace.writing.prepareReply(
                 boardIdFrom(reading.thread.parent.url),
@@ -4184,11 +4207,20 @@ function boardIdFrom(url: string) {
           :elsewhere="writingElsewhere"
           :category="writingCategory"
           @resize="resizeWriting"
+          @park="parkReply"
         />
       </div>
     </main>
     <div ref="browsingWritingStatus" class="browsing-writing-status" />
-    <div v-if="writing.context && !writing.visible" class="bottom-resume">
+    <div
+      v-if="
+        writing.context &&
+        !writing.visible &&
+        !ownsHiddenReply &&
+        !workspace.writing.replyParked.value
+      "
+      class="bottom-resume"
+    >
       <button @click="workspace.writing.show()">
         <WorkspaceIcon name="compose" />
         {{ text.returnWriting }}

@@ -1238,10 +1238,6 @@ select {
   .thread-without-results .reading-pane {
     grid-column: 1;
   }
-  .secondary-writing-actions {
-    padding: 8px 12px;
-    gap: 8px;
-  }
 }
 
 .board-filters {
@@ -2859,6 +2855,18 @@ input {
 }
 .board-heading .icon-button {
   flex: 0 0 44px;
+}
+.board-writing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.board-writing-actions > button {
+  min-height: 44px;
+}
+.board-actions-menu {
+  z-index: 65;
 }
 .board-check-status {
   display: grid;
