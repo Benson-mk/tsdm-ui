@@ -1,5 +1,10 @@
 import { writingDetailAction } from "./editor-controls";
-import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
+import {
+  clickBoardTool,
+  openNewThread,
+  openSettings,
+  closeSettingsToWorkspace,
+} from "./navigation-ui";
 import { publishSavedDraft } from "./draft-review-controls";
 import {
   combinedSource,
@@ -333,12 +338,8 @@ async function fixture(
     return route.fulfill({ contentType: "text/html", body });
   });
   await page.goto(`${origin}/forum.php?mod=forumdisplay&fid=5`);
-  await page
-    .getByRole("button", {
-      name: setup.ordinary ? "New thread" : "New red packet",
-      exact: true,
-    })
-    .click();
+  if (setup.ordinary) await openNewThread(page);
+  else await clickBoardTool(page, "New red packet");
   await page.getByLabel("Title", { exact: true }).fill("Uploaded draft");
   await page
     .getByLabel("Complete source", { exact: true })
@@ -1389,9 +1390,7 @@ for (const replacement of [
     const before = await recovered(page);
     const original = before.draftAttempts![0]!.submission;
     if (replacement === "new-thread") {
-      await page
-        .getByRole("button", { name: "New red packet", exact: true })
-        .click();
+      await clickBoardTool(page, "New red packet");
     } else if (replacement === "another-draft") {
       state.otherDraft = true;
       await page
@@ -1455,9 +1454,7 @@ for (const replacement of [
     await expect(retained).toContainText("Retain before replacement");
     expect(state.credits.filter((c) => c.operation === "HBS")).toHaveLength(1);
     if (replacement === "new-thread") {
-      await page
-        .getByRole("button", { name: "New red packet", exact: true })
-        .click();
+      await clickBoardTool(page, "New red packet");
       await page
         .getByRole("button", {
           name: "Discard local changes and prepare",
@@ -1522,9 +1519,7 @@ test("J6.J7.funded-draft-continuation-packet-target: successful Save-and-continu
   await expect(page.getByText(/Confirmed forum draft 42/).last()).toBeVisible();
   const before = await recovered(page);
   const original = before.draftAttempts![0]!.submission;
-  await page
-    .getByRole("button", { name: "New red packet", exact: true })
-    .click();
+  await clickBoardTool(page, "New red packet");
   await page
     .getByRole("button", { name: "Save forum draft and continue", exact: true })
     .click();

@@ -3,9 +3,13 @@ import { type DeepReadonly } from "vue";
 import { favoriteText } from "./favorite-labels";
 import type { Preferences } from "../workspace/preferences";
 import type { Favorites, FavoriteKind } from "../forum-client";
+import { strings } from "../layouts/strings";
+import DestinationLoadStatus from "./DestinationLoadStatus.vue";
 const props = defineProps<{
   favorites: DeepReadonly<Favorites> | null;
   loading: boolean;
+  pending: boolean;
+  failed: boolean;
   secondary: boolean;
   boardTarget: boolean;
   selection?: string | null;
@@ -13,6 +17,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   load: [kind: FavoriteKind];
+  refresh: [url: string];
   remove: [kind: FavoriteKind, targetId: string, recordId: string];
 }>();
 const t = (value: string) => favoriteText(value, props.language);
@@ -26,12 +31,26 @@ const t = (value: string) => favoriteText(value, props.language);
   >
     <h1>{{ t("Saved") }}</h1>
     <h2 v-if="!favorites">{{ t("Saved boards and threads") }}</h2>
+    <DestinationLoadStatus
+      :loaded="favorites !== null"
+      :empty="favorites?.records.length === 0"
+      :pending="pending"
+      :failed="failed"
+      :language="language"
+    />
     <nav class="favorite-inline-kinds" :aria-label="t('Saved kinds')">
       <button :disabled="loading" @click="emit('load', 'thread')">
         {{ t("Load saved threads") }}
       </button>
       <button :disabled="loading" @click="emit('load', 'forum')">
         {{ t("Load saved boards") }}
+      </button>
+      <button
+        v-if="favorites"
+        :disabled="loading"
+        @click="emit('refresh', favorites.url)"
+      >
+        {{ strings(language).refreshSavedPage }}
       </button>
     </nav>
     <template v-if="favorites">

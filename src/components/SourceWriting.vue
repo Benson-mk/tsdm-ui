@@ -19,6 +19,7 @@ import InertSourcePreview from "./InertSourcePreview.vue";
 import { editorText } from "./editor-strings";
 import WorkspaceIcon from "./WorkspaceIcon.vue";
 import WritingDestination from "./WritingDestination.vue";
+import { addressedPostURL } from "./writing-target";
 import PreparedPublication from "./PreparedPublication.vue";
 import { reviewText } from "./review-text";
 import { validationText } from "./validation-text";
@@ -33,7 +34,7 @@ const props = defineProps<{
   category?: CategoryRole;
   portal: HTMLElement;
 }>();
-const emit = defineEmits<{ resize: [expanded: boolean] }>();
+const emit = defineEmits<{ resize: [expanded: boolean]; park: [] }>();
 const editor = ref<InstanceType<typeof PostEditor> | null>(null);
 const resolutionFeedback = ref<HTMLElement | null>(null);
 watch(
@@ -104,6 +105,9 @@ const replyPost = computed(() => {
     ? reading.thread.posts.find((post) => post.id === target.postId)
     : undefined;
 });
+const replyPostURL = computed(() =>
+  state.value.context ? addressedPostURL(state.value.context) : null,
+);
 function postText(nodes: readonly ContentNode[]): string {
   return nodes
     .map((node) =>
@@ -482,6 +486,7 @@ function updateOption(option: WritingOption, event: Event) {
       :current-actor="workspace.writing.currentActor.value"
       :language="workspace.preferences.state.value.language"
       :category="category ?? 'neutral'"
+      :plain-target="ordinaryReply"
       compact
     />
     <div
@@ -492,9 +497,17 @@ function updateOption(option: WritingOption, event: Event) {
       :aria-label="text.replyTarget"
     >
       <div>
-        <strong :title="state.context.replyTarget.author">{{
-          state.context.replyTarget.author
-        }}</strong>
+        <strong
+          ><a v-if="replyPostURL" :href="replyPostURL">{{
+            insert(text.addressedTo, state.context.replyTarget.author).replace(
+              "{post}",
+              state.context.replyTarget.postId,
+            )
+          }}</a
+          ><template v-else>{{
+            state.context.replyTarget.author
+          }}</template></strong
+        >
         <p>{{ replyExcerpt || text.replyExcerptUnavailable }}</p>
       </div>
       <button
@@ -822,6 +835,15 @@ function updateOption(option: WritingOption, event: Event) {
                     })
                   "
                   >{{ text.ordinaryReply }}</DropdownMenuItem
+                >
+                <DropdownMenuItem
+                  v-if="
+                    workspace.writing.localReplyThreads.value.includes(
+                      state.context.replyTarget?.threadId ?? '',
+                    )
+                  "
+                  @select="emit('park')"
+                  >{{ text.returnReading }}</DropdownMenuItem
                 >
               </DropdownMenuContent></DropdownMenuPortal
             >

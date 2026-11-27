@@ -5,28 +5,33 @@ import type { PreparedWriting, PreparedPrivateWriting } from "../forum-client";
 import type { Preferences } from "../workspace/preferences";
 import { strings, insert } from "../layouts/strings";
 import type { CategoryRole } from "../layouts/board-groups";
+import { addressedPostURL } from "./writing-target";
 const props = defineProps<{
   writing: DeepReadonly<PreparedWriting | PreparedPrivateWriting>;
   currentActor?: DeepReadonly<import("../forum-client").Account> | undefined;
   language: Preferences["language"];
   review?: boolean;
   compact?: boolean;
+  plainTarget?: boolean;
   category?: CategoryRole;
 }>();
 const text = computed(() => strings(props.language));
 const actor = computed(() => props.currentActor ?? props.writing.account);
-const addressedURL = computed(() => {
+const addressedURL = computed(() =>
+  props.writing.action !== "private-message" && !props.plainTarget
+    ? addressedPostURL(props.writing)
+    : null,
+);
+const addressedLabel = computed(() => {
   if (props.writing.action === "private-message") return "";
   const target = props.writing.replyTarget;
   if (!target?.postId) return "";
-  const url = new URL("/forum.php", props.writing.board.url);
-  url.search = new URLSearchParams({
-    mod: "redirect",
-    goto: "findpost",
-    ptid: target.threadId,
-    pid: target.postId,
-  }).toString();
-  return url.href;
+  return props.review
+    ? `${target.author} · ${text.value.post} ${target.postId}`
+    : insert(text.value.addressedTo, target.author).replace(
+        "{post}",
+        target.postId,
+      );
 });
 const action = computed(() =>
   props.writing.action === "private-message"
@@ -89,14 +94,8 @@ const action = computed(() =>
         >
       </p>
       <p v-if="writing.replyTarget?.postId">
-        <a :href="addressedURL">{{
-          review
-            ? `${writing.replyTarget.author} · ${text.post} ${writing.replyTarget.postId}`
-            : insert(text.addressedTo, writing.replyTarget.author).replace(
-                "{post}",
-                writing.replyTarget.postId,
-              )
-        }}</a>
+        <a v-if="addressedURL" :href="addressedURL">{{ addressedLabel }}</a>
+        <template v-else>{{ addressedLabel }}</template>
       </p>
       <p v-if="writing.replyTarget?.postId && !review && !compact">
         {{ text.addressedExplanation }}

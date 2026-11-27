@@ -10,7 +10,7 @@ import {
 } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { revealNavigation } from "./navigation-ui";
+import { openNewThread } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -92,8 +92,7 @@ async function open(
 }
 async function enter(page: Page, entry: Entry) {
   if (entry === "new-thread") {
-    await revealNavigation(page);
-    await page.getByRole("button", { name: "New thread", exact: true }).click();
+    await openNewThread(page);
   } else
     await page
       .getByRole("button", {
@@ -547,7 +546,6 @@ test("UX56.revision-refusal: refused replacement preserves retained writing and 
   await selectSourceEditor(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(retained);
-  await revealNavigation(page);
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   state.refused = true;
   await page
@@ -599,7 +597,6 @@ test("UX56.composition: entry and replacement wait for composition and the lates
   await expect(
     page.getByRole("button", { name: "More writing actions", exact: true }),
   ).toBeDisabled();
-  await revealNavigation(page);
   await page.getByRole("button", { name: "New thread", exact: true }).click();
   await expect(
     page.getByText("Finish the current input composition to change views.", {

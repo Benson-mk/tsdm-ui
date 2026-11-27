@@ -7,7 +7,7 @@ import { readableLines, expectPreservedReadingLine } from "./readable-lines";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { revealNavigation } from "./navigation-ui";
+import { openNewThread } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -100,8 +100,7 @@ async function open(
 }
 async function enter(page: Page, entry: Entry) {
   if (entry === "new-thread") {
-    await revealNavigation(page);
-    await page.getByRole("button", { name: "New thread", exact: true }).click();
+    await openNewThread(page);
   } else
     await page
       .getByRole("button", {

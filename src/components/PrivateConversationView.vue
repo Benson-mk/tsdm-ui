@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { privateWritingText } from "./private-writing-text";
-import type { DeepReadonly } from "vue";
+import { useId, type DeepReadonly } from "vue";
 import type { PrivateConversation, ReadResult } from "../forum-client";
 import ContentView from "./ContentView";
 import type { Preferences } from "../workspace/preferences";
@@ -28,6 +28,8 @@ const emit = defineEmits<{
   automatic: [enabled: boolean];
   scroll: [event: Event];
 }>();
+const readEffects = useId();
+const checkEffects = useId();
 </script>
 <template>
   <div class="conversation-heading">
@@ -38,7 +40,7 @@ const emit = defineEmits<{
           insert(strings(language).privateConversation, conversation.peerName)
         }}
       </h1>
-      <p>{{ strings(language).privateReadEffects }}</p>
+      <p :id="readEffects">{{ strings(language).privateReadEffects }}</p>
     </section>
     <div class="history-controls">
       <label
@@ -50,6 +52,7 @@ const emit = defineEmits<{
         }"
         ><input
           type="checkbox"
+          :aria-describedby="checkEffects"
           :checked="automatic"
           :disabled="!(automatic || (conversation.end && !conversation.later))"
           @change="
@@ -57,7 +60,7 @@ const emit = defineEmits<{
           "
         />{{ strings(language).privateAutomaticChecks }}</label
       >
-      <p>{{ strings(language).privateCheckEffects }}</p>
+      <p :id="checkEffects">{{ strings(language).privateCheckEffects }}</p>
       <p role="status">
         {{
           checking
@@ -73,7 +76,11 @@ const emit = defineEmits<{
                 : strings(language).refreshManual
         }}
       </p>
-      <button :disabled="checking || loading !== null" @click="emit('refresh')">
+      <button
+        :aria-describedby="checkEffects"
+        :disabled="checking || loading !== null"
+        @click="emit('refresh')"
+      >
         {{ strings(language).refreshConversation }}
       </button>
       <p v-if="refreshFailure && 'message' in refreshFailure" role="status">
@@ -92,12 +99,14 @@ const emit = defineEmits<{
       </button>
       <button
         v-if="conversation.earlier"
+        :aria-describedby="readEffects"
         :disabled="loading !== null"
         @click="emit('load', 'earlier')"
       >
         {{ strings(language).loadEarlierMessages }}</button
       ><button
         v-if="conversation.later"
+        :aria-describedby="readEffects"
         :disabled="loading !== null"
         @click="emit('load', 'later')"
       >

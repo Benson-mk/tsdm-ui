@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import {
   revealNavigation,
+  clickBoardTool,
   openSettings,
   closeSettingsToWorkspace,
 } from "./navigation-ui";
@@ -83,10 +84,17 @@ async function open(page: Page, destination = directoryURL) {
   await expect(page.locator(".workspace")).toBeVisible();
   return { fixture, requests };
 }
+const cardsFor = (page: Page, id: number) =>
+  page.locator(`.overview .board-card[href="${boardURL(id)}"]`);
+const allBoards = (page: Page) =>
+  page
+    .getByRole("navigation", { name: "Main destinations", exact: true })
+    .getByRole("button", { name: "All boards", exact: true });
 test("UI84.disclosures: source groups keep independent identity through filtering, reordered discovery and pane browsing", async ({
   page,
 }, info) => {
   const { fixture, requests } = await open(page);
+  await cardsFor(page, 101).click();
   const navigation = page.locator("#boards-pane .boards-navigation");
   const disclosures = navigation.locator(".board-disclosure");
   await expect(disclosures).toHaveCount(7);
@@ -122,6 +130,9 @@ test("UI84.disclosures: source groups keep independent identity through filterin
   );
   await expect(firstSame.getByRole("link")).toBeHidden();
   await expect(secondSame.getByRole("link")).toBeVisible();
+  await allBoards(page).click();
+  await expect(cardsFor(page, 101)).toBeVisible();
+  await expect(navigation).toHaveCount(0);
   const before = requests.length;
   await page
     .getByRole("searchbox", { name: "Filter boards on this page" })
@@ -129,12 +140,12 @@ test("UI84.disclosures: source groups keep independent identity through filterin
   await expect(page.locator(".overview .board-card")).toHaveCount(1);
   await page.getByRole("button", { name: "Clear filter", exact: true }).click();
   expect(requests.length).toBe(before);
-  await expect(firstSame.getByRole("button")).toHaveAttribute(
-    "aria-expanded",
-    "false",
-  );
   fixture.groups.reverse();
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(page.locator(".overview .board-group").first()).toContainText(
+    "Board 701 中文",
+  );
+  await cardsFor(page, 101).click();
   await expect(disclosures.first().getByRole("button")).toHaveText(
     /Same source name/,
   );
@@ -163,15 +174,19 @@ test("UI84.disclosures: source groups keep independent identity through filterin
     "aria-expanded",
     "false",
   );
-  await navigation
-    .getByRole("link", { name: "All boards", exact: true })
-    .click();
+  await allBoards(page).click();
+  await expect(navigation).toHaveCount(0);
+  await cardsFor(page, 201).click();
   await revealNavigation(page);
   await firstSame.getByRole("button").press("Space");
   await expect(firstSame.getByRole("link")).toBeVisible();
-  await expect(navigation.getByRole("link")).toHaveCount(9);
+  await expect(navigation.getByRole("link")).toHaveCount(8);
   await firstSame.getByRole("button").click();
   await page.reload();
+  await revealNavigation(page);
+  await expect(disclosures).toHaveCount(0);
+  await allBoards(page).click();
+  await cardsFor(page, 201).click();
   await revealNavigation(page);
   await expect(firstSame.getByRole("button")).toHaveAttribute(
     "aria-expanded",
@@ -217,7 +232,7 @@ const fills = {
     "rgb(102, 102, 102)",
   ],
 } as const;
-test("UI84.palette: exact source roles retain readable theme fills, aggregate identity and category-preserving hover", async ({
+test("UI84.palette: neutral directory uses one heading accent, while the tree retains source role colors", async ({
   page,
 }, info) => {
   const { fixture, requests } = await open(page);
@@ -230,30 +245,47 @@ test("UI84.palette: exact source roles retain readable theme fills, aggregate id
   fixture.groups.push({ id: 18, title: "Music", boards: [102] });
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.locator(".overview .board-card")).toHaveCount(10);
-  const roles = ["community", "anime", "creative", "music", "neutral"];
   const ids = [101, 201, 301, 401, 501];
   for (const [theme, colors] of Object.entries(fills)) {
     await openSettings(page);
     await page.locator(`input[type=radio][value="${theme}"]`).check();
     await closeSettingsToWorkspace(page);
-    for (const [i, id] of ids.entries()) {
+    for (const id of ids) {
       const cards = page.locator(
         `.overview .board-card[href="${boardURL(id)}"]`,
       );
       for (const card of await cards.all()) {
-        await expect(card).toHaveAttribute("data-category", roles[i]!);
-        await expect(card).toHaveCSS("background-color", colors[i]!);
+        await expect(card).toHaveAttribute("data-category", "neutral");
+        await expect(card).toHaveCSS("background-color", colors[4]!);
         await expect(card).toHaveCSS(
           "color",
-          theme === "dark" && i === 4 ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
+          theme === "dark" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
         );
         await card.hover();
-        await expect(card).toHaveCSS("background-color", colors[i]!);
+        await expect(card).toHaveCSS("background-color", colors[4]!);
         await expect(card.locator("strong")).toHaveCSS(
           "text-decoration-line",
           "underline",
         );
       }
+    }
+    const accents = await page
+      .locator(".overview .board-group > h2")
+      .evaluateAll((headings) =>
+        headings.map((h) => {
+          const accent = getComputedStyle(h, "::before");
+          return [accent.borderInlineStartWidth, accent.borderInlineStartColor];
+        }),
+      );
+    expect(accents).toHaveLength(9);
+    expect(
+      accents.every(
+        (accent) => accent[0] === "4px" && accent[1] === accents[0]?.[1],
+      ),
+    ).toBe(true);
+    await cardsFor(page, 101).click();
+    await expect(page.locator(".board-disclosure")).toHaveCount(9);
+    for (const [i, id] of ids.entries()) {
       const dots = page.locator(
         `.boards-navigation a[href="${boardURL(id)}"] .category-dot`,
       );
@@ -263,26 +295,18 @@ test("UI84.palette: exact source roles retain readable theme fills, aggregate id
       }
       expect(await dots.count()).toBeGreaterThan(0);
     }
-    const generatedDots = await page
-      .locator(".boards-navigation a")
-      .evaluateAll((links) =>
-        links.map((link) => getComputedStyle(link, "::before").content),
-      );
-    expect(
-      generatedDots.every(
-        (content) => content === "none" || content === "normal",
-      ),
-    ).toBe(true);
     const conflict = page.locator(
-      `.overview .board-card[href="${boardURL(102)}"]`,
+      `.boards-navigation a[href="${boardURL(102)}"] .category-dot`,
     );
     await expect(conflict).toHaveCount(2);
-    for (const card of await conflict.all())
-      await expect(card).toHaveCSS("background-color", colors[4]!);
+    for (const dot of await conflict.all())
+      await expect(dot).toHaveCSS("background-color", colors[4]!);
     await info.attach(`palette-${theme}.png`, {
       body: await page.screenshot(),
       contentType: "image/png",
     });
+    await page.goBack();
+    await expect(cardsFor(page, 101)).toBeVisible();
   }
   await info.attach("requests.json", {
     body: JSON.stringify(requests),
@@ -338,7 +362,7 @@ test("UI84.continuity: category follows its own board and retained reader, while
   }
   fixture.account =
     '<div id="um"><strong><a href="home.php?mod=space&uid=8">Writer Eight</a></strong></div>';
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await clickBoardTool(page, "Refresh");
   await expect(page.locator(".board-disclosure")).toHaveCount(0);
   await expect(list.locator(".category-label")).toHaveCount(0);
   await expect(page.locator(".boards-navigation")).not.toContainText(
@@ -395,25 +419,27 @@ for (const scenario of [
     page,
   }, info) => {
     const { fixture, requests } = await open(page);
-    await expect(page.locator(".board-disclosure")).toHaveCount(7);
+    await expect(page.locator(".overview .board-group")).toHaveCount(7);
     fixture.nativeScript = `const raw = sessionStorage.getItem('tsdm.workspace.recovery'); if(raw){const record = JSON.parse(raw); for(const entry of Object.values(record.entries)){if(entry.result?.kind === 'directory'){for(const group of entry.result.directory.groups){${scenario.change}}}}sessionStorage.setItem('tsdm.workspace.recovery',JSON.stringify(record));}`;
     const before = requests.length;
     await page.reload();
     if (scenario.valid) {
-      await expect(page.locator(".board-disclosure")).toHaveCount(7);
-      const navigation = page.locator(".boards-navigation");
-      const first = navigation
-        .locator(".board-disclosure")
-        .filter({ has: page.locator(`a[href="${boardURL(601)}"]`) });
-      const second = navigation
-        .locator(".board-disclosure")
-        .filter({ has: page.locator(`a[href="${boardURL(701)}"]`) });
-      await first.getByRole("button").click();
-      await expect(first.getByRole("link")).toBeHidden();
-      await expect(second.getByRole("link")).toBeVisible();
-      await expect(
-        page.locator(`.board-card[href="${boardURL(201)}"]`),
-      ).toHaveCSS("background-color", fills.light[1]);
+      await expect(page.locator(".overview .board-group")).toHaveCount(7);
+      const headings = page.locator(".overview .board-group").filter({
+        has: page.getByRole("heading", {
+          name: "Same source name",
+          exact: true,
+        }),
+      });
+      await expect(headings).toHaveCount(2);
+      await expect(headings.nth(0).getByRole("link")).toHaveAttribute(
+        "href",
+        boardURL(601),
+      );
+      await expect(headings.nth(1).getByRole("link")).toHaveAttribute(
+        "href",
+        boardURL(701),
+      );
     } else {
       await expect(
         page.getByText("This navigation snapshot is unavailable.", {
@@ -448,18 +474,18 @@ test("UI84.native-aliases: observed native group labels retain exact roles and m
     fixture.groups.map((g) => g.title),
   );
   const roles = ["community", "anime", "creative", "neutral", "neutral"];
-  for (const [i, g] of fixture.groups.entries())
-    await expect(
-      page.locator(`.overview .board-card[href="${boardURL(g.boards[0]!)}"]`),
-    ).toHaveAttribute("data-category", roles[i]!);
   fixture.groups.reverse();
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.locator(".overview .board-group > h2")).toHaveText(
     fixture.groups.map((g) => g.title),
   );
-  await expect(
-    page.locator(`.overview .board-card[href="${boardURL(201)}"]`),
-  ).toHaveCSS("background-color", fills.light[1]);
+  await cardsFor(page, 201).click();
+  for (const [i, g] of fixture.groups.entries())
+    await expect(
+      page.locator(
+        `.boards-navigation a[href="${boardURL(g.boards[0]!)}"] .category-dot`,
+      ),
+    ).toHaveAttribute("data-category", roles[roles.length - i - 1]!);
   await info.attach("native-source-roles.png", {
     body: await page.screenshot(),
     contentType: "image/png",
@@ -479,13 +505,15 @@ test("UI84.account-observation: an unknown challenge clears private navigation d
     aggregate: true,
   });
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(cardsFor(page, 899)).toBeVisible();
+  await cardsFor(page, 101).click();
   const navigation = page.locator(".boards-navigation");
   await expect(navigation).toContainText("Private favorites");
   await expect(
     navigation.getByRole("link", { name: "Board 899 中文", exact: true }),
   ).toHaveCount(1);
   fixture.response = challenge;
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await clickBoardTool(page, "Refresh");
   await expect(
     page.getByText(
       "Native verification is required. Your destination is preserved.",
@@ -497,22 +525,23 @@ test("UI84.account-observation: an unknown challenge clears private navigation d
   await expect(
     navigation.getByRole("link", { name: "Board 899 中文", exact: true }),
   ).toHaveCount(0);
-  await expect(
-    page.locator(`.overview .board-card[href="${boardURL(201)}"]`).first(),
-  ).toHaveAttribute("data-category", "neutral");
+  await expect(page.locator("#thread-list-pane .category-label")).toHaveCount(
+    0,
+  );
   await info.attach("unknown-observation.png", {
     body: await page.screenshot(),
     contentType: "image/png",
   });
   fixture.response = null;
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await allBoards(page).click();
+  await cardsFor(page, 101).click();
   await expect(page.locator(".board-disclosure")).toHaveCount(8);
   await expect(navigation).toContainText("Private favorites");
   await expect(
     navigation.getByRole("link", { name: "Board 899 中文", exact: true }),
   ).toHaveCount(1);
   await expect(
-    page.locator(`.overview .board-card[href="${boardURL(201)}"]`).first(),
+    navigation.locator(`a[href="${boardURL(201)}"] .category-dot`).first(),
   ).toHaveAttribute("data-category", "anime");
   await info.attach("requests.json", {
     body: JSON.stringify(requests),
@@ -523,13 +552,17 @@ test("UI84.same-account-error: a confirmed same-member permission failure retain
   page,
 }, info) => {
   const { fixture, requests } = await open(page);
+  await cardsFor(page, 201).click();
+  await expect(page.locator("#thread-list-pane .category-label")).toHaveText(
+    "Anime",
+  );
   fixture.response =
     account + '<div id="messagetext"><p>您没有权限访问该版块</p></div>';
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await clickBoardTool(page, "Refresh");
   await expect(page.locator(".board-disclosure")).toHaveCount(7);
-  await expect(
-    page.locator(`.overview .board-card[href="${boardURL(201)}"]`),
-  ).toHaveAttribute("data-category", "anime");
+  await expect(page.locator("#thread-list-pane .category-label")).toHaveText(
+    "Anime",
+  );
   await expect(
     page.getByText(
       "The current account does not have permission to read this board.",
@@ -554,7 +587,7 @@ test("UI84.stale-account-error: a superseded delayed unknown challenge cannot cl
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect.poll(() => requests.length).toBe(before + 1);
   fixture.response = null;
-  await page.locator(`.boards-navigation a[href="${boardURL(201)}"]`).click();
+  await cardsFor(page, 201).click();
   await expect(page.locator("#thread-list-pane .category-label")).toHaveText(
     "Anime",
   );

@@ -30,6 +30,7 @@ import type {
   NavigationHost,
   NavigationRecord,
   ViewAdapter,
+  ViewPosition,
   Section,
 } from "./navigation";
 export interface WorkspaceState {
@@ -149,6 +150,10 @@ export function createWorkspace(
     loading: boolean;
     result: DraftListResult | null;
   }>({ loading: false, result: null });
+  const listFailures = new WeakMap<
+    NavigationEntry,
+    Extract<DraftListResult, { message: string }>
+  >();
   let draftSequence = 0;
   async function loadDrafts(url?: string) {
     if (drafts.value.loading) return;
@@ -175,9 +180,10 @@ export function createWorkspace(
     writing.observe(result.account);
     if (current === draftSequence) {
       drafts.value = { loading: false, result };
-      if (entry && result.kind === "drafts") {
-        entry.drafts = result;
+      if (entry) {
         entry.account = accountKey(result.account);
+        if (result.kind === "drafts") entry.drafts = result;
+        else listFailures.set(entry, result);
       }
       void persist();
     }
@@ -655,11 +661,13 @@ export function createWorkspace(
     { flush: "sync" },
   );
 
+  const entryReadingPositions = new WeakMap<NavigationEntry, ViewPosition>();
   function capture() {
     const entry = entryFor(state.value.key);
     if (entry && view) {
       entry.position = view.capture();
       const position = view.captureReading();
+      entryReadingPositions.set(entry, position);
       threadHistory.remember(position);
       privateHistory.remember(position);
       const privateResult = privateHistory.state.value.result;
@@ -861,6 +869,7 @@ export function createWorkspace(
       knownAccount !== null &&
       entry.account !== null &&
       entry.account !== knownAccount;
+    const listFailure = mismatch ? null : (listFailures.get(entry) ?? null);
     const retained = threadHistory.activate(
       mismatch ? null : readingFor(entry),
       entry.result?.kind === "thread" ? entry.key : (entry.readingKey ?? ""),
@@ -873,7 +882,8 @@ export function createWorkspace(
         : (entry.readingKey ?? ""),
     );
     const readingPosition =
-      retained || retainedPrivate
+      (restored && !mismatch ? entryReadingPositions.get(entry) : null) ??
+      (retained || retainedPrivate
         ? view?.captureReading()
         : (privateHistory.rememberedPosition() ??
           threadHistory.rememberedPosition() ??
@@ -881,7 +891,7 @@ export function createWorkspace(
             ? entry.readingMarker?.position
             : entry.readingKey
               ? entryFor(entry.readingKey)?.readingMarker?.position
-              : null));
+              : null)));
     ++draftSequence;
     drafts.value = {
       loading: false,
@@ -889,7 +899,7 @@ export function createWorkspace(
         entry.section === "drafts"
           ? mismatch
             ? null
-            : (entry.drafts ?? null)
+            : (entry.drafts ?? listFailure)
           : drafts.value.result,
     };
 
@@ -910,7 +920,7 @@ export function createWorkspace(
       result: mismatch ? null : entry.result,
       reading: mismatch ? null : readingFor(entry),
       privateReading: mismatch ? null : privateFor(entry),
-      failure: null,
+      failure: entry.section === "drafts" ? null : listFailure,
       loading: false,
       selection: entry.selection,
       missing:
@@ -928,6 +938,7 @@ export function createWorkspace(
     if (state.value.reading)
       writing.selectThread(state.value.reading.thread.id);
     void nextTick().then(() => {
+      if (state.value.key !== entry.key) return;
       view?.restore(
         entry.position,
         entry.result?.kind === "thread"
@@ -937,7 +948,7 @@ export function createWorkspace(
             : null,
         entry.selection,
       );
-      if (readingPosition) view?.restoreReading(readingPosition);
+      if (readingPosition) view?.restoreReading(readingPosition, restored);
     });
   }
   function newEntry(url: string, originKey: string | null): NavigationEntry {
@@ -1006,7 +1017,10 @@ export function createWorkspace(
     let invalidated = false;
     const observed = accountKey(account);
     accountObservation.value = observed ?? "unknown";
-    for (const entry of Object.values(record.entries))
+    for (const entry of Object.values(record.entries)) {
+      const listFailure = listFailures.get(entry);
+      if (listFailure && accountKey(listFailure.account) !== observed)
+        listFailures.delete(entry);
       if (
         entry.drafts &&
         (!observed || accountKey(entry.drafts.account) !== observed)
@@ -1014,6 +1028,7 @@ export function createWorkspace(
         entry.drafts = null;
         invalidated = true;
       }
+    }
     if (
       drafts.value.result &&
       (!observed || accountKey(drafts.value.result.account) !== observed)
@@ -1102,6 +1117,7 @@ export function createWorkspace(
     restoreRemembered = false,
   ) {
     const current = ++sequence;
+    listFailures.delete(entry);
     threadHistory.cancelPending();
     privateHistory.cancelPending();
     state.value = {
@@ -1231,6 +1247,15 @@ export function createWorkspace(
         if (readingPosition) view?.restoreReading(readingPosition);
       });
     } else {
+      if (
+        "message" in result &&
+        ["favorites", "messages", "notices"].includes(
+          routeFor(entry.destination)?.kind ?? "",
+        )
+      ) {
+        entry.account ??= observed;
+        listFailures.set(entry, result);
+      }
       state.value = {
         ...state.value,
         loading: false,
@@ -1297,11 +1322,20 @@ export function createWorkspace(
     if (requested?.kind === "private-conversation")
       return openPrivateConversation(url, selection);
     clearDownload();
+    const loadedTarget =
+      current?.kind === "thread" &&
+      requested?.kind === "thread" &&
+      threadHistory.loadedTarget(requested.url);
+    if (loadedTarget && requested?.kind === "thread") {
+      writing.hide();
+      updateAnchor(`#pid${loadedTarget}`, requested.url);
+      return;
+    }
     if (
       current?.kind === "thread" &&
       requested?.kind === "thread" &&
       requested.url.searchParams.get("tid") === current.thread.id &&
-      requested.url.hash &&
+      /^#pid[1-9]\d*$/.test(requested.url.hash) &&
       requested.url.pathname + requested.url.search ===
         new URL(state.value.destination).pathname +
           new URL(state.value.destination).search
@@ -1316,7 +1350,13 @@ export function createWorkspace(
     }
     capture();
     const previous = entryFor(state.value.key);
-    if (previous && selection) previous.selection = selection;
+    if (
+      previous &&
+      selection &&
+      previous.result?.kind !== "thread" &&
+      previous.result?.kind !== "private-conversation"
+    )
+      previous.selection = selection;
     const entry = newEntry(url, previous?.key ?? null);
     entry.selection = selection;
     host.push(entry.key);
@@ -1537,11 +1577,32 @@ export function createWorkspace(
       client.readNotices(destinationURL, current?.notices, current?.account),
     );
   }
-  function updateAnchor(hash: string) {
+  async function jumpLatest(url: string) {
+    const requested = routeFor(url);
+    const entry = entryFor(state.value.key);
+    const postId =
+      entry?.readingKey &&
+      entry.result?.kind !== "thread" &&
+      requested?.kind === "thread" &&
+      threadHistory.loadedTarget(requested.url);
+    if (!postId) return openThread(url);
+    if (writing.deferViewChange(() => void jumpLatest(url))) return;
+    clearDownload();
+    writing.hide();
+    threadHistory.cancelPending();
+    threadHistory.target(postId);
+    await nextTick();
+    if (state.value.key !== entry.key) return;
+    view?.focusReadingPost(postId);
+    capture();
+    void persist();
+  }
+  function updateAnchor(hash: string, source?: URL) {
     if (!/^#pid[1-9]\d*$/.test(hash)) return;
     const entry = entryFor(state.value.key);
     if (!entry) return;
-    const url = new URL(entry.destination);
+    threadHistory.cancelPending();
+    const url = new URL(source ?? entry.destination);
     url.hash = hash;
     entry.destination = url.href;
     if (entry.result?.kind === "thread")
@@ -1557,17 +1618,35 @@ export function createWorkspace(
       privateReading: privateFor(entry),
     };
     threadHistory.target(hash.slice(4));
-    void nextTick().then(() =>
-      view?.restore(null, hash.slice(4), entry.selection),
-    );
+    const position = view?.capture();
+    void nextTick().then(() => {
+      if (state.value.key !== entry.key) return;
+      view?.restore(
+        position
+          ? {
+              anchor: null,
+              offset: 0,
+              scrollTop: 0,
+              readingScrollTop: 0,
+              resultsScrollTop: position.resultsScrollTop ?? 0,
+            }
+          : null,
+        hash.slice(4),
+        entry.selection,
+      );
+      capture();
+      void persist();
+    });
     host.replace(entry.key);
     void persist();
   }
   function restoreHistory(key: string | null) {
+    if (key === state.value.key) return;
     if (writing.deferViewChange(() => restoreHistory(key))) return;
     clearDownload();
     ++sequence;
     capture();
+    view?.dismissForHistory();
     const entry = key ? entryFor(key) : null;
     if (entry) {
       show(entry, true);
@@ -1607,7 +1686,7 @@ export function createWorkspace(
     ) {
       if (threadHistory.rememberedPosition()) return;
       await nextTick();
-      view?.restoreReading(marker.position);
+      view?.restoreReading(marker.position, true);
       return;
     }
     const expected = threadContext(marker.url, marker.account);
@@ -1653,7 +1732,7 @@ export function createWorkspace(
     show(entry, true);
     await nextTick();
     if (result.thread.posts.some((post) => post.id === postId))
-      view?.restoreReading(marker.position);
+      view?.restoreReading(marker.position, true);
     else delete readingEntry.readingMarker;
     void persist();
   }
@@ -1704,6 +1783,20 @@ export function createWorkspace(
     // Initial document traversal must not save an empty provisional record.
     // Read the current key after loading; earlier history events need no replay.
     host.onPop(restoreHistory);
+    host.onCachedDocumentReturn?.((key) => {
+      if (key !== state.value.key || state.value.result?.kind !== "thread")
+        return;
+      const target = threadHistory.state.value.result?.thread.target;
+      if (!target) return;
+      view?.dismissForHistory();
+      void nextTick().then(() => {
+        if (
+          key === state.value.key &&
+          target === threadHistory.state.value.result?.thread.target
+        )
+          view?.focusReadingPost(target, true);
+      });
+    });
     host.onReplyChange?.(() => {
       void persist();
     });
@@ -1822,7 +1915,7 @@ export function createWorkspace(
   async function refresh() {
     if (
       state.value.result?.kind === "thread" &&
-      threadHistory.state.value.result?.thread.history
+      threadHistory.state.value.result
     )
       return threadHistory.refresh();
     if (state.value.section === "messages") return loadMessages();
@@ -1985,6 +2078,7 @@ export function createWorkspace(
     discardReply,
     replyResolution: readonly(replyResolution),
     openThread,
+    jumpLatest,
     refresh,
     updateAnchor,
     back: () => {

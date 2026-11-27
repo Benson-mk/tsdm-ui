@@ -279,7 +279,11 @@ function threadHistory(doc: Node, base: string): ThreadHistory | undefined {
     end: descending ? beginning : end,
     latest:
       !descending && last
-        ? { ...last, url: `${last.url.split("#")[0]}#lastpost` }
+        ? /^#pid[1-9]\d*$/.test(new URL(last.url).hash)
+          ? last
+          : !url.searchParams.has("authorid")
+            ? { ...last, url: `${last.url.split("#")[0]}#lastpost` }
+            : null
         : null,
     order: descending ? "descending" : "ascending",
   };
@@ -657,7 +661,13 @@ export function decodeThread(
   let target =
     /^#pid([1-9]\d*)$/.exec(requested.hash)?.[1] ??
     requested.searchParams.get("viewpid");
-  if (requested.hash === "#lastpost") {
+  if (
+    requested.hash === "#lastpost" ||
+    (history?.end &&
+      !/^#pid[1-9]\d*$/.test(
+        history.latest ? new URL(history.latest.url).hash : "",
+      ))
+  ) {
     const ordered = posts.filter((post) => post !== null);
     const floors = ordered
       .map((post) => /^\s*([1-9]\d*)/.exec(post.floor)?.[1])
@@ -681,15 +691,25 @@ export function decodeThread(
             ? value < floors[index - 1]!
             : value > floors[index - 1]!)),
     );
-    if (boundary && orderedFloors && !actual.searchParams.has("authorid"))
-      target = (descending ? ordered[0] : ordered.at(-1))!.id;
-    else
+    const lastPost =
+      boundary && orderedFloors && !actual.searchParams.has("authorid")
+        ? descending
+          ? ordered[0]
+          : ordered.at(-1)
+        : null;
+    if (requested.hash === "#lastpost" && lastPost) target = lastPost.id;
+    else if (requested.hash === "#lastpost")
       return {
         ...result,
         kind: "document-navigation",
         message: "The last reply requires canonical forum resolution.",
         destination: `${requested.origin}/forum.php?mod=redirect&goto=lastpost&tid=${requested.searchParams.get("tid")}#lastpost`,
       };
+    if (history?.end && lastPost) {
+      const latest = new URL(cleanURL(response.url));
+      latest.hash = `pid${lastPost.id}`;
+      history.latest = { url: latest.href, label: lastPost.floor };
+    }
   }
   return {
     ...result,

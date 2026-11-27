@@ -48,6 +48,7 @@ async function open(
   page: Page,
   supplied: (url: URL) => Response | Promise<Response> = notices,
   destination = `${origin}/forum.php`,
+  post = directory,
 ) {
   const ledger: { url: string; method: string; effect: number }[] = [];
   let effects = 0;
@@ -73,7 +74,11 @@ async function open(
       effect: effects,
     });
     const response =
-      url.pathname === "/home.php" ? await supplied(url) : directory;
+      url.pathname === "/home.php"
+        ? await supplied(url)
+        : url.searchParams.get("mod") === "viewthread"
+          ? post
+          : directory;
     if (typeof response !== "string") {
       if (response.abort) return route.abort();
       return route.fulfill({
@@ -546,6 +551,55 @@ test("J10.notices-content-identity: inert body header-shaped content cannot impe
 });
 
 const thread = `${account()}<div id="postlist"><h1 id="thread_subject">Exact notice destination</h1><div id="post_201"><div class="authi"><a href="home.php?mod=space&uid=9">Poster</a></div><a id="postnum201">21</a><span id="authorposton201">2026-10-20</span><div class="pcb"><p>Earlier complete post.</p></div></div><div id="post_202"><div class="authi"><a href="home.php?mod=space&uid=9">Poster</a></div><a id="postnum202">22</a><span id="authorposton202">2026-10-20</span><div class="pcb"><p>Exact complete notice target.</p></div></div></div><div class="pg"><strong>3</strong><a href="forum.php?mod=viewthread&tid=42&page=2">2</a></div>`;
+test("#123 Notices: exact linked Post and passive Back/Forward with unknown unread count", async ({
+  page,
+}, info) => {
+  const exact = "forum.php?mod=viewthread&tid=42&page=3#pid202";
+  const server = await open(
+    page,
+    (url) =>
+      notices(url, account("7", "")).replace(
+        "forum.php?mod=redirect&goto=findpost&ptid=42&pid=202",
+        exact,
+      ),
+    `${origin}/forum.php`,
+    thread,
+  );
+  await overview(page);
+  const load = page.getByRole("button", { name: "Load notices", exact: true });
+  await expect(load).toHaveAccessibleDescription(/can mark notices read/i);
+  expect(server.effects()).toBe(0);
+  await load.click();
+  await expect(
+    page.getByText(/the current unread count is unknown/i),
+  ).toBeVisible();
+  await expect(page.getByText(/returned unread indicator: 0/i)).toHaveCount(0);
+  await expect(page.getByText("List loaded.", { exact: true })).toBeVisible();
+  expect(server.effects()).toBe(1);
+  const exactLink = page.getByRole("link", {
+    name: "Open exact reply",
+    exact: true,
+  });
+  await expect(exactLink).toHaveAttribute("href", `${origin}/${exact}`);
+  await exactLink.click();
+  const target = page.locator("#pid202");
+  await expect(target).toBeFocused();
+  const beforeReturn = server.ledger.length;
+  await page.goBack();
+  await expect(page.locator('[data-notice-id="11"]')).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  await expect(page.getByText(completeTail, { exact: true })).toBeVisible();
+  await page.goForward();
+  await expect(target).toHaveAttribute("data-targeted", "true");
+  expect(server.ledger).toHaveLength(beforeReturn);
+  expect(server.effects()).toBe(1);
+  expect(
+    server.ledger.filter(({ url }) => url.includes("mod=viewthread")),
+  ).toHaveLength(1);
+  await artifact(page, info, server.ledger, "exact-notice-workspace-return");
+});
 const tallImage = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAABAAAAu4CAIAAABn2a9PAAABy0lEQVR4nO3LIREAAAgEsO+fEY+iAxlwiN3NLtVzEkEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBOFjWDoOBYnqK+uGAAAAAElFTkSuQmCC",
   "base64",

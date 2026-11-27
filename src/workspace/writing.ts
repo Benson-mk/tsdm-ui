@@ -333,9 +333,11 @@ export function createWriting(
     );
   });
   const retainedReplies = shallowRef<Record<string, PublicWritingContext>>({});
+  const parkedReplyIds = new Set<string>();
   let selectedReplyThread: string | null = null;
   function replaced(previous: WritingContext | null) {
     replyFormFailure.value = null;
+    if (previous) parkedReplyIds.delete(previous.id);
     const next = state.value.context;
     return changed(
       previous &&
@@ -446,7 +448,7 @@ export function createWriting(
     state.value = {
       ...state.value,
       context: next,
-      visible: next !== null,
+      visible: next !== null && !parkedReplyIds.has(next.id),
       preparing: false,
       publication: null,
       privateReview: null,
@@ -1295,6 +1297,16 @@ export function createWriting(
     state.value = { ...state.value, compositionDeferred: true };
     return true;
   }
+  function hideWriting(parkReply: boolean) {
+    const hide = () => {
+      ++sequence;
+      const context = state.value.context;
+      if (parkReply && context && isOrdinaryReply(context))
+        parkedReplyIds.add(context.id);
+      state.value = { ...state.value, visible: false, preparing: false };
+    };
+    if (!deferViewChange(hide)) hide();
+  }
   function endComposition() {
     state.value = { ...state.value, composing: false };
     setTimeout(() => {
@@ -1601,6 +1613,7 @@ export function createWriting(
     };
     if (existing && !replace && !retarget) {
       if (sameAction) {
+        parkedReplyIds.delete(existing.id);
         state.value = { ...state.value, visible: true, replacement: null };
         return;
       }
@@ -1671,6 +1684,7 @@ export function createWriting(
         return;
       }
       replyFormFailure.value = null;
+      parkedReplyIds.delete(latest.id);
       state.value = {
         ...state.value,
         context: {
@@ -3903,6 +3917,10 @@ export function createWriting(
   }
   return {
     observeReplySends,
+    replyParked: computed(() => {
+      const context = state.value.context;
+      return !!context && parkedReplyIds.has(context.id);
+    }),
     replyAttempts,
     contextAttemptHistory,
     registeredSends: readonly(registeredSends),
@@ -3949,6 +3967,8 @@ export function createWriting(
         const next = handoff
           ? (recoverContext(update.context) as PublicWritingContext | null)
           : update.context;
+        if (current && current.id !== next?.id)
+          parkedReplyIds.delete(current.id);
         if (isActive) {
           const pendingReplyMode =
             !handoff && registeredSends.value[update.threadId]?.length
@@ -3968,7 +3988,7 @@ export function createWriting(
             message: "",
             mentionPeople: [],
             mentionGeneration: -1,
-            visible: next !== null,
+            visible: next !== null && !parkedReplyIds.has(next.id),
             preparing: false,
             publication: null,
             copy: null,
@@ -4153,6 +4173,7 @@ export function createWriting(
         privateReplacement: null,
       };
       replyFormFailure.value = null;
+      parkedReplyIds.clear();
       uploadBytes.clear();
       const all = [context, ...retained];
       const pending = all.some(
@@ -4405,6 +4426,8 @@ export function createWriting(
     show: () => {
       const show = () => {
         ++sequence;
+        const context = state.value.context;
+        if (context) parkedReplyIds.delete(context.id);
         state.value = {
           ...state.value,
           visible: true,
@@ -4416,13 +4439,8 @@ export function createWriting(
       };
       if (!deferViewChange(show)) show();
     },
-    hide: () => {
-      const hide = () => {
-        ++sequence;
-        state.value = { ...state.value, visible: false, preparing: false };
-      };
-      if (!deferViewChange(hide)) hide();
-    },
+    hide: () => hideWriting(false),
+    parkReply: () => hideWriting(true),
     discardAndPrepare: () => {
       const draft = state.value.draftReplacement;
       if (draft) void resumeDraft(draft.row, draft.account, true);

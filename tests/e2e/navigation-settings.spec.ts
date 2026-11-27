@@ -102,6 +102,10 @@ test("UI83.footer: account and Settings remain reachable beside independently sc
     ),
   );
   await open(page, `${origin}/forum.php`);
+  await page
+    .getByRole("region", { name: "Boards overview", exact: true })
+    .getByRole("link", { name: "Board 0 complete 音樂", exact: true })
+    .click();
   const frames = [];
   for (const size of [
     { width: 1280, height: 600 },
@@ -133,12 +137,13 @@ test("UI83.footer: account and Settings remain reachable beside independently sc
       page.getByRole("button", { name: "About this workspace", exact: true }),
     ).toHaveCount(0);
     const before = await footer.boundingBox();
-    await body.evaluate((node) => (node.scrollTop = node.scrollHeight));
     const last = body.getByRole("link", {
       name: "Board 29 complete 音樂",
       exact: true,
     });
+    await last.scrollIntoViewIfNeeded();
     await expect(last).toBeInViewport();
+    expect(await body.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
     const after = await footer.boundingBox();
     expect(after).toEqual(before);
     const target = (await trigger.boundingBox())!;

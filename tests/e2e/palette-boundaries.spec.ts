@@ -506,14 +506,15 @@ test("UI91.boundaries: floating panes cards and docks replace decoration while f
     "24px",
   );
   await page
-    .locator(".boards-navigation")
-    .getByRole("link", { name: "All boards", exact: true })
+    .getByRole("navigation", { name: "Main destinations", exact: true })
+    .getByRole("button", { name: "All boards", exact: true })
     .click();
   const card = page.locator(".overview .board-card").first();
   await expect(card).toHaveCSS("border-width", "0px");
   await expect(card).toHaveCSS("box-shadow", floating);
   await card.hover();
-  await expect(card).toHaveCSS("background-color", palettes.light.anime);
+  await expect(card).toHaveAttribute("data-category", "neutral");
+  await expect(card).toHaveCSS("background-color", palettes.light.soft);
   await expect(card.locator("strong")).toHaveCSS(
     "text-decoration-line",
     "underline",

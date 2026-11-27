@@ -749,7 +749,7 @@ test("J78.private-marker-ordinary: persisted private marker is reused after relo
   });
   await page
     .getByRole("navigation", { name: "Main destinations", exact: true })
-    .getByRole("button", { name: "Boards", exact: true })
+    .getByRole("button", { name: "All boards", exact: true })
     .click();
   await page.reload();
   await page.addScriptTag({

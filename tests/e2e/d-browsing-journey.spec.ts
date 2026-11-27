@@ -253,11 +253,12 @@ test("D7.combined-journey: context controls exact destinations and return retain
     expect(await page.locator(".writing-destination").textContent()).toBe(
       destination,
     );
-    // Back restores reader42 while the existing list cursor retains the last
-    // clicked row43; unchanged abb4987 reproduces this independent list state.
+    await expect(
+      pane.locator('[data-thread-id="42"] .subject'),
+    ).toHaveAttribute("aria-current", "true");
     await expect(
       pane.locator('[data-thread-id="43"] .subject'),
-    ).toHaveAttribute("aria-current", "true");
+    ).not.toHaveAttribute("aria-current", "true");
     await revealWritingOptions(page);
     await expect(
       page.getByRole("checkbox", { name: "Signature", exact: true }),

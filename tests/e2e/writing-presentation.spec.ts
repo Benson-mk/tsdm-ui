@@ -1,11 +1,11 @@
-import { compactReplyBesideReader } from "./editor-controls";
+import { compactReplyBesideReader, waitForReplySaved } from "./editor-controls";
 import { revealWritingOptions } from "./editor-controls";
 import { selectSourceEditor, writingDetailAction } from "./editor-controls";
 import { readableLines, expectPreservedReadingLine } from "./readable-lines";
 import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { revealNavigation } from "./navigation-ui";
+import { openNewThread, revealNavigation } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -80,7 +80,7 @@ async function open(
     } else if (url.searchParams.get("mod") === "forumdisplay")
       body += `<div id="ct"><h1><a href="${boardURL}">Music discussion</a></h1></div><table id="threadlisttableid"><tbody id="normalthread_42"><tr><th><a class="xst" href="${threadURL}">Existing thread</a></th></tr></tbody></table>`;
     else
-      body += `<div id="postlist"><h1 id="thread_subject">Existing thread</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=${state.openingOwned ? "7" : "8"}">${state.openingOwned ? "Writer Seven" : "Other author"}</a></div><a id="postnum101"><em>1</em>#</a><div class="pcb">${longBody ? Array.from({ length: 80 }, (_, i) => `<p>Reading paragraph ${i} with a stable complete line.</p>`).join("") : ""}<p>Original opening body <a href="forum.php?mod=viewthread&tid=43">Another thread</a></p></div></div><div id="post_202"><div class="authi"><a href="home.php?mod=space&uid=7">Writer Seven</a></div><a id="postnum202"><em>2</em>#</a><div class="pcb"><p>Owned reply</p></div></div></div>`;
+      body += `<div id="postlist"><h1 id="thread_subject">${url.searchParams.get("tid") === "43" ? "Second thread" : "Existing thread"}</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=${state.openingOwned ? "7" : "8"}">${state.openingOwned ? "Writer Seven" : "Other author"}</a></div><a id="postnum101"><em>1</em>#</a><div class="pcb">${longBody ? Array.from({ length: 80 }, (_, i) => `<p>Reading paragraph ${i} with a stable complete line.</p>`).join("") : ""}<p>Original opening body <a href="forum.php?mod=viewthread&tid=43">Another thread</a> <a href="${threadURL}#pid202">Read the other post</a></p></div></div><div id="post_202"><div class="authi"><a href="home.php?mod=space&uid=7">Writer Seven</a></div><a id="postnum202"><em>2</em>#</a><div class="pcb"><p>Owned reply</p></div></div></div>`;
     return route.fulfill({
       contentType: "application/json; charset=utf-8",
       body: JSON.stringify({ document: body }),
@@ -94,8 +94,7 @@ async function open(
 }
 async function enter(page: Page, entry: Entry, sourceMode = true) {
   if (entry === "new-thread") {
-    await revealNavigation(page);
-    await page.getByRole("button", { name: "New thread", exact: true }).click();
+    await openNewThread(page);
   } else
     await page
       .getByRole("button", {
@@ -162,6 +161,211 @@ test.afterEach(async ({ page }, info) => {
 });
 
 // These whole-application expectations precede presentation feature code.
+test("NAV121.addressed-link: compact and expanded writing expose the same exact Post in a constrained viewport", async ({
+  page,
+  browser,
+}, info) => {
+  info.annotations.push({
+    type: "browser-version",
+    description: browser.version(),
+  });
+  await page.setViewportSize({ width: 1146, height: 876 });
+  const server = await open(page);
+  await enter(page, "addressed");
+  const source = page.getByLabel("Complete source", { exact: true });
+  await source.fill(retained);
+  await revealWritingOptions(page);
+  await page.getByRole("checkbox", { name: "Signature" }).uncheck();
+  await page.keyboard.press("Escape");
+  const before = await stored(page);
+  const requests = server.requests.slice();
+  const link = page
+    .getByRole("group", { name: "Reply target", exact: true })
+    .getByRole("link", { name: "Addressed to Other author · Post 101" });
+  const expectTarget = async () => {
+    await expect(link).toHaveAttribute(
+      "href",
+      `${origin}/forum.php?mod=redirect&goto=findpost&ptid=42&pid=101`,
+    );
+    await link.focus();
+    await expect(link).toBeInViewport();
+    await expect(source).toHaveValue(retained);
+  };
+  await expectTarget();
+  await info.attach("compact-at-1146.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await revealWritingTools(page);
+  await expectTarget();
+  await page.setViewportSize({ width: 375, height: 420 });
+  await compactReplyBesideReader(page);
+  await expectTarget();
+  const after = await stored(page);
+  expect(after).toEqual(before);
+  expect(after.attachmentFields).toEqual([
+    expect.objectContaining({ name: "attachnew[77][description]" }),
+  ]);
+  expect(server.requests).toEqual(requests);
+  expect(requests.every(({ method }) => method === "GET")).toBe(true);
+  await info.attach("presentation-boundary.json", {
+    body: JSON.stringify({ before, after, requests }, null, 2),
+    contentType: "application/json",
+  });
+});
+
+test("NAV121.direct-parent-actions: a narrow direct Thread can use its parent Board actions without reading a Board", async ({
+  page,
+  browser,
+}, info) => {
+  info.annotations.push({
+    type: "browser-version",
+    description: browser.version(),
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const server = await open(page);
+  await revealNavigation(page);
+  const trigger = page.getByRole("button", {
+    name: "Board actions",
+    exact: true,
+  });
+  await trigger.press("Enter");
+  const menu = page.getByRole("menu", { name: "Board actions", exact: true });
+  const packet = menu.getByRole("menuitem", {
+    name: "New red packet",
+    exact: true,
+  });
+  await expect(packet).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  await expect(page.locator(".pane-drawer")).toBeVisible();
+  await trigger.click();
+  await packet.click();
+  await expect.poll(() => server.requests.length).toBe(2);
+  const request = new URL(server.requests.at(-1)!.url);
+  expect(request.searchParams.get("fid")).toBe("5");
+  expect(request.searchParams.get("specialextra")).toBe("hongbao");
+  expect(
+    server.requests.every(
+      ({ method, url }) =>
+        method === "GET" &&
+        new URL(url).searchParams.get("mod") !== "forumdisplay",
+    ),
+  ).toBe(true);
+});
+
+test("NAV121.parked-reply: explicit return restores the addressed draft, not the reading anchor", async ({
+  page,
+  browser,
+}, info) => {
+  info.annotations.push({
+    type: "browser-version",
+    description: browser.version(),
+  });
+  await page.setViewportSize({ width: 1146, height: 876 });
+  const server = await open(page);
+  const source = page.getByLabel("Complete source", { exact: true });
+  const resume = page.getByRole("button", {
+    name: "Return to writing",
+    exact: true,
+  });
+  const reply = page.getByRole("button", {
+    name: "Reply to thread",
+    exact: true,
+  });
+  await expect(reply).toBeVisible();
+  await expect(resume).toHaveCount(0);
+  await enter(page, "addressed");
+  await source.fill(retained);
+  await revealWritingOptions(page);
+  await page.getByRole("checkbox", { name: "Signature" }).uncheck();
+  await page.keyboard.press("Escape");
+  await waitForReplySaved(page);
+  const before = await stored(page);
+  await (await writingDetailAction(page, "Return to reading")).click();
+  await expect(resume).toHaveCount(1);
+  await expect(resume).toBeFocused();
+  await expect(reply).toHaveCount(0);
+  await expect(source).toBeHidden();
+
+  await page
+    .getByRole("link", { name: "Read the other post", exact: true })
+    .click();
+  await expect(page.locator("#pid202")).toBeFocused();
+  await page.getByRole("link", { name: "Another thread", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Second thread" }),
+  ).toBeVisible();
+  await expect(reply).toBeVisible();
+  await expect(resume).toHaveCount(0);
+  await page.goBack();
+  await expect(
+    page.getByRole("heading", { name: "Existing thread" }),
+  ).toBeVisible();
+  await expect(page.locator("#pid202")).toBeInViewport();
+  await expect(source).toBeHidden();
+  await expect(resume).toHaveCount(1);
+  await expect(reply).toHaveCount(0);
+
+  await page.locator(".reader-breadcrumb .board-context-link").click();
+  await expect(
+    page
+      .getByRole("region", { name: "Thread results" })
+      .getByRole("heading", { name: "Music discussion" }),
+  ).toBeVisible();
+  await expect(source).toBeHidden();
+  await page.goBack();
+  await expect(
+    page.getByRole("heading", { name: "Existing thread" }),
+  ).toBeVisible();
+  await expect(page.locator("#pid202")).toBeInViewport();
+  await expect(resume).toHaveCount(1);
+  await expect(reply).toHaveCount(0);
+  const beforeResume = server.requests.slice();
+  await info.attach("parked-at-post-202.png", {
+    body: await page.screenshot(),
+    contentType: "image/png",
+  });
+  await resume.click();
+  await expect(
+    page.getByRole("region", { name: "Writing context" }),
+  ).toBeVisible();
+  expect(await stored(page)).toEqual(before);
+  expect(server.requests).toEqual(beforeResume);
+  await selectSourceEditor(page);
+  await expect(source).toHaveValue(retained);
+  await expect(source).toBeFocused();
+  await expect(
+    page.getByRole("group", { name: "Reply target" }).getByRole("link"),
+  ).toHaveAttribute(
+    "href",
+    `${origin}/forum.php?mod=redirect&goto=findpost&ptid=42&pid=101`,
+  );
+  expect(await stored(page)).toMatchObject({
+    id: before.id,
+    source: before.source,
+    options: before.options,
+    attachmentFields: before.attachmentFields,
+    replyTarget: before.replyTarget,
+  });
+  expect(server.requests).toEqual(beforeResume);
+  expect(server.requests.every(({ method }) => method === "GET")).toBe(true);
+  expect(before.draft).toBeUndefined();
+  await info.attach("parked-reply-readback.json", {
+    body: JSON.stringify(
+      {
+        before,
+        resumed: await stored(page),
+        requests: server.requests,
+        anchor: page.url(),
+      },
+      null,
+      2,
+    ),
+    contentType: "application/json",
+  });
+});
+
 test("UI87.compact: concise destination and input lead to Review while expansion reveals every existing editor tool", async ({
   page,
 }, info) => {
@@ -1029,7 +1233,7 @@ test("IM72.addressed-return: blank addressed source names the exact post and ord
   });
   await expect(
     writing
-      .getByRole("group", { name: "Writing destination", exact: true })
+      .getByRole("group", { name: "Reply target", exact: true })
       .getByRole("link", {
         name: "Addressed to Other author · Post 101",
         exact: true,
@@ -1224,9 +1428,10 @@ test("IM72.contextual-chrome: the global bar is followed by panes and writing st
     contentType: "application/json",
   });
   expect(initial.panesTop).toBe(initial.headerBottom);
+  await page.locator(".reader-breadcrumb .board-context-link").click();
   await expect(
     page
-      .locator(".boards-region")
+      .getByRole("region", { name: "Thread results", exact: true })
       .getByRole("button", { name: "New thread", exact: true }),
   ).toBeVisible();
   await expect(
@@ -1314,10 +1519,12 @@ test("UI87.bottom-resume: compacting restores reading beside the same writer and
   });
   await expect(destination).toContainText("Thread 42");
   await expect(
-    destination.getByRole("link", {
-      name: "Addressed to Other author · Post 101",
-      exact: true,
-    }),
+    page
+      .getByRole("group", { name: "Reply target", exact: true })
+      .getByRole("link", {
+        name: "Addressed to Other author · Post 101",
+        exact: true,
+      }),
   ).toBeVisible();
   const geometry = await resume.evaluate((button) => {
     const bar = button.closest(".reply-composer")!;

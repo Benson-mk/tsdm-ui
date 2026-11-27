@@ -1,4 +1,8 @@
-import { clickThreadTool, confirmThreadPage } from "./navigation-ui";
+import {
+  clickBoardTool,
+  clickThreadTool,
+  confirmThreadPage,
+} from "./navigation-ui";
 import {
   openSettings,
   closeSettingsToWorkspace,
@@ -16,6 +20,7 @@ test.beforeEach(async ({ browser }, info) => {
 const origin = "https://www.tsdm39.com";
 const directoryURL = `${origin}/forum.php`;
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
+const subordinateURL = `${origin}/forum.php?mod=forumdisplay&fid=7`;
 const filteredURL = `${boardURL}&filter=typeid&typeid=3&orderby=dateline`;
 const secondURL = `${filteredURL}&page=2`;
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -33,7 +38,11 @@ const searchForm = `${account}<form method="post" action="search.php?mod=forum">
 const thread = `${account}<div id="pt"><a href="${directoryURL}">Boards</a><a href="${boardURL}">Music discussion</a></div><div id="postlist"><h1 id="thread_subject">Autumn listening</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=9">Composer Nine</a></div><a id="postnum101" href="${threadURL}#pid101">1</a><div class="pcb"><p>Complete autumn opening.</p></div></div></div>`;
 const navigationLedgers = new WeakMap<Page, string[]>();
 test.afterEach(async ({ page }, info) => {
-  if (!/J2.workspace-panes|UX54.discovery/.test(info.title)) return;
+  if (
+    !/J2.workspace-panes|UX54.discovery|J120\./.test(info.title) ||
+    !navigationLedgers.has(page)
+  )
+    return;
   await info.attach("navigation-requests.json", {
     body: JSON.stringify(navigationLedgers.get(page)),
     contentType: "application/json",
@@ -116,6 +125,15 @@ async function applyBoardFilters(page: Page) {
     .getByRole("button", { name: /^(Apply|应用|套用)$/, exact: true })
     .click();
 }
+const boardTree = (page: Page) =>
+  page.getByRole("navigation", { name: "Boards navigation", exact: true });
+const mainDestinations = (page: Page) =>
+  page.getByRole("navigation", { name: "Main destinations", exact: true });
+const allBoards = (page: Page) =>
+  mainDestinations(page).getByRole("button", {
+    name: "All boards",
+    exact: true,
+  });
 test("J2.boards-returned-context: navigate populated groups, subboards, categories, pins and returned pages", async ({
   page,
 }, info) => {
@@ -123,9 +141,7 @@ test("J2.boards-returned-context: navigate populated groups, subboards, categori
   await expect(
     page.getByRole("heading", { name: "Boards", exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("navigation", { name: "Boards navigation" }),
-  ).toBeVisible();
+  await expect(mainDestinations(page)).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Listening and creating", exact: true }),
   ).toBeVisible();
@@ -143,6 +159,12 @@ test("J2.boards-returned-context: navigate populated groups, subboards, categori
     .getByRole("button", { name: "Pinned threads · 1", exact: true })
     .click();
   await expect(page.getByText("Pinned", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "Thread details for Board guide: 28 replies",
+      exact: true,
+    })
+    .click();
   await expect(
     page.getByText("Composer Nine", { exact: true }).first(),
   ).toBeVisible();
@@ -186,13 +208,21 @@ test("J2.sidebar-short-window: populated board navigation stays vertical and its
           : `Listening board ${String(index + 1).padStart(2, "0")}`,
       ),
   ).join("")}</tr></table></div></div>`;
-  const requests = await open(page, directoryURL, () => populatedDirectory);
+  const requests = await open(page, directoryURL, (url) =>
+    url.searchParams.has("fid") ? board() : populatedDirectory,
+  );
+  await page
+    .locator(".overview")
+    .getByRole("link", { name: "Listening board 01", exact: true })
+    .click();
   const navigation = page.getByRole("navigation", {
     name: "Boards navigation",
     exact: true,
   });
-  const links = navigation.getByRole("link");
-  await expect(links).toHaveCount(37);
+  const groupLinks = navigation.getByRole("link", {
+    name: /^(Listening board|Extended listening)/,
+  });
+  await expect(groupLinks).toHaveCount(36);
   const initial = await navigation.evaluate((element) => {
     const owner = element.closest(".navigation-body") ?? element;
     const pane = owner.getBoundingClientRect();
@@ -203,15 +233,17 @@ test("J2.sidebar-short-window: populated board navigation stays vertical and its
       scrollWidth: element.scrollWidth,
       clientHeight: owner.clientHeight,
       scrollHeight: owner.scrollHeight,
-      links: [...element.querySelectorAll("a")].map((link) => {
-        const rect = link.getBoundingClientRect();
-        return {
-          left: rect.left,
-          right: rect.right,
-          top: rect.top,
-          bottom: rect.bottom,
-        };
-      }),
+      links: [...element.querySelectorAll(".board-group-links a")].map(
+        (link) => {
+          const rect = link.getBoundingClientRect();
+          return {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+          };
+        },
+      ),
     };
   });
   info.annotations.push({
@@ -238,8 +270,8 @@ test("J2.sidebar-short-window: populated board navigation stays vertical and its
       ),
     )
     .toBe(true);
-  await links.first().focus();
-  for (let index = 0; index < 37; index++) await page.keyboard.press("Tab");
+  await groupLinks.first().focus();
+  for (let index = 0; index < 35; index++) await page.keyboard.press("Tab");
   const lastChoice = navigation.getByRole("link", {
     name: "Extended listening and recording discussion",
     exact: true,
@@ -282,45 +314,65 @@ test("J2.sidebar-short-window: populated board navigation stays vertical and its
   expect.soft(focused.scrollTop).toBeGreaterThan(0);
   expect.soft(focused.scrollLeft).toBe(0);
   expect.soft(focused.inside).toBe(true);
-  expect(requests).toHaveLength(1);
+  expect(requests).toHaveLength(2);
 });
-test("J2.board-picker-current-context: selecting a board shows that board and All boards returns to the overview", async ({
+test("J120.directory: one searchable Board directory stays filtered when All boards is reselected", async ({
   page,
 }, info) => {
-  await page.setViewportSize({ width: 1100, height: 900 });
-  const requests = await open(page);
-  const picker = page.getByRole("combobox", {
-    name: "Board navigation",
+  await page.setViewportSize({ width: 1146, height: 876 });
+  const nestedDirectory = directory.replace(
+    boardLink(5, "Music discussion"),
+    `<td><h2><a href="${boardURL}">Music discussion</a></h2><dl><dt><a href="${subordinateURL}">Live recordings</a></dt></dl></td>`,
+  );
+  const requests = await open(page, directoryURL, () => nestedDirectory);
+  const filter = page.getByRole("searchbox", {
+    name: "Filter boards on this page",
+  });
+  await filter.fill("Live recordings");
+  const links = page.locator(".overview .board-card");
+  await expect(links).toHaveCount(1);
+  await expect(links.first()).toHaveAttribute("href", subordinateURL);
+  await expect.soft(boardTree(page)).toHaveCount(0, { timeout: 750 });
+  await expect
+    .soft(page.getByRole("combobox", { name: "Board navigation", exact: true }))
+    .toHaveCount(0, { timeout: 750 });
+  await expect(
+    await mainDestinations(page).getByRole("button").allTextContents(),
+  ).toEqual(["All boards", "Messages", "Search", "Saved", "Notices", "Drafts"]);
+  await expect(allBoards(page)).toHaveAttribute("aria-current", "page");
+  await allBoards(page).click();
+  await expect(filter).toHaveValue("Live recordings");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await revealNavigation(page);
+  const drawer = page.getByRole("dialog", {
+    name: "Boards navigation",
     exact: true,
   });
   await expect(
-    page.getByRole("heading", { name: "Boards", exact: true }),
-  ).toBeVisible();
-  await expect(picker).toHaveValue(directoryURL);
-  await picker.selectOption({ label: "Music discussion" });
+    drawer.getByRole("button", { name: "Close", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(allBoards(page)).toBeFocused();
+  await expect(boardTree(page)).toHaveCount(0);
+  await page.keyboard.press("Enter");
+  await expect(drawer).toBeHidden();
+  await expect(filter).toHaveValue("Live recordings");
+  expect(requests).toHaveLength(1);
+  expect(requests.effectful).toEqual([]);
+  await page.getByRole("button", { name: "Clear filter", exact: true }).click();
+  await expect(filter).toBeFocused();
+  await expect(page.locator(".overview .board-card")).toHaveCount(3);
   await expect(
-    page.getByRole("heading", { name: "Music discussion", exact: true }),
-  ).toBeVisible();
-  await expect(picker).toHaveValue(boardURL);
-  await picker.selectOption({ label: "All boards" });
-  await expect(
-    page.getByRole("heading", { name: "Boards", exact: true }),
-  ).toBeVisible();
-  await expect(picker).toHaveValue(directoryURL);
-  await expect(
-    page.getByRole("region", { name: "Thread results", exact: true }),
-  ).toHaveCount(0);
-  expect(requests.map((url) => new URL(url).searchParams.get("fid"))).toEqual([
-    null,
-    "5",
-    null,
-  ]);
-  await info.attach("picker-returned-overview.png", {
+    page
+      .locator(".overview")
+      .getByRole("link", { name: "Music discussion", exact: true }),
+  ).toHaveAttribute("href", boardURL);
+  await info.attach("directory-retained-filter.png", {
     body: await page.screenshot(),
     contentType: "image/png",
   });
 });
-test("J2.board-picker-history-context: subordinate board and thread choices follow restored context without reads", async ({
+test("J120.subordinate-history: directory, Board tree and exact subordinate choices follow restored context without reads", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1100, height: 900 });
@@ -339,86 +391,320 @@ test("J2.board-picker-history-context: subordinate board and thread choices foll
           ? board()
           : directory,
   );
-  const picker = page.getByRole("combobox", {
-    name: "Board navigation",
+  const parent = boardTree(page).getByRole("link", {
+    name: "Music discussion",
+    exact: true,
+  });
+  const subordinate = boardTree(page).getByRole("link", {
+    name: "Live recordings",
     exact: true,
   });
   await expect(
     page.getByRole("heading", { name: "Boards", exact: true }),
   ).toBeVisible();
-  await picker.selectOption({ label: "Music discussion" });
-  await expect(picker).toHaveValue(boardURL);
-  await picker.selectOption({ label: "Live recordings" });
+  await page
+    .locator(".overview")
+    .getByRole("link", { name: "Music discussion", exact: true })
+    .click();
+  await expect(parent).toHaveAttribute("aria-current", "page");
+  await expect(allBoards(page)).not.toHaveAttribute("aria-current");
+  await expect(subordinate).toHaveAttribute("href", subboardURL);
+  await subordinate.focus();
+  await page.keyboard.press("Enter");
   await expect(
     page.getByRole("heading", { name: "Live recordings", exact: true }),
   ).toBeVisible();
-  await expect(picker).toHaveValue(subboardURL);
+  await expect(subordinate).toHaveAttribute("aria-current", "page");
   await page
     .getByRole("link", { name: "Autumn listening — page 1", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Autumn listening", exact: true }),
   ).toBeVisible();
-  await expect(picker).toHaveValue(subboardURL);
+  await expect(subordinate).toHaveAttribute("aria-current", "page");
   await page.reload();
   await expect(
     page.getByRole("heading", { name: "Autumn listening", exact: true }),
   ).toBeVisible();
-  await expect(picker).toHaveValue(subboardURL);
+  await expect(subordinate).toHaveAttribute("aria-current", "page");
   await page.goBack();
   await expect(
     page.getByRole("heading", { name: "Live recordings", exact: true }),
   ).toBeVisible();
-  await expect(picker).toHaveValue(subboardURL);
+  await expect(subordinate).toHaveAttribute("aria-current", "page");
   await page.goBack();
   await expect(
     page.getByRole("heading", { name: "Music discussion", exact: true }),
   ).toBeVisible();
-  await expect(picker).toHaveValue(boardURL);
+  await expect(parent).toHaveAttribute("aria-current", "page");
   await page.goForward();
-  await expect(picker).toHaveValue(subboardURL);
+  await expect(subordinate).toHaveAttribute("aria-current", "page");
   await page.goForward();
   await expect(
     page.getByRole("heading", { name: "Autumn listening", exact: true }),
   ).toBeVisible();
-  await expect(picker).toHaveValue(subboardURL);
+  await expect(subordinate).toHaveAttribute("aria-current", "page");
   expect(requests).toHaveLength(4);
-  await info.attach("picker-restored-thread.png", {
+  await info.attach("tree-restored-thread.png", {
     body: await page.screenshot(),
     contentType: "image/png",
   });
 });
-test("J2.board-picker-direct-parent: a direct thread shows its observed parent and missing context stays neutral", async ({
+test("J120.direct-parent: a direct Post offers only its observed Board before a deliberate read", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1100, height: 900 });
-  const requests = await open(page, threadURL);
-  const picker = page.getByRole("combobox", {
-    name: "Board navigation",
-    exact: true,
-  });
+  const requests = await open(page, `${threadURL}#pid101`);
   await expect(
     page.getByRole("heading", { name: "Autumn listening", exact: true }),
   ).toBeVisible();
-  await expect(picker).toHaveValue(boardURL);
-  await expect(picker.locator("option:checked")).toHaveText("Music discussion");
-  await page.goto(`${directoryURL}#workspace=unavailable-picker-context`);
+  const parent = boardTree(page).getByRole("link", {
+    name: "Music discussion",
+    exact: true,
+  });
+  await expect(parent).toHaveAttribute("href", boardURL);
+  await expect(parent).toHaveAttribute("aria-current", "page");
+  expect(requests.map((url) => new URL(url).searchParams.get("mod"))).toEqual([
+    "viewthread",
+  ]);
+  await parent.click();
+  await expect(
+    page.getByRole("heading", { name: "Music discussion", exact: true }),
+  ).toBeVisible();
+  expect(requests.map((url) => new URL(url).searchParams.get("mod"))).toEqual([
+    "viewthread",
+    "forumdisplay",
+  ]);
+  await page.goto(`${directoryURL}#workspace=unavailable-tree-context`);
   await expect(
     page.getByText("This navigation snapshot is unavailable.", { exact: true }),
   ).toBeVisible();
-  await expect(picker).toHaveValue("");
-  await expect(picker.locator("option:checked")).toHaveText("Choose a board");
-  expect(requests).toHaveLength(1);
-  await picker.selectOption({ label: "All boards" });
+  await expect(boardTree(page).getByRole("link")).toHaveCount(0);
+  await expect(allBoards(page)).not.toHaveAttribute("aria-current");
+  expect(requests).toHaveLength(2);
+  await allBoards(page).click();
   await expect(
     page.getByRole("heading", { name: "Boards", exact: true }),
   ).toBeVisible();
-  await expect(picker).toHaveValue(directoryURL);
-  expect(requests).toHaveLength(2);
-  await info.attach("picker-explicit-overview.png", {
+  await expect(allBoards(page)).toHaveAttribute("aria-current", "page");
+  expect(requests).toHaveLength(3);
+  await info.attach("tree-explicit-overview.png", {
     body: await page.screenshot(),
     contentType: "image/png",
   });
+});
+for (const width of [390, 767, 768, 959, 960, 1146])
+  test(`J120.edges-${width}: the same Board navigation preserves production docking and native continuation`, async ({
+    browser,
+  }, info) => {
+    const touch = width === 390 || width === 1146;
+    const page = await browser.newPage({
+      viewport: { width, height: 876 },
+      hasTouch: touch,
+      offline: true,
+    });
+    try {
+      const requests = await open(page, `${threadURL}#pid101`);
+      const post = page.getByRole("article", { name: "Post 101", exact: true });
+      await expect(post).toHaveAttribute("data-targeted", "true");
+      const native = page.getByRole("link", {
+        name: "Continue in native forum",
+        exact: true,
+      });
+      await expect(native).toHaveAttribute(
+        "href",
+        /mod=viewthread.*tid=42.*tsdm-native.*#pid101/,
+      );
+      const boards = page.getByRole("button", {
+        name: "Boards pane",
+        exact: true,
+      });
+      const docked = width >= 960;
+      await expect(boards).toHaveAttribute("aria-expanded", String(docked));
+      if (!docked) {
+        if (touch) await boards.tap();
+        else await boards.click();
+        await expect(
+          page
+            .getByRole("dialog", { name: "Boards navigation", exact: true })
+            .getByRole("button", { name: "Close", exact: true }),
+        ).toBeFocused();
+        await page.keyboard.press("Tab");
+        await expect(allBoards(page)).toBeFocused();
+      }
+      const parent = boardTree(page).getByRole("link", {
+        name: "Music discussion",
+        exact: true,
+      });
+      await expect(parent).toHaveAttribute("aria-current", "page");
+      expect(
+        requests.map((url) => new URL(url).searchParams.get("mod")),
+      ).toEqual(["viewthread"]);
+      await info.attach("direct-post-navigation.png", {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
+      if (touch) await parent.tap();
+      else if (width === 768 || width === 960) {
+        await parent.focus();
+        await page.keyboard.press("Enter");
+      } else await parent.click();
+      const results = page.getByRole("region", {
+        name: "Thread results",
+        exact: true,
+      });
+      const heading = results.getByRole("heading", {
+        name: "Music discussion",
+        exact: true,
+      });
+      await expect(heading).toBeVisible();
+      await results
+        .getByRole("link", { name: "Autumn listening — page 1", exact: true })
+        .click();
+      await expect(post).toBeVisible();
+      if (width >= 768) await expect(results).toBeVisible();
+      else await expect(results).toBeHidden();
+      if (!docked) await revealNavigation(page);
+      const settings = page.getByRole("button", {
+        name: "Settings",
+        exact: true,
+      });
+      if (width === 1146) {
+        const separator = page.getByRole("separator", {
+          name: "Resize Boards",
+          exact: true,
+        });
+        await expect(separator).toHaveAttribute("aria-valuenow", "216");
+        await separator.press("ArrowRight");
+        await expect(separator).toHaveAttribute("aria-valuenow", "226");
+        await separator.press("Home");
+        await expect(separator).toHaveAttribute("aria-valuenow", "216");
+        await separator.press("ArrowRight");
+        await settings.click();
+        await page
+          .getByRole("button", { name: "Reset column widths", exact: true })
+          .click();
+        await page.keyboard.press("Escape");
+        await expect(separator).toHaveAttribute("aria-valuenow", "216");
+        await expect(settings).toBeFocused();
+      }
+      await settings.click();
+      await expect(
+        page.getByRole("dialog", { name: "Settings", exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(settings).toBeFocused();
+      await expect(
+        settings.locator("xpath=ancestor::footer").getByText("Reader Seven"),
+      ).toBeVisible();
+      await expect(
+        boardTree(page).getByRole("link", {
+          name: "Music discussion",
+          exact: true,
+        }),
+      ).toHaveAttribute("aria-current", "page");
+      expect(
+        requests.map((url) => new URL(url).searchParams.get("mod")),
+      ).toEqual(["viewthread", "forumdisplay"]);
+      expect(requests.effectful).toEqual([]);
+      await info.attach("settings-focus-return.png", {
+        body: await page.screenshot(),
+        contentType: "image/png",
+      });
+      await info.attach("layout-request-ledger.json", {
+        body: JSON.stringify(requests),
+        contentType: "application/json",
+      });
+      if (width === 390) {
+        await page.keyboard.press("Escape");
+        await native.click();
+        await expect(page).toHaveURL(/mod=viewthread.*tid=42.*tsdm-native/);
+        await expect(page.locator(".workspace")).toHaveCount(0);
+        expect(requests).toHaveLength(2);
+      }
+    } finally {
+      await page.close();
+    }
+  });
+
+test("J120.deep-scroll: destinations scroll with the Board tree while the footer and current/focus cues remain distinct", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 900, height: 650 });
+  const populated = directory.replace(
+    boardLink(6, "New releases"),
+    Array.from({ length: 40 }, (_, index) =>
+      boardLink(100 + index, `Listening Board ${index + 1}`),
+    ).join(""),
+  );
+  const requests = await open(page, directoryURL, (url) =>
+    url.searchParams.has("fid") ? board() : populated,
+  );
+  await page
+    .locator(".overview")
+    .getByRole("link", { name: "Music discussion", exact: true })
+    .click();
+  await revealNavigation(page);
+  const scroller = page.locator(".navigation-body");
+  await expect.poll(() => scroller.evaluate((node) => node.scrollTop)).toBe(0);
+  const close = page
+    .getByRole("dialog", { name: "Boards navigation", exact: true })
+    .getByRole("button", { name: "Close", exact: true });
+  await expect(close).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(allBoards(page)).toBeFocused();
+  const last = boardTree(page).getByRole("link", {
+    name: "Listening Board 40",
+    exact: true,
+  });
+  await last.focus();
+  const deep = await scroller.evaluate((node) => node.scrollTop);
+  expect(deep).toBeGreaterThan(700);
+  const settings = page.getByRole("button", { name: "Settings", exact: true });
+  await expect(settings).toBeInViewport();
+  await expect(allBoards(page)).not.toBeInViewport();
+  await page.keyboard.press("Escape");
+  await revealNavigation(page);
+  await expect(close).toBeFocused();
+  await expect
+    .poll(() => scroller.evaluate((node) => node.scrollTop))
+    .toBe(deep);
+  await expect(settings).toBeInViewport();
+  await page.keyboard.press("Tab");
+  await expect(allBoards(page)).toBeFocused();
+  await expect(allBoards(page)).toBeInViewport();
+  const group = boardTree(page).getByRole("button", {
+    name: "Listening and creating",
+    exact: true,
+  });
+  await group.focus();
+  await page.keyboard.press("Enter");
+  const current = boardTree(page).getByRole("button", {
+    name: "Listening and creating · Current Board",
+    exact: true,
+  });
+  await expect(current).toBeFocused();
+  await expect(current).toHaveAttribute("aria-expanded", "false");
+  const style = () =>
+    current.evaluate((node) => ({
+      border: getComputedStyle(node, "::before").borderInlineStartWidth,
+      outline: getComputedStyle(node).outlineStyle,
+    }));
+  for (const forcedColors of ["none", "active"] as const) {
+    await page.emulateMedia({ forcedColors });
+    expect(await style()).toEqual({ border: "4px", outline: "solid" });
+    await page.keyboard.press("Shift+Tab");
+    await expect(current).not.toBeFocused();
+    expect(await style()).toEqual({ border: "4px", outline: "none" });
+    await page.keyboard.press("Tab");
+    await expect(current).toBeFocused();
+    await info.attach(`current-and-focus-${forcedColors}.png`, {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+  }
+  expect(requests).toHaveLength(2);
+  expect(requests.effectful).toEqual([]);
 });
 const richThread =
   thread
@@ -672,8 +958,7 @@ test("J2.refresh-stale: failed refresh retains visibly stale content and does no
     requests.push(route.request().url());
     await route.abort("failed");
   });
-  await revealNavigation(page);
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await clickBoardTool(page, "Refresh");
   await expect(
     page.getByText("Previous results are stale.", { exact: true }),
   ).toBeVisible();
@@ -1063,9 +1348,7 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
     (await reading.boundingBox())!.x,
   );
   await page.setViewportSize({ width: 1100, height: 900 });
-  await expect(
-    page.getByRole("combobox", { name: "Board navigation", exact: true }),
-  ).toBeVisible();
+  await expect(boardTree(page)).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(reading).toBeVisible();
   await expect(results).not.toBeVisible();
@@ -1085,9 +1368,7 @@ test("J2.workspace-panes: desktop keeps board results beside reading and narrow 
   expect(requests.effectful).toEqual([]);
   await page.keyboard.press("Escape");
   await revealNavigation(page);
-  await expect(
-    page.getByRole("link", { name: "All boards", exact: true }).first(),
-  ).toBeVisible();
+  await expect(allBoards(page)).toBeVisible();
   await info.attach("narrow-board-results.png", {
     body: await page.screenshot(),
     contentType: "image/png",

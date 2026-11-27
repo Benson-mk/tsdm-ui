@@ -1,10 +1,10 @@
 import { revealWritingDetails, writingDetailAction } from "./editor-controls";
-import { clickThreadTool } from "./navigation-ui";
 import {
-  openSettings,
-  closeSettingsToWorkspace,
-  revealNavigation,
+  clickBoardTool,
+  clickThreadTool,
+  openNewThread,
 } from "./navigation-ui";
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { withRedirectFixture } from "../http-redirect-fixture";
 import { readFileSync } from "node:fs";
@@ -269,7 +269,7 @@ for (const member of ["guest", "8"])
     await page.getByLabel("Thread price", { exact: true }).fill("99");
     await page.getByLabel("Signature", { exact: true }).uncheck();
     current = member;
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await clickBoardTool(page, "Refresh");
     await expect(page.getByText(/Sending paused/)).toBeVisible();
     await expect(
       page.getByLabel("Complete source", { exact: true }),
@@ -740,7 +740,7 @@ test("J11.stale-preparation: an older form cannot replace a newer observed accou
       body: board("5", "8"),
     }),
   );
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await clickBoardTool(page, "Refresh");
   await expect(page.getByText(/Signed in as Writer 8/)).toBeVisible();
   release();
   await expect(
@@ -1107,8 +1107,7 @@ test("J5.composing-section: section drawer waits for final composition input and
 }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const requests = await open(page);
-  await revealNavigation(page);
-  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await openNewThread(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(source);
   const original = await page.evaluate(
@@ -1783,8 +1782,7 @@ test("J5.composing-search: Search drawer waits for final composition input and r
         ? form()
         : board(),
   );
-  await revealNavigation(page);
-  await page.getByRole("button", { name: "New thread", exact: true }).click();
+  await openNewThread(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill(source);
   const original = await page.evaluate(
@@ -2358,8 +2356,7 @@ for (const profile of ux61Profiles)
       profile,
     );
     const requests = await open(page);
-    await revealNavigation(page);
-    await page.locator(".secondary-writing-actions button").first().click();
+    await openNewThread(page);
     const editor = page.getByLabel(profile.body, { exact: true });
     await editor.fill(source);
     await expect(page.getByText(profile.status, { exact: true })).toHaveCount(
@@ -2441,7 +2438,7 @@ for (const [language, expected] of [
       undefined,
       `let filled='';for(let size=65536;size>=1;size=Math.floor(size/2)){const block='x'.repeat(size);try{while(true){sessionStorage.setItem('native-fixture-capacity',filled+block);filled+=block;}}catch{}}`,
     );
-    await page.locator(".secondary-writing-actions button").first().click();
+    await openNewThread(page);
     await expect(page.locator(".writing-recovery > p")).toHaveText(expected);
   });
 

@@ -156,6 +156,18 @@ function navigate(url: string) {
   moreOpen.value = false;
   void props.workspace.openThread(url);
 }
+let jumpingLatest = false;
+function navigateLatest(url: string) {
+  jumpingLatest = true;
+  pageOpen.value = false;
+  moreOpen.value = false;
+  void props.workspace.jumpLatest(url);
+}
+function returnPageFocus(event: Event) {
+  if (!jumpingLatest) return;
+  jumpingLatest = false;
+  event.preventDefault();
+}
 function overlayClick() {
   if (outsidePress) {
     pageOpen.value = false;
@@ -195,6 +207,7 @@ function overlayClick() {
           />
           <DialogContent
             class="dialog-content reader-page-dialog"
+            @close-auto-focus="returnPageFocus"
             @keydown.esc.stop="pageOpen = false"
             @pointer-down-outside.prevent
             @interact-outside.prevent
@@ -262,7 +275,7 @@ function overlayClick() {
               <a
                 v-if="history.latest"
                 :href="history.latest"
-                @click.prevent="navigate(history.latest)"
+                @click.prevent="navigateLatest(history.latest)"
                 >{{ text.jumpLatest }}</a
               >
               <nav :aria-label="text.threadPages">

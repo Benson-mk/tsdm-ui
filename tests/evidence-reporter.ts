@@ -3,17 +3,19 @@ import type {
   TestCase,
   TestResult,
   FullResult,
+  FullConfig,
 } from "@playwright/test/reporter";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   writeFileSync,
   readdirSync,
   existsSync,
 } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 
 type FileIdentity = { bytes: number; sha256: string };
@@ -32,8 +34,18 @@ function digest(path: string): string | null {
 export default class EvidenceReporter implements Reporter {
   private cases: Record<string, unknown>[] = [];
   private started = new Date().toISOString();
-  private directory = `evidence/runs/${this.started.replaceAll(":", "-")}`;
-  onBegin() {
+  private directory = "";
+  private channels: string[] = [];
+  onBegin(config: FullConfig) {
+    this.channels = [
+      ...new Set(
+        config.projects.map((project) => project.use.channel ?? "default"),
+      ),
+    ];
+    mkdirSync("evidence/runs", { recursive: true });
+    this.directory = mkdtempSync(
+      `evidence/runs/${this.started.replaceAll(":", "-")}-${this.channels.join("-")}-`,
+    );
     mkdirSync(`${this.directory}/synthetic`, { recursive: true });
   }
   onTestEnd(test: TestCase, result: TestResult) {
@@ -97,16 +109,30 @@ export default class EvidenceReporter implements Reporter {
       files[file] = existsSync(file) ? fileIdentity(file) : null;
     const receipt = {
       schema: 1,
-      runId: this.started,
+      runId: basename(this.directory),
+      startedAt: this.started,
       timezone: "Asia/Hong_Kong",
       evidence: "synthetic",
       mode: "application-synthetic",
       preconditions: [
         "Built self-contained userscript",
-        "Isolated Edge context",
+        "Isolated browser contexts; browser channel recorded in runtime",
         "Only external HTTP responses replaced",
       ],
       runtime: {
+        browserChannels: this.channels,
+        observedBrowserVersions: [
+          ...new Set(
+            this.cases.flatMap(({ annotations }) =>
+              (annotations as { type: string; description?: string }[])
+                .filter(
+                  ({ type, description }) =>
+                    type === "browser-version" && description,
+                )
+                .map(({ description }) => description),
+            ),
+          ),
+        ],
         node: process.version,
         openssl: execFileSync("openssl", ["version"], {
           encoding: "utf8",
@@ -119,6 +145,14 @@ export default class EvidenceReporter implements Reporter {
         ).version,
       },
       candidate: {
+        sourceRevision: execFileSync("git", ["rev-parse", "HEAD"], {
+          encoding: "utf8",
+        }).trim(),
+        sourceDirty: Boolean(
+          execFileSync("git", ["status", "--porcelain=v1"], {
+            encoding: "utf8",
+          }).trim(),
+        ),
         userscriptSha256: digest("dist/tsdm-ui.user.js"),
         installedSha256: null,
       },

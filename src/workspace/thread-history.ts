@@ -414,11 +414,26 @@ export function createThreadHistory(
         thread: loadedThread,
       },
       [direction]: boundary(result.thread.history, direction),
-      latest: result.thread.history?.latest?.url ?? state.value.latest,
+      latest:
+        direction === "later"
+          ? recordNewest(result)
+          : newestObservation || state.value.latest
+            ? state.value.latest
+            : (result.thread.history?.latest?.url ?? null),
       newestURL:
         direction === "later" ? result.thread.url : state.value.newestURL,
     };
     await options.restore(position);
+  }
+  function recordNewest(result: ThreadResult) {
+    if (
+      !result.thread.history?.end &&
+      newestObservation &&
+      result.thread.pages.current !== newestObservation.thread.pages.current
+    )
+      return state.value.latest;
+    newestObservation = result;
+    return result.thread.history?.latest?.url ?? null;
   }
   function newestTarget(result = newestObservation ?? state.value.result) {
     if (!result?.thread.history) return null;
@@ -525,7 +540,6 @@ export function createThreadHistory(
           .map((post) => post.id);
     newestSeen ??= new Set();
     for (const post of result.thread.posts) newestSeen.add(post.id);
-    newestObservation = result;
     stagedNewest = result;
     failures = 0;
     retryAfter = 0;
@@ -537,6 +551,7 @@ export function createThreadHistory(
       checkedAt: Date.now(),
       retryMinutes: 0,
       baselineEstablished: baseline,
+      latest: recordNewest(result),
       arrivals: [...new Set([...state.value.arrivals, ...discovered])].filter(
         (id) => ids.has(id),
       ),
@@ -638,8 +653,8 @@ export function createThreadHistory(
     failures = 0;
     retryAfter = 0;
     nextCheck = Date.now() + cadence;
+    const latest = recordNewest(result);
     if (result.thread.history?.end) {
-      newestObservation = result;
       newestSeen ??= new Set();
       for (const post of result.thread.posts) newestSeen.add(post.id);
     }
@@ -700,7 +715,7 @@ export function createThreadHistory(
         thread: refreshedThread,
       },
       later,
-      latest: result.thread.history?.latest?.url ?? state.value.latest,
+      latest,
       newestURL: result.thread.url,
       arrivals: follow
         ? []
@@ -747,6 +762,19 @@ export function createThreadHistory(
     tick,
     revealArrivals,
     target,
+    loadedTarget(url: URL) {
+      const result = state.value.result;
+      const postId = /^#pid([1-9]\d*)$/.exec(url.hash)?.[1];
+      const source = postId ? postPages.get(postId) : null;
+      if (!result || !source || !postId) return null;
+      const account = actor(result.account);
+      return threadContext(source, account) ===
+        threadContext(url.href, account) &&
+        (new URL(source).searchParams.get("page") ?? "1") ===
+          (url.searchParams.get("page") ?? "1")
+        ? postId
+        : null;
+    },
     sourceFor: (postId: string) => postPages.get(postId) ?? null,
     filtersFor(postId: string) {
       // Read the range ref so source metadata changes invalidate menu computations.

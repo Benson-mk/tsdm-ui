@@ -5,9 +5,13 @@ import type { Preferences } from "../workspace/preferences";
 import { strings, insert } from "../layouts/strings";
 import { nativeDestination } from "../hosts/browser";
 import ContentView from "./ContentView";
+import DestinationLoadStatus from "./DestinationLoadStatus.vue";
 const props = defineProps<{
   notices: DeepReadonly<Notices> | null;
   loading: boolean;
+  pending: boolean;
+  failed: boolean;
+  effectsId: string;
   language: Preferences["language"];
   secondary?: boolean;
   selection?: string | null;
@@ -25,8 +29,19 @@ const emit = defineEmits<{ load: [] }>();
     <h1>{{ text.notices }}</h1>
     <h2>{{ text.noticesHeading }}</h2>
     <p>{{ text.noticesOverview }}</p>
-    <p>{{ text.noticeEffects }}</p>
-    <button :disabled="loading" @click="emit('load')">
+    <p :id="effectsId">{{ text.noticeEffects }}</p>
+    <DestinationLoadStatus
+      :loaded="notices !== null"
+      :empty="notices?.entries.length === 0"
+      :pending="pending"
+      :failed="failed"
+      :language="language"
+    />
+    <button
+      :aria-describedby="effectsId"
+      :disabled="loading"
+      @click="emit('load')"
+    >
       {{ notices ? text.refreshNotices : text.loadNotices }}
     </button>
     <template v-if="notices">
@@ -48,6 +63,7 @@ const emit = defineEmits<{ load: [] }>();
           v-for="category in notices.categories"
           :key="category.url"
           :href="category.url"
+          :aria-describedby="effectsId"
           :aria-current="category.current ? 'page' : undefined"
           >{{ category.label }}</a
         >
@@ -72,6 +88,7 @@ const emit = defineEmits<{ load: [] }>();
           v-for="link in notices.pages.links"
           :key="link.url"
           :href="link.url"
+          :aria-describedby="effectsId"
           >{{ link.label }}</a
         >
       </nav>

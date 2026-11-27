@@ -153,11 +153,12 @@ test("J2.section-overviews: destinations retain reading, support medium/narrow n
   ).toBeVisible();
   await page.setViewportSize({ width: 1100, height: 850 });
   await expect(
-    page.getByRole("combobox", { name: "Section navigation", exact: true }),
+    page.getByRole("navigation", { name: "Main destinations", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("combobox", { name: "Section navigation", exact: true })
-    .selectOption("saved");
+    .getByRole("navigation", { name: "Main destinations", exact: true })
+    .getByRole("button", { name: "Saved", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", { name: "Saved", exact: true, level: 1 }),
   ).toBeVisible();
@@ -275,7 +276,9 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
                 .gridTemplateColumns.split(" ")
                 .map(Number.parseFloat),
               secondary: visible(root.querySelector(".boards-navigation")!),
-              picker: visible(root.querySelector(".board-picker")!),
+              picker: Boolean(
+                root.querySelector('select[aria-label="Board navigation"]'),
+              ),
               results: visible(results),
               rangeSpacing: (host as HTMLElement).dataset.spacing,
               motion: getComputedStyle(reading).scrollBehavior,
@@ -293,7 +296,7 @@ for (const theme of ["light", "alias", "mono", "dark"] as const) {
         // history floor rather than counting the previous combined box.
         expect.soft(sample.readingHeight).toBeGreaterThanOrEqual(96);
         expect.soft(sample.secondary).toBe(width >= 960);
-        expect.soft(sample.picker).toBe(width >= 960 && width < 1280);
+        expect.soft(sample.picker).toBe(false);
         expect.soft(sample.results).toBe(width >= 768);
         expect.soft(sample.rowPadding).toBe(size < 100 ? "12px 16px" : "14px");
         expect

@@ -293,6 +293,18 @@ article header {
 .board-group {
   margin-bottom: 32px;
 }
+.board-group > h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.board-group > h2::before {
+  content: "";
+  flex: none;
+  block-size: 0.85em;
+  border-inline-start: 4px solid var(--inverse);
+  border-radius: 3px;
+}
 .thread-row {
   display: flex;
   flex-wrap: wrap;
@@ -449,20 +461,6 @@ summary {
 .main-destinations [aria-current="page"] {
   background: var(--ink);
   color: var(--surface);
-}
-.narrow-section-picker {
-  display: none;
-}
-@media (max-width: 959px) {
-  .narrow-section-picker {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: calc(0.875rem * var(--text-scale, 1));
-  }
-  .narrow-section-picker select {
-    max-width: 100%;
-  }
 }
 .boards-navigation {
   display: flex;
@@ -1240,10 +1238,6 @@ select {
   .thread-without-results .reading-pane {
     grid-column: 1;
   }
-  .secondary-writing-actions {
-    padding: 8px 12px;
-    gap: 8px;
-  }
 }
 
 .board-filters {
@@ -1676,8 +1670,7 @@ select {
   max-height: none;
   overflow: visible;
 }
-.pane-drawer .board-picker,
-.pane-drawer .narrow-section-picker {
+.pane-drawer .board-picker {
   display: none;
 }
 .workspace-body[data-view] > .reading-pane {
@@ -2542,6 +2535,27 @@ input {
   display: grid;
   gap: 4px;
 }
+.board-tree :is(a[aria-current="page"], button[data-current-group]) {
+  position: relative;
+  padding-inline-start: 14px;
+  font-weight: 700;
+}
+.board-tree :is(a[aria-current="page"], button[data-current-group])::before {
+  content: "";
+  position: absolute;
+  inset-block: 10px;
+  inset-inline-start: 4px;
+  border-inline-start: 4px solid currentColor;
+  border-radius: 4px;
+}
+@media (forced-colors: active) {
+  .main-destinations [aria-current="page"] {
+    border-inline-start: 3px solid CanvasText;
+  }
+  .board-tree :focus-visible {
+    outline-color: Highlight;
+  }
+}
 
 [data-category] {
   --category-fill: var(--soft);
@@ -2841,6 +2855,18 @@ input {
 }
 .board-heading .icon-button {
   flex: 0 0 44px;
+}
+.board-writing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.board-writing-actions > button {
+  min-height: 44px;
+}
+.board-actions-menu {
+  z-index: 65;
 }
 .board-check-status {
   display: grid;

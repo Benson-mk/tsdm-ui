@@ -4,7 +4,7 @@ import {
   chooseAttachments,
 } from "./editor-controls";
 import { writingDetailAction, writingTool } from "./editor-controls";
-import { clickThreadTool } from "./navigation-ui";
+import { clickBoardTool, clickThreadTool } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
@@ -1082,10 +1082,7 @@ for (const context of ["edit", "new-thread"] as const) {
       await expect.poll(() => state.listWaiting).toBe(true);
       state.member = "8";
       if (context === "edit") await clickThreadTool(page, "Refresh thread");
-      else
-        await page
-          .getByRole("button", { name: "Refresh", exact: true })
-          .click();
+      else await clickBoardTool(page, "Refresh");
       await expect(
         page.getByText("Signed in as Writer 8", { exact: true }),
       ).toBeVisible();

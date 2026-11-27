@@ -1,12 +1,12 @@
 import { selectSourceEditor } from "./editor-controls";
 import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { writingTool } from "./editor-controls";
-import { clickThreadTool } from "./navigation-ui";
 import {
-  openSettings,
-  closeSettingsToWorkspace,
-  revealNavigation,
+  clickBoardTool,
+  clickThreadTool,
+  openNewThread,
 } from "./navigation-ui";
+import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { writingPresentationRoundTrip } from "./combined-authoring";
@@ -136,13 +136,7 @@ async function fixture(
     return f;
   }
   if (entry === "new-thread") {
-    await revealNavigation(page);
-    await page
-      .getByRole("button", {
-        name: /^(New thread|新主题|新主題)$/,
-        exact: true,
-      })
-      .click();
+    await openNewThread(page);
   } else
     await page
       .getByRole("button", {
@@ -1080,7 +1074,7 @@ test("UX59.invalidate-account: observing another actor removes approval and reta
   });
   await expect(review).toBeVisible();
   f.member = "9";
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await clickBoardTool(page, "Refresh");
   await expect(review).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Publish thread", exact: true }),
