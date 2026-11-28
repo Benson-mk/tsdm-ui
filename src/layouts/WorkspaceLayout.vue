@@ -107,6 +107,32 @@ const paneWidth = ref(window.innerWidth);
 const boardsDocked = computed(() => paneWidth.value >= 960);
 const threadsDocked = computed(() => paneWidth.value >= 768);
 const narrowBrowsing = ref(false);
+const primaryThreadsKey = ref<string | null>(null);
+const primaryThreadsList = computed(
+  () => !boardsDocked.value && primaryThreadsKey.value === state.value.key,
+);
+const directorySelected = computed(
+  () =>
+    state.value.section === "boards" &&
+    state.value.result?.kind === "directory",
+);
+const personalCanvas = computed(() => state.value.section !== "boards");
+const standaloneTaskReader = computed(
+  () =>
+    personalCanvas.value &&
+    state.value.result?.kind === "thread" &&
+    (!boardsDocked.value || !state.value.selection),
+);
+const browsingCanvas = computed(
+  () => directorySelected.value || primaryThreadsList.value,
+);
+const canvasWritingKey = ref<string | null>(null);
+const writingOnCanvas = computed(
+  () =>
+    browsingCanvas.value &&
+    canvasWritingKey.value === state.value.key &&
+    writing.value.visible,
+);
 const hasReader = computed(
   () => !!reading.value || !!state.value.privateReading || pendingPrivate.value,
 );
@@ -114,17 +140,31 @@ const hasConversation = computed(
   () => hasReader.value || !!(writing.value.context && writing.value.visible),
 );
 const resultsVisible = computed(() =>
-  threadsDocked.value
-    ? !threadsCollapsed.value || !hasConversation.value
-    : !hasConversation.value || narrowBrowsing.value,
+  standaloneTaskReader.value
+    ? false
+    : browsingCanvas.value
+      ? !writingOnCanvas.value
+      : threadsDocked.value
+        ? !threadsCollapsed.value || !hasConversation.value
+        : !hasConversation.value || narrowBrowsing.value,
 );
-const browseOnly = computed(
-  () =>
-    !hasConversation.value &&
-    !(threadsDocked.value && state.value.result?.kind === "board"),
+const sectionResultsVisible = computed(
+  () => resultsVisible.value && !primaryThreadsList.value,
+);
+const browseOnly = computed(() =>
+  browsingCanvas.value
+    ? !writingOnCanvas.value
+    : !hasConversation.value &&
+      !(
+        threadsDocked.value &&
+        !personalCanvas.value &&
+        state.value.result?.kind === "board"
+      ),
 );
 const conversationVisible = computed(
-  () => !browseOnly.value && (threadsDocked.value || !resultsVisible.value),
+  () =>
+    writingOnCanvas.value ||
+    (!browseOnly.value && (threadsDocked.value || !resultsVisible.value)),
 );
 const browsingWritingStatus = ref<HTMLElement | null>(null);
 type DrawerPane = "boards" | "threads";
@@ -135,6 +175,42 @@ const boardContextTools = ref<HTMLElement | null>(null);
 const contextTools = computed(() => boardContextTools.value);
 const boardsTrigger = ref<HTMLButtonElement | null>(null);
 const threadsTrigger = ref<HTMLButtonElement | null>(null);
+const mainDestinationsTrigger = ref<HTMLButtonElement | null>(null);
+const moreTrigger = ref<HTMLButtonElement | null>(null);
+const primaryNavigation = ref<HTMLElement | null>(null);
+const settings = ref<InstanceType<typeof SettingsDialog> | null>(null);
+const destinationsOpen = ref(false);
+const showingAccount = ref(false);
+const accountHeading = ref<HTMLElement | null>(null);
+let settingsFromDestinations = false;
+function focusDestinationsTrigger() {
+  (boardsDocked.value
+    ? mainDestinationsTrigger.value
+    : moreTrigger.value
+  )?.focus({ preventScroll: true });
+}
+function changeDestinations(open: boolean) {
+  const change = () => {
+    destinationsOpen.value = open;
+    showingAccount.value = false;
+    if (!open) void nextTick().then(focusDestinationsTrigger);
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
+function showAccount() {
+  showingAccount.value = true;
+  void nextTick().then(() =>
+    accountHeading.value?.focus({ preventScroll: true }),
+  );
+}
+function openDestinationSettings() {
+  const change = () => {
+    settingsFromDestinations = true;
+    destinationsOpen.value = false;
+    void nextTick().then(() => settings.value?.show());
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
 const paneScroll = new Map<HTMLElement, number>();
 const paneRows = new Map<
   HTMLElement,
@@ -232,6 +308,11 @@ function settingsOpenChanged(open: boolean) {
 }
 function settingsFocusReturn(event: Event) {
   event.preventDefault();
+  if (settingsFromDestinations) {
+    settingsFromDestinations = false;
+    void nextTick().then(focusDestinationsTrigger);
+    return;
+  }
   if (boardsDocked.value) boardsCollapsed.value = false;
   else {
     focusSettingsOnDrawerOpen = true;
@@ -284,6 +365,12 @@ function closeDrawer() {
 }
 function togglePane(pane: DrawerPane) {
   const change = () => {
+    if (pane === "threads" && primaryThreadsList.value) {
+      primaryThreadsKey.value = null;
+      narrowBrowsing.value = false;
+      void nextTick().then(restorePaneScroll);
+      return;
+    }
     if (pane === "threads" && !threadsDocked.value) {
       if (!resultsVisible.value)
         browsingReaderPosition = capturePositions().filter(({ pane }) =>
@@ -452,6 +539,18 @@ const sections: Section[] = [
   "notices",
   "drafts",
 ];
+const secondarySections: Section[] = ["search", "saved", "notices", "drafts"];
+const currentPrimaryDestination = computed(() =>
+  primaryThreadsList.value
+    ? "threads"
+    : state.value.section === "boards"
+      ? directorySelected.value
+        ? "boards"
+        : "threads"
+      : state.value.section === "messages"
+        ? "messages"
+        : "more",
+);
 const sectionInfo = computed(() => {
   const section = state.value.section;
   if (
@@ -473,8 +572,11 @@ const sectionInfo = computed(() => {
 });
 function selectSection(section: Section) {
   const change = () => {
+    primaryThreadsKey.value = null;
+    if (destinationsOpen.value) changeDestinations(false);
     if (section === "boards") {
       if (state.value.result?.kind === "directory") {
+        canvasWritingKey.value = null;
         if (drawer.value) changeDrawer(null);
         return;
       }
@@ -488,6 +590,23 @@ function selectSection(section: Section) {
     void props.workspace.openSection(section);
   };
   if (!props.workspace.writing.deferViewChange(change)) change();
+}
+function selectPrimaryThreads() {
+  const change = () => {
+    rememberBrowsingReader();
+    rememberPaneScroll();
+    if (!boardResultsAvailable.value)
+      props.workspace.openRetainedBoardResults();
+    primaryThreadsKey.value = state.value.key;
+    canvasWritingKey.value = null;
+    revealResults();
+    void nextTick().then(restorePaneScroll);
+  };
+  if (!props.workspace.writing.deferViewChange(change)) change();
+}
+function resumeCanvasWriting() {
+  canvasWritingKey.value = state.value.key;
+  props.workspace.writing.show();
 }
 type PanePosition = {
   fallback?: { anchor: HTMLElement; offset: number };
@@ -795,6 +914,13 @@ function resize() {
   host.style.bottom = "auto";
   const positions = viewportPositions;
   const revision = readingRestoreRevision;
+  const active = host.shadowRoot?.activeElement;
+  const focusPrimaryNavigation =
+    active !== null &&
+    (active === mainDestinationsTrigger.value ||
+      !!primaryNavigation.value?.contains(active ?? null));
+  const crossedPrimaryBreakpoint =
+    boardsDocked.value !== window.innerWidth >= 960;
   appearanceAnchors = [];
   rememberPaneScroll();
   // Carry the pre-reflow row through a responsive hide/show as well as a
@@ -821,10 +947,10 @@ function resize() {
   )
     changeDrawer(null);
   void nextTick().then(() => {
-    // A later history restoration owns the reader; stale resize work must not
-    // replace its position with the newly mounted reader's pre-restore line.
-    restorePaneScroll();
-    if (revision === readingRestoreRevision)
+    // A later history restoration owns both panes; stale resize work must not
+    // replace their positions with the newly mounted panes' pre-restore offsets.
+    if (revision === readingRestoreRevision) {
+      restorePaneScroll();
       // The browser has already reflowed CSS when resize fires. Its fresh pane
       // measurement cannot recover the old row offset; use the last observed
       // visible board anchor, just as the reader uses its pre-resize position.
@@ -836,6 +962,7 @@ function resize() {
         ),
         true,
       );
+    }
     // A restored scroll event must keep the exact character across successive
     // widths. Recapturing the start of its newly wrapped line drifts on return.
     viewportPositions = positions.map((position) => ({
@@ -845,6 +972,8 @@ function resize() {
     // Resize may clip the still-focused source without a new focus event.
     // Scroll its existing node; focusing it again would disturb composition.
     const focused = host.shadowRoot?.activeElement;
+    if (crossedPrimaryBreakpoint && focusPrimaryNavigation)
+      focusDestinationsTrigger();
     if (
       !magnified &&
       focused instanceof HTMLElement &&
@@ -2162,6 +2291,7 @@ onMounted(() => {
   };
   props.workspace.setViewAdapter({
     dismissForHistory() {
+      destinationsOpen.value = false;
       if (!drawer.value) return;
       rememberPaneScroll();
       drawer.value = null;
@@ -2373,12 +2503,17 @@ onMounted(() => {
           root.shadowRoot?.getElementById(`favorite-${selection}`) ??
           root.shadowRoot?.getElementById(`notice-${selection}`) ??
           root.shadowRoot
+            ?.getElementById(`peer-${selection}`)
+            ?.querySelector<HTMLElement>("a[aria-current]") ??
+          root.shadowRoot
             ?.getElementById(`row-${selection}`)
             ?.querySelector<HTMLElement>(".subject"))
         : null;
       const focusTarget = container?.classList.contains("board-thread-list")
         ? (selected ?? node?.querySelector<HTMLElement>(".subject"))
-        : (requested ?? node ?? selected);
+        : personalCanvas.value && container !== reader
+          ? (selected ?? node)
+          : (requested ?? node ?? selected);
       if (!writing.value.visible && !writing.value.composing)
         focusTarget?.focus({ preventScroll: true });
       if (container && (node || requested))
@@ -2441,7 +2576,11 @@ function boardIdFrom(url: string) {
 }
 </script>
 <template>
-  <div class="workspace" @click="navigate">
+  <div
+    class="workspace"
+    :data-destination-bar="!boardsDocked"
+    @click="navigate"
+  >
     <DialogRoot :open="filtersOpen" @update:open="filtersOpen = $event">
       <DialogPortal :to="portal">
         <DialogOverlay class="dialog-overlay" />
@@ -2616,11 +2755,80 @@ function boardIdFrom(url: string) {
         </DialogContent>
       </DialogPortal>
     </DialogRoot>
+    <DialogRoot :open="destinationsOpen" @update:open="changeDestinations">
+      <DialogPortal :to="portal">
+        <DialogOverlay class="dialog-overlay" />
+        <DialogContent
+          class="dialog-content destination-dialog"
+          :aria-describedby="undefined"
+          @escape-key-down="guardEscape"
+          @close-auto-focus.prevent
+        >
+          <div class="destination-dialog-heading">
+            <DialogTitle as-child>
+              <h2
+                ref="accountHeading"
+                :tabindex="showingAccount ? -1 : undefined"
+              >
+                {{
+                  showingAccount
+                    ? text.destinationAccount
+                    : boardsDocked
+                      ? text.mainDestinations
+                      : text.moreDestinations
+                }}
+              </h2>
+            </DialogTitle>
+            <button @click="changeDestinations(false)">{{ text.close }}</button>
+          </div>
+          <p v-if="showingAccount">{{ accountLabel }}</p>
+          <div v-else class="destination-entries">
+            <button
+              v-for="section in boardsDocked ? sections : secondarySections"
+              :key="section"
+              :aria-current="
+                state.section === section &&
+                (section !== 'boards' || directorySelected)
+                  ? 'page'
+                  : undefined
+              "
+              @click="selectSection(section)"
+            >
+              <WorkspaceIcon :name="section" />
+              {{ section === "boards" ? text.allBoards : text[section] }}
+            </button>
+            <button @click="showAccount">
+              <WorkspaceIcon name="about" />{{ text.destinationAccount }}
+            </button>
+            <button @click="openDestinationSettings">
+              <WorkspaceIcon name="settings" />{{ text.settings }}
+            </button>
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
     <header>
       <a class="brand" href="https://www.tsdm39.com/" aria-label="TSDM"
         ><WorkspaceBrand />TSDM</a
       >
       <div class="header-navigation">
+        <button
+          v-if="personalCanvas && state.canBack"
+          class="header-action"
+          @click="workspace.back()"
+        >
+          {{ text.back }}
+        </button>
+        <button
+          v-if="boardsDocked"
+          ref="mainDestinationsTrigger"
+          class="header-action main-destinations-trigger"
+          aria-haspopup="dialog"
+          :aria-expanded="destinationsOpen"
+          @click="changeDestinations(true)"
+        >
+          <WorkspaceIcon name="more" />{{ text.mainDestinations }}
+        </button>
         <button
           ref="boardsTrigger"
           class="header-action"
@@ -2635,6 +2843,7 @@ function boardIdFrom(url: string) {
           }}</span>
         </button>
         <button
+          v-if="!standaloneTaskReader"
           ref="threadsTrigger"
           class="header-action"
           :title="text.threadsPane"
@@ -2672,7 +2881,10 @@ function boardIdFrom(url: string) {
             href="https://www.tsdm39.com/search.php?mod=forum&adv=yes"
             >{{ text.newSearch }}</a
           >
-          <button v-if="state.canBack && !reading" @click="workspace.back()">
+          <button
+            v-if="state.canBack && !reading && !personalCanvas"
+            @click="workspace.back()"
+          >
             {{ text.back }}</button
           ><button
             v-if="
@@ -2967,9 +3179,17 @@ function boardIdFrom(url: string) {
       :style="columnStyle"
       :data-column-resizing="resizingColumns || undefined"
       :data-boards-collapsed="!boardsDocked || boardsCollapsed"
-      :data-threads-collapsed="!threadsDocked || threadsCollapsed"
+      :data-threads-collapsed="
+        !threadsDocked ||
+        threadsCollapsed ||
+        writingOnCanvas ||
+        standaloneTaskReader
+      "
       :data-view="state.result?.kind ?? 'unavailable'"
-      :data-narrow-browsing="!threadsDocked && resultsVisible"
+      :data-narrow-browsing="
+        (!threadsDocked && resultsVisible) ||
+        (!boardsDocked && browsingCanvas && !writingOnCanvas)
+      "
     >
       <ColumnSeparator
         v-if="boardsResizable"
@@ -3149,6 +3369,7 @@ function boardIdFrom(url: string) {
               <template v-else>{{ accountLabel }}</template>
             </p>
             <SettingsDialog
+              ref="settings"
               :workspace="workspace"
               :portal="portal"
               @open-change="settingsOpenChanged"
@@ -3160,7 +3381,7 @@ function boardIdFrom(url: string) {
       </Teleport>
       <section
         v-if="sectionInfo"
-        v-show="resultsVisible"
+        v-show="sectionResultsVisible"
         id="thread-list-pane"
         class="overview pane results-pane drafts-pane"
         data-scroll-pane="results"
@@ -3272,7 +3493,7 @@ function boardIdFrom(url: string) {
       </section>
       <SearchView
         v-if="searchContext"
-        v-show="resultsVisible"
+        v-show="sectionResultsVisible"
         id="thread-list-pane"
         :search="searchContext"
         :language="workspace.preferences.state.value.language"
@@ -3285,7 +3506,7 @@ function boardIdFrom(url: string) {
       />
       <FavoritesView
         v-if="state.section === 'saved'"
-        v-show="resultsVisible"
+        v-show="sectionResultsVisible"
         id="thread-list-pane"
         :favorites="favoriteContext"
         :selection="state.selection"
@@ -3309,13 +3530,14 @@ function boardIdFrom(url: string) {
       />
       <MessagesView
         v-if="state.section === 'messages'"
-        v-show="resultsVisible"
+        v-show="sectionResultsVisible"
         id="thread-list-pane"
         :selected="state.privateReading?.conversation.peerId ?? state.selection"
         :messages="
           state.result?.kind === 'messages'
             ? state.result.messages
-            : state.origin?.kind === 'messages'
+            : (state.privateReading || pendingPrivate) &&
+                state.origin?.kind === 'messages'
               ? state.origin.messages
               : null
         "
@@ -3327,7 +3549,7 @@ function boardIdFrom(url: string) {
       />
       <NoticesView
         v-if="state.section === 'notices'"
-        v-show="resultsVisible"
+        v-show="sectionResultsVisible"
         id="thread-list-pane"
         :notices="noticeContext"
         :loading="state.loading"
@@ -3340,8 +3562,8 @@ function boardIdFrom(url: string) {
         @load="workspace.loadNotices()"
       />
       <section
-        v-if="state.section === 'boards' && state.result?.kind === 'directory'"
-        v-show="resultsVisible"
+        v-if="state.result?.kind === 'directory' && directorySelected"
+        v-show="sectionResultsVisible"
         id="thread-list-pane"
         class="overview pane"
         data-scroll-pane="overview"
@@ -3705,16 +3927,22 @@ function boardIdFrom(url: string) {
         </nav>
       </section>
       <section
-        v-if="threadWithoutResults"
+        v-if="
+          threadWithoutResults || (primaryThreadsList && !boardResultsAvailable)
+        "
         v-show="resultsVisible"
         id="thread-list-pane"
         class="results-placeholder pane"
+        :aria-label="text.threadResults"
       >
         <h2>{{ text.threadResults }}</h2>
         <p>{{ text.chooseThreadContext }}</p>
         <a v-if="reading?.thread.parent" :href="reading.thread.parent.url">{{
           reading.thread.parent.label
         }}</a>
+        <button v-else-if="primaryThreadsList" @click="selectSection('boards')">
+          {{ text.allBoards }}
+        </button>
       </section>
       <div
         v-show="conversationVisible"
@@ -3733,13 +3961,7 @@ function boardIdFrom(url: string) {
           v-if="!reading && !state.privateReading && !pendingPrivate"
           class="reader-placeholder pane"
         >
-          <p>
-            {{
-              state.section === "boards"
-                ? text.chooseThreadContext
-                : text.chooseThread
-            }}
-          </p>
+          <p v-if="!personalCanvas">{{ text.chooseThreadContext }}</p>
           <ReplySends
             v-if="
               writing.context &&
@@ -4379,13 +4601,17 @@ function boardIdFrom(url: string) {
     <div
       v-if="
         writing.context &&
-        !writing.visible &&
-        !ownsHiddenReply &&
+        ((browsingCanvas && !conversationVisible) ||
+          (!writing.visible && !ownsHiddenReply)) &&
         !workspace.writing.replyParked.value
       "
       class="bottom-resume"
     >
-      <button @click="workspace.writing.show()">
+      <button
+        @click="
+          browsingCanvas ? resumeCanvasWriting() : workspace.writing.show()
+        "
+      >
         <WorkspaceIcon name="compose" />
         {{ text.returnWriting }}
       </button>
@@ -4400,5 +4626,49 @@ function boardIdFrom(url: string) {
         <p v-if="writingElsewhere" role="status">{{ text.writingElsewhere }}</p>
       </div>
     </div>
+    <nav
+      v-if="!boardsDocked"
+      ref="primaryNavigation"
+      class="destination-bar"
+      :aria-label="text.mainDestinations"
+    >
+      <button
+        :aria-current="
+          currentPrimaryDestination === 'boards' ? 'page' : undefined
+        "
+        @click="selectSection('boards')"
+      >
+        <WorkspaceIcon name="boards" /><span>{{ text.boards }}</span>
+      </button>
+      <button
+        :aria-current="
+          currentPrimaryDestination === 'threads' ? 'page' : undefined
+        "
+        @click="selectPrimaryThreads"
+      >
+        <WorkspaceIcon name="threads" /><span>{{
+          text.destinationThreads
+        }}</span>
+      </button>
+      <button
+        :aria-current="
+          currentPrimaryDestination === 'messages' ? 'page' : undefined
+        "
+        @click="selectSection('messages')"
+      >
+        <WorkspaceIcon name="messages" /><span>{{ text.messages }}</span>
+      </button>
+      <button
+        ref="moreTrigger"
+        aria-haspopup="dialog"
+        :aria-expanded="destinationsOpen"
+        :aria-current="
+          currentPrimaryDestination === 'more' ? 'page' : undefined
+        "
+        @click="changeDestinations(true)"
+      >
+        <WorkspaceIcon name="more" /><span>{{ text.destinationMore }}</span>
+      </button>
+    </nav>
   </div>
 </template>

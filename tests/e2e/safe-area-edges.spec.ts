@@ -446,13 +446,24 @@ test("IM73.portrait-fallback: portrait edges and unavailable VisualViewport reta
       .querySelector(".writing-content")!
       .getBoundingClientRect().bottom,
   }));
-  expect(state.padding).toBe("42px");
+  const destinations = page.getByRole("navigation", {
+    name: "Main destinations",
+    exact: true,
+  });
+  const bar = await destinations.evaluate((node) => ({
+    bounds: node.getBoundingClientRect().toJSON(),
+    padding: getComputedStyle(node).paddingBottom,
+  }));
+  expect(state.padding).toBe("8px");
+  expect(bar.padding).toBe("37px");
+  expect(bar.bounds.bottom).toBe(844);
+  expect(state.bounds.bottom).toBeLessThanOrEqual(bar.bounds.top);
   const action = await review.boundingBox();
   await info.attach("portrait-reachable-action.json", {
-    body: JSON.stringify({ state, action }),
+    body: JSON.stringify({ state, bar, action }),
     contentType: "application/json",
   });
-  expect(action!.y + action!.height).toBeLessThanOrEqual(810);
+  expect(action!.y + action!.height).toBeLessThanOrEqual(bar.bounds.top);
   const topPadding = await page
     .locator(".workspace > header")
     .evaluate((node) => getComputedStyle(node).paddingTop);

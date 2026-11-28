@@ -365,6 +365,7 @@ summary {
 .workspace {
   font-size: calc(1.125rem * var(--text-scale, 1));
   font-weight: 320;
+  --workspace-content-bottom: var(--safe-bottom);
   height: var(--view-height, 100dvh);
   min-height: 0;
   display: flex;
@@ -1815,10 +1816,10 @@ select {
 }
 :host .workspace-body > .boards-region {
   padding-left: max(12px, var(--safe-left));
-  padding-bottom: calc(12px + var(--safe-bottom));
+  padding-bottom: calc(12px + var(--workspace-content-bottom));
 }
 .workspace-body > #thread-list-pane {
-  padding-bottom: calc(20px + var(--safe-bottom));
+  padding-bottom: calc(20px + var(--workspace-content-bottom));
 }
 .workspace-body[data-boards-collapsed="true"] > #thread-list-pane {
   padding-left: max(16px, var(--safe-left));
@@ -1845,10 +1846,12 @@ select {
   );
 }
 :host .conversation-region > .source-writing {
-  padding-bottom: calc(var(--composer-bottom) + var(--safe-bottom));
+  padding-bottom: calc(
+    var(--composer-bottom) + var(--workspace-content-bottom)
+  );
 }
 .conversation-region[data-writing-visible="false"] {
-  padding-bottom: var(--safe-bottom);
+  padding-bottom: var(--workspace-content-bottom);
   background: var(--surface);
 }
 @media (max-width: 559px) {
@@ -1904,7 +1907,7 @@ select {
   }
 }
 .conversation-region {
-  scroll-padding-bottom: calc(12px + var(--safe-bottom));
+  scroll-padding-bottom: calc(12px + var(--workspace-content-bottom));
 }
 
 .conversation-heading .history-controls {
@@ -2127,7 +2130,7 @@ select {
   border-top: 0;
   padding: 8px
     max(var(--conversation-gutter), var(--edge-right, var(--safe-right)))
-    calc(12px + var(--safe-bottom))
+    calc(12px + var(--workspace-content-bottom))
     max(var(--conversation-gutter), var(--edge-left));
 }
 .composer-caption {
@@ -2164,8 +2167,8 @@ select {
   gap: 16px;
   max-height: calc(var(--view-height, 100dvh) * 0.3);
   overflow: auto;
-  padding: 4px max(16px, var(--safe-right)) calc(4px + var(--safe-bottom))
-    max(16px, var(--safe-left));
+  padding: 4px max(16px, var(--safe-right))
+    calc(4px + var(--workspace-content-bottom)) max(16px, var(--safe-left));
   background: var(--surface);
   box-shadow: 0 -4px 16px rgb(0 0 0 / 6%);
 }
@@ -2237,10 +2240,12 @@ select {
   box-shadow: -4px 0 16px rgb(0 0 0 / 6%);
 }
 .source-writing:not(.writing-expanded) {
-  height: calc(324px + var(--safe-bottom));
+  height: calc(324px + var(--workspace-content-bottom));
 }
 .source-writing {
-  scroll-padding-bottom: calc(var(--composer-bottom) + var(--safe-bottom));
+  scroll-padding-bottom: calc(
+    var(--composer-bottom) + var(--workspace-content-bottom)
+  );
 }
 .writing-presentation-actions {
   gap: 4px;
@@ -2439,7 +2444,7 @@ input {
   background: var(--surface);
 }
 .browsing-writing-status:not(:empty) {
-  padding-bottom: var(--safe-bottom);
+  padding-bottom: var(--workspace-content-bottom);
 }
 .browsing-writing-status:empty {
   display: none;
@@ -2752,7 +2757,7 @@ input {
 }
 .column-separator {
   position: absolute;
-  inset-block: 0 var(--safe-bottom);
+  inset-block: 0 var(--workspace-content-bottom);
   z-index: 4;
   width: 12px;
   transform: translateX(-50%);
@@ -3053,7 +3058,7 @@ input {
 }
 .writing-wide:has(> .conversation-status:empty) > .reading-pane,
 .writing-wide > .conversation-status:not(:empty) {
-  padding-bottom: var(--safe-bottom);
+  padding-bottom: var(--workspace-content-bottom);
 }
 .workspace:has(> .bottom-resume) > .browsing-writing-status {
   padding-bottom: 0;
@@ -3069,6 +3074,65 @@ input {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+.workspace[data-destination-bar="true"] {
+  --workspace-content-bottom: 0px;
+}
+.destination-bar {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2px;
+  margin: 0;
+  padding: 3px max(4px, var(--safe-right)) calc(3px + var(--safe-bottom))
+    max(4px, var(--safe-left));
+  border-top: 1px solid var(--separator);
+  background: var(--surface);
+}
+.destination-bar button {
+  width: 100%;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px 2px;
+  border-radius: 8px;
+  font-size: calc(0.75rem * var(--text-scale, 1));
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.destination-bar .workspace-icon {
+  width: 18px;
+  height: 18px;
+}
+.destination-bar :focus-visible {
+  outline-offset: -3px;
+  box-shadow: none;
+}
+.destination-bar [aria-current="page"],
+.destination-entries [aria-current="page"] {
+  background: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.destination-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.destination-dialog-heading h2 {
+  overflow-wrap: anywhere;
+}
+.destination-entries {
+  display: grid;
+  gap: 4px;
+}
+.destination-entries button {
+  gap: 8px;
+  justify-content: flex-start;
+  border-radius: 8px;
 }
 
 /* The accepted sidebar prototype's presentation roles. */
