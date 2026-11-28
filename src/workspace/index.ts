@@ -666,18 +666,13 @@ export function createWorkspace(
     const entry = entryFor(state.value.key);
     if (entry && view) {
       entry.position = view.capture();
+      const readingEntry = readingEntryFor(entry);
+      if (!readingEntry) return;
       const position = view.captureReading();
       entryReadingPositions.set(entry, position);
       threadHistory.remember(position);
       privateHistory.remember(position);
       const privateResult = privateHistory.state.value.result;
-      const readingEntry = ["thread", "private-conversation"].includes(
-        entry.result?.kind ?? "",
-      )
-        ? entry
-        : entry.readingKey
-          ? entryFor(entry.readingKey)
-          : null;
       const current = privateResult ?? threadHistory.state.value.result;
       const url = position.anchor
         ? privateResult
@@ -686,7 +681,6 @@ export function createWorkspace(
         : null;
       const account = current ? accountKey(current.account) : null;
       if (
-        readingEntry &&
         url &&
         account &&
         /^(?:pid|pmlist_)[1-9]\d*$/.test(position.anchor ?? "") &&
@@ -840,25 +834,37 @@ export function createWorkspace(
     }
     return null;
   }
+  function sectionFor(entry: NavigationEntry): Section {
+    if (entry.section) return entry.section;
+    const originKind = originContext(entry)?.kind;
+    if (
+      routeFor(entry.destination)?.kind === "search" ||
+      entry.result?.kind === "search" ||
+      originKind === "search"
+    )
+      return "search";
+    if (entry.result?.kind === "notices" || originKind === "notices")
+      return "notices";
+    return "boards";
+  }
+  function readingEntryFor(entry: NavigationEntry) {
+    if (
+      entry.result?.kind === "thread" ||
+      entry.result?.kind === "private-conversation"
+    )
+      return entry;
+    if (sectionFor(entry) === "boards" && entry.readingKey)
+      return entryFor(entry.readingKey);
+  }
   function readingFor(entry: NavigationEntry) {
-    const result =
-      entry.result?.kind === "thread"
-        ? entry.result
-        : entry.readingKey
-          ? entryFor(entry.readingKey)?.result
-          : null;
+    const result = readingEntryFor(entry)?.result;
     return result?.kind === "thread" &&
       (knownAccount === null || accountKey(result.account) === knownAccount)
       ? result
       : null;
   }
   function privateFor(entry: NavigationEntry) {
-    const result =
-      entry.result?.kind === "private-conversation"
-        ? entry.result
-        : entry.readingKey
-          ? entryFor(entry.readingKey)?.result
-          : null;
+    const result = readingEntryFor(entry)?.result;
     return result?.kind === "private-conversation" &&
       (knownAccount === null || accountKey(result.account) === knownAccount)
       ? result
@@ -887,11 +893,7 @@ export function createWorkspace(
         ? view?.captureReading()
         : (privateHistory.rememberedPosition() ??
           threadHistory.rememberedPosition() ??
-          (entry.result?.kind === "thread"
-            ? entry.readingMarker?.position
-            : entry.readingKey
-              ? entryFor(entry.readingKey)?.readingMarker?.position
-              : null)));
+          readingEntryFor(entry)?.readingMarker?.position));
     ++draftSequence;
     drafts.value = {
       loading: false,
@@ -905,16 +907,7 @@ export function createWorkspace(
 
     state.value = {
       ...state.value,
-      section:
-        entry.section ??
-        (routeFor(entry.destination)?.kind === "search" ||
-        entry.result?.kind === "search" ||
-        originContext(entry)?.kind === "search"
-          ? "search"
-          : entry.result?.kind === "notices" ||
-              originContext(entry)?.kind === "notices"
-            ? "notices"
-            : "boards"),
+      section: sectionFor(entry),
       key: entry.key,
       destination: entry.destination,
       result: mismatch ? null : entry.result,
@@ -1358,7 +1351,14 @@ export function createWorkspace(
     )
       previous.selection = selection;
     const entry = newEntry(url, previous?.key ?? null);
-    entry.selection = selection;
+    entry.selection =
+      selection ??
+      (previous?.result?.kind === "thread" &&
+      entry.section !== "boards" &&
+      entry.section === sectionFor(previous) &&
+      requestedThread === previous.result.thread.id
+        ? previous.selection
+        : null);
     host.push(entry.key);
     const explicitTarget =
       requested?.kind === "thread" &&
@@ -1447,7 +1447,8 @@ export function createWorkspace(
     writing.hide();
     capture();
     const previous = entryFor(state.value.key);
-    if (previous && selection) previous.selection = selection;
+    if (previous?.result?.kind === "messages" && selection)
+      previous.selection = selection;
     const requested = new URL(url);
     const ordinary =
       !requested.searchParams.has("page") &&
@@ -1670,12 +1671,7 @@ export function createWorkspace(
     void persist();
   }
   async function reconstructReading(entry: NavigationEntry) {
-    const readingEntry =
-      entry.result?.kind === "thread"
-        ? entry
-        : entry.readingKey
-          ? entryFor(entry.readingKey)
-          : null;
+    const readingEntry = readingEntryFor(entry);
     const marker = readingEntry?.readingMarker;
     if (!readingEntry || !marker || readingEntry.result?.kind !== "thread")
       return;
@@ -1947,13 +1943,19 @@ export function createWorkspace(
       return;
     if (section === "boards")
       return openThread(`${new URL(destination).origin}/forum.php`);
+    const returningToPeers =
+      section === "messages" &&
+      state.value.section === "messages" &&
+      routeFor(state.value.destination)?.kind === "private-conversation";
     if (
+      !returningToPeers &&
       state.value.section === section &&
       (section !== "search" ||
         state.value.result?.kind === "search" ||
         state.value.result?.kind === "thread")
     )
       return;
+    if (writing.state.value.visible) writing.hide();
     if (section === "search")
       return openThread(
         `${new URL(destination).origin}/search.php?mod=forum&adv=yes`,
@@ -1961,13 +1963,29 @@ export function createWorkspace(
     clearDownload();
     ++sequence;
     capture();
+    const previous = entryFor(state.value.key);
     const entry = newEntry(
       `${new URL(destination).origin}/forum.php`,
-      state.value.key || null,
+      previous?.key ?? null,
     );
     entry.section = section;
+    if (
+      returningToPeers &&
+      state.value.origin?.kind === "messages" &&
+      state.value.origin.account.kind === "member" &&
+      accountKey(state.value.origin.account) === knownAccount
+    ) {
+      entry.result = state.value.origin;
+      entry.account = knownAccount;
+      entry.selection =
+        state.value.privateReading?.conversation.peerId ??
+        state.value.selection;
+      if (entry.position)
+        entry.position.resultsScrollTop =
+          previous?.position?.resultsScrollTop ?? 0;
+    }
     host.push(entry.key);
-    show(entry);
+    show(entry, returningToPeers && entry.result?.kind === "messages");
     void persist();
   }
   function openRetainedBoardResults() {

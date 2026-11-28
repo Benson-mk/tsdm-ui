@@ -116,6 +116,13 @@ const directorySelected = computed(
     state.value.section === "boards" &&
     state.value.result?.kind === "directory",
 );
+const personalCanvas = computed(() => state.value.section !== "boards");
+const standaloneTaskReader = computed(
+  () =>
+    personalCanvas.value &&
+    state.value.result?.kind === "thread" &&
+    (!boardsDocked.value || !state.value.selection),
+);
 const browsingCanvas = computed(
   () => directorySelected.value || primaryThreadsList.value,
 );
@@ -133,11 +140,13 @@ const hasConversation = computed(
   () => hasReader.value || !!(writing.value.context && writing.value.visible),
 );
 const resultsVisible = computed(() =>
-  browsingCanvas.value
-    ? !writingOnCanvas.value
-    : threadsDocked.value
-      ? !threadsCollapsed.value || !hasConversation.value
-      : !hasConversation.value || narrowBrowsing.value,
+  standaloneTaskReader.value
+    ? false
+    : browsingCanvas.value
+      ? !writingOnCanvas.value
+      : threadsDocked.value
+        ? !threadsCollapsed.value || !hasConversation.value
+        : !hasConversation.value || narrowBrowsing.value,
 );
 const sectionResultsVisible = computed(
   () => resultsVisible.value && !primaryThreadsList.value,
@@ -146,7 +155,11 @@ const browseOnly = computed(() =>
   browsingCanvas.value
     ? !writingOnCanvas.value
     : !hasConversation.value &&
-      !(threadsDocked.value && state.value.result?.kind === "board"),
+      !(
+        threadsDocked.value &&
+        !personalCanvas.value &&
+        state.value.result?.kind === "board"
+      ),
 );
 const conversationVisible = computed(
   () =>
@@ -934,10 +947,10 @@ function resize() {
   )
     changeDrawer(null);
   void nextTick().then(() => {
-    // A later history restoration owns the reader; stale resize work must not
-    // replace its position with the newly mounted reader's pre-restore line.
-    restorePaneScroll();
-    if (revision === readingRestoreRevision)
+    // A later history restoration owns both panes; stale resize work must not
+    // replace their positions with the newly mounted panes' pre-restore offsets.
+    if (revision === readingRestoreRevision) {
+      restorePaneScroll();
       // The browser has already reflowed CSS when resize fires. Its fresh pane
       // measurement cannot recover the old row offset; use the last observed
       // visible board anchor, just as the reader uses its pre-resize position.
@@ -949,6 +962,7 @@ function resize() {
         ),
         true,
       );
+    }
     // A restored scroll event must keep the exact character across successive
     // widths. Recapturing the start of its newly wrapped line drifts on return.
     viewportPositions = positions.map((position) => ({
@@ -2489,12 +2503,17 @@ onMounted(() => {
           root.shadowRoot?.getElementById(`favorite-${selection}`) ??
           root.shadowRoot?.getElementById(`notice-${selection}`) ??
           root.shadowRoot
+            ?.getElementById(`peer-${selection}`)
+            ?.querySelector<HTMLElement>("a[aria-current]") ??
+          root.shadowRoot
             ?.getElementById(`row-${selection}`)
             ?.querySelector<HTMLElement>(".subject"))
         : null;
       const focusTarget = container?.classList.contains("board-thread-list")
         ? (selected ?? node?.querySelector<HTMLElement>(".subject"))
-        : (requested ?? node ?? selected);
+        : personalCanvas.value && container !== reader
+          ? (selected ?? node)
+          : (requested ?? node ?? selected);
       if (!writing.value.visible && !writing.value.composing)
         focusTarget?.focus({ preventScroll: true });
       if (container && (node || requested))
@@ -2794,6 +2813,13 @@ function boardIdFrom(url: string) {
       >
       <div class="header-navigation">
         <button
+          v-if="personalCanvas && state.canBack"
+          class="header-action"
+          @click="workspace.back()"
+        >
+          {{ text.back }}
+        </button>
+        <button
           v-if="boardsDocked"
           ref="mainDestinationsTrigger"
           class="header-action main-destinations-trigger"
@@ -2817,6 +2843,7 @@ function boardIdFrom(url: string) {
           }}</span>
         </button>
         <button
+          v-if="!standaloneTaskReader"
           ref="threadsTrigger"
           class="header-action"
           :title="text.threadsPane"
@@ -2854,7 +2881,10 @@ function boardIdFrom(url: string) {
             href="https://www.tsdm39.com/search.php?mod=forum&adv=yes"
             >{{ text.newSearch }}</a
           >
-          <button v-if="state.canBack && !reading" @click="workspace.back()">
+          <button
+            v-if="state.canBack && !reading && !personalCanvas"
+            @click="workspace.back()"
+          >
             {{ text.back }}</button
           ><button
             v-if="
@@ -3150,7 +3180,10 @@ function boardIdFrom(url: string) {
       :data-column-resizing="resizingColumns || undefined"
       :data-boards-collapsed="!boardsDocked || boardsCollapsed"
       :data-threads-collapsed="
-        !threadsDocked || threadsCollapsed || writingOnCanvas
+        !threadsDocked ||
+        threadsCollapsed ||
+        writingOnCanvas ||
+        standaloneTaskReader
       "
       :data-view="state.result?.kind ?? 'unavailable'"
       :data-narrow-browsing="
@@ -3503,7 +3536,8 @@ function boardIdFrom(url: string) {
         :messages="
           state.result?.kind === 'messages'
             ? state.result.messages
-            : state.origin?.kind === 'messages'
+            : (state.privateReading || pendingPrivate) &&
+                state.origin?.kind === 'messages'
               ? state.origin.messages
               : null
         "
@@ -3927,13 +3961,7 @@ function boardIdFrom(url: string) {
           v-if="!reading && !state.privateReading && !pendingPrivate"
           class="reader-placeholder pane"
         >
-          <p>
-            {{
-              state.section === "boards"
-                ? text.chooseThreadContext
-                : text.chooseThread
-            }}
-          </p>
+          <p v-if="!personalCanvas">{{ text.chooseThreadContext }}</p>
           <ReplySends
             v-if="
               writing.context &&

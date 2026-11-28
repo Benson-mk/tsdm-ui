@@ -75,7 +75,9 @@ async function open(
   return ledger;
 }
 async function loadPeers(page: Page) {
-  await page
+  const drawer = page.locator(".pane-drawer");
+  const navigation = (await drawer.isVisible()) ? drawer : page;
+  await navigation
     .getByRole("navigation", { name: "Main destinations", exact: true })
     .getByRole("button", { name: "Messages", exact: true })
     .click();
@@ -521,7 +523,7 @@ test("J76.private-context-return: public to private to another peer and Back ret
   await loadPeers(page);
   await expect(
     page.getByRole("heading", { name: "Public retained thread", exact: true }),
-  ).toBeVisible();
+  ).toBeHidden();
   const list = page.locator(".messages-pane");
   await page
     .getByRole("link", {
@@ -604,6 +606,16 @@ test("J76.private-context-return: public to private to another peer and Back ret
     ).toBeLessThanOrEqual(1);
   expect(ledger).toHaveLength(before);
   await page.goBack();
+  await expect(
+    list.getByRole("link", {
+      name: "Read private conversation with Listener Nine",
+      exact: true,
+    }),
+  ).toBeFocused();
+  await page.goBack();
+  await expect(
+    page.getByRole("button", { name: "Load messages", exact: true }),
+  ).toBeVisible();
   await page.goBack();
   await expect(
     page.getByRole("heading", { name: "Public retained thread", exact: true }),
