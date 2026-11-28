@@ -339,6 +339,7 @@ const english = {
   boardInformationUnavailable: "No additional board information supplied.",
   boardFilters: "Board filters",
   boardActions: "Board actions",
+  boardListControls: "Board list controls",
   filterReward: "Reward",
   filterHelp:
     "Choose a change, then Apply. Choosing another option replaces the pending choice. Only combinations offered by the forum are available.",
@@ -420,6 +421,7 @@ const english = {
   historyEarlierUnknown: "Earlier boundary unverified",
   historyLaterUnknown: "Later boundary unverified",
   jumpLatest: "Jump to latest",
+  latest: "Latest",
 
   thread: "THREAD",
   threadFilters: "Thread filters",
@@ -929,6 +931,7 @@ const simplified: Strings = {
   boardInformationUnavailable: "未提供其他版块信息。",
   boardFilters: "版块筛选",
   boardActions: "版块操作",
+  boardListControls: "版块列表控件",
   filterReward: "悬赏",
   filterHelp:
     "选择一项更改，然后应用。选择另一选项会替换待应用的选项；仅支持论坛提供的组合。",
@@ -1007,6 +1010,7 @@ const simplified: Strings = {
   historyEarlierUnknown: "较早边界尚未确认",
   historyLaterUnknown: "后续边界尚未确认",
   jumpLatest: "跳至最新",
+  latest: "最新",
 
   thread: "主题",
   threadFilters: "主题筛选",
@@ -1503,6 +1507,7 @@ const traditional: Strings = {
   boardInformationUnavailable: "未提供其他版塊資訊。",
   boardFilters: "版塊篩選",
   boardActions: "版塊操作",
+  boardListControls: "版塊列表控制項",
   filterReward: "懸賞",
   filterHelp:
     "選擇一項變更，然後套用。選擇另一選項會取代待套用的選項；僅支援論壇提供的組合。",
@@ -1581,6 +1586,7 @@ const traditional: Strings = {
   historyEarlierUnknown: "較早邊界尚未確認",
   historyLaterUnknown: "後續邊界尚未確認",
   jumpLatest: "跳至最新",
+  latest: "最新",
 
   thread: "主題",
   threadFilters: "主題篩選",

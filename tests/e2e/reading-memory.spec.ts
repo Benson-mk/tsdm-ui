@@ -182,9 +182,7 @@ test("IM70.local-ranges: ordinary return and Back retain loaded ranges while exp
     .getByRole("link", { name: "1", exact: true })
     .click({ force: true });
   await expect(page.locator(".reading-pane article")).toHaveCount(3);
-  await expect(
-    page.getByText("Page 1 / unknown", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".reader-page-trigger")).toHaveText("Page 1");
   expect(requests).toHaveLength(5);
 });
 
@@ -252,9 +250,7 @@ test("IM70.direct-priority: ordinary direct arrival restores a compatible marker
       .evaluate((p) => p.getBoundingClientRect().top),
   ).toBeCloseTo(before, 0);
   await page.goto(route(1));
-  await expect(
-    page.getByText("Page 1 / unknown", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".reader-page-trigger")).toHaveText("Page 1");
   await expect(page.locator("#pid106")).toHaveCount(0);
   expect(
     requests.map((r) => new URL(r.slice(4)).searchParams.get("page")),
@@ -781,18 +777,14 @@ test("IM70.explicit-page-back: browser history restores its explicit page instea
     .click({ force: true });
   await expect(page.locator("#pid101")).toBeAttached();
   await page.goBack();
-  await expect(
-    page.getByText("Page 2 / unknown", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".reader-page-trigger")).toHaveText("Page 2");
   expect(
     await page
       .locator(".reading-pane article")
       .evaluateAll((posts) => posts.map((post) => post.id)),
   ).toEqual(["pid103", "pid104", "pid105"]);
   await page.goForward();
-  await expect(
-    page.getByText("Page 1 / unknown", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".reader-page-trigger")).toHaveText("Page 1");
   expect(
     await page
       .locator(".reading-pane article")
@@ -835,18 +827,14 @@ for (const target of ["page", "permalink"]) {
         .getByRole("link", { name: "Exact older post", exact: true })
         .click({ force: true });
     await expect(page.locator(".reading-pane article")).toHaveCount(3);
-    await expect(
-      page.getByText("Page 1 / unknown", { exact: true }),
-    ).toBeVisible();
+    await expect(page.locator(".reader-page-trigger")).toHaveText("Page 1");
     if (target === "permalink")
       await expect(
         page.locator('#pid102[data-targeted="true"]'),
       ).toBeAttached();
     await page.goBack();
     await expect(page.locator(".reading-pane article")).toHaveCount(5);
-    await expect(
-      page.getByText("Page 3 / unknown", { exact: true }),
-    ).toBeVisible();
+    await expect(page.locator(".reader-page-trigger")).toHaveText("Page 3");
     const restored = await page
       .locator("#pid106")
       .evaluate((post) => post.getBoundingClientRect().top);
@@ -857,9 +845,7 @@ for (const target of ["page", "permalink"]) {
     expect(restored).toBeCloseTo(before, 0);
     await page.goForward();
     await expect(page.locator(".reading-pane article")).toHaveCount(3);
-    await expect(
-      page.getByText("Page 1 / unknown", { exact: true }),
-    ).toBeVisible();
+    await expect(page.locator(".reader-page-trigger")).toHaveText("Page 1");
     if (target === "permalink")
       await expect(
         page.locator('#pid102[data-targeted="true"]'),

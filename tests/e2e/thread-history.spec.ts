@@ -379,7 +379,7 @@ test("IM68.latest: the explicit native last link opens its returned page and exa
     ),
   }));
   await expect(
-    (await openThreadPages(page)).getByRole("link", {
+    page.getByRole("link", {
       name: "Jump to latest",
       exact: true,
     }),

@@ -726,9 +726,7 @@ test("J2.rich-page-target: full posts, observed parent, returned page and useful
     `${threadURL}&page=3#pid101`,
     () => richThread,
   );
-  await expect(
-    page.getByText("Page 3 / unknown", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".reader-page-trigger")).toHaveText("Page 3");
   await expect(
     page.getByRole("link", { name: "Music discussion", exact: true }).first(),
   ).toBeVisible();
@@ -1379,9 +1377,7 @@ test("J2.canonical-lastpost: final returned page and ascending floors identify e
   page,
 }) => {
   await open(page, `${threadURL}&page=6#lastpost`, () => lastPage);
-  await expect(
-    page.getByText("Page 6 / unknown", { exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".reader-page-trigger")).toHaveText("Page 6");
   await expect(
     page.getByRole("article", { name: "Post 105", exact: true }),
   ).toHaveAttribute("data-targeted", "true");
@@ -1432,9 +1428,7 @@ test("J2.nonfinal-lastpost: a nonfinal page follows one canonical redirect inste
       await expect(
         page.getByRole("article", { name: "Post 105", exact: true }),
       ).toHaveAttribute("data-targeted", "true");
-      await expect(
-        page.getByText("Page 6 / unknown", { exact: true }),
-      ).toBeVisible();
+      await expect(page.locator(".reader-page-trigger")).toHaveText("Page 6");
       expect(redirects).toEqual(["document"]);
       expect(requests).toHaveLength(2);
     },

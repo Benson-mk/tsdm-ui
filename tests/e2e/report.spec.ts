@@ -1,4 +1,4 @@
-import { loadThreadRange } from "./navigation-ui";
+import { clickThreadTool, loadThreadRange } from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import {
@@ -266,12 +266,7 @@ test("UX103.unavailable: missing capability stays disabled and native refusal ca
   ).toHaveCount(0);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   state.available = false;
-  await page
-    .getByRole("button", { name: "More thread options", exact: true })
-    .click();
-  await page
-    .getByRole("menuitem", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await page
     .getByRole("button", { name: "Post 101 actions", exact: true })
     .click();
@@ -431,12 +426,7 @@ test("UX103.legacy-snapshot: absent optional report capability is honest until a
   await expect(reportItem).toHaveAttribute("aria-disabled", "true");
   await expect(reportItem).toContainText("Availability not verified");
   await page.keyboard.press("Escape");
-  await page
-    .getByRole("button", { name: "More thread options", exact: true })
-    .click();
-  await page
-    .getByRole("menuitem", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   const dialog = await report(page);
   await expect(dialog.getByRole("radio")).toHaveCount(5);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();

@@ -349,10 +349,7 @@ test("UX104.legacy: actual earlier app recovery requires refresh before copying 
   await page.keyboard.press("Enter");
   expect(await writes(page)).toEqual([]);
   await page
-    .getByRole("button", { name: "More thread options", exact: true })
-    .click();
-  await page
-    .getByRole("menuitem", { name: "Refresh thread", exact: true })
+    .getByRole("button", { name: "Refresh thread", exact: true })
     .click();
   await expect(control(page)).toHaveAttribute("aria-disabled", "false");
   await control(page).click();

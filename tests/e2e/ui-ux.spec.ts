@@ -196,7 +196,7 @@ test("UX.thread-pages: Page navigation preserves returned URLs and Back context 
   ).toHaveCount(0);
   await second.click();
   await expect(
-    page.getByRole("button", { name: "Page 2 / unknown", exact: true }),
+    page.getByRole("button", { name: "Page 2", exact: true }),
   ).toBeVisible();
   await expect(page.locator("#pid100")).toContainText(
     "Page 2 reading block 1.",
@@ -206,7 +206,7 @@ test("UX.thread-pages: Page navigation preserves returned URLs and Back context 
   expect(requests[1]).toContain("page=2");
   await clickThreadTool(page, "Back");
   await expect(
-    page.getByRole("button", { name: "Page 1 / unknown", exact: true }),
+    page.getByRole("button", { name: "Page 1", exact: true }),
   ).toBeVisible();
   await openThreadPages(page);
   await expect(second).toBeInViewport();
@@ -228,12 +228,12 @@ test("UX.thread-pages: Page navigation preserves returned URLs and Back context 
   expect(offset).toBeGreaterThan(500);
   await bottom.click();
   await expect(
-    page.getByRole("button", { name: "Page 2 / unknown", exact: true }),
+    page.getByRole("button", { name: "Page 2", exact: true }),
   ).toBeVisible();
   expect(requests).toHaveLength(3);
   await clickThreadTool(page, "Back");
   await expect(
-    page.getByRole("button", { name: "Page 1 / unknown", exact: true }),
+    page.getByRole("button", { name: "Page 1", exact: true }),
   ).toBeVisible();
   await expect
     .poll(() => reading.evaluate((node) => node.scrollTop))

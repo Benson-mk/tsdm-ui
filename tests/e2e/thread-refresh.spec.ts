@@ -668,14 +668,13 @@ test("IM71.returned-later: refreshed latest page can reveal a real next boundary
       exact: true,
     }),
   ).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(
     page.getByRole("link", { name: "Jump to latest", exact: true }),
   ).toHaveAttribute("href", `${route(4)}#lastpost`);
   await expect(page.getByRole("button", { name: /New replies/ })).toHaveCount(
     0,
   );
-  // Passive mode is in options; the open page dialog itself remains modal.
-  await page.keyboard.press("Escape");
   await openSettings(page);
   const toggle = page.getByRole("dialog").getByRole("checkbox", {
     name: "Check every 2 minutes while active",

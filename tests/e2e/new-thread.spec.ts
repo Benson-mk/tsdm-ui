@@ -210,13 +210,16 @@ test("NAV121.board-writing: the current Board owns primary entry, grouped action
   ).toBeVisible();
   await expect(
     menu.getByRole("menuitem", { name: "Refresh", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await info.attach("board-actions.png", {
     body: await page.screenshot(),
     contentType: "image/png",
   });
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
+  await expect(
+    pane.getByRole("button", { name: "Refresh", exact: true }),
+  ).toBeInViewport();
   expect(state.requests).toEqual(initial);
 
   state.formChange = () => `${actor()}<div id="messagetext">权限不足</div>`;

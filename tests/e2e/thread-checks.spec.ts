@@ -627,11 +627,9 @@ test("UI89.growing-target: a newly offered native newest page is followed once a
   });
   await check(page);
   await expectThreadCheckMode(page, "Newest baseline established");
-  await openThreadPages(page);
   await expect.soft(latest).toHaveAttribute("href", `${target(3)}#pid302`, {
     timeout: 1500,
   });
-  await page.keyboard.press("Escape");
   total = 4;
   await check(page);
   await expect(
@@ -647,7 +645,6 @@ test("UI89.growing-target: a newly offered native newest page is followed once a
   await expect(page.locator("#pid201")).toHaveCount(1);
   expect(page.url()).toBe(committed);
   expect(await page.evaluate(() => history.length)).toBe(initialHistory);
-  await openThreadPages(page);
   const stagedHref = (await latest.count())
     ? await latest.getAttribute("href")
     : null;
@@ -672,20 +669,18 @@ test("J122.latest-refresh-growth: only a qualified exact Post is offered after e
     exact: true,
   });
   const historyLength = await page.evaluate(() => history.length);
-  await openThreadPages(page);
   await expect(latest).toHaveAttribute("href", `${target(3)}#pid302`);
-  await page.keyboard.press("Escape");
   total = 4;
   await clickThreadTool(page, "Refresh thread");
   const pages = await openThreadPages(page);
   await expect(
     pages.getByRole("button", { name: "Load later", exact: true }),
   ).toBeEnabled();
+  await page.keyboard.press("Escape");
   const staleHref = (await latest.count())
     ? await latest.getAttribute("href")
     : null;
   await expect.soft(latest).toHaveCount(0, { timeout: 1500 });
-  await page.keyboard.press("Escape");
   await check(page);
   await expect(
     page.getByRole("button", { name: "New replies (3)", exact: true }),
@@ -698,7 +693,6 @@ test("J122.latest-refresh-growth: only a qualified exact Post is offered after e
   await loadThreadRange(page, "later");
   const post = page.locator("#pid402");
   await expect(post).toBeAttached();
-  await openThreadPages(page);
   const loadedHref = await latest.getAttribute("href");
   await expect(latest).toHaveAttribute("href", `${target(4)}#pid402`);
   const beforeJump = requests.length;
@@ -733,9 +727,7 @@ test("J122.latest-loaded-growth: loading a terminal range makes its exact Latest
   await expect.poll(() => requests.length).toBe(2);
   await loadThreadRange(page, "later");
   await expect(page.locator("#pid402")).toBeAttached();
-  await openThreadPages(page);
   await expect(latest).toHaveAttribute("href", `${target(4)}#pid402`);
-  await page.keyboard.press("Escape");
   total = 5;
   await clickThreadTool(page, "Refresh thread");
   const pages = await openThreadPages(page);
@@ -748,6 +740,7 @@ test("J122.latest-loaded-growth: loading a terminal range makes its exact Latest
     body: await pages.ariaSnapshot(),
     contentType: "text/plain",
   });
+  await page.keyboard.press("Escape");
   await expect(latest).toHaveCount(0, { timeout: 1500 });
   expect(
     requests.map((request) => new URL(request.url).searchParams.get("page")),

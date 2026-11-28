@@ -86,13 +86,6 @@ function prepare(redPacket = false) {
               {{ favoriteText("Save board", language) }}
             </button>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            v-if="boardResult"
-            as-child
-            @select="workspace.refresh()"
-          >
-            <button>{{ text.refresh }}</button>
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenuPortal>
     </DropdownMenuRoot>

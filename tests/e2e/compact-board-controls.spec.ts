@@ -243,6 +243,7 @@ test("D6.compact-controls: visible native controls and exact clear destination r
   const requests = await open(page, filteredBoard);
   try {
     const controls = page.locator(".board-list-controls");
+    const context = page.locator(".board-list-context");
     const filter = controls.getByRole("button", {
       name: "Board filters · 0",
       exact: true,
@@ -254,10 +255,10 @@ test("D6.compact-controls: visible native controls and exact clear destination r
     await expect(filter).toContainText("Board filters");
     await expect(pins).toContainText("2 Pinned");
     await expect(
-      controls.getByRole("img", { name: "Page 1", exact: true }),
+      context.getByRole("img", { name: "Page 1", exact: true }),
     ).toContainText("Page 1");
     await expect(
-      controls.getByRole("button", {
+      context.getByRole("button", {
         name: "Check for new threads",
         exact: true,
       }),

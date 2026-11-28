@@ -2628,18 +2628,30 @@ input {
   font-size: calc(26px * var(--text-scale, 1));
 }
 .reader-control-stack {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   max-width: 100%;
+  min-width: 0;
 }
 .reader-tool-group {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
-  white-space: nowrap;
+  font-size: calc(0.875rem * var(--text-scale, 1));
 }
-.reader-tool-group > button {
+.reader-tool-group > :is(button, a) {
   min-width: 44px;
   min-height: 44px;
+}
+.reader-latest {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 50px;
+}
+.reader-latest:hover {
+  background: var(--soft);
 }
 .reader-order-state {
   font-size: calc(0.75rem * var(--text-scale, 1));
@@ -2869,6 +2881,16 @@ input {
 }
 .board-writing-actions > button {
   min-height: 44px;
+}
+.board-writing-actions .primary-action:not(:disabled),
+.board-writing-actions .primary-action:not(:disabled):hover {
+  background: var(--ink);
+  color: var(--surface);
+}
+@media (forced-colors: active) {
+  .board-writing-actions .primary-action {
+    border: 1px solid ButtonText;
+  }
 }
 .board-actions-menu {
   z-index: 65;
@@ -3219,27 +3241,53 @@ input {
 .board-heading > div {
   min-width: 0;
 }
+.board-thread-list {
+  scroll-padding-block-start: calc(var(--board-header-height, 0px) + 5px);
+}
+.board-header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding-block: 4px;
+  border-bottom: 1px solid var(--separator);
+  background: var(--surface);
+}
 .board-identity {
-  gap: 12px;
-  margin-block: 6px 8px;
+  flex: 1 1 104px;
+  min-width: 0;
+  margin: 0;
+  gap: 8px;
+}
+.board-header .board-writing-actions {
+  font-size: calc(0.875rem * var(--text-scale, 1));
+}
+#thread-list-pane .board-identity h1 {
+  margin: 2px 0;
+  font-size: calc(1.125rem * var(--text-scale, 1));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .board-identity > div {
   flex: 1;
 }
-#thread-list-pane .board-identity h1 {
-  margin: 2px 0;
-  font-size: calc(1.45rem * var(--text-scale, 1));
-  overflow-wrap: anywhere;
-}
 .board-symbol {
   display: grid;
   place-items: center;
-  flex: 0 0 48px;
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   background: var(--category-fill);
   color: var(--category-ink);
+}
+.board-header .board-symbol .workspace-icon {
+  width: 16px;
+  height: 16px;
 }
 .board-identity .category-label {
   font-size: calc(0.76rem * var(--text-scale, 1));
@@ -3286,15 +3334,21 @@ input {
   font-size: calc(0.75rem * var(--text-scale, 1));
   font-weight: 400;
 }
-.board-list-controls {
+.board-list-controls,
+.board-list-context {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
-  margin-block: 4px 16px;
   font-size: calc(0.76rem * var(--text-scale, 1));
 }
-.board-list-controls > button,
+.board-list-context {
+  margin-block: 4px 16px;
+}
+.board-list-controls {
+  flex-basis: 100%;
+}
+:is(.board-list-controls, .board-list-context) > button,
 .board-page-indicator {
   display: inline-flex;
   align-items: center;
@@ -3304,13 +3358,13 @@ input {
   min-height: 44px;
   padding: 8px 12px;
 }
-.board-list-controls > button {
+:is(.board-list-controls, .board-list-context) > button {
   max-width: 100%;
   padding-inline: 8px;
   overflow-wrap: anywhere;
   text-align: start;
 }
-.board-list-controls .workspace-icon {
+:is(.board-list-controls, .board-list-context) .workspace-icon {
   flex: none;
   width: 16px;
   height: 16px;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, nextTick, type DeepReadonly } from "vue";
+import { computed, ref, watch, nextTick, useId, type DeepReadonly } from "vue";
 import {
   DialogRoot,
   DialogTrigger,
@@ -50,9 +50,10 @@ const currentPage = computed(
 const currentURL = computed(() => props.position?.url ?? props.thread.url);
 const history = props.workspace.threadHistory.state;
 const jump = computed(() => props.thread.pageJump);
+const pageDescriptionId = useId();
 const pageLabel = computed(
   () =>
-    `${text.value.page} ${currentPage.value} / ${jump.value?.total ?? text.value.unknown}`,
+    `${text.value.page} ${currentPage.value}${jump.value ? ` / ${jump.value.total}` : ""}`,
 );
 const pageTargets = computed(() => {
   const source = new URL(props.thread.url);
@@ -156,18 +157,6 @@ function navigate(url: string) {
   moreOpen.value = false;
   void props.workspace.openThread(url);
 }
-let jumpingLatest = false;
-function navigateLatest(url: string) {
-  jumpingLatest = true;
-  pageOpen.value = false;
-  moreOpen.value = false;
-  void props.workspace.jumpLatest(url);
-}
-function returnPageFocus(event: Event) {
-  if (!jumpingLatest) return;
-  jumpingLatest = false;
-  event.preventDefault();
-}
 function overlayClick() {
   if (outsidePress) {
     pageOpen.value = false;
@@ -189,6 +178,7 @@ function overlayClick() {
       <DialogRoot v-model:open="pageOpen">
         <DialogTrigger
           class="reader-page-trigger"
+          :aria-describedby="jump ? undefined : pageDescriptionId"
           :aria-label="
             position?.terminal
               ? `${pageLabel} · ${text.threadTerminal}`
@@ -207,7 +197,6 @@ function overlayClick() {
           />
           <DialogContent
             class="dialog-content reader-page-dialog"
-            @close-auto-focus="returnPageFocus"
             @keydown.esc.stop="pageOpen = false"
             @pointer-down-outside.prevent
             @interact-outside.prevent
@@ -272,12 +261,6 @@ function overlayClick() {
                   direction === "earlier" ? text.loadEarlier : text.loadLater
                 }}
               </button>
-              <a
-                v-if="history.latest"
-                :href="history.latest"
-                @click.prevent="navigateLatest(history.latest)"
-                >{{ text.jumpLatest }}</a
-              >
               <nav :aria-label="text.threadPages">
                 <a
                   v-for="link in thread.pages.links"
@@ -293,6 +276,24 @@ function overlayClick() {
           </DialogContent>
         </DialogPortal>
       </DialogRoot>
+      <span v-if="!jump" :id="pageDescriptionId" class="sr-only">
+        {{ text.pageTargetsOnly }}
+      </span>
+      <button
+        :aria-label="text.refreshThread"
+        :disabled="workspace.state.value.loading"
+        @click="emit('refresh')"
+      >
+        {{ text.refresh }}
+      </button>
+      <a
+        v-if="history.latest"
+        :href="history.latest"
+        class="reader-latest"
+        :aria-label="text.jumpLatest"
+        @click.prevent="workspace.jumpLatest(history.latest)"
+        >{{ text.latest }}</a
+      >
       <DropdownMenuRoot v-model:open="moreOpen" :modal="false">
         <DropdownMenuTrigger
           ref="moreTrigger"
@@ -392,11 +393,6 @@ function overlayClick() {
                 {{ text.checkNewPosts }}
               </button>
             </DropdownMenuItem>
-            <DropdownMenuItem as-child @select="emit('refresh')"
-              ><button :disabled="workspace.state.value.loading">
-                {{ text.refreshThread }}
-              </button></DropdownMenuItem
-            >
             <DropdownMenuItem
               as-child
               @select="workspace.prepareFavorite('add', 'thread', thread.id)"

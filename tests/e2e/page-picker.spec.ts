@@ -357,7 +357,7 @@ for (const context of ["", "&ordertype=2", "&ordertype=1&authorid=9"]) {
           )!;
           return (
             trigger.textContent!.trim() ===
-            `Page ${Math.floor(Number(post.id.slice(3)) / 100)} / unknown`
+            `Page ${Math.floor(Number(post.id.slice(3)) / 100)}`
           );
         }),
       )
@@ -445,7 +445,7 @@ for (const context of ["", "&ordertype=2", "&ordertype=1&authorid=9"]) {
     await page.goto(copied);
     await expect(
       page.getByRole("button", {
-        name: new RegExp(`^Page ${firstPage} / unknown(?: ·|$)`),
+        name: new RegExp(`^Page ${firstPage}(?: ·|$)`),
       }),
     ).toBeVisible();
     await expect(pane.locator("article")).toHaveCount(3);
@@ -599,10 +599,7 @@ test("UI86.refresh-bounds: fresh qualified responses upgrade, update and withdra
   for (const next of [7, 9, null]) {
     total = next;
     await page
-      .getByRole("button", { name: "More thread options", exact: true })
-      .click();
-    await page
-      .getByRole("menuitem", { name: "Refresh thread", exact: true })
+      .getByRole("button", { name: "Refresh thread", exact: true })
       .click();
     await page.getByRole("button", { name: /^Page 2/ }).click();
     const dialog = page.getByRole("dialog", {
@@ -639,9 +636,11 @@ for (const qualified of [true, false]) {
         (root.getRootNode() as ShadowRoot).host as HTMLElement
       ).style.setProperty("--text-scale", "1.25");
     });
-    const label = `Page 2 / ${qualified ? "7" : "unknown"}`;
+    const label = qualified ? "Page 2 / 7" : "Page 2";
     const trigger = page.getByRole("button", { name: label, exact: true });
     await expect(trigger).toBeVisible();
+    if (!qualified)
+      await expect(trigger).toHaveAccessibleDescription(/total is unknown/i);
     const before = await page
       .locator(".reading-pane")
       .evaluate((pane) => pane.scrollTop);
@@ -697,7 +696,7 @@ for (const [initialTotal, nextTotal] of [
       return total === null ? html : nativeJump(html, context, total);
     });
     await expect(page.locator(".reader-page-trigger")).toHaveText(
-      `Page 2 / ${initialTotal ?? "unknown"}`,
+      initialTotal === null ? "Page 2" : `Page 2 / ${initialTotal}`,
     );
     await page.locator(".reader-page-trigger").click();
     const dialog = page.getByRole("dialog", {
@@ -710,7 +709,7 @@ for (const [initialTotal, nextTotal] of [
       .click();
     await expect(page.locator(".reading-pane article")).toHaveCount(6);
     await expect(page.locator(".reader-page-trigger")).toHaveText(
-      new RegExp(`^Page [23] / ${nextTotal ?? "unknown"}$`),
+      new RegExp(`^Page [23]${nextTotal === null ? "" : ` / ${nextTotal}`}$`),
     );
     await page.locator("#pid301").evaluate((post) => {
       const pane = post.closest(".reading-pane")!;
@@ -720,7 +719,7 @@ for (const [initialTotal, nextTotal] of [
         20;
     });
     await expect(page.locator(".reader-page-trigger")).toHaveText(
-      `Page 3 / ${nextTotal ?? "unknown"}`,
+      nextTotal === null ? "Page 3" : `Page 3 / ${nextTotal}`,
     );
     await page.locator(".reader-page-trigger").click();
     await expect(dialog.getByRole("spinbutton")).toHaveValue("3");
@@ -765,6 +764,7 @@ test("UX100.shrink: a fresh total smaller than a retained source page is unknown
     pane.scrollTop +=
       post.getBoundingClientRect().top - pane.getBoundingClientRect().top + 20;
   });
-  await expect(trigger).toHaveText("Page 3 / unknown");
+  await expect(trigger).toHaveText("Page 3");
+  await expect(trigger).toHaveAccessibleDescription(/total is unknown/i);
   expect(requests).toHaveLength(3);
 });

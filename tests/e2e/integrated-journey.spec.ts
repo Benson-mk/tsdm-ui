@@ -8,6 +8,7 @@ import {
   closeSettingsToWorkspace,
   openThreadMore,
   confirmThreadPage,
+  clickThreadTool,
 } from "./navigation-ui";
 import {
   visibleCharacter,
@@ -406,11 +407,7 @@ test("UI93.recovery-error: an integrated unsent reply reloads passively with tru
   ).toContainText("Thread 42");
   await compactReplyBesideReader(page);
   f.fail = true;
-  await (
-    await openThreadMore(page)
-  )
-    .getByRole("menuitem", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect(page.getByText(/Check failed/)).toBeVisible();
   await page
     .getByLabel("Thread history", { exact: true })

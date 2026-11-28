@@ -212,6 +212,29 @@ function openDestinationSettings() {
   if (!props.workspace.writing.deferViewChange(change)) change();
 }
 const paneScroll = new Map<HTMLElement, number>();
+const boardHeader = ref<HTMLElement | null>(null);
+watch(boardHeader, (header, _, onCleanup) => {
+  const pane = header?.parentElement;
+  if (!header || !pane) return;
+  const measure = () =>
+    pane.style.setProperty("--board-header-height", `${header.offsetHeight}px`);
+  measure();
+  const observer = new ResizeObserver(measure);
+  observer.observe(header);
+  onCleanup(() => {
+    observer.disconnect();
+    pane.style.removeProperty("--board-header-height");
+  });
+});
+function visiblePaneTop(
+  pane: HTMLElement,
+  top = pane.getBoundingClientRect().top,
+) {
+  const header = boardHeader.value;
+  return header?.parentElement === pane
+    ? Math.max(top, header.getBoundingClientRect().bottom)
+    : top;
+}
 const paneRows = new Map<
   HTMLElement,
   {
@@ -227,7 +250,7 @@ function rememberPaneScroll() {
   ) ?? [])
     if (pane.getClientRects().length) {
       paneScroll.set(pane, pane.scrollTop);
-      const top = pane.getBoundingClientRect().top;
+      const top = visiblePaneTop(pane);
       const row = pane.classList.contains("board-thread-list")
         ? [...pane.querySelectorAll<HTMLElement>("[data-thread-id]")].find(
             (row) => row.getBoundingClientRect().bottom > top + 1,
@@ -272,7 +295,7 @@ function restorePaneScroll() {
       if (anchor?.row.isConnected && pane.contains(anchor.row))
         pane.scrollTop +=
           anchor.row.getBoundingClientRect().top -
-          pane.getBoundingClientRect().top -
+          visiblePaneTop(pane) -
           anchor.offset;
       if (promoted) promoted.scrollTop = pane.scrollTop;
     }
@@ -679,6 +702,7 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
   ].flatMap((pane) => {
     if (!pane.getClientRects().length) return [];
     const bounds = pane.getBoundingClientRect();
+    const top = visiblePaneTop(pane, bounds.top);
     const previous = retained.find(
       (position) =>
         position.pane === pane &&
@@ -686,7 +710,7 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
         position.scrollTop === pane.scrollTop &&
         // Another presentation change may reflow content without scrolling.
         // Only reuse a range whose prior restoration still describes the view.
-        [position.offset, position.offset + bounds.top - position.paneTop].some(
+        [position.offset, position.offset + top - position.paneTop].some(
           (top) =>
             Math.abs(
               (position.range ?? position.anchor).getBoundingClientRect().top -
@@ -695,7 +719,7 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
         ),
     );
     const visible = (node: HTMLElement) =>
-      node.getBoundingClientRect().bottom > bounds.top + 1 &&
+      node.getBoundingClientRect().bottom > top + 1 &&
       node.getBoundingClientRect().top < bounds.bottom;
     const range = previous
       ? previous.range
@@ -719,9 +743,7 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
           (row) => {
             const rect = row.getBoundingClientRect();
             return (
-              rect.height > 0 &&
-              rect.top >= bounds.top &&
-              rect.bottom <= bounds.bottom
+              rect.height > 0 && rect.top >= top && rect.bottom <= bounds.bottom
             );
           },
         )
@@ -739,15 +761,15 @@ function capturePositions(retained: RestoredAnchor[] = []): PanePosition[] {
                     anchor: completeRow,
                     offset:
                       completeRow.getBoundingClientRect().top -
-                      bounds.top +
-                      (previous?.paneTop ?? bounds.top),
+                      top +
+                      (previous?.paneTop ?? top),
                   },
                 }
               : {}),
             range,
             offset:
               previous?.offset ?? (range ?? anchor).getBoundingClientRect().top,
-            paneTop: previous?.paneTop ?? bounds.top,
+            paneTop: previous?.paneTop ?? top,
             scrollTop: pane.scrollTop,
           },
         ]
@@ -792,7 +814,9 @@ function restorePositions(positions: PanePosition[], relativeToPane = false) {
       range?.startContainer.isConnected ? range : anchor
     ).getBoundingClientRect();
     const anchorTop = anchorRect.top;
-    let target = offset + (relativeToPane ? bounds.top - paneTop : 0);
+    let target =
+      offset +
+      (relativeToPane ? visiblePaneTop(pane, bounds.top) - paneTop : 0);
     let bottomLimit: number | undefined;
     if (
       range?.startContainer.isConnected &&
@@ -2094,13 +2118,10 @@ onMounted(() => {
       titlePosition.anchor?.isConnected
         ? titlePosition.anchor
         : null;
+    const top = container ? visiblePaneTop(container) : 0;
     const anchor =
       retainedTitleAnchor ??
-      [...blocks].find(
-        (node) =>
-          node.getBoundingClientRect().bottom >
-          (container?.getBoundingClientRect().top ?? 0),
-      );
+      [...blocks].find((node) => node.getBoundingClientRect().bottom > top);
     const position = {
       anchor: anchor?.id ?? null,
       offset: anchor?.getBoundingClientRect().top ?? 0,
@@ -2331,7 +2352,7 @@ onMounted(() => {
       const position = capturePane(pane());
       const navigation = navigationPane();
       const results = resultsPane();
-      const top = results?.getBoundingClientRect().top ?? 0;
+      const top = results ? visiblePaneTop(results) : 0;
       const row =
         results?.classList.contains("board-thread-list") &&
         results.getClientRects().length
@@ -2485,7 +2506,7 @@ onMounted(() => {
       )
         results.scrollTop +=
           row.getBoundingClientRect().top -
-          results.getBoundingClientRect().top -
+          visiblePaneTop(results) -
           browsing.row.offset;
       if (
         (!position || position.resultsScrollTop === 0) &&
@@ -3648,30 +3669,76 @@ function boardIdFrom(url: string) {
         data-scroll-pane="results"
         :aria-label="text.threadResults"
       >
-        <div class="board-heading board-identity">
-          <span
-            class="board-symbol"
-            :data-category="listCategory.role"
-            aria-hidden="true"
-          >
-            <WorkspaceIcon name="boards" />
-          </span>
-          <div>
+        <header ref="boardHeader" class="board-header">
+          <div class="board-heading board-identity">
             <span
-              v-if="listCategory.label"
-              class="category-label"
+              class="board-symbol"
               :data-category="listCategory.role"
-              >{{ listCategory.label }}</span
+              aria-hidden="true"
             >
-            <h1>{{ boardContext.title }}</h1>
+              <WorkspaceIcon name="boards" />
+            </span>
+            <div>
+              <span
+                v-if="listCategory.label"
+                class="category-label"
+                :data-category="listCategory.role"
+                >{{ listCategory.label }}</span
+              >
+              <h1 :title="boardContext.title">{{ boardContext.title }}</h1>
+            </div>
           </div>
-        </div>
-        <BoardWritingActions
-          :workspace="workspace"
-          :portal="portal"
-          :board-id="boardContext.id"
-          :board-result="state.result?.kind === 'board'"
-        />
+          <BoardWritingActions
+            :workspace="workspace"
+            :portal="portal"
+            :board-id="boardContext.id"
+            :board-result="state.result?.kind === 'board'"
+          />
+          <div
+            class="board-list-controls"
+            role="group"
+            :aria-label="text.boardListControls"
+          >
+            <button
+              ref="filterTrigger"
+              class="filter-trigger"
+              :aria-label="`${text.boardFilters} · ${boardContext.criteria.length}`"
+              :title="`${text.boardFilters} · ${boardContext.criteria.length}`"
+              :aria-expanded="filtersOpen"
+              @click="openFilters"
+            >
+              <WorkspaceIcon name="filter" />
+              <span aria-hidden="true"
+                >{{ text.boardFilters
+                }}<template v-if="boardContext.criteria.length">
+                  · {{ boardContext.criteria.length }}</template
+                ></span
+              >
+            </button>
+            <button
+              v-if="pinnedRows.length"
+              class="pin-disclosure"
+              :aria-label="`${text.pinnedThreads} · ${pinnedRows.length}`"
+              :title="`${text.pinnedThreads} · ${pinnedRows.length}`"
+              :aria-expanded="pinsExpanded"
+              :aria-controls="
+                pinnedRows.map((row) => `row-${row.rowId}`).join(' ')
+              "
+              @click="pinsExpanded = !pinsExpanded"
+            >
+              <WorkspaceIcon name="pin" />
+              <span aria-hidden="true"
+                >{{ pinnedRows.length }} {{ text.pinned }}</span
+              >
+            </button>
+            <button
+              v-if="state.result?.kind === 'board'"
+              @click="workspace.refresh()"
+            >
+              {{ text.refresh }}
+            </button>
+          </div>
+        </header>
         <CollapsibleRoot v-model:open="boardAboutOpen" class="board-about">
           <CollapsibleTrigger class="board-about-trigger">
             <WorkspaceIcon name="disclosure" />
@@ -3706,39 +3773,7 @@ function boardIdFrom(url: string) {
             </section>
           </CollapsibleContent>
         </CollapsibleRoot>
-        <div class="board-list-controls">
-          <button
-            ref="filterTrigger"
-            class="filter-trigger"
-            :aria-label="`${text.boardFilters} · ${boardContext.criteria.length}`"
-            :title="`${text.boardFilters} · ${boardContext.criteria.length}`"
-            :aria-expanded="filtersOpen"
-            @click="openFilters"
-          >
-            <WorkspaceIcon name="filter" />
-            <span aria-hidden="true"
-              >{{ text.boardFilters
-              }}<template v-if="boardContext.criteria.length">
-                · {{ boardContext.criteria.length }}</template
-              ></span
-            >
-          </button>
-          <button
-            v-if="pinnedRows.length"
-            class="pin-disclosure"
-            :aria-label="`${text.pinnedThreads} · ${pinnedRows.length}`"
-            :title="`${text.pinnedThreads} · ${pinnedRows.length}`"
-            :aria-expanded="pinsExpanded"
-            :aria-controls="
-              pinnedRows.map((row) => `row-${row.rowId}`).join(' ')
-            "
-            @click="pinsExpanded = !pinsExpanded"
-          >
-            <WorkspaceIcon name="pin" />
-            <span aria-hidden="true"
-              >{{ pinnedRows.length }} {{ text.pinned }}</span
-            >
-          </button>
+        <div class="board-list-context">
           <button
             class="icon-button"
             :aria-label="text.checkNewThreads"
@@ -3750,7 +3785,7 @@ function boardIdFrom(url: string) {
             "
             @click="workspace.boardChecks.check()"
           >
-            <WorkspaceIcon name="refresh" />
+            <WorkspaceIcon name="search" />
           </button>
           <span
             class="board-page-indicator"

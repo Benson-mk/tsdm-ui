@@ -11,7 +11,6 @@ import {
   clickThreadTool,
   loadThreadRange,
   openThreadMore,
-  openThreadPages,
 } from "./navigation-ui";
 import {
   revealWritingOptions,
@@ -1201,8 +1200,7 @@ test("J122.latest: loaded qualified exact Post uses the current reading scope wi
   expect(requests).toHaveLength(2);
   await exactPost(post(page, 4202), 170);
   const pre = await page.evaluate(() => history.length);
-  const pages = await openThreadPages(page);
-  const latest = pages.getByRole("link", {
+  const latest = page.getByRole("link", {
     name: "Jump to latest",
     exact: true,
   });
@@ -1212,7 +1210,6 @@ test("J122.latest: loaded qualified exact Post uses the current reading scope wi
       timeout: 1500,
     });
   await latest.click();
-  await expect(pages).toBeHidden();
   await stable(page);
   const native = await page
     .getByRole("link", { name: "Continue in native forum", exact: true })
@@ -1271,9 +1268,8 @@ test("J122.latest-unknown: an unanchored Last page link does not escape its auth
   const scoped = thread(44, "&authorid=9");
   const { requests } = await open(page, `${scoped}&page=1#pid4402`);
   await expect(post(page, 4402)).toBeFocused();
-  const pages = await openThreadPages(page);
   await expect(
-    pages.getByRole("link", { name: "Jump to latest", exact: true }),
+    page.getByRole("link", { name: "Jump to latest", exact: true }),
   ).toHaveCount(0, { timeout: 1500 });
   expect(requests).toEqual([`${scoped}&page=1&tsdmapp=json`]);
 });
@@ -1292,10 +1288,7 @@ test("J122.latest-loaded-end: a qualified terminal range does not reread the unf
   await exactPost(post(page, 4402), 180);
   const before = await page.evaluate(() => history.length);
   expect(requests).toHaveLength(2);
-  const pages = await openThreadPages(page);
-  await pages
-    .getByRole("link", { name: "Jump to latest", exact: true })
-    .click();
+  await page.getByRole("link", { name: "Jump to latest", exact: true }).click();
   await expect(target).toBeFocused();
   samples.latest = await postOffset(target);
   expect(requests).toHaveLength(2);
@@ -1333,10 +1326,7 @@ test("J122.latest-retained: an already loaded Latest updates the Reader without 
   const count = requests.length;
   const before = await page.evaluate(() => history.length);
   const currentBoard = page.url();
-  const pages = await openThreadPages(page);
-  await pages
-    .getByRole("link", { name: "Jump to latest", exact: true })
-    .click();
+  await page.getByRole("link", { name: "Jump to latest", exact: true }).click();
   await expect(latest).toBeFocused();
   await expect(boardHeading(page, 5)).toBeVisible();
   samples.retainedLatest = await postOffset(latest);

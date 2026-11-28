@@ -299,10 +299,7 @@ test("UI85.more: keyboard dismissal returns focus and short menu actions target 
   await expect(
     page.getByRole("region", { name: "Thread results" }),
   ).toContainText("Board Five");
-  await more.click();
-  await menu
-    .getByRole("menuitem", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect.poll(() => requests.length).toBeGreaterThan(2);
   expect(requests.at(-1)).toContain("tid=42");
   await page.setViewportSize({ width: 375, height: 420 });
@@ -394,7 +391,7 @@ test("UI85.native-escape: native document handling cannot strand Page or More an
   await expect(page.getByRole("menu", { name: "Thread options" })).toBeHidden();
   await expect(more).toBeFocused();
   const pager = page.getByRole("button", {
-    name: "Page 1 / unknown",
+    name: "Page 1",
     exact: true,
   });
   await pager.click();
@@ -446,10 +443,7 @@ test("UI85.guards: More same-thread order and history navigation preserve retain
   await source.fill("Retained 中文 source [b]exact[/b]");
   const before = await source.inputValue();
   await compactReplyBesideReader(page);
-  await page.getByRole("button", { name: "More thread options" }).click();
-  await page
-    .getByRole("menuitem", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await expect.poll(() => requests.length).toBe(3);
   await page.getByRole("button", { name: "More thread options" }).click();
   await page
@@ -759,7 +753,8 @@ test("UX100.writing: pending page choices and explicit Go preserve the real edit
   await trigger.click();
   await dialog.getByRole("spinbutton").fill("2");
   await dialog.getByRole("button", { name: "Go", exact: true }).click();
-  await expect(trigger).toHaveText("Page 2 / unknown");
+  await expect(trigger).toHaveText("Page 2");
+  await expect(trigger).toHaveAccessibleDescription(/total is unknown/i);
   await expect(source).toHaveValue(before);
   expect(requests).toHaveLength(3);
   expect(requests.every((request) => request.startsWith("GET "))).toBe(true);

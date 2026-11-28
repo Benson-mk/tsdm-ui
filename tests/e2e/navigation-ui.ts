@@ -61,8 +61,6 @@ export async function closeSettingsToWorkspace(
   }
 }
 
-// #85 places public-thread secondary actions behind More; board actions retain
-// their own current-result surface. This helper performs only real UI steps.
 export async function openThreadMore(page: Page) {
   const menu = page.getByRole("menu", {
     name: /^(More thread options|Thread options)$/,
@@ -98,6 +96,20 @@ export async function clickThreadTool(
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       ),
   );
+  if (name === "Refresh thread") {
+    if (await page.locator(".pane-drawer").isVisible()) {
+      await page.keyboard.press("Escape");
+      await expect(page.locator(".pane-drawer")).toBeHidden();
+    }
+    if (
+      !(await old.isVisible()) &&
+      (await page.locator(".reader-tool-group").count())
+    )
+      await page
+        .getByRole("button", { name: "Threads pane", exact: true })
+        .click();
+    return old.click();
+  }
   if (
     !(await page.locator(".reader-tool-group").count()) &&
     (await old.isVisible())
@@ -137,6 +149,8 @@ export async function clickBoardTool(
   page: Page,
   name: "Refresh" | "Save board" | "New red packet",
 ) {
+  if (name === "Refresh")
+    return page.getByRole("button", { name, exact: true }).click();
   const trigger = page.getByRole("button", {
     name: "Board actions",
     exact: true,

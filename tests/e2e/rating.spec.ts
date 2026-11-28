@@ -194,12 +194,7 @@ test("UX102.unavailable: missing capability remains disabled and permission refu
   ).toHaveCount(0);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   state.available = false;
-  await page
-    .getByRole("button", { name: "More thread options", exact: true })
-    .click();
-  await page
-    .getByRole("menuitem", { name: "Refresh thread", exact: true })
-    .click();
+  await clickThreadTool(page, "Refresh thread");
   await page
     .getByRole("button", { name: "Post 101 actions", exact: true })
     .click();
