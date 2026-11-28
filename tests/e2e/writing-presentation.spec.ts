@@ -5,7 +5,11 @@ import { readableLines, expectPreservedReadingLine } from "./readable-lines";
 import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { openNewThread, revealNavigation } from "./navigation-ui";
+import {
+  openNewThread,
+  preparePostReply,
+  revealNavigation,
+} from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -95,15 +99,15 @@ async function open(
 async function enter(page: Page, entry: Entry, sourceMode = true) {
   if (entry === "new-thread") {
     await openNewThread(page);
+  } else if (entry === "addressed") {
+    await preparePostReply(page, "101");
   } else
     await page
       .getByRole("button", {
         name:
           entry === "reply"
             ? "Reply to thread"
-            : entry === "addressed"
-              ? "Reply to this post"
-              : `Edit post ${entry === "edit-opening" ? "101" : "202"}`,
+            : `Edit post ${entry === "edit-opening" ? "101" : "202"}`,
         exact: true,
       })
       .first()
@@ -538,18 +542,7 @@ for (const profile of profiles)
         profile,
       );
       const state = await open(page);
-      await page
-        .locator("#pid101")
-        .getByRole("button", {
-          name:
-            profile.language === "zh-CN"
-              ? "回复这篇帖子"
-              : profile.language === "zh-TW"
-                ? "回覆這篇帖子"
-                : "Reply to this post",
-          exact: true,
-        })
-        .click();
+      await preparePostReply(page, "101");
       await selectSourceEditor(page);
       const source = page.getByLabel(profile.body, { exact: true });
       await expect(source).toBeFocused();

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { preparePostReply } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
@@ -301,10 +302,7 @@ for (const width of [900, 390])
     await page.setViewportSize({ width, height: 900 });
     const ledger = await open(page, threadURL);
     const reader = page.locator(".reading-pane");
-    await page
-      .getByRole("button", { name: "Reply to this post", exact: true })
-      .first()
-      .click();
+    await preparePostReply(page);
     const editor = page.getByLabel("Complete source", { exact: true });
     await editor.fill("[unknown=x]Keep exact addressed writing 中文[/unknown]");
     const original = await editor.elementHandle();
@@ -430,10 +428,7 @@ test("IM66.editor-continuity: pane movement retains the editor selection, undo a
 }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   const ledger = await open(page, threadURL);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   const editor = page.getByLabel("Complete source", { exact: true });
   await editor.fill("Original addressed source 中文");
   await editor.press("End");

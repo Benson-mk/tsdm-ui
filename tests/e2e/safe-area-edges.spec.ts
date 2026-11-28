@@ -1,6 +1,10 @@
 import { compactReplyBesideReader } from "./editor-controls";
 import { selectSourceEditor } from "./editor-controls";
-import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  preparePostReply,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -97,10 +101,7 @@ test("IM73.edges: exposed surfaces protect top, lateral and stable bottom edges 
   await expect(
     page.getByRole("heading", { name: "Thread 42", exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   const source = await selectSourceEditor(page);
   await source.fill("Exact retained [quote]safe edges[/quote]");
   const original = await source.elementHandle();
@@ -427,10 +428,7 @@ test("IM73.portrait-fallback: portrait edges and unavailable VisualViewport reta
     insets: { top: 44, bottom: 34 },
   });
   const ledger = await open(page, threadURL);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   const source = await selectSourceEditor(page);
   await source.fill("Portrait complete source");
   const review = page.getByRole("button", {
@@ -524,10 +522,7 @@ for (const mode of [
       | import("@playwright/test").ElementHandle<SVGElement | HTMLElement>
       | null = null;
     if (mode === "compact-writing") {
-      await page
-        .getByRole("button", { name: "Reply to this post", exact: true })
-        .first()
-        .click();
+      await preparePostReply(page);
       const source = await selectSourceEditor(page);
       await source.fill("Hidden retained [quote]exact[/quote]");
       writing = await source.elementHandle();
@@ -539,18 +534,14 @@ for (const mode of [
     );
     await expect(reader).toBeVisible();
     const last =
-      mode === "private"
+      mode === "private" || mode === "public"
         ? reader.locator("article .post-content").last()
-        : mode === "public"
-          ? reader
-              .getByRole("button", { name: "Reply to this post", exact: true })
-              .last()
-          : mode === "compact-writing"
-            ? page.getByRole("button", {
-                name: "Expand writing",
-                exact: true,
-              })
-            : reader.locator("p");
+        : mode === "compact-writing"
+          ? page.getByRole("button", {
+              name: "Expand writing",
+              exact: true,
+            })
+          : reader.locator("p");
     await last.scrollIntoViewIfNeeded();
     await page.locator(".conversation-region").evaluate((node) => {
       for (const pane of [

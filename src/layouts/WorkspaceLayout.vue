@@ -1957,10 +1957,8 @@ onUnmounted(() => {
 });
 let stopReadingImageRestore: (() => void) | undefined;
 function latestReadingScroll(reader: HTMLElement) {
-  if (
-    reverseReading.value &&
-    !reader.classList.contains("private-reading-pane")
-  ) {
+  const publicReading = !reader.classList.contains("private-reading-pane");
+  if (reverseReading.value && publicReading) {
     const boundary = reader.querySelector<HTMLElement>(".newest-check");
     const post = reader.querySelector<HTMLElement>(
       `#pid${newestReplyId.value}`,
@@ -1978,9 +1976,13 @@ function latestReadingScroll(reader: HTMLElement) {
   const end = reader.scrollHeight - reader.clientHeight;
   const last = reader.querySelector<HTMLElement>("article:last-of-type");
   const content = last?.querySelector<HTMLElement>(".post-content");
-  if (!content || !last?.querySelector(".post-actions")) return end;
-  // Public reply/quote controls follow the content. Follow the content endpoint
-  // while leaving those controls available through ordinary further scrolling.
+  if (
+    !content ||
+    !publicReading ||
+    (!reading.value?.thread.parent && !last?.querySelector(".post-actions"))
+  )
+    return end;
+  // Preserve the content endpoint on qualified Threads even without a Reply footer.
   return Math.max(
     0,
     Math.min(
@@ -4276,7 +4278,6 @@ function boardIdFrom(url: string) {
               />
               <footer
                 v-if="
-                  reading.thread.parent ||
                   (reading.account.kind === 'member' &&
                     post.authorId === reading.account.id) ||
                   threadFilters.some(
@@ -4287,22 +4288,6 @@ function boardIdFrom(url: string) {
                 "
                 class="post-actions"
               >
-                <button
-                  v-if="reading.thread.parent"
-                  @click="
-                    workspace.writing.prepareReply(
-                      boardIdFrom(reading.thread.parent.url),
-                      {
-                        threadId: reading.thread.id,
-                        postId: post.id,
-                        author: post.author,
-                        authorId: post.authorId,
-                      },
-                    )
-                  "
-                >
-                  {{ text.quickQuote }}
-                </button>
                 <button
                   v-if="
                     reading.account.kind === 'member' &&

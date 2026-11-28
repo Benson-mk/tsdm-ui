@@ -1,19 +1,40 @@
-import { revealWritingDetails } from "./editor-controls";
-import { chooseAttachments } from "./editor-controls";
-import { selectSourceEditor } from "./editor-controls";
-import { test, expect, type Page } from "@playwright/test";
+import {
+  chooseAttachments,
+  revealWritingDetails,
+  revealWritingOptions,
+  selectSourceEditor,
+} from "./editor-controls";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
 const origin = "https://www.tsdm39.com";
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
+const entryURL = `${origin}/__entry.js`;
+const imageURL = `${origin}/post-sample.png`;
+const replyURL = (post?: string) =>
+  `${origin}/forum.php?mod=post&action=reply&fid=5&tid=42&tsdmapp=json${post ? `&reppost=${post}` : ""}`;
 const retained = "[b]完整保留 source[/b]\n[attach]77[/attach]";
 const escape = (s: string) =>
   s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll('"', "&quot;");
 const states = new WeakMap<Page, ReturnType<typeof fixtureState>>();
+type Request = {
+  url: string;
+  method: string;
+  body: string | null;
+  navigation: boolean;
+};
+const get = (url: string, navigation = false): Request => ({
+  url,
+  method: "GET",
+  body: null,
+  navigation,
+});
 function fixtureState() {
   return {
-    requests: [] as { url: string; method: string }[],
+    requests: [] as Request[],
+    expected: null as Request[] | null,
+    refusedRequests: [] as Request[],
     member: "7",
     refused: false,
     mismatch: false,
@@ -28,17 +49,49 @@ function fixtureState() {
 }
 async function open(
   page: Page,
-  openingOwned = false,
-  postBody = "Original opening body",
+  {
+    openingOwned = false,
+    postBody = "Original opening body",
+    strict = false,
+    interactiveContent = false,
+  } = {},
 ) {
   const state = fixtureState();
   state.openingOwned = openingOwned;
   state.postBody = postBody;
+  if (strict)
+    state.expected = [
+      get(threadURL, true),
+      get(entryURL),
+      get(`${threadURL}&tsdmapp=json`),
+      ...(interactiveContent ? [get(imageURL)] : []),
+    ];
   states.set(page, state);
   const built = readFileSync("dist/tsdm-ui.user.js", "utf8");
   await page.context().route("**/*", async (route) => {
     const request = route.request(),
       url = new URL(request.url());
+    const actual: Request = {
+      url: url.href,
+      method: request.method(),
+      body: request.postData(),
+      navigation: request.isNavigationRequest(),
+    };
+    if (state.expected) {
+      state.requests.push(actual);
+      const expected = state.expected[0];
+      if (
+        !expected ||
+        actual.url !== expected.url ||
+        actual.method !== expected.method ||
+        actual.body !== expected.body ||
+        actual.navigation !== expected.navigation
+      ) {
+        state.refusedRequests.push(actual);
+        return route.abort();
+      }
+      state.expected.shift();
+    }
     if (url.pathname === "/__entry.js")
       return route.fulfill({
         contentType: "text/javascript; charset=utf-8",
@@ -49,7 +102,15 @@ async function open(
         contentType: "text/html; charset=utf-8",
         body: `<html><body><script src="${origin}/__entry.js"></script></body></html>`,
       });
-    state.requests.push({ url: url.href, method: request.method() });
+    if (interactiveContent && url.href === imageURL)
+      return route.fulfill({
+        contentType: "image/png",
+        body: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/wfoAAAAASUVORK5CYII=",
+          "base64",
+        ),
+      });
+    if (!state.expected) state.requests.push(actual);
     if (request.method() !== "GET")
       return route.fulfill({
         status: 500,
@@ -71,7 +132,7 @@ async function open(
     } else if (url.searchParams.get("mod") === "forumdisplay")
       body += `<div id="ct"><h1><a href="${boardURL}">Music discussion</a></h1></div><table id="threadlisttableid"><tbody id="normalthread_42"><tr><th><a class="xst" href="${threadURL}">Existing thread</a></th></tr></tbody></table>`;
     else
-      body += `<div id="postlist"><h1 id="thread_subject">Existing thread</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=${state.openingOwned ? "7" : "8"}">${state.openingOwned ? "Writer Seven" : "Other author"}</a><a href="forum.php?mod=viewthread&tid=42&page=2&authorid=8&ordertype=1">只看该作者</a></div><a id="postnum101"><em>1</em>#</a><div class="pcb"><p>${escape(state.postBody)}</p><p><a href="https://www.tsdm39.com/forum.php?mod=viewthread&tid=43">Other thread link</a></p></div></div><div id="post_202"><div class="authi"><a href="home.php?mod=space&uid=7">Writer Seven</a></div><a id="postnum202"><em>2</em>#</a><div class="pcb"><p>Owned reply</p></div></div></div>`;
+      body += `<div id="postlist"><h1 id="thread_subject">Existing thread</h1><div id="post_101"><div class="authi"><a href="home.php?mod=space&uid=${state.openingOwned ? "7" : "8"}">${state.openingOwned ? "Writer Seven" : "Other author"}</a><a href="forum.php?mod=viewthread&tid=42&page=2&authorid=8&ordertype=1">只看该作者</a></div><a id="postnum101"><em>1</em>#</a><div class="pcb"><p>${escape(state.postBody)}</p><p><a href="https://www.tsdm39.com/forum.php?mod=viewthread&tid=43">Other thread link</a></p>${interactiveContent ? `<p><img src="${imageURL}" alt="Post sample image"></p><details><summary>Post disclosure</summary>Revealed detail</details><pre>Copyable sample</pre>` : ""}</div></div><div id="post_202"><div class="authi"><a href="home.php?mod=space&uid=7">Writer Seven</a></div><a id="postnum202"><em>2</em>#</a><div class="pcb"><p>Owned reply</p></div></div></div>`;
     return route.fulfill({
       contentType: "application/json; charset=utf-8",
       body: JSON.stringify({ document: body }),
@@ -91,13 +152,267 @@ async function menu(page: Page, id = "101") {
   return page.getByRole("menu", { name: `Post ${id} actions`, exact: true });
 }
 test.afterEach(async ({ page }, info) => {
+  const state = states.get(page);
   await info.attach("requests.json", {
-    body: JSON.stringify(states.get(page)?.requests, null, 2),
+    body: JSON.stringify(state?.requests, null, 2),
     contentType: "application/json",
   });
   await info.attach("post-actions.png", {
     body: await page.screenshot(),
     contentType: "image/png",
+  });
+  if (state?.expected) {
+    await info.attach("http-verdict.json", {
+      body: JSON.stringify({
+        unconsumed: state.expected,
+        refused: state.refusedRequests,
+      }),
+      contentType: "application/json",
+    });
+    expect(state.expected).toEqual([]);
+    expect(state.refusedRequests).toEqual([]);
+  }
+});
+
+async function observe(target: Locator) {
+  return {
+    accessibility: await target.ariaSnapshot(),
+    ...(await target.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const root = node.getRootNode() as ShadowRoot;
+      const hit = root.elementFromPoint(
+        rect.x + rect.width / 2,
+        rect.y + rect.height / 2,
+      );
+      return {
+        rect: rect.toJSON(),
+        viewport: { width: innerWidth, height: innerHeight },
+        reachable: node === hit || node.contains(hit),
+        focused: root.activeElement === node,
+        focusOutline: getComputedStyle(node).outlineStyle,
+        href: node.getAttribute("href"),
+      };
+    })),
+  };
+}
+
+for (const entry of ["double-click", "right-click", "keyboard", "touch"]) {
+  test.describe(entry, () => {
+    test.use({
+      hasTouch: entry === "touch",
+      viewport:
+        entry === "touch"
+          ? { width: 390, height: 844 }
+          : { width: 1440, height: 900 },
+    });
+    test(`POST130.${entry}: prepare the same exact Post without a permanent Reply control`, async ({
+      page,
+      browser,
+    }, info) => {
+      info.annotations.push({
+        type: "browser-version",
+        description: browser.version(),
+      });
+      if (entry === "touch")
+        await page.addInitScript(() =>
+          localStorage.setItem(
+            "tsdm.workspace.preferences",
+            JSON.stringify({ schema: 1, textSize: 150 }),
+          ),
+        );
+      const state = await open(page, { strict: true });
+      const opener = page.getByRole("article", {
+        name: "Post 101",
+        exact: true,
+      });
+      const trigger = opener.getByRole("button", {
+        name: "Post 101 actions",
+        exact: true,
+      });
+      const actions = page.getByRole("menu", {
+        name: "Post 101 actions",
+        exact: true,
+      });
+      const reply = actions.getByRole("menuitem", {
+        name: "Reply",
+        exact: true,
+      });
+      const samples: Record<string, unknown> = {};
+      await expect
+        .soft(
+          page.getByRole("article").getByRole("button", { name: /^Reply\b/i }),
+          "no permanent Post Reply control, including in the footer",
+        )
+        .toHaveCount(0, { timeout: 500 });
+      await expect(
+        page.getByRole("button", { name: "Reply to thread", exact: true }),
+      ).toBeVisible();
+      const start = state.requests.length;
+      const location = page.url();
+
+      if (entry === "double-click") {
+        const body = opener.getByText("Original opening body", { exact: true });
+        await body.dblclick({ position: { x: 24, y: 8 } });
+        const selection = await page.evaluate(() => getSelection()?.toString());
+        expect(selection).toBe("Original");
+        samples.wordSelection = selection;
+        expect(state.requests).toHaveLength(start);
+        const rect = (await body.boundingBox())!;
+        state.expected!.push(get(replyURL("101")));
+        await body.dblclick({
+          position: { x: rect.width - 8, y: rect.height / 2 },
+        });
+      } else {
+        if (entry === "right-click") {
+          await opener
+            .getByText("Other author", { exact: true })
+            .click({ button: "right" });
+        } else if (entry === "keyboard") {
+          await trigger.focus();
+          await page.keyboard.press("Enter");
+          await expect(actions).toBeVisible();
+          await page.keyboard.press("Escape");
+          await expect(trigger).toBeFocused();
+          samples.escapeReturn = await observe(trigger);
+          await page.keyboard.press("ArrowDown");
+          await expect(reply).toBeFocused();
+        } else {
+          await trigger.scrollIntoViewIfNeeded();
+          const observed = await observe(trigger);
+          expect(observed.reachable).toBe(true);
+          expect(observed.rect.width).toBeGreaterThanOrEqual(44);
+          expect(observed.rect.height).toBeGreaterThanOrEqual(44);
+          samples.touchTrigger = observed;
+          await trigger.tap();
+        }
+        await expect(actions).toBeVisible();
+        const menuSample = await observe(actions);
+        const replySample = await observe(reply);
+        samples.menu = menuSample;
+        samples.replyItem = replySample;
+        if (entry === "touch") {
+          expect(replySample.reachable).toBe(true);
+          expect(menuSample.rect.left).toBeGreaterThanOrEqual(0);
+          expect(menuSample.rect.right).toBeLessThanOrEqual(390);
+          expect(menuSample.rect.top).toBeGreaterThanOrEqual(0);
+          expect(menuSample.rect.bottom).toBeLessThanOrEqual(844);
+        }
+        await info.attach("labelled-post-menu.png", {
+          body: await page.screenshot(),
+          contentType: "image/png",
+        });
+        expect(state.requests).toHaveLength(start);
+        state.expected!.push(get(replyURL("101")));
+        if (entry === "keyboard") await page.keyboard.press("Enter");
+        else if (entry === "touch") await reply.tap();
+        else await reply.click();
+      }
+      const strip = page.getByRole("group", {
+        name: "Reply target",
+        exact: true,
+      });
+      const target = strip.getByRole("link", {
+        name: "Addressed to Other author · Post 101",
+        exact: true,
+      });
+      await expect(target).toBeVisible();
+      await expect(target).toHaveAttribute(
+        "href",
+        `${origin}/forum.php?mod=redirect&goto=findpost&ptid=42&pid=101`,
+      );
+      await expect(
+        strip.getByText("Original opening body", { exact: false }),
+      ).toBeVisible();
+      await expect(
+        strip.getByRole("button", { name: "Insert quoted post text" }),
+      ).toBeEnabled();
+      await expect(
+        strip.getByRole("button", { name: "Remove reply target" }),
+      ).toBeVisible();
+      const editor = page.getByRole("textbox", {
+        name: "Visual post content",
+        exact: true,
+      });
+      await expect(editor).toHaveText("");
+      await expect(editor).toBeFocused();
+      await expect(
+        page.getByRole("button", { name: "Send reply", exact: true }),
+      ).toHaveCount(1);
+      expect(page.url()).toBe(location);
+      expect(state.requests.slice(start)).toEqual([get(replyURL("101"))]);
+      samples.target = await observe(target);
+      samples.dock = await strip.ariaSnapshot();
+      samples.editor = await observe(editor);
+      await info.attach("target-and-focus.json", {
+        body: JSON.stringify(samples, null, 2),
+        contentType: "application/json",
+      });
+    });
+  });
+}
+
+test("POST130.native-content: image, selection and interactive content keep their gestures", async ({
+  page,
+  browser,
+}, info) => {
+  info.annotations.push({
+    type: "browser-version",
+    description: browser.version(),
+  });
+  const state = await open(page, { strict: true, interactiveContent: true });
+  const image = page.getByRole("img", {
+    name: "Post sample image",
+    exact: true,
+  });
+  await expect
+    .poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth))
+    .toBeGreaterThan(0);
+  const start = state.requests.length;
+  const menu = page.getByRole("menu", {
+    name: "Post 101 actions",
+    exact: true,
+  });
+  await image.dblclick();
+  await image.click({ button: "right" });
+  await expect.soft(menu).toBeHidden({ timeout: 500 });
+  await page.keyboard.press("Escape");
+  const text = page.getByText("Original opening body", { exact: true });
+  await text.dblclick({ position: { x: 24, y: 8 } });
+  await text.click({ button: "right", position: { x: 24, y: 8 } });
+  await expect.soft(menu).toBeHidden({ timeout: 500 });
+  const selection = await page.evaluate(() => getSelection()?.toString());
+  expect(selection).toBe("Original");
+  await page.keyboard.press("Escape");
+  const disclosure = page.getByText("Post disclosure", { exact: true });
+  await disclosure.click();
+  await expect(disclosure.locator("..")).toHaveAttribute("open", "");
+  await disclosure.click({ button: "right" });
+  await expect.soft(menu).toBeHidden({ timeout: 500 });
+  await page.keyboard.press("Escape");
+  const code = page.getByRole("region", {
+    name: "Scrollable code",
+    exact: true,
+  });
+  const box = (await code.boundingBox())!;
+  await code.dblclick({ position: { x: box.width - 8, y: box.height / 2 } });
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  expect(state.requests.slice(start)).toEqual([]);
+  await expect(
+    page.getByRole("group", { name: "Reply target", exact: true }),
+  ).toHaveCount(0);
+  await info.attach("native-content.json", {
+    body: JSON.stringify({
+      selection,
+      image: await observe(image),
+      disclosure: await observe(disclosure),
+      code: await observe(code),
+    }),
+    contentType: "application/json",
   });
 });
 test("UX101.menu: pointer and keyboard share truthful menu with native filter context", async ({
@@ -178,7 +493,8 @@ test("UX101.menu: pointer and keyboard share truthful menu with native filter co
 test("UX101.retarget: same-thread target and removal preserve authored quotes and local attachment selections", async ({
   page,
 }) => {
-  const state = await open(page);
+  const state = await open(page, { strict: true });
+  state.expected!.push(get(replyURL("101")));
   await (
     await menu(page)
   )
@@ -197,6 +513,14 @@ test("UX101.retarget: same-thread target and removal preserve authored quotes an
     buffer: Buffer.from("selected bytes"),
   });
   await expect(page.getByText(/retained.txt/).first()).toBeVisible();
+  const signature = page.getByRole("checkbox", {
+    name: "Signature",
+    exact: true,
+  });
+  await revealWritingOptions(page);
+  await signature.uncheck();
+  await page.keyboard.press("Escape");
+  state.expected!.push(get(replyURL("202")));
   await (
     await menu(page, "202")
   )
@@ -205,8 +529,16 @@ test("UX101.retarget: same-thread target and removal preserve authored quotes an
   const strip = page.getByRole("group", { name: "Reply target", exact: true });
   await expect(strip).toContainText("Writer Seven");
   await expect(strip).toContainText("Owned reply");
+  await expect(strip.getByRole("link")).toHaveAttribute(
+    "href",
+    `${origin}/forum.php?mod=redirect&goto=findpost&ptid=42&pid=202`,
+  );
   await expect(editor).toHaveValue(body);
   await expect(page.getByText(/retained.txt/).first()).toBeVisible();
+  await revealWritingOptions(page);
+  await expect(signature).not.toBeChecked();
+  await page.keyboard.press("Escape");
+  state.expected!.push(get(replyURL()));
   await strip
     .getByRole("button", { name: "Remove reply target", exact: true })
     .click();
@@ -216,6 +548,8 @@ test("UX101.retarget: same-thread target and removal preserve authored quotes an
     page.getByRole("group", { name: "Writing destination", exact: true }),
   ).toContainText("Reply to thread");
   await expect(page.getByText(/retained.txt/).first()).toBeVisible();
+  await revealWritingOptions(page);
+  await expect(signature).not.toBeChecked();
   expect(state.requests.filter((r) => r.method !== "GET")).toEqual([]);
   expect(
     state.requests.some(
@@ -554,11 +888,9 @@ test("UX101.review-race: retarget cancels Send and late preparation cannot dispa
 test("UX101.literal-quote: BBCode-looking visible text stays literal and cannot silently become attachment or formatting authority", async ({
   page,
 }) => {
-  const state = await open(
-    page,
-    false,
-    "Literal [attach]999[/attach] and [b]printed syntax[/b]",
-  );
+  const state = await open(page, {
+    postBody: "Literal [attach]999[/attach] and [b]printed syntax[/b]",
+  });
   await (
     await menu(page)
   )

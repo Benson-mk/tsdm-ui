@@ -144,9 +144,11 @@ test("DESIGN.chrome: quiet controls, compact taxonomy, rounded list selection an
     .soft((await style(page, ".conversation-heading .context-kind")).size)
     .toBe(12);
   expect.soft((await style(page, ".history-controls")).height).toBe(0);
-  expect.soft((await style(page, ".post-actions button")).size).toBe(14);
   expect
-    .soft((await style(page, ".post-actions button")).background)
+    .soft((await style(page, "#pid102 .post-actions button")).size)
+    .toBe(14);
+  expect
+    .soft((await style(page, "#pid102 .post-actions button")).background)
     .toBe("rgba(0, 0, 0, 0)");
   await expect.soft(page.locator("#pid101 .avatar")).toBeVisible();
   expect
@@ -269,7 +271,7 @@ for (const [width, theme, textSize, language] of [
     for (const [client, scroll] of widths)
       expect(scroll).toBeLessThanOrEqual(client! + 1);
     expect(
-      (await style(page, ".post-actions button")).height,
+      (await style(page, ".post-menu-trigger")).height,
     ).toBeGreaterThanOrEqual(44);
     await capture(page, info, "appearance");
   });

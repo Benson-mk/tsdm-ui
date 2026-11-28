@@ -84,6 +84,29 @@ export async function openThreadMore(page: Page) {
   await expect(menu).toBeVisible();
   return menu;
 }
+
+export async function preparePostReply(
+  page: Page,
+  postId?: string,
+  via: "pointer" | "keyboard" = "pointer",
+) {
+  const id = postId ?? "[0-9]+";
+  const label = new RegExp(`^(Post ${id} actions|帖子 ${id} 操作)$`);
+  const trigger = page.getByRole("button", { name: label }).first();
+  const reply = page
+    .getByRole("menu", { name: label })
+    .getByRole("menuitem", { name: /^(Reply|回复|回覆)$/ });
+  if (via === "keyboard") {
+    await trigger.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(reply).toBeFocused();
+    await page.keyboard.press("Enter");
+  } else {
+    await trigger.click();
+    await reply.click();
+  }
+}
+
 export async function clickThreadTool(
   page: Page,
   name: "Back" | "Refresh thread" | "Save thread",

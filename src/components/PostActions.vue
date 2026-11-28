@@ -47,13 +47,46 @@ const open = ref(false);
 const trigger = ref<InstanceType<typeof DropdownMenuTrigger> | null>(null);
 const boundary = ref<HTMLElement | null>(null);
 const outside = ref(false);
-function openMenu(event: MouseEvent) {
+function gestureTarget(event: MouseEvent) {
+  const target = event.target;
   if (
-    (event.target as Element).closest(
-      'a, button, input, textarea, select, [contenteditable="true"]',
+    event.defaultPrevented ||
+    !(target instanceof Element) ||
+    target.closest(
+      'a, button, input, textarea, select, summary, [role="button"], [contenteditable], [tabindex="0"], img, video, audio, iframe',
     )
   )
-    return;
+    return null;
+  return target;
+}
+function hitsRange(event: MouseEvent, range: Range) {
+  return Array.from(range.getClientRects()).some(
+    (rect) =>
+      event.clientX >= rect.left &&
+      event.clientX <= rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY <= rect.bottom,
+  );
+}
+function onSelection(event: MouseEvent, target: Element) {
+  const selection = window.getSelection();
+  if (!selection?.toString()) return false;
+  const root = target.getRootNode();
+  const selected = selection.getComposedRanges?.({
+    shadowRoots: root instanceof ShadowRoot ? [root] : [],
+  })[0];
+  if (!selected)
+    return (
+      selection.rangeCount > 0 && hitsRange(event, selection.getRangeAt(0))
+    );
+  const range = document.createRange();
+  range.setStart(selected.startContainer, selected.startOffset);
+  range.setEnd(selected.endContainer, selected.endOffset);
+  return hitsRange(event, range);
+}
+function openMenu(event: MouseEvent) {
+  const target = gestureTarget(event);
+  if (!target || onSelection(event, target)) return;
   event.preventDefault();
   open.value = true;
 }
@@ -101,31 +134,15 @@ function reply() {
   });
 }
 function emptyDoubleClick(event: MouseEvent) {
-  const target = event.target;
-  if (
-    !(target instanceof Element) ||
-    event.button !== 0 ||
-    target.closest(
-      'a, button, input, textarea, select, summary, [role="button"], [contenteditable], img, video, audio, iframe',
-    )
-  )
-    return;
+  const target = gestureTarget(event);
+  if (!target || event.button !== 0 || !props.boardId) return;
   // Element bounds include trailing whitespace. Inspect actual rendered text
   // rectangles so browser word selection keeps priority, including nested markup.
   const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const range = document.createRange();
     range.selectNodeContents(node);
-    if (
-      Array.from(range.getClientRects()).some(
-        (rect) =>
-          event.clientX >= rect.left &&
-          event.clientX <= rect.right &&
-          event.clientY >= rect.top &&
-          event.clientY <= rect.bottom,
-      )
-    )
-      return;
+    if (hitsRange(event, range)) return;
   }
   event.preventDefault();
   reply();

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { preparePostReply } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
@@ -287,10 +288,7 @@ test("UI83.retention: Settings preserves reader, addressed source selection and 
 }, info) => {
   await page.setViewportSize({ width: 375, height: 844 });
   const ledger = await open(page, threadURL);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   const source = page.getByLabel("Complete source", { exact: true });
   await source.fill("Original addressed source 中文");
   await source.press("End");

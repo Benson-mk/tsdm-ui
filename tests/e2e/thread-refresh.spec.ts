@@ -1,6 +1,10 @@
 import { compactReplyBesideReader } from "./editor-controls";
 import { selectSourceEditor } from "./editor-controls";
-import { expectThreadCheckMode, openThreadMore } from "./navigation-ui";
+import {
+  expectThreadCheckMode,
+  openThreadMore,
+  preparePostReply,
+} from "./navigation-ui";
 import { setAutomaticChecks } from "./navigation-ui";
 import { openThreadPages, loadThreadRange } from "./navigation-ui";
 import { clickThreadTool } from "./navigation-ui";
@@ -1117,7 +1121,7 @@ async function atContentEnd(page: Page, distance: number) {
 }
 for (const height of [700, 500])
   for (const distance of [64, 65]) {
-    test(`F79.public-actions-follow-${height}-${distance}: content endpoint preserves exact follow boundary, repeated arrivals and trailing actions`, async ({
+    test(`F79.public-actions-follow-${height}-${distance}: content endpoint preserves exact follow boundary, repeated arrivals and reachable Post actions`, async ({
       page,
     }, info) => {
       let arrivals = 0;
@@ -1158,7 +1162,10 @@ for (const height of [700, 500])
         await expect(
           page.getByRole("button", { name: /^New replies/ }),
         ).toHaveCount(0);
-        const action = page.locator("#pid204 .post-actions button").first();
+        const action = page.getByRole("button", {
+          name: "Post 204 actions",
+          exact: true,
+        });
         await action.scrollIntoViewIfNeeded();
         const reachable = await action.evaluate((node) => {
           const r = node.getBoundingClientRect(),
@@ -1371,10 +1378,7 @@ test("F79.public-context-review: populated board through loaded range and addres
     "pid106",
     "pid107",
   ]);
-  await page
-    .locator("#pid106")
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .click();
+  await preparePostReply(page, "106");
   const editor = page.getByRole("textbox", {
     name: "Complete source",
     exact: true,

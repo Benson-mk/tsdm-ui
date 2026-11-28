@@ -10,7 +10,7 @@ import {
 } from "./editor-controls";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { openNewThread } from "./navigation-ui";
+import { openNewThread, preparePostReply } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -93,15 +93,15 @@ async function open(
 async function enter(page: Page, entry: Entry) {
   if (entry === "new-thread") {
     await openNewThread(page);
+  } else if (entry === "addressed") {
+    await preparePostReply(page, "101");
   } else
     await page
       .getByRole("button", {
         name:
           entry === "reply"
             ? "Reply to thread"
-            : entry === "addressed"
-              ? "Reply to this post"
-              : `Edit post ${entry === "edit-opening" ? "101" : "202"}`,
+            : `Edit post ${entry === "edit-opening" ? "101" : "202"}`,
         exact: true,
       })
       .first()
@@ -163,7 +163,6 @@ for (const [
   textSize,
   theme,
   language,
-  label,
   bodyLabel,
   destination,
   reviewDestination,
@@ -174,40 +173,18 @@ for (const [
     100,
     "light",
     "en",
-    "Reply to this post",
     "Complete source",
     "Writing destination",
     "Review destination",
   ],
-  [
-    390,
-    844,
-    150,
-    "dark",
-    "zh-CN",
-    "回复这篇帖子",
-    "完整源码",
-    "写作目标",
-    "审阅目标",
-  ],
-  [
-    768,
-    900,
-    70,
-    "mono",
-    "zh-TW",
-    "回覆這篇帖子",
-    "完整原始碼",
-    "寫作目標",
-    "檢閱目標",
-  ],
+  [390, 844, 150, "dark", "zh-CN", "完整源码", "写作目标", "审阅目标"],
+  [768, 900, 70, "mono", "zh-TW", "完整原始碼", "寫作目標", "檢閱目標"],
   [
     1440,
     900,
     150,
     "alias",
     "en",
-    "Reply to this post",
     "Complete source",
     "Writing destination",
     "Review destination",
@@ -229,11 +206,7 @@ for (const [
     // omits an unsupported interactive native attachment control while keeping
     // the complete authored source, including its literal attachment reference.
     const state = await open(page, false, false);
-    const action = page
-      .locator("#pid101")
-      .getByRole("button", { name: label, exact: true });
-    await action.focus();
-    await page.keyboard.press("Enter");
+    await preparePostReply(page, "101", "keyboard");
     await expect(
       page.locator('[role="textbox"][contenteditable="true"]'),
     ).toBeFocused();

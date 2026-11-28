@@ -4,7 +4,11 @@ import {
   chooseAttachments,
 } from "./editor-controls";
 import { writingDetailAction, writingTool } from "./editor-controls";
-import { clickBoardTool, clickThreadTool } from "./navigation-ui";
+import {
+  clickBoardTool,
+  clickThreadTool,
+  preparePostReply,
+} from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
@@ -253,19 +257,19 @@ async function fixture(
       ? `${origin}/forum.php?mod=forumdisplay&fid=5`
       : thread,
   );
-  await page
-    .getByRole("button", {
-      name:
-        context === "edit"
-          ? `Edit post ${editPostId}`
-          : context === "new-thread"
-            ? "New thread"
-            : context === "reply"
-              ? "Reply to thread"
-              : "Reply to this post",
-      exact: true,
-    })
-    .click();
+  if (context === "quote") await preparePostReply(page, "101");
+  else
+    await page
+      .getByRole("button", {
+        name:
+          context === "edit"
+            ? `Edit post ${editPostId}`
+            : context === "new-thread"
+              ? "New thread"
+              : "Reply to thread",
+        exact: true,
+      })
+      .click();
   await selectSourceEditor(page);
   return state;
 }

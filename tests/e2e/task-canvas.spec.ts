@@ -13,6 +13,7 @@ import {
   selectSourceEditor,
   writingDetailAction,
 } from "./editor-controls";
+import { preparePostReply } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const forum = `${origin}/forum.php`;
@@ -329,7 +330,7 @@ test("CANVAS128.search: exact result, labelled return and reflowed Board/Reader 
     `${forum}?mod=post&action=reply&fid=5&tid=42&tsdmapp=json&reppost=102`,
     replyForm,
   );
-  await post.getByRole("button", { name: "Reply to this post" }).click();
+  await preparePostReply(page, "102");
   const source = await selectSourceEditor(page);
   const parked = "[b]Park exact reply 原文[/b]";
   await source.fill(parked);

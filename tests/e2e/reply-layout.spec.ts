@@ -7,7 +7,7 @@ import { readableLines, expectPreservedReadingLine } from "./readable-lines";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { openNewThread } from "./navigation-ui";
+import { openNewThread, preparePostReply } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const threadURL = `${origin}/forum.php?mod=viewthread&tid=42`;
@@ -101,15 +101,15 @@ async function open(
 async function enter(page: Page, entry: Entry) {
   if (entry === "new-thread") {
     await openNewThread(page);
+  } else if (entry === "addressed") {
+    await preparePostReply(page, "101");
   } else
     await page
       .getByRole("button", {
         name:
           entry === "reply"
             ? "Reply to thread"
-            : entry === "addressed"
-              ? "Reply to this post"
-              : `Edit post ${entry === "edit-opening" ? "101" : "202"}`,
+            : `Edit post ${entry === "edit-opening" ? "101" : "202"}`,
         exact: true,
       })
       .first()

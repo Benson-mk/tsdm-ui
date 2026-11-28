@@ -7,7 +7,7 @@ import type { ReplyRow } from "../../src/workspace/reply-recovery";
 import { selectSourceEditor } from "./editor-controls";
 import { revealWritingTools, revealWritingDetails } from "./editor-controls";
 import { writingTool } from "./editor-controls";
-import { clickThreadTool } from "./navigation-ui";
+import { clickThreadTool, preparePostReply } from "./navigation-ui";
 import { openSettings } from "./navigation-ui";
 import { revealAdvanced } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
@@ -296,12 +296,12 @@ test("J4.quote-target: authored quote blocks survive general and addressed retar
   page,
 }, info) => {
   const state = await fixture(page);
-  await page
-    .getByRole("article", { name: "Post 101", exact: true })
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .click();
+  await preparePostReply(page, "101");
   await expect(
-    page.getByText("Addressed to Other author · Post 101", { exact: true }),
+    page.getByRole("link", {
+      name: "Addressed to Other author · Post 101",
+      exact: true,
+    }),
   ).toBeVisible();
   await (await selectSourceEditor(page)).fill(source);
   await compactReplyBesideReader(page);
@@ -312,10 +312,7 @@ test("J4.quote-target: authored quote blocks survive general and addressed retar
   await expect(page.getByLabel("Complete source", { exact: true })).toHaveValue(
     source,
   );
-  await page
-    .getByRole("article", { name: "Post 101", exact: true })
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .click();
+  await preparePostReply(page, "101");
   await expect(
     page.getByRole("group", { name: "Reply target", exact: true }),
   ).toContainText("Other author");
@@ -690,11 +687,7 @@ for (const mismatch of ["wrong-post", "populated-trim", "ordinary-addressed"])
       await page
         .getByRole("button", { name: "Reply to thread", exact: true })
         .click();
-    else
-      await page
-        .getByRole("article", { name: "Post 101", exact: true })
-        .getByRole("button", { name: "Reply to this post", exact: true })
-        .click();
+    else await preparePostReply(page, "101");
     await expect(
       page.getByText(
         mismatch === "ordinary-addressed"
@@ -999,13 +992,13 @@ test("J4.reply-mention-context: retargeting writing while lookup is pending clea
     )
     .toBe(true);
   await compactReplyBesideReader(page);
-  await page
-    .getByRole("article", { name: "Post 101", exact: true })
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .click();
+  await preparePostReply(page, "101");
 
   await expect(
-    page.getByText("Addressed to Other author · Post 101", { exact: true }),
+    page.getByRole("link", {
+      name: "Addressed to Other author · Post 101",
+      exact: true,
+    }),
   ).toBeVisible();
   release();
   state.mentionGate = null;
@@ -1047,10 +1040,7 @@ async function readySupplement(page: Page) {
   const state = await fixture(page);
   state.priorSource = supplementBefore;
   state.people = [{ uid: 7, username: "Writer 7" }];
-  await page
-    .getByRole("article", { name: "Post 101", exact: true })
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .click();
+  await preparePostReply(page, "101");
   await (
     await selectSourceEditor(page)
   ).fill("[quote]Additional own source[/quote]\nLiteral @Writer 7 stays. ");
@@ -1325,11 +1315,7 @@ for (const locale of [
       page,
     }, info) => {
       const state = await fixture(page);
-      if (addressed)
-        await page
-          .getByRole("article", { name: "Post 101", exact: true })
-          .getByRole("button", { name: "Reply to this post", exact: true })
-          .click();
+      if (addressed) await preparePostReply(page, "101");
       else
         await page
           .getByRole("button", { name: "Reply to thread", exact: true })
@@ -1348,7 +1334,7 @@ for (const locale of [
       await expect(page.locator(".writing-destination")).toContainText("42");
       if (addressed)
         await expect(
-          page.getByText(locale.addressed, { exact: true }),
+          page.getByRole("link", { name: locale.addressed, exact: true }),
         ).toBeVisible();
       expect(state.posts).toHaveLength(0);
       await page
@@ -1372,11 +1358,7 @@ for (const addressed of [false, true])
     page,
   }, info) => {
     const state = await fixture(page);
-    if (addressed)
-      await page
-        .getByRole("article", { name: "Post 101", exact: true })
-        .getByRole("button", { name: "Reply to this post", exact: true })
-        .click();
+    if (addressed) await preparePostReply(page, "101");
     else
       await page
         .getByRole("button", { name: "Reply to thread", exact: true })
@@ -1514,11 +1496,7 @@ async function dormantSnapshotJourney(page: Page, merged: boolean) {
       '<div id="e_attachlist"><input type="hidden" name="attachupdate[77]" value=""><input name="attachnew[77][description]" value="Retained image"><select name="attachnew[77][readperm]"><option value="0" selected>Everyone</option></select><input name="attachnew[77][price]" value="0"></div>'
     );
   };
-  if (merged)
-    await page
-      .getByRole("article", { name: "Post 101", exact: true })
-      .getByRole("button", { name: "Reply to this post", exact: true })
-      .click();
+  if (merged) await preparePostReply(page, "101");
   else
     await page
       .getByRole("button", { name: "Reply to thread", exact: true })

@@ -11,6 +11,7 @@ import {
   clickThreadTool,
   loadThreadRange,
   openThreadMore,
+  preparePostReply,
 } from "./navigation-ui";
 import {
   revealWritingOptions,
@@ -350,9 +351,7 @@ test("J124.combined: choose a Board, keep independent positions, switch destinat
   const first = post(page, 4202);
   const second = post(page, 4302);
   await expect(first).toBeFocused();
-  await post(page, 4201)
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .click();
+  await preparePostReply(page, "4201");
   const source = await selectSourceEditor(page);
   const retained = "[b]完整保留 this addressed reply[/b]";
   await source.fill(retained);

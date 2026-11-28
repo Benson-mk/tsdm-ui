@@ -6,7 +6,11 @@ import { waitForReplySaved } from "./editor-controls";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { selectSourceEditor, revealWritingDetails } from "./editor-controls";
-import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  preparePostReply,
+} from "./navigation-ui";
 import {
   origin,
   boardURL,
@@ -568,9 +572,7 @@ test("UX111.target-navigation: post target and options remain immutable while ne
   page,
 }) => {
   const fixture = await open(page);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .click();
+  await preparePostReply(page);
   const source = await selectSourceEditor(page);
   await source.fill("Original post-target submission");
   await revealWritingOptions(page);
@@ -1351,9 +1353,7 @@ test("UX111.blank-intent-edit: empty newer source still preserves changed target
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.getByText("Reply rejected", { exact: true })).toBeVisible();
   await expect(source).toHaveValue("");
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .click();
+  await preparePostReply(page);
   await revealWritingOptions(page);
   await page.getByLabel("Signature", { exact: true }).uncheck();
   await chooseAttachments(page, {

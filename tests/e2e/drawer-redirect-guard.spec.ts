@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { withRedirectFixture } from "../http-redirect-fixture";
+import { preparePostReply } from "./navigation-ui";
 
 const origin = "https://www.tsdm39.com";
 const boardURL = `${origin}/forum.php?mod=forumdisplay&fid=5`;
@@ -38,9 +39,7 @@ for (const [name, query, target, guarded] of [
       },
       async (page, reads, redirects) => {
         await page.goto(threadURL);
-        await page
-          .getByRole("button", { name: "Reply to this post", exact: true })
-          .click();
+        await preparePostReply(page, "100");
         const source = "[unknown=x]Original addressed source 中文[/unknown]";
         await page.getByLabel("Complete source", { exact: true }).fill(source);
         const original = await page.evaluate(

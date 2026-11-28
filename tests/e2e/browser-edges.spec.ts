@@ -5,7 +5,11 @@ import {
   revealWritingDetails,
   selectSourceEditor,
 } from "./editor-controls";
-import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  preparePostReply,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -93,10 +97,7 @@ test("UI92.external-edges: wide reading and writing protect only exposed lateral
     insets: { top: 24, left: 42, right: 48, bottom: 12, bottomMax: 40 },
   });
   const requests = await open(page, threadURL);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   const source = await selectSourceEditor(page);
   await source.fill("Exact [quote]edge source[/quote]");
   await page
@@ -193,10 +194,7 @@ test("UI92.browsing-edges: unselected results own the outside right edge and com
   await page
     .getByRole("link", { name: "Complete listening title 0 音樂", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   await (await selectSourceEditor(page)).fill("Resume preserved source");
   await compactReplyBesideReader(page);
   const geometry = await page
@@ -329,10 +327,7 @@ test("UI92.short-review: keyboard-height writing preserves exact source selectio
     insets: { top: 24, left: 0, right: 0, bottomMax: 36 },
   });
   const requests = await open(page, threadURL);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   const source = await selectSourceEditor(page);
   await source.fill("Exact [quote]retained short source[/quote]");
   await source.evaluate((node: HTMLTextAreaElement) =>
@@ -578,10 +573,7 @@ for (const [width, height, inset] of [
         exact: true,
       })
       .click();
-    await page
-      .getByRole("button", { name: "Reply to this post", exact: true })
-      .first()
-      .click();
+    await preparePostReply(page);
     const source = await selectSourceEditor(page);
     await source.fill("Retained original 中文 source");
     await source.evaluate((node: HTMLTextAreaElement) =>
@@ -688,7 +680,7 @@ for (const [width, height, inset] of [
     await cdp.detach();
   });
 
-test("UI92.wide-bottom: the wide reader protects its final post action independently of the adjacent writer", async ({
+test("UI92.wide-bottom: the wide reader protects its final Post body independently of the adjacent writer", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1706, height: 900 });
@@ -697,10 +689,7 @@ test("UI92.wide-bottom: the wide reader protects its final post action independe
     insets: { bottom: 12, bottomMax: 40 },
   });
   await open(page, threadURL);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();
@@ -719,10 +708,8 @@ test("UI92.wide-bottom: the wide reader protects its final post action independe
     "true",
   );
   await reader.evaluate((node) => (node.scrollTop = node.scrollHeight));
-  const action = reader
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .last();
-  const box = (await action.boundingBox())!;
+  const finalContent = reader.locator("article .post-content").last();
+  const box = (await finalContent.boundingBox())!;
   await info.attach("wide-reader-bottom.json", {
     body: JSON.stringify({ box, reader: await reader.boundingBox() }),
     contentType: "application/json",
@@ -790,10 +777,7 @@ test("UI92.restored-short-history: a truthful restored snapshot leaves useful ac
   await page
     .getByRole("link", { name: "Complete listening title 0 音樂", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   const source = await selectSourceEditor(page);
   await source.fill("Retained exact recovered source 中文");
   await compactReplyBesideReader(page);
@@ -929,10 +913,7 @@ for (const expanded of [false, true])
       insets: { top: 24, left: 0, right: 0, bottom: 34, bottomMax: 34 },
     });
     const requests = await open(page, threadURL);
-    await page
-      .getByRole("button", { name: "Reply to this post", exact: true })
-      .first()
-      .click();
+    await preparePostReply(page);
     const source = await selectSourceEditor(page);
     await source.fill("Exact retained short source 保留內容");
     await page.reload();

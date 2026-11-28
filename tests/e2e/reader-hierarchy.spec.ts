@@ -180,7 +180,7 @@ for (const [width, height, textSize, theme, language] of [
       expect(scroll).toBeLessThanOrEqual(client! + 1);
     await expect(article.locator("header strong")).toHaveText(longAuthor);
     await expect(article.locator("header time")).toHaveText("2026-11-03 12:34");
-    await expect(article.locator(".post-actions")).toBeVisible();
+    await expect(article.locator(".post-menu-trigger")).toBeVisible();
     expect(
       await article
         .locator("header strong")
@@ -224,7 +224,7 @@ for (const [width, height, textSize, theme, language] of [
     await expect(
       article.getByText("Read permission 20 required.", { exact: true }),
     ).toBeVisible();
-    await article.locator(".post-actions").scrollIntoViewIfNeeded();
+    await article.locator(".post-menu-trigger").scrollIntoViewIfNeeded();
     await paint(page);
     await info.attach("post-actions.png", {
       body: await page.screenshot(),

@@ -1,6 +1,10 @@
 import { writingDetailAction } from "./editor-controls";
 import { selectSourceEditor } from "./editor-controls";
-import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
+import {
+  openSettings,
+  closeSettingsToWorkspace,
+  preparePostReply,
+} from "./navigation-ui";
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -112,10 +116,7 @@ test("IM74.viewport-pan: reduced and panned scale-one viewport sizes the real sh
   await page.setViewportSize({ width: 900, height: 900 });
   await simulatedViewport(page);
   const ledger = await open(page, threadURL);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   const source = await selectSourceEditor(page);
   await source.fill("Retained [quote]exact target[/quote]");
   await source.evaluate((node: HTMLTextAreaElement) =>
@@ -209,10 +210,7 @@ test("IM74.pinch-orientation: real page scale preserves the layout and genuine o
 }, info) => {
   await page.setViewportSize({ width: 1000, height: 900 });
   await open(page, threadURL);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   const source = await selectSourceEditor(page);
   await source.fill("Orientation preserves addressed writing");
   const identity = await source.elementHandle();
@@ -524,10 +522,7 @@ test("IM74.continuity: repeated viewport cycles preserve browser composition, un
   await page
     .getByRole("link", { name: "Complete listening title 0 音樂", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();
@@ -622,10 +617,7 @@ test("IM74.extremely-short: bounded writer scrolling exposes protected source, v
   await page.setViewportSize({ width: 812, height: 600 });
   await simulatedViewport(page);
   const ledger = await open(page, threadURL);
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page);
   await page
     .getByRole("button", { name: "Expand writing", exact: true })
     .click();

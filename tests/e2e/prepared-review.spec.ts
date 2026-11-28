@@ -5,6 +5,7 @@ import {
   clickBoardTool,
   clickThreadTool,
   openNewThread,
+  preparePostReply,
 } from "./navigation-ui";
 import { openSettings, closeSettingsToWorkspace } from "./navigation-ui";
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
@@ -137,15 +138,15 @@ async function fixture(
   }
   if (entry === "new-thread") {
     await openNewThread(page);
+  } else if (entry === "addressed") {
+    await preparePostReply(page, "101");
   } else
     await page
       .getByRole("button", {
         name:
           entry === "reply"
             ? "Reply to thread"
-            : entry === "addressed"
-              ? "Reply to this post"
-              : `Edit post ${entry === "edit-reply" ? "202" : "101"}`,
+            : `Edit post ${entry === "edit-reply" ? "202" : "101"}`,
         exact: true,
       })
       .first()
@@ -260,10 +261,7 @@ test("UX62.mixed-journey: filtered directory and populated board return through 
       .toBeGreaterThan(0);
   }
   await expect(reader).toContainText("Read permission remains withheld.");
-  await page
-    .locator("#pid101")
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .click();
+  await preparePostReply(page, "101");
   await selectSourceEditor(page);
   const source = page.getByLabel("Complete source", { exact: true });
   const replyBody = body.replace(" [attach]77[/attach]", "");
@@ -1099,10 +1097,7 @@ test("UX59.invalidate-target: same-thread retarget revokes delayed Send before p
   await page
     .getByRole("button", { name: "Return to reading", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Reply to this post", exact: true })
-    .first()
-    .click();
+  await preparePostReply(page, "101");
   f.formGate = null;
   release();
   await expect(
