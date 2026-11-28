@@ -1970,6 +1970,34 @@ export function createWorkspace(
     show(entry);
     void persist();
   }
+  function openRetainedBoardResults() {
+    if (writing.deferViewChange(openRetainedBoardResults)) return;
+    const current = entryFor(state.value.key);
+    const visited = new Set<string>();
+    let retained = current;
+    while (retained && !visited.has(retained.key)) {
+      visited.add(retained.key);
+      if (
+        retained.result?.kind === "board" &&
+        (knownAccount === null || retained.account === knownAccount)
+      ) {
+        clearDownload();
+        ++sequence;
+        capture();
+        const entry = newEntry(retained.destination, current?.key ?? null);
+        entry.section = "boards";
+        entry.result = retained.result;
+        entry.account = retained.account;
+        entry.position = retained.position;
+        entry.selection = retained.selection;
+        host.push(entry.key);
+        show(entry, true);
+        void persist();
+        return;
+      }
+      retained = retained.originKey ? entryFor(retained.originKey) : undefined;
+    }
+  }
   return {
     report: readonly(report),
     openReport,
@@ -2078,6 +2106,7 @@ export function createWorkspace(
     discardReply,
     replyResolution: readonly(replyResolution),
     openThread,
+    openRetainedBoardResults,
     jumpLatest,
     refresh,
     updateAnchor,

@@ -36,6 +36,7 @@ function changeOpen(value: boolean) {
   };
   if (!props.workspace.writing.deferViewChange(change)) change();
 }
+defineExpose({ show: () => changeOpen(true) });
 const text = computed(() => strings(state.value.language));
 const themes = ["light", "alias", "mono", "dark"] as const;
 function language(event: Event) {
